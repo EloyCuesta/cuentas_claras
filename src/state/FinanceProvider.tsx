@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { todayISO } from '../domain/dates.ts'
 import { generationHorizon } from '../domain/recurring.ts'
 import type { FinanceData, ISODate } from '../domain/types.ts'
+import { ServerUnavailableError } from '../services/apiClient.ts'
 import type { FinanceRepository } from '../storage/FinanceRepository.ts'
 import { FinanceContext, type FinanceActions, type FinanceContextValue } from './financeContext.ts'
 import { describeStorageError } from './storageErrors.ts'
 import { notifyOtherTabs, onOtherTabChange } from './tabSync.ts'
+import { useToast, type ToastTone } from './toastContext.ts'
 
 type LoadState =
   | { status: 'loading' }
@@ -58,8 +60,11 @@ export function FinanceProvider({
       },
       (error: unknown) => {
         // Sin servidor no se puede abrir nada: se reintenta junto con la carga.
-        prepared.current = null
-        if (error instanceof ServerUnavailableError) throw error
+        if (error instanceof ServerUnavailableError) {
+          prepared.current = null
+          throw error
+        }
+        // Cualquier otro fallo se avisa una vez y la app se abre igualmente (los datos siguen en el navegador).
         notify(`No se han podido pasar a la base de datos los datos de este navegador: ${describeStorageError(error)}`, 'error')
       },
     )
@@ -169,10 +174,7 @@ export function FinanceProvider({
         <div className="splash__card" role="alert">
           <h1>No se pueden abrir los datos</h1>
           {state.status === 'error' && <p>{state.message}</p>}
-          <p>
-            Tus datos se guardan en el almacenamiento de este navegador. Prueba a recargar la página o a abrir la
-            aplicación en otro navegador.
-          </p>
+          <p>Tus datos se guardan en una base de datos SQLite de este equipo, que gestiona el servidor de la aplicación.</p>
           <button type="button" className="btn btn--primary" onClick={() => void start()}>
             Reintentar
           </button>

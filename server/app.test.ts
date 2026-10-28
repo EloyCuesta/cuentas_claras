@@ -12,6 +12,12 @@ import { removeTempDbs, tempDbPath } from './test-helpers.ts'
 
 /** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch. */
 
+interface ApiBody {
+  ok: boolean
+  data?: unknown
+  error?: { code: string; message: string }
+}
+
 const running: { server: Server; repository: SqliteFinanceRepository }[] = []
 
 async function startApi({ path = tempDbPath(), testMode = false } = {}) {
@@ -28,7 +34,7 @@ async function startApi({ path = tempDbPath(), testMode = false } = {}) {
       headers: body !== undefined || rawBody !== undefined ? { 'Content-Type': 'application/json' } : undefined,
       body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
     })
-    return { status: response.status, body: await response.json() }
+    return { status: response.status, body: (await response.json()) as ApiBody }
   }
   const stop = async () => {
     server.close()
@@ -86,10 +92,10 @@ describe('API', () => {
 
     const missing = await call('PUT', `/movements/${expense.id}`, { ...expense, concept: '' })
     expect(missing).toEqual({ status: 400, body: { ok: false, error: { code: 'VALIDATION', message: 'El movimiento: el campo «concept» está vacío.' } } })
-    expect((await call('PUT', '/movements/otro-id', expense)).body.error.message).toMatch(/no coincide/)
+    expect((await call('PUT', '/movements/otro-id', expense)).body.error?.message).toMatch(/no coincide/)
     expect((await call('PUT', `/movements/${expense.id}`, undefined, '{"roto"')).status).toBe(400)
     expect((await call('PUT', `/movements/${expense.id}`, { ...expense, amountCents: 12.5 })).status).toBe(400)
-    expect((await call('PUT', `/movements/${expense.id}`, { ...expense, categoryId: 'no-existe' })).body.error.code).toBe('VALIDATION')
+    expect((await call('PUT', `/movements/${expense.id}`, { ...expense, categoryId: 'no-existe' })).body.error?.code).toBe('VALIDATION')
     expect((await call('POST', '/occurrences/generate', { horizon: '30/11/2026' })).status).toBe(400)
     expect((await dataOf(call)).movements).toEqual([])
   })
@@ -138,7 +144,7 @@ describe('API', () => {
     const broken = { ...data, movements: [movement({ categoryId: 'no-existe' })] }
     const rejected = await call('PUT', '/data', broken)
     expect(rejected.status).toBe(400)
-    expect(rejected.body.error.message).toMatch(/categoría que no existe/)
+    expect(rejected.body.error?.message).toMatch(/categoría que no existe/)
     expect((await dataOf(call)).movements.map((m) => m.concept)).toEqual(['De la copia'])
   })
 

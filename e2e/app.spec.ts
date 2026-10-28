@@ -1,10 +1,18 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
+import type { FinanceData, Movement } from '../src/domain/types.ts'
 
 /**
  * Comprobaciones pedidas, hechas como lo haría una persona: con la interfaz y
- * en un navegador real. Cada prueba empieza con el almacenamiento vacío.
+ * en un navegador real. Los datos van a la base de datos SQLite del servidor de
+ * pruebas (ver playwright.config.ts), que se vacía antes de cada prueba.
  */
+
+test.beforeEach(async ({ request }) => {
+  const reset = await request.post('/api/test/reset')
+  expect(reset.ok()).toBe(true)
+})
 
 /** Importe de una fila de la cuenta del resumen ("Gastos pagados", "Resultado previsto"…). */
 function ledgerValue(page: Page, label: string): Locator {
@@ -28,8 +36,48 @@ async function addExpense(page: Page, { amount, concept, category, pending = fal
   await expect(dialog).toBeHidden()
 }
 
-/** Número de movimientos guardados en IndexedDB (lo que hay de verdad en el navegador). */
-function storedMovements(page: Page): Promise<number> {
+/** Número de movimientos guardados en la base de datos (lo que hay de verdad en el servidor). */
+async function storedMovements(page: Page): Promise<number> {
+  const response = await page.request.get('/api/data')
+  const body = (await response.json()) as { data: FinanceData }
+  return body.data.movements.length
+}
+
+/** Lo que dejaba guardado en el navegador (IndexedDB) la versión anterior de la app. */
+function seedBrowserStorage(page: Page, data: FinanceData): Promise<void> {
+  return page.evaluate(
+    (data) =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open('cuentas-claras', 1)
+        request.onupgradeneeded = () => {
+          const db = request.result
+          db.createObjectStore('categories', { keyPath: 'id' })
+          const movements = db.createObjectStore('movements', { keyPath: 'id' })
+          movements.createIndex('byRecurring', 'recurringId')
+          movements.createIndex('byOccurrence', ['recurringId', 'occurrenceDate'], { unique: true })
+          db.createObjectStore('recurring', { keyPath: 'id' })
+          db.createObjectStore('meta', { keyPath: 'key' })
+        }
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const db = request.result
+          const tx = db.transaction(['categories', 'movements', 'recurring'], 'readwrite')
+          for (const category of data.categories) tx.objectStore('categories').put(category)
+          for (const movement of data.movements) tx.objectStore('movements').put(movement)
+          for (const rule of data.recurring) tx.objectStore('recurring').put(rule)
+          tx.oncomplete = () => {
+            db.close()
+            resolve()
+          }
+          tx.onerror = () => reject(tx.error)
+        }
+      }),
+    data,
+  )
+}
+
+/** Número de movimientos que siguen guardados en el navegador (IndexedDB). */
+function browserStoredMovements(page: Page): Promise<number> {
   return page.evaluate(
     () =>
       new Promise<number>((resolve, reject) => {
@@ -173,7 +221,9 @@ test('exportar y restaurar una copia conserva los datos', async ({ page, browser
   const original = JSON.parse(await readFile(await download.path(), 'utf8'))
   expect(original.data.movements).toHaveLength(2)
 
-  // Otro navegador, vacío: restaurar la copia pide confirmación y deja los mismos datos.
+  // Instalación nueva (base de datos vacía) y otro navegador: restaurar la copia pide
+  // confirmación y deja los mismos datos.
+  expect((await page.request.post('/api/test/reset')).ok()).toBe(true)
   const otherContext = await browser.newContext({ locale: 'es-ES', timezoneId: 'Europe/Madrid' })
   const other = await otherContext.newPage()
   await other.goto('/#ajustes')
@@ -253,4 +303,41 @@ test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálcu
   expect(lines.find((line) => line.startsWith(';Resultado;'))).toMatch(/;95,56;.*;725,67$/)
   // Ver la previsión del año no guarda los vencimientos proyectados.
   expect(await storedMovements(page)).toBe(stored)
+})
+
+test('pasa a la base de datos los datos que había en el navegador y conserva la copia', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Empieza apuntando tu primer gasto' })).toBeVisible()
+
+  // Lo que dejaba guardado en el navegador la versión anterior de la app.
+  const bread: Movement = {
+    id: 'del-navegador',
+    concept: 'Panadería',
+    amountCents: 1250,
+    type: 'gasto',
+    categoryId: 'g-alimentacion-supermercado',
+    status: 'realizado',
+    paidDate: '2026-10-27',
+    dueDate: null,
+    notes: '',
+    recurringId: null,
+    occurrenceDate: null,
+    installmentNumber: null,
+    createdAt: '2026-10-27T09:00:00.000Z',
+    updatedAt: '2026-10-27T09:00:00.000Z',
+  }
+  await seedBrowserStorage(page, { categories: [...DEFAULT_CATEGORIES], movements: [bread], recurring: [] })
+  await page.reload()
+
+  await expect(page.getByText('Se han pasado a la base de datos 1 movimiento y 0 recurrentes que había en este navegador.')).toBeVisible()
+  await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('12,50 €')
+  expect(await storedMovements(page)).toBe(1)
+  // La copia del navegador no se borra.
+  expect(await browserStoredMovements(page)).toBe(1)
+
+  // Al volver a abrir no se importa otra vez ni se duplica nada.
+  await page.reload()
+  await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('12,50 €')
+  expect(await storedMovements(page)).toBe(1)
 })

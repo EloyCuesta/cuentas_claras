@@ -1,22 +1,16 @@
+import { ApiError, ServerUnavailableError } from '../services/apiClient.ts'
+
 /** Traduce los errores del almacenamiento a mensajes que el usuario entienda. */
 export function describeStorageError(error: unknown): string {
-  if (typeof indexedDB === 'undefined') {
-    return 'Este navegador no permite guardar datos (no tiene IndexedDB). Prueba con una versión actual de Chrome, Firefox, Edge o Safari.'
+  if (error instanceof ServerUnavailableError) {
+    return 'No se puede conectar con el servidor de Cuentas claras. Comprueba que está en marcha (npm run dev) y vuelve a intentarlo.'
   }
-  const name = error instanceof Error || error instanceof DOMException ? error.name : ''
-  switch (name) {
-    case 'QuotaExceededError':
-      return 'El navegador no tiene espacio para guardar más datos. Libera espacio en el dispositivo y vuelve a intentarlo.'
-    case 'ConstraintError':
-      return 'Ese vencimiento ya existe, así que no se ha creado otro.'
-    case 'VersionError':
-      return 'Hay una versión más nueva de la aplicación abierta en otra pestaña. Recarga esta página.'
-    case 'ReferenceError':
-    case 'SecurityError':
-    case 'InvalidStateError':
-    case 'UnknownError':
-      return 'Este navegador no permite guardar datos. Puede pasar en modo privado o si has bloqueado los datos de los sitios web.'
+  // Los errores del servidor ya llegan con un mensaje en español.
+  if (error instanceof ApiError) return error.message
+  // IndexedDB (solo se usa para leer los datos de versiones anteriores, que se guardaban en el navegador).
+  if (typeof DOMException !== 'undefined' && error instanceof DOMException) {
+    return 'No se han podido leer los datos guardados en este navegador.'
   }
   if (error instanceof Error && error.message) return error.message
-  return 'No se ha podido acceder a los datos guardados en este navegador.'
+  return 'No se ha podido acceder a los datos.'
 }

@@ -139,7 +139,7 @@ export default function App() {
           </ul>
         </nav>
         <p className="shell__note">
-          Tus datos se guardan solo en este navegador.{' '}
+          Tus datos se guardan en la base de datos de este equipo.{' '}
           {lastBackupAt ? `Última copia: ${formatDate(todayISO(new Date(lastBackupAt)))}.` : 'Aún no has descargado ninguna copia.'}{' '}
           <a href="#ajustes">Copias de seguridad</a>
         </p>

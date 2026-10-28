@@ -98,7 +98,7 @@ export function SummaryPage({
             Pulsa «Añadir un gasto», escribe el importe y el concepto y elige una categoría. Para el alquiler, los recibos
             o las cuotas de un préstamo, crea un pago recurrente y la aplicación preparará cada vencimiento.
           </p>
-          <p>Tus datos se guardan solo en este navegador.</p>
+          <p>Tus datos se guardan en una base de datos SQLite de este equipo.</p>
         </EmptyState>
       )}
 
@@ -109,7 +109,7 @@ export function SummaryPage({
             {backupAge === null
               ? 'Aún no has descargado ninguna copia de seguridad.'
               : `Tu última copia de seguridad es de hace ${backupAge} días.`}{' '}
-            Los datos solo están en este navegador. <a href="#ajustes">Descargar una copia</a>
+            Los datos solo están en este equipo. <a href="#ajustes">Descargar una copia</a>
           </span>
         </p>
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { parseBackup, serializeBackup, type BackupSummary } from '../domain/backup.ts'
 import { movementsToCsv } from '../domain/csv.ts'
 import { formatDateTime } from '../domain/dates.ts'
@@ -15,42 +15,6 @@ import { Icon } from './Icon.tsx'
 const MAX_BACKUP_BYTES = 50 * 1024 * 1024
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
-
-/** Pide al navegador que no borre los datos aunque le falte espacio (si lo permite). */
-function PersistentStorage() {
-  const supported = typeof navigator.storage?.persisted === 'function'
-  const [state, setState] = useState<'unknown' | 'granted' | 'not-granted' | 'unsupported'>(supported ? 'unknown' : 'unsupported')
-
-  useEffect(() => {
-    if (!supported) return
-    navigator.storage
-      .persisted()
-      .then((granted) => setState(granted ? 'granted' : 'not-granted'))
-      .catch(() => setState('unsupported'))
-  }, [supported])
-
-  if (state === 'unknown' || state === 'unsupported') return null
-  if (state === 'granted') {
-    return <p className="muted small">El navegador ha aceptado conservar estos datos aunque le falte espacio.</p>
-  }
-  return (
-    <p className="muted small">
-      Si el dispositivo se queda sin espacio, el navegador podría borrar datos de sitios web.{' '}
-      <button
-        type="button"
-        className="link-btn"
-        onClick={() =>
-          void navigator.storage
-            .persist()
-            .then((granted) => setState(granted ? 'granted' : 'not-granted'))
-            .catch(() => undefined)
-        }
-      >
-        Pedir que conserve estos datos
-      </button>
-    </p>
-  )
-}
 
 /** Exportar a JSON, restaurar desde JSON (con validación y confirmación) y exportar a CSV. */
 export function BackupPanel() {
@@ -118,11 +82,12 @@ export function BackupPanel() {
         <Icon name="info" />
         <div className="stack stack--tight">
           <p>
-            <strong>Los datos se guardan solo en este navegador</strong>, en este dispositivo. No se envían a ningún servidor.
+            <strong>Los datos se guardan en una base de datos SQLite de este equipo</strong> (el archivo{' '}
+            <code>server/data/cuentas.db</code> de la aplicación). No se envían a internet.
           </p>
           <p>
-            Si borras los datos del navegador, usas otro navegador o cambias de dispositivo, no los verás. Descarga una copia
-            de seguridad de vez en cuando y guárdala en un lugar seguro.
+            Si borras ese archivo o cambias de equipo, no los verás. Descarga una copia de seguridad de vez en cuando y
+            guárdala en un lugar seguro.
           </p>
         </div>
       </div>
@@ -161,7 +126,6 @@ export function BackupPanel() {
       <p className="muted small">
         El CSV se abre en Excel o LibreOffice: usa punto y coma como separador, coma decimal y los gastos en negativo.
       </p>
-      <PersistentStorage />
 
       {pending && (
         <ConfirmDialog
@@ -184,7 +148,7 @@ export function BackupPanel() {
             {plural(pending.summary.categories, 'categoría', 'categorías')}.
           </p>
           <p>
-            <strong>Se sustituirán todos los datos actuales de este navegador</strong> (
+            <strong>Se sustituirán todos los datos actuales de la base de datos</strong> (
             {plural(data.movements.length, 'movimiento', 'movimientos')}). No se puede deshacer.
           </p>
           <p>
