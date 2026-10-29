@@ -23,11 +23,13 @@
   },
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@tesseract.js-data/spa": "^1.0.0",
     "better-sqlite3": "^13.0.3",
     "express": "^5.3.0",
     "idb": "^8.0.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

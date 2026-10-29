@@ -5,8 +5,8 @@ interface DialogProps {
   title: string
   onClose: () => void
   children: ReactNode
-  /** "form": a pantalla completa en el móvil. "alert": confirmación compacta. */
-  size?: 'form' | 'alert'
+  /** "form": a pantalla completa en el móvil. "wide": igual, pero más ancha en el ordenador. "alert": confirmación compacta. */
+  size?: 'form' | 'wide' | 'alert'
 }
 
 /**

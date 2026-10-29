@@ -1022,8 +1022,13 @@ body:has(dialog[open]) {
   margin-right: auto;
 }
 
+.dialog--wide {
+  width: min(960px, calc(100vw - 32px));
+}
+
 @media (max-width: 599px) {
-  .dialog--form {
+  .dialog--form,
+  .dialog--wide {
     width: 100%;
     height: 100%;
     max-height: none;
@@ -1032,7 +1037,8 @@ body:has(dialog[open]) {
     padding-top: env(safe-area-inset-top, 0px);
   }
 
-  .dialog--form[open] {
+  .dialog--form[open],
+  .dialog--wide[open] {
     animation-name: sheet-in;
   }
 
@@ -2666,4 +2672,355 @@ body:has(dialog[open]) {
   .pantry-item .stepper {
     margin-left: auto;
   }
+}
+
+/* 7. Tickets de la compra y ritmo de compra ---------------------------------- */
+
+.pantry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pantry-actions__scan {
+  min-height: 52px;
+  padding-inline: 22px;
+  font-size: var(--step-0);
+}
+
+@media (max-width: 599px) {
+  .pantry-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  .pantry-actions__scan {
+    flex-basis: 100%;
+  }
+}
+
+.chip--warn {
+  border-style: solid;
+  border-color: var(--warning-ink);
+  color: var(--warning-ink);
+}
+
+.chip--info {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pantry-item__actions {
+  display: flex;
+  margin-left: auto;
+}
+
+.pantry-item__actions .btn {
+  min-height: 44px;
+}
+
+.review-list {
+  display: grid;
+}
+
+.review-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.review-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.review-item__text {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.review-item__name {
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.review-item__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.review-item__actions .btn {
+  min-width: 96px;
+}
+
+.recent-tickets {
+  display: grid;
+  gap: 4px;
+}
+
+.recent-ticket {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.recent-ticket:hover {
+  background: var(--sheet-2);
+}
+
+.recent-ticket > .icon {
+  color: var(--ink-2);
+}
+
+.recent-ticket__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.recent-ticket__title {
+  font-weight: 700;
+}
+
+.recent-ticket__amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Escanear: elegir imagen, leyendo, revisar */
+.ticket-pick {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 28px 16px;
+  border: 2px dashed var(--rule-strong);
+  border-radius: var(--radius-l);
+  background: var(--sheet-2);
+  text-align: center;
+  cursor: pointer;
+}
+
+.ticket-pick:hover {
+  border-color: var(--accent);
+}
+
+.ticket-pick:focus-within {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ticket-pick > .icon {
+  color: var(--accent);
+}
+
+.ticket-pick__title {
+  font-size: var(--step-1);
+  font-weight: 750;
+}
+
+.ticket-reading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 0;
+}
+
+.ticket-reading__spinner {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--rule);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ticket-review {
+  display: grid;
+  gap: 20px;
+}
+
+.ticket-review__head {
+  display: grid;
+  gap: 14px;
+}
+
+.ticket-review__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.ticket-check--ok {
+  background: color-mix(in srgb, var(--positive) 12%, var(--sheet));
+}
+
+.ticket-check--ok > .icon {
+  color: var(--positive);
+}
+
+.ticket-preview {
+  display: grid;
+  gap: 8px;
+  max-height: 60vh;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-m);
+  background: var(--sheet-2);
+}
+
+.ticket-preview img {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.ticket-section {
+  display: grid;
+  gap: 8px;
+}
+
+.ticket-section .subsection-title {
+  margin: 0;
+}
+
+.ticket-section > .link-btn {
+  justify-self: start;
+}
+
+.ticket-groups {
+  display: grid;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-m);
+}
+
+.ticket-group + .ticket-group {
+  border-top: 1px solid var(--rule);
+}
+
+.ticket-group--ignored .ticket-group__title {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+
+.ticket-group__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ticket-group__main:hover {
+  background: var(--sheet-2);
+}
+
+.ticket-group__main[aria-expanded='true'] {
+  background: var(--accent-soft);
+}
+
+.ticket-group__text {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ticket-group__title {
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.ticket-group__meta,
+.ticket-group__flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.ticket-group__amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ticket-editor {
+  display: grid;
+  gap: 14px;
+  padding: 4px 12px 16px;
+  background: var(--accent-soft);
+}
+
+.ticket-lines {
+  display: grid;
+}
+
+.ticket-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.ticket-line:first-child {
+  border-top: 0;
+}
+
+.ticket-line__text {
+  display: grid;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.ticket-line__name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.ticket-line .select {
+  flex: 1 1 180px;
+  max-width: 280px;
+}
+
+.pantry-tracking-hint {
+  margin-top: -10px;
 }

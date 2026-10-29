@@ -92,6 +92,13 @@ export type PantryUnit = 'ud' | 'g' | 'kg' | 'ml' | 'l' | 'paquete' | 'lata' | '
 /** Cada cuánto se compra: casi todas las semanas, una vez al mes o de vez en cuando. */
 export type PantryFrequency = 'semanal' | 'mensual' | 'ocasional'
 
+/**
+ * Cómo se sigue un producto:
+ * - compras: por los tickets y las compras; la app calcula cuándo se estará acabando.
+ * - cantidad: contando lo que hay (botones + y −) frente a lo que se quiere tener.
+ */
+export type PantryTracking = 'compras' | 'cantidad'
+
 /** Una persona de casa. Sus productos no se mezclan con los compartidos. */
 export interface PantryPerson {
   id: string
@@ -105,7 +112,8 @@ export interface PantryItem {
   /** null = Compartido; si no, id de una persona. */
   ownerId: string | null
   unit: PantryUnit
-  /** Lo que hay ahora. */
+  tracking: PantryTracking
+  /** Lo que hay ahora (solo cuenta si tracking = 'cantidad'). */
   quantity: number
   /** Lo que se quiere tener. */
   target: number
@@ -123,17 +131,127 @@ export interface PantryItem {
 }
 
 /** Campos que la interfaz envía al crear o editar un producto (el resto lo pone el servidor). */
-export type PantryItemInput = Pick<PantryItem, 'name' | 'ownerId' | 'unit' | 'quantity' | 'target' | 'frequency' | 'priceCents' | 'notes'>
+export type PantryItemInput = Pick<
+  PantryItem,
+  'name' | 'ownerId' | 'unit' | 'tracking' | 'quantity' | 'target' | 'frequency' | 'priceCents' | 'notes'
+>
 
 export interface PantrySettings {
   /** Presupuesto mensual estimado del hogar en céntimos. null = sin presupuesto. */
   monthlyBudgetCents: number | null
 }
 
-/** Lo que cambió al marcar productos como comprados: basta para deshacerlo. */
-export interface PantryPurchaseChange {
+/**
+ * Lo que cambió al marcar productos como comprados: basta para deshacerlo.
+ * En los productos que se cuentan, la cantidad anterior; en los que se siguen
+ * por compras, la compra apuntada (eventId).
+ */
+export type PantryPurchaseChange =
+  | {
+      id: string
+      previousQuantity: number
+      /** Versión del producto justo después de la compra. */
+      version: number
+    }
+  | { id: string; eventId: string }
+
+/** «Queda», «Se acabó» o «Lo he comprado» (sin ticket), con su fecha. */
+export type PantryEventKind = 'queda' | 'se_acabo' | 'comprado'
+
+export interface PantryEvent {
   id: string
-  previousQuantity: number
-  /** Versión del producto justo después de la compra. */
-  version: number
+  itemId: string
+  kind: PantryEventKind
+  date: ISODate
+  createdAt: string
+}
+
+/** Una compra de un producto, sacada de un ticket (o de «Lo he comprado»). */
+export interface PantryPurchase {
+  itemId: string
+  date: ISODate
+  /** Cuánto: kilos (measure 'kg') o unidades (measure 'ud'); null si no se sabe. */
+  amount: number | null
+  measure: 'kg' | 'ud' | null
+  /** Lo que costó (ya con descuentos); null si no se sabe. */
+  costCents: number | null
+  /** Tienda (de un ticket) o null. */
+  store: string | null
+  ticketId: string | null
+  /** Cuándo se apuntó, para ordenar lo que pasó el mismo día. */
+  recordedAt: string
+}
+
+/** Historial de la despensa: compras (de tickets) y lo que se ha marcado a mano. */
+export interface PantryActivity {
+  purchases: PantryPurchase[]
+  events: PantryEvent[]
+}
+
+// ---------------------------------------------------------------------------
+// Tickets de la compra
+
+/** Una línea leída de la imagen de un ticket. `reread`: su parte final leída otra vez solo con cifras. */
+export interface OcrLine {
+  text: string
+  reread: string | null
+}
+
+export type TicketStoreKind = 'lidl' | 'otra'
+export type TicketTaxCode = 'A' | 'B' | 'C'
+
+/** Un ticket guardado (sin sus líneas). */
+export interface PantryTicketSummary {
+  id: string
+  store: TicketStoreKind
+  storeName: string
+  address: string
+  date: ISODate
+  time: string | null
+  totalCents: number | null
+  linesCount: number
+  /** Productos distintos de la despensa que aparecen en el ticket. */
+  productsCount: number
+  createdAt: string
+}
+
+export interface PantryTicketLine {
+  id: string
+  position: number
+  rawName: string
+  quantity: number
+  unitPriceCents: number | null
+  amountCents: number | null
+  discountCents: number
+  weightKg: number | null
+  pricePerKgCents: number | null
+  taxCode: TicketTaxCode | null
+  /** Producto de la despensa; null si la línea no se sigue. */
+  itemId: string | null
+  /** «Para una ocasión»: no cuenta para el ritmo de compra. */
+  occasional: boolean
+}
+
+export interface PantryTicket extends PantryTicketSummary {
+  lines: PantryTicketLine[]
+}
+
+/** Qué hacer con un producto del ticket al guardarlo. */
+export type TicketDecision =
+  | { kind: 'item'; itemId: string }
+  | { kind: 'new'; name: string; ownerId: string | null; frequency: PantryFrequency }
+  | { kind: 'ignore' }
+
+export type TicketSaveLine = Omit<PantryTicketLine, 'id' | 'position' | 'itemId'>
+
+/** Lo que envía la revisión al guardar: cabecera, líneas y una decisión por producto (clave nameKey del nombre). */
+export interface TicketSaveInput {
+  store: TicketStoreKind
+  storeName: string
+  address: string
+  date: ISODate
+  time: string | null
+  totalCents: number | null
+  lines: TicketSaveLine[]
+  decisions: Record<string, TicketDecision>
 }

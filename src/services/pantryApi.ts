@@ -1,4 +1,18 @@
-import type { PantryItem, PantryItemInput, PantryPerson, PantryPurchaseChange, PantrySettings } from '../domain/types.ts'
+import type { TicketDraft } from '../domain/ticketMatch.ts'
+import type {
+  ISODate,
+  PantryActivity,
+  PantryEvent,
+  PantryEventKind,
+  PantryItem,
+  PantryItemInput,
+  PantryPerson,
+  PantryPurchaseChange,
+  PantrySettings,
+  PantryTicket,
+  PantryTicketSummary,
+  TicketSaveInput,
+} from '../domain/types.ts'
 import { apiRequest, segment } from './apiClient.ts'
 
 /**
@@ -17,10 +31,24 @@ export const pantryApi = {
   adjustItem: (id: string, delta: number) => apiRequest<PantryItem>('POST', `/despensa/productos/${segment(id)}/ajustar`, { delta }),
   deleteItem: (id: string) => apiRequest<null>('DELETE', `/despensa/productos/${segment(id)}`),
 
+  addEvent: (itemId: string, kind: PantryEventKind, date: ISODate) =>
+    apiRequest<PantryEvent>('POST', `/despensa/productos/${segment(itemId)}/revision`, { kind, date }),
+  deleteEvent: (id: string) => apiRequest<null>('DELETE', `/despensa/revisiones/${segment(id)}`),
+  activity: (today: ISODate) => apiRequest<PantryActivity>('GET', `/despensa/actividad?hoy=${segment(today)}`),
+
   getSettings: () => apiRequest<PantrySettings>('GET', '/despensa/presupuesto'),
   setBudget: (monthlyBudgetCents: number | null) => apiRequest<PantrySettings>('PUT', '/despensa/presupuesto', { monthlyBudgetCents }),
 
-  markPurchased: (ids: readonly string[]) =>
-    apiRequest<{ changes: PantryPurchaseChange[]; items: PantryItem[] }>('POST', '/despensa/comprado', { ids }),
+  markPurchased: (ids: readonly string[], date: ISODate) =>
+    apiRequest<{ changes: PantryPurchaseChange[]; items: PantryItem[] }>('POST', '/despensa/comprado', { ids, date }),
   undoPurchase: (changes: readonly PantryPurchaseChange[]) => apiRequest<PantryItem[]>('POST', '/despensa/comprado/deshacer', { changes }),
+
+  readTicket: (input: { imagenes: string[] } | { texto: string }, today: ISODate) =>
+    apiRequest<TicketDraft>('POST', '/despensa/tickets/leer', { ...input, hoy: today }),
+  saveTicket: (input: TicketSaveInput) => apiRequest<{ ticket: PantryTicket; items: PantryItem[] }>('POST', '/despensa/tickets', input),
+  listTickets: () => apiRequest<PantryTicketSummary[]>('GET', '/despensa/tickets'),
+  getTicket: (id: string) => apiRequest<PantryTicket>('GET', `/despensa/tickets/${segment(id)}`),
+  setTicketLine: (ticketId: string, lineId: string, itemId: string | null) =>
+    apiRequest<PantryTicket>('PUT', `/despensa/tickets/${segment(ticketId)}/lineas/${segment(lineId)}`, { itemId }),
+  deleteTicket: (id: string) => apiRequest<null>('DELETE', `/despensa/tickets/${segment(id)}`),
 }

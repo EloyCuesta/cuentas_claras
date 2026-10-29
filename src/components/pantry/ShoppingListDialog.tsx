@@ -7,6 +7,7 @@ import {
   shoppingListItems,
   whatsAppUrl,
   type OwnerFilter,
+  type Rhythms,
 } from '../../domain/pantry.ts'
 import type { PantryFrequency, PantryItem, PantryPerson } from '../../domain/types.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
@@ -26,12 +27,15 @@ type CopyState = { kind: 'idle' } | { kind: 'copied' } | { kind: 'manual' }
 export function ShoppingListDialog({
   items,
   people,
+  rhythms,
   initialOwner,
   onMarkPurchased,
   onClose,
 }: {
   items: readonly PantryItem[]
   people: readonly PantryPerson[]
+  /** Ritmo de compra: lo que se sigue por compras entra si se acabó o probablemente se acabó. */
+  rhythms: Rhythms
   initialOwner: OwnerFilter
   /** Marca como comprados los productos de la lista. Si va bien, el diálogo se cierra. */
   onMarkPurchased: (ids: string[]) => Promise<void>
@@ -47,8 +51,8 @@ export function ShoppingListDialog({
   const [date] = useState(() => todayISO())
 
   const filter = useMemo(() => ({ date, owner, frequencies }), [date, owner, frequencies])
-  const included = useMemo(() => shoppingListItems(items, filter), [items, filter])
-  const text = useMemo(() => listaCompraTexto(items, people, filter), [items, people, filter])
+  const included = useMemo(() => shoppingListItems(items, filter, rhythms), [items, filter, rhythms])
+  const text = useMemo(() => listaCompraTexto(items, people, filter, rhythms), [items, people, filter, rhythms])
   const empty = included.length === 0
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 

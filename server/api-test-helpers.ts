@@ -3,6 +3,7 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createApp } from './app.ts'
 import { openDatabase } from './database.ts'
+import type { TicketReader } from './ocr.ts'
 import type { PantryRepositoryOptions } from './pantryRepository.ts'
 import { SqliteFinanceRepository } from './repository.ts'
 import { tempDbPath } from './test-helpers.ts'
@@ -36,16 +37,30 @@ export interface CallResult {
 
 const running: { server: Server; repository: SqliteFinanceRepository }[] = []
 
+/** Lector de tickets para las pruebas que no leen imágenes: no arranca Tesseract. */
+const unusedReader: TicketReader = {
+  read: () => Promise.reject(new Error('Este test no lee imágenes')),
+  close: () => Promise.resolve(),
+}
+
 export async function startApi({
   path = tempDbPath(),
   testMode = false,
   clock,
   pantry,
   login = true,
-}: { path?: string; testMode?: boolean; clock?: () => number; pantry?: PantryRepositoryOptions; login?: boolean } = {}) {
+  ticketReader = unusedReader,
+}: {
+  path?: string
+  testMode?: boolean
+  clock?: () => number
+  pantry?: PantryRepositoryOptions
+  login?: boolean
+  ticketReader?: TicketReader
+} = {}) {
   const database = openDatabase(path)
   const repository = new SqliteFinanceRepository(database.db)
-  const server = createApp({ database, repository, accessCode: TEST_CODE, testMode, clock, pantry }).listen(0, '127.0.0.1')
+  const server = createApp({ database, repository, accessCode: TEST_CODE, testMode, clock, pantry, ticketReader }).listen(0, '127.0.0.1')
   await once(server, 'listening')
   running.push({ server, repository })
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`

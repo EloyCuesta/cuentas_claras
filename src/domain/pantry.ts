@@ -1,4 +1,5 @@
 import { formatEuros } from './money.ts'
+import { FALLBACK_DAYS, type ItemRhythm } from './pantryRhythm.ts'
 import type { ISODate, PantryFrequency, PantryItem, PantryPerson, PantryUnit } from './types.ts'
 
 /**
@@ -108,6 +109,57 @@ export function excessQuantity(item: Pick<PantryItem, 'quantity' | 'target'>): n
 
 export const isMissing = (item: Pick<PantryItem, 'quantity' | 'target'>) => missingMilli(item) > 0
 
+/** Ritmo de compra de los productos que se siguen por compras (ver pantryRhythm.ts). */
+export type Rhythms = ReadonlyMap<string, ItemRhythm>
+
+const COUNT_UNITS: ReadonlySet<PantryUnit> = new Set(['ud', 'paquete', 'lata', 'botella', 'bolsa', 'docena'])
+
+/**
+ * ¿Hay que comprarlo? Si se cuenta, cuando hay menos de lo que se quiere tener;
+ * si se sigue por compras, cuando se acabó o probablemente se ha acabado.
+ */
+export function needsBuying(item: Pick<PantryItem, 'id' | 'tracking' | 'quantity' | 'target'>, rhythms?: Rhythms): boolean {
+  if (item.tracking === 'cantidad') return isMissing(item)
+  const status = rhythms?.get(item.id)?.status
+  return status === 'se_acabo' || status === 'probablemente_acabado'
+}
+
+/**
+ * Cuánto comprar: lo que falta si se cuenta; si se sigue por compras, lo de la
+ * última compra en la unidad del producto (si se puede saber).
+ */
+export function listQuantity(item: Pick<PantryItem, 'id' | 'tracking' | 'quantity' | 'target' | 'unit'>, rhythms?: Rhythms): number | null {
+  if (item.tracking === 'cantidad') return missingQuantity(item)
+  const last = rhythms?.get(item.id)?.lastPurchase
+  if (!last || last.amount === null) return null
+  if (last.measure === 'kg' && item.unit === 'kg') return last.amount
+  if (last.measure === 'kg' && item.unit === 'g') return Math.round(last.amount * 1000)
+  if (last.measure === 'ud' && COUNT_UNITS.has(item.unit)) return last.amount
+  return null
+}
+
+/** Lo que costará comprarlo: lo que falta × precio, o lo que cuesta una compra (ver purchaseCostCents). */
+export function listCostCents(
+  item: Pick<PantryItem, 'id' | 'tracking' | 'quantity' | 'target' | 'unit' | 'priceCents'>,
+  rhythms?: Rhythms,
+): number | null {
+  if (item.tracking === 'cantidad') return missingCostCents(item)
+  return purchaseCostCents(item, rhythms)
+}
+
+/**
+ * Lo que cuesta una compra de un producto que se sigue por compras: la última
+ * con precio conocido (de un ticket) o, mientras no haya ninguna, el precio
+ * estimado de una unidad (un kilo o un litro en kg y l). En g y ml no se puede
+ * saber cuánto se compra cada vez.
+ */
+export function purchaseCostCents(item: Pick<PantryItem, 'id' | 'unit' | 'priceCents'>, rhythms?: Rhythms): number | null {
+  const last = rhythms?.get(item.id)?.lastCostCents
+  if (last !== undefined && last !== null) return last
+  if (item.priceCents === null || item.unit === 'g' || item.unit === 'ml') return null
+  return item.priceCents
+}
+
 // ---------------------------------------------------------------------------
 // Importes
 
@@ -130,7 +182,10 @@ export function missingCostCents(item: Pick<PantryItem, 'quantity' | 'target' | 
   return toSafeCents(roundHalfUp(BigInt(missingMilli(item)) * BigInt(item.priceCents), BigInt(MILLI) * priceDivisor(item.unit)))
 }
 
-/** Gasto mensual estimado de un producto: objetivo × precio × veces al mes. null si no tiene precio. */
+/**
+ * Gasto mensual estimado de un producto que se cuenta: objetivo × precio × veces
+ * al mes. null si no tiene precio.
+ */
 export function monthlyCostCents(item: Pick<PantryItem, 'target' | 'unit' | 'priceCents' | 'frequency'>): number | null {
   if (item.priceCents === null) return null
   const target = BigInt(toMilli(item.target) ?? 0)
@@ -173,14 +228,26 @@ export interface PantrySummary {
   pendingCost: KnownTotal
 }
 
-export function pantrySummary(items: readonly PantryItem[], owner: OwnerFilter): PantrySummary {
-  const missing = items.filter((item) => matchesOwner(item, owner) && isMissing(item))
-  return { missingCount: missing.length, pendingCost: sumKnown(missing.map(missingCostCents)) }
+export function pantrySummary(items: readonly PantryItem[], owner: OwnerFilter, rhythms?: Rhythms): PantrySummary {
+  const missing = items.filter((item) => matchesOwner(item, owner) && needsBuying(item, rhythms))
+  return { missingCount: missing.length, pendingCost: sumKnown(missing.map((item) => listCostCents(item, rhythms))) }
 }
 
-/** Gasto mensual estimado de toda la casa (todos los productos, con su objetivo). */
-export function monthlyEstimate(items: readonly PantryItem[]): KnownTotal {
-  return sumKnown(items.map(monthlyCostCents))
+/**
+ * Gasto mensual estimado de un producto que se sigue por compras: lo que cuesta
+ * una compra × las veces que se compra al mes (30,31 días / lo que dura; con 7
+ * días da 4,33, como en los semanales que se cuentan).
+ */
+export function monthlyCostFromRhythm(item: Pick<PantryItem, 'id' | 'unit' | 'priceCents' | 'frequency'>, rhythms?: Rhythms): number | null {
+  const cost = purchaseCostCents(item, rhythms)
+  if (cost === null) return null
+  const days = rhythms?.get(item.id)?.expectedDays ?? FALLBACK_DAYS[item.frequency]
+  return toSafeCents(roundHalfUp(BigInt(cost) * 3031n, 100n * BigInt(days)))
+}
+
+/** Gasto mensual estimado de toda la casa (todos los productos). */
+export function monthlyEstimate(items: readonly PantryItem[], rhythms?: Rhythms): KnownTotal {
+  return sumKnown(items.map((item) => (item.tracking === 'cantidad' ? monthlyCostCents(item) : monthlyCostFromRhythm(item, rhythms))))
 }
 
 const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>
@@ -239,7 +306,7 @@ export function priceUnitLabel(unit: PantryUnit): string {
 }
 
 /** Los avisos de WhatsApp y los .txt se leen mejor con espacios normales que con los de no separación de Intl. */
-const plainSpaces = (text: string) => text.replace(/[  ]/g, ' ')
+const plainSpaces = (text: string) => text.replace(/[\u00a0\u202f]/g, ' ')
 
 export const formatEurosPlain = (cents: number) => plainSpaces(formatEuros(cents))
 
@@ -255,10 +322,10 @@ export interface ShoppingListFilter {
   frequencies: readonly PantryFrequency[]
 }
 
-/** Productos que entran en la lista: los que faltan y cumplen los filtros. */
-export function shoppingListItems(items: readonly PantryItem[], filter: ShoppingListFilter): PantryItem[] {
+/** Productos que entran en la lista: los que hay que comprar y cumplen los filtros. */
+export function shoppingListItems(items: readonly PantryItem[], filter: ShoppingListFilter, rhythms?: Rhythms): PantryItem[] {
   return sortItems(
-    items.filter((item) => isMissing(item) && matchesOwner(item, filter.owner) && filter.frequencies.includes(item.frequency)),
+    items.filter((item) => needsBuying(item, rhythms) && matchesOwner(item, filter.owner) && filter.frequencies.includes(item.frequency)),
   )
 }
 
@@ -267,8 +334,13 @@ export function shoppingListItems(items: readonly PantryItem[], filter: Shopping
  * negrita). Primero lo compartido y después cada persona; dentro, lo semanal,
  * lo mensual y lo ocasional, cada bloque por nombre. Muestra lo que falta.
  */
-export function listaCompraTexto(items: readonly PantryItem[], personas: readonly PantryPerson[], filtro: ShoppingListFilter): string {
-  const included = shoppingListItems(items, filtro)
+export function listaCompraTexto(
+  items: readonly PantryItem[],
+  personas: readonly PantryPerson[],
+  filtro: ShoppingListFilter,
+  rhythms?: Rhythms,
+): string {
+  const included = shoppingListItems(items, filtro, rhythms)
   const lines = [`🛒 Lista de la compra · ${formatCalendarDate(filtro.date)}`]
 
   const groups: { title: string; items: PantryItem[] }[] = [
@@ -280,11 +352,14 @@ export function listaCompraTexto(items: readonly PantryItem[], personas: readonl
 
   for (const group of shown) {
     lines.push('', `*${group.title}*`)
-    for (const item of group.items) lines.push(`• ${item.name} — ${describeQuantity(missingQuantity(item), item.unit)}`)
+    for (const item of group.items) {
+      const quantity = listQuantity(item, rhythms)
+      lines.push(quantity === null || quantity <= 0 ? `• ${item.name}` : `• ${item.name} — ${describeQuantity(quantity, item.unit)}`)
+    }
   }
 
   const listed = shown.flatMap((group) => group.items)
-  const total = sumKnown(listed.map(missingCostCents))
+  const total = sumKnown(listed.map((item) => listCostCents(item, rhythms)))
   if (total.withoutPrice < listed.length) {
     const label = total.withoutPrice > 0 ? 'Total estimado parcial' : 'Total estimado'
     lines.push('', `${label}: ${formatEurosPlain(total.cents)}`)

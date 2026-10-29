@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
 import { openDatabase } from './database.ts'
 import { initialSchema } from './migrations/001-esquema-inicial.ts'
+import { pantrySchema } from './migrations/002-despensa.ts'
 import { LATEST_VERSION } from './migrations/index.ts'
 import { removeTempDbs, tempDbPath } from './test-helpers.ts'
 
@@ -34,9 +35,13 @@ describe('openDatabase', () => {
       'categories',
       'meta',
       'movements',
+      'pantry_aliases',
+      'pantry_events',
       'pantry_items',
       'pantry_people',
       'pantry_settings',
+      'pantry_ticket_lines',
+      'pantry_tickets',
       'recurring_excluded_dates',
       'recurring_rules',
       'schema_migrations',
@@ -89,7 +94,7 @@ describe('openDatabase', () => {
     expect(() => db.prepare("DELETE FROM categories WHERE id = 'g-ocio'").run()).toThrow(/FOREIGN KEY/)
   })
 
-  it('pasa una base de datos de la versión 1 con datos a la 2 sin tocar las finanzas', () => {
+  it('pasa una base de datos de la versión 1 con datos a la última sin tocar las finanzas', () => {
     const path = tempDbPath()
     // Una base de datos como la dejaba la versión anterior (solo la migración 1).
     const old = new Database(path)
@@ -106,19 +111,79 @@ describe('openDatabase', () => {
     old.close()
 
     const { db, schemaVersion } = open(path)
-    expect(schemaVersion).toBe(2)
-    expect(tables(db)).toEqual(expect.arrayContaining(['pantry_items', 'pantry_people', 'pantry_settings']))
+    expect(schemaVersion).toBe(LATEST_VERSION)
+    expect(tables(db)).toEqual(expect.arrayContaining(['pantry_items', 'pantry_people', 'pantry_settings', 'pantry_tickets']))
     expect(db.prepare('SELECT concept FROM movements').pluck().all()).toEqual(['Mercadona'])
     expect(db.prepare('SELECT value FROM meta').pluck().get()).toBe('y')
     expect(db.prepare('SELECT COUNT(*) FROM categories').pluck().get()).toBe(DEFAULT_CATEGORIES.length)
-    expect(db.prepare('SELECT version FROM schema_migrations ORDER BY version').pluck().all()).toEqual([1, 2])
+    expect(db.prepare('SELECT version FROM schema_migrations ORDER BY version').pluck().all()).toEqual([1, 2, 3])
 
     // Al volver a abrir no se repite ni se borra nada.
     db.prepare("INSERT INTO pantry_people (id, name, created_at) VALUES ('p1', 'Eloy', 'x')").run()
     db.close()
     const again = open(path).db
     expect(again.prepare('SELECT name FROM pantry_people').pluck().all()).toEqual(['Eloy'])
-    expect(again.prepare('SELECT COUNT(*) FROM schema_migrations').pluck().get()).toBe(2)
+    expect(again.prepare('SELECT COUNT(*) FROM schema_migrations').pluck().get()).toBe(LATEST_VERSION)
+  })
+
+  it('la versión 3 añade los tickets sin cambiar los productos que ya había (siguen contándose)', () => {
+    const path = tempDbPath()
+    const old = new Database(path)
+    old.exec('CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)')
+    initialSchema.up(old)
+    pantrySchema.up(old)
+    old.prepare("INSERT INTO schema_migrations VALUES (1, 'esquema inicial', 'x'), (2, 'despensa', 'x')").run()
+    old
+      .prepare(
+        `INSERT INTO pantry_items (id, name, owner_id, unit, quantity, target, frequency, price_cents, notes, created_at, updated_at)
+         VALUES ('i1', 'Leche', NULL, 'l', 2, 6, 'semanal', 95, '', 'x', 'x')`,
+      )
+      .run()
+    old.close()
+
+    const { db } = open(path)
+    expect(db.prepare('SELECT name, tracking, quantity, target, version FROM pantry_items').get()).toEqual({
+      name: 'Leche',
+      tracking: 'cantidad',
+      quantity: 2,
+      target: 6,
+      version: 1,
+    })
+    expect(() => db.prepare("UPDATE pantry_items SET tracking = 'otro'").run()).toThrow(/CHECK/)
+  })
+
+  it('las restricciones de los tickets protegen los datos', () => {
+    const { db } = open(tempDbPath())
+    db.prepare(
+      `INSERT INTO pantry_items (id, name, owner_id, unit, tracking, quantity, target, frequency, price_cents, notes, created_at, updated_at)
+       VALUES ('i1', 'Leche', NULL, 'ud', 'compras', 0, 0, 'semanal', NULL, '', 'x', 'x')`,
+    ).run()
+    const ticket = db.prepare(
+      `INSERT INTO pantry_tickets (id, store, store_name, address, purchase_date, purchase_time, total_cents, fingerprint, created_at)
+       VALUES (?, 'lidl', 'Lidl', '', '2026-10-24', NULL, 100, ?, 'x')`,
+    )
+    ticket.run('t1', 'huella')
+    expect(() => ticket.run('t2', 'huella')).toThrow(/UNIQUE/)
+    const line = db.prepare(
+      `INSERT INTO pantry_ticket_lines (id, ticket_id, position, raw_name, name_key, quantity, amount_cents, item_id)
+       VALUES (?, 't1', ?, 'LECHE', 'LECHE', ?, 100, ?)`,
+    )
+    line.run('l1', 0, 1, 'i1')
+    expect(() => line.run('l2', 0, 1, 'i1')).toThrow(/UNIQUE/)
+    expect(() => line.run('l3', 1, 0, 'i1')).toThrow(/CHECK/)
+    expect(() => line.run('l4', 2, 1, 'no-existe')).toThrow(/FOREIGN KEY/)
+    const alias = db.prepare('INSERT INTO pantry_aliases (store, name_key, item_id, ignored, updated_at) VALUES (?, ?, ?, ?, ?)')
+    expect(() => alias.run('lidl', 'X', null, 0, 'x')).toThrow(/CHECK/)
+    alias.run('lidl', 'LECHE', 'i1', 0, 'x')
+    db.prepare("INSERT INTO pantry_events (id, item_id, kind, event_date, created_at) VALUES ('e1', 'i1', 'queda', '2026-10-25', 'x')").run()
+    // Borrar el producto: la línea se queda sin producto; lo aprendido y las revisiones se van con él.
+    db.prepare("DELETE FROM pantry_items WHERE id = 'i1'").run()
+    expect(db.prepare("SELECT item_id FROM pantry_ticket_lines WHERE id = 'l1'").pluck().get()).toBeNull()
+    expect(db.prepare('SELECT COUNT(*) FROM pantry_aliases').pluck().get()).toBe(0)
+    expect(db.prepare('SELECT COUNT(*) FROM pantry_events').pluck().get()).toBe(0)
+    // Borrar el ticket borra sus líneas.
+    db.prepare("DELETE FROM pantry_tickets WHERE id = 't1'").run()
+    expect(db.prepare('SELECT COUNT(*) FROM pantry_ticket_lines').pluck().get()).toBe(0)
   })
 
   it('las restricciones de la despensa protegen los datos', () => {

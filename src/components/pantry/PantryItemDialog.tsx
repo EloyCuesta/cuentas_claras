@@ -10,13 +10,14 @@ import {
   priceUnitLabel,
   unitName,
 } from '../../domain/pantry.ts'
+import { agoText, durationText, RHYTHM_LABELS, type ItemRhythm } from '../../domain/pantryRhythm.ts'
 import { quantityToInput, validateItemDraft, type PantryItemDraft } from '../../domain/pantryValidation.ts'
-import type { PantryItem, PantryItemInput, PantryPerson, PantryUnit } from '../../domain/types.ts'
+import type { PantryItem, PantryItemInput, PantryPerson, PantryTracking, PantryUnit } from '../../domain/types.ts'
 import type { FieldErrors } from '../../domain/validation.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
 import { focusFirstError } from '../../ui/helpers.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../Dialog.tsx'
-import { Field } from '../forms.tsx'
+import { Field, Segmented } from '../forms.tsx'
 import { Icon } from '../Icon.tsx'
 
 const FIELD_IDS: [keyof PantryItemDraft, string][] = [
@@ -32,6 +33,7 @@ const toDraft = (item: PantryItem): PantryItemDraft => ({
   name: item.name,
   ownerId: item.ownerId ?? '',
   unit: item.unit,
+  tracking: item.tracking,
   quantity: quantityToInput(item.quantity),
   target: quantityToInput(item.target),
   frequency: item.frequency,
@@ -40,10 +42,30 @@ const toDraft = (item: PantryItem): PantryItemDraft => ({
 })
 
 /** Crear o editar un producto de la despensa. Si falla al guardar, el formulario conserva lo escrito. */
+/** Última compra y ritmo, en palabras. */
+function RhythmNotice({ rhythm }: { rhythm: ItemRhythm }) {
+  const last = rhythm.lastPurchase
+  return (
+    <p className="notice">
+      <Icon name="repeat" />
+      <span>
+        {last && rhythm.sinceDays !== null
+          ? `Última compra: ${agoText(rhythm.sinceDays)}${last.store ? ` en ${last.store}` : ''}. `
+          : 'Todavía no hay compras apuntadas. '}
+        {rhythm.learned
+          ? `Suele durar ${durationText(rhythm.expectedDays)}.`
+          : `Mientras no haya más compras, se calcula con la frecuencia (${durationText(rhythm.expectedDays)}).`}{' '}
+        Estado: {RHYTHM_LABELS[rhythm.status].toLowerCase()}.
+      </span>
+    </p>
+  )
+}
+
 export function PantryItemDialog({
   item,
   people,
   defaultOwnerId,
+  rhythm,
   onSave,
   onDelete,
   onClose,
@@ -51,6 +73,8 @@ export function PantryItemDialog({
   item: PantryItem | null
   people: readonly PantryPerson[]
   defaultOwnerId: string | null
+  /** Ritmo de compra (si se sigue por compras). */
+  rhythm?: ItemRhythm
   onSave: (input: PantryItemInput) => Promise<void>
   onDelete: () => Promise<void>
   onClose: () => void
@@ -58,7 +82,17 @@ export function PantryItemDialog({
   const [draft, setDraft] = useState<PantryItemDraft>(() =>
     item
       ? toDraft(item)
-      : { name: '', ownerId: defaultOwnerId ?? '', unit: 'ud', quantity: '0', target: '1', frequency: 'semanal', price: '', notes: '' },
+      : {
+          name: '',
+          ownerId: defaultOwnerId ?? '',
+          unit: 'ud',
+          tracking: 'compras',
+          quantity: '0',
+          target: '1',
+          frequency: 'semanal',
+          price: '',
+          notes: '',
+        },
   )
   const [errors, setErrors] = useState<FieldErrors<PantryItemDraft>>({})
   const [busy, setBusy] = useState(false)
@@ -69,6 +103,16 @@ export function PantryItemDialog({
   const set = <K extends keyof PantryItemDraft>(key: K, value: PantryItemDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }))
     setErrors((current) => (current[key] ? { ...current, [key]: undefined } : current))
+  }
+
+  const changeTracking = (tracking: PantryTracking) => {
+    setDraft((current) => ({
+      ...current,
+      tracking,
+      // Al empezar a contar un producto que se seguía por compras, se parte de «hay 0, quiero 1».
+      ...(tracking === 'cantidad' && current.quantity === '0' && current.target === '0' ? { target: '1' } : {}),
+    }))
+    setErrors((current) => ({ ...current, quantity: undefined, target: undefined }))
   }
 
   const changeUnit = (unit: PantryUnit) => {
@@ -182,6 +226,23 @@ export function PantryItemDialog({
               </select>
             )}
           </Field>
+          <Segmented
+            name="pantry-tracking"
+            legend="Cómo lo sigues"
+            value={draft.tracking}
+            onChange={changeTracking}
+            options={[
+              { value: 'compras', label: 'Por compras' },
+              { value: 'cantidad', label: 'Contando' },
+            ]}
+          />
+          <p className="field__hint pantry-tracking-hint">
+            {draft.tracking === 'compras'
+              ? 'Recomendado: la app apunta cuándo lo compras (con los tickets) y te avisa cuando probablemente se esté acabando.'
+              : 'Tú indicas cuánto hay con los botones − y +, y falta cuando hay menos de lo que quieres tener.'}
+          </p>
+          {draft.tracking === 'compras' && rhythm && !isNew && <RhythmNotice rhythm={rhythm} />}
+          {draft.tracking === 'cantidad' && (
           <div className="field-row">
             <Field id="pantry-quantity" label="Hay ahora" error={errors.quantity} hint={quantityHint}>
               {(control) => (
@@ -218,7 +279,12 @@ export function PantryItemDialog({
               )}
             </Field>
           </div>
-          <Field id="pantry-frequency" label="Cada cuánto se compra">
+          )}
+          <Field
+            id="pantry-frequency"
+            label="Cada cuánto se compra"
+            hint={draft.tracking === 'compras' ? 'Solo hasta que haya compras suficientes para saberlo.' : undefined}
+          >
             {(control) => (
               <select
                 {...control}

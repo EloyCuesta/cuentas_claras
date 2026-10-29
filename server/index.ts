@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { createApp } from './app.ts'
 import { checkAccessCode } from './auth.ts'
 import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './database.ts'
+import { createTesseractReader } from './ocr.ts'
 import { SqliteFinanceRepository } from './repository.ts'
 
 /**
@@ -43,7 +44,8 @@ try {
 }
 
 const repository = new SqliteFinanceRepository(database.db)
-const server = createServer(createApp({ database, repository, accessCode: accessCode.code, testMode }))
+const ticketReader = createTesseractReader()
+const server = createServer(createApp({ database, repository, accessCode: accessCode.code, testMode, ticketReader }))
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {
@@ -66,8 +68,10 @@ function shutdown() {
   if (closing) return
   closing = true
   server.close(() => {
-    database.db.close()
-    process.exit(0)
+    void ticketReader.close().finally(() => {
+      database.db.close()
+      process.exit(0)
+    })
   })
   setTimeout(() => {
     database.db.close()

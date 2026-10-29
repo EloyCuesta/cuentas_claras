@@ -27,6 +27,7 @@ function item(overrides: Partial<PantryItem> = {}): PantryItem {
     name: `Producto ${seq}`,
     ownerId: null,
     unit: 'ud',
+    tracking: 'cantidad',
     quantity: 0,
     target: 1,
     frequency: 'semanal',
@@ -235,7 +236,17 @@ describe('validación de la despensa', () => {
   })
 
   it('al cambiar la unidad vuelve a comprobar las dos cantidades', () => {
-    const draft = { name: 'Arroz', ownerId: '', unit: 'kg' as const, quantity: '1,5', target: '2', frequency: 'mensual' as const, price: '', notes: '' }
+    const draft = {
+      name: 'Arroz',
+      ownerId: '',
+      unit: 'kg' as const,
+      tracking: 'cantidad' as const,
+      quantity: '1,5',
+      target: '2',
+      frequency: 'mensual' as const,
+      price: '',
+      notes: '',
+    }
     expect(validateItemDraft(draft, []).ok).toBe(true)
     const result = validateItemDraft({ ...draft, unit: 'paquete' }, [])
     expect(result.ok).toBe(false)
@@ -245,8 +256,13 @@ describe('validación de la despensa', () => {
 
   it('valida lo que llega a la API: campos conocidos, unidades, frecuencias y límites', () => {
     const base = { name: '  Leche ', ownerId: null, unit: 'l', quantity: 2, target: 6, frequency: 'semanal', priceCents: 95, notes: '' }
-    expect(validateItemInput(base)).toEqual({ ok: true, value: { ...base, name: 'Leche' } })
-    expect(validateItemInput({ ...base, extra: 'x', notes: undefined })).toEqual({ ok: true, value: { ...base, name: 'Leche', notes: '' } })
+    expect(validateItemInput(base)).toEqual({ ok: true, value: { ...base, name: 'Leche', tracking: 'cantidad' } })
+    expect(validateItemInput({ ...base, extra: 'x', notes: undefined })).toEqual({
+      ok: true,
+      value: { ...base, name: 'Leche', notes: '', tracking: 'cantidad' },
+    })
+    expect(validateItemInput({ ...base, tracking: 'compras' })).toMatchObject({ ok: true, value: { tracking: 'compras' } })
+    expect(validateItemInput({ ...base, tracking: 'otra' }).ok).toBe(false)
     expect(validateItemInput({ ...base, unit: 'barril' }).ok).toBe(false)
     expect(validateItemInput({ ...base, frequency: 'diaria' }).ok).toBe(false)
     expect(validateItemInput({ ...base, quantity: -1 }).ok).toBe(false)

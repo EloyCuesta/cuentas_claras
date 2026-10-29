@@ -11,7 +11,17 @@ import {
   PANTRY_UNITS,
   PERSON_NAME_MAX,
 } from './pantry.ts'
-import type { PantryFrequency, PantryItemInput, PantryPerson, PantryPurchaseChange, PantryUnit } from './types.ts'
+import { isValidISODate } from './dates.ts'
+import type {
+  ISODate,
+  PantryEventKind,
+  PantryFrequency,
+  PantryItemInput,
+  PantryPerson,
+  PantryPurchaseChange,
+  PantryTracking,
+  PantryUnit,
+} from './types.ts'
 import type { FieldErrors } from './validation.ts'
 
 /**
@@ -89,6 +99,9 @@ export function validateItemInput(raw: unknown): ValidationResult<PantryItemInpu
     const target = checkQuantity(body.target, unit)
     if (!target.ok) fail(`Objetivo: ${target.error}`)
 
+    const tracking = body.tracking ?? 'cantidad'
+    if (tracking !== 'cantidad' && tracking !== 'compras') fail('El campo «tracking» debe ser «compras» o «cantidad».')
+
     const notes = body.notes ?? ''
     if (typeof notes !== 'string') fail('El campo «notes» debe ser texto.')
     if (notes.trim().length > PANTRY_NOTES_MAX) fail(`Las notas pueden tener como máximo ${PANTRY_NOTES_MAX} caracteres.`)
@@ -97,6 +110,7 @@ export function validateItemInput(raw: unknown): ValidationResult<PantryItemInpu
       name,
       ownerId: (ownerId as string | null | undefined) ?? null,
       unit,
+      tracking: tracking as PantryTracking,
       quantity: quantity.value,
       target: target.value,
       frequency: body.frequency,
@@ -117,14 +131,31 @@ export function validateBudgetInput(raw: unknown): ValidationResult<{ monthlyBud
 
 const MAX_IDS = 1000
 
-/** { ids }: lista no vacía de ids, sin repetidos. */
-export function validateIdList(raw: unknown): ValidationResult<string[]> {
+function readOptionalDate(value: unknown, field: string): ISODate | null {
+  if (value === undefined || value === null) return null
+  if (!isValidISODate(value)) fail(`El campo «${field}» debe ser una fecha AAAA-MM-DD.`)
+  return value
+}
+
+/** { ids, date? }: lista no vacía de ids, sin repetidos, y la fecha de la compra (la de hoy del usuario). */
+export function validatePurchaseInput(raw: unknown): ValidationResult<{ ids: string[]; date: ISODate | null }> {
   return attempt(() => {
-    const { ids } = readObject(raw)
+    const { ids, date } = readObject(raw)
     if (!Array.isArray(ids) || ids.length === 0) fail('Indica al menos un producto en «ids».')
     if (ids.length > MAX_IDS) fail(`Se pueden indicar como máximo ${MAX_IDS} productos a la vez.`)
     if (!ids.every((id) => typeof id === 'string' && id !== '' && id.length <= 200)) fail('Cada elemento de «ids» debe ser un id.')
-    return [...new Set(ids as string[])]
+    return { ids: [...new Set(ids as string[])], date: readOptionalDate(date, 'date') }
+  })
+}
+
+/** { kind, date }: «Queda», «Se acabó» o «Lo he comprado», con la fecha de hoy del usuario. */
+export function validateEventInput(raw: unknown): ValidationResult<{ kind: PantryEventKind; date: ISODate }> {
+  return attempt(() => {
+    const { kind, date } = readObject(raw)
+    if (kind !== 'queda' && kind !== 'se_acabo' && kind !== 'comprado') fail('El campo «kind» debe ser «queda», «se_acabo» o «comprado».')
+    const checked = readOptionalDate(date, 'date')
+    if (!checked) fail('Falta el campo «date» (AAAA-MM-DD).')
+    return { kind, date: checked }
   })
 }
 
@@ -135,11 +166,15 @@ export function validateUndoInput(raw: unknown): ValidationResult<PantryPurchase
     if (!Array.isArray(changes) || changes.length === 0) fail('Indica los cambios que hay que deshacer en «changes».')
     if (changes.length > MAX_IDS) fail(`Se pueden deshacer como máximo ${MAX_IDS} productos a la vez.`)
     const seen = new Set<string>()
-    return changes.map((change: unknown) => {
-      if (!isObject(change)) fail('Cada cambio debe tener «id», «previousQuantity» y «version».')
-      const { id, previousQuantity, version } = change
+    return changes.map((change: unknown): PantryPurchaseChange => {
+      if (!isObject(change)) fail('Cada cambio debe tener «id» y «previousQuantity» y «version», o «eventId».')
+      const { id, previousQuantity, version, eventId } = change
       if (typeof id !== 'string' || id === '' || seen.has(id)) fail('Cada cambio debe tener un «id» distinto.')
       seen.add(id)
+      if (eventId !== undefined) {
+        if (typeof eventId !== 'string' || eventId === '' || eventId.length > 200) fail('El campo «eventId» no es válido.')
+        return { id, eventId }
+      }
       if (typeof previousQuantity !== 'number' || !Number.isFinite(previousQuantity) || previousQuantity < 0) {
         fail('El campo «previousQuantity» debe ser una cantidad válida.')
       }
@@ -182,7 +217,7 @@ export function parseQuantityInput(text: string): ParseResult<number> {
 
 /** Precio o presupuesto escrito por el usuario. Vacío = desconocido (null); "0" = 0 € (conocido). */
 export function parsePantryCentsInput(text: string): ParseResult<number | null> {
-  const raw = text.replace(/[\s  €]/g, '')
+  const raw = text.replace(/[\s\u00a0\u202f€]/g, '')
   if (raw === '') return { ok: true, value: null }
   if (/^0+([.,]0{1,2})?$/.test(raw) || /^[.,]0{1,2}$/.test(raw)) return { ok: true, value: 0 }
   const parsed = parseAmount(raw)
@@ -199,6 +234,7 @@ export interface PantryItemDraft {
   /** '' = Compartido. */
   ownerId: string
   unit: PantryUnit
+  tracking: PantryTracking
   quantity: string
   target: string
   frequency: PantryFrequency
@@ -217,8 +253,9 @@ export function validateItemDraft(
 
   if (draft.ownerId !== '' && !people.some((p) => p.id === draft.ownerId)) errors.ownerId = 'Elige una persona de la lista.'
 
-  const amounts: Partial<Record<'quantity' | 'target', number>> = {}
-  for (const key of ['quantity', 'target'] as const) {
+  // Los que se siguen por compras no usan cantidades: se guardan a 0.
+  const amounts: Partial<Record<'quantity' | 'target', number>> = draft.tracking === 'compras' ? { quantity: 0, target: 0 } : {}
+  for (const key of draft.tracking === 'compras' ? [] : (['quantity', 'target'] as const)) {
     const parsed = parseQuantityInput(draft[key])
     if (!parsed.ok) {
       errors[key] = parsed.error
@@ -244,6 +281,7 @@ export function validateItemDraft(
       name,
       ownerId: draft.ownerId === '' ? null : draft.ownerId,
       unit: draft.unit,
+      tracking: draft.tracking,
       quantity: amounts.quantity,
       target: amounts.target,
       frequency: draft.frequency,

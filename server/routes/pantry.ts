@@ -2,9 +2,10 @@ import { Router } from 'express'
 import {
   validateBudgetInput,
   validateDeltaInput,
-  validateIdList,
+  validateEventInput,
   validateItemInput,
   validatePersonInput,
+  validatePurchaseInput,
   validateUndoInput,
 } from '../../src/domain/pantryValidation.ts'
 import { sendData, valid } from '../http.ts'
@@ -24,12 +25,14 @@ import type { SqlitePantryRepository } from '../pantryRepository.ts'
  * - POST   /api/despensa/productos           PantryItemInput → 201 con el producto (id, versión y fechas del servidor)
  * - PUT    /api/despensa/productos/:id       PantryItemInput → el producto actualizado
  * - POST   /api/despensa/productos/:id/ajustar  { delta } → suma o resta a la cantidad actual (botones + y −)
+ * - POST   /api/despensa/productos/:id/revision { kind: 'queda' | 'se_acabo' | 'comprado', date } → 201 con la revisión
+ * - DELETE /api/despensa/revisiones/:id        deshace una revisión
  * - DELETE /api/despensa/productos/:id
  * Presupuesto
  * - GET    /api/despensa/presupuesto         { monthlyBudgetCents }
  * - PUT    /api/despensa/presupuesto         { monthlyBudgetCents: número o null }
  * Compra
- * - POST   /api/despensa/comprado            { ids } → { changes, items }
+ * - POST   /api/despensa/comprado            { ids, date? } → { changes, items }
  * - POST   /api/despensa/comprado/deshacer   { changes } → items, o 409 si algo cambió después
  *
  * Los id inexistentes responden 404 sin cambiar nada.
@@ -70,6 +73,16 @@ export function pantryRoutes(pantry: SqlitePantryRepository): Router {
     sendData(res, pantry.adjustItem(req.params.id, valid(validateDeltaInput(req.body))))
   })
 
+  router.post('/despensa/productos/:id/revision', (req, res) => {
+    const { kind, date } = valid(validateEventInput(req.body))
+    sendData(res, pantry.addEvent(req.params.id, kind, date), 201)
+  })
+
+  router.delete('/despensa/revisiones/:id', (req, res) => {
+    pantry.deleteEvent(req.params.id)
+    sendData(res, null)
+  })
+
   router.delete('/despensa/productos/:id', (req, res) => {
     pantry.deleteItem(req.params.id)
     sendData(res, null)
@@ -84,7 +97,8 @@ export function pantryRoutes(pantry: SqlitePantryRepository): Router {
   })
 
   router.post('/despensa/comprado', (req, res) => {
-    sendData(res, pantry.markPurchased(valid(validateIdList(req.body))))
+    const { ids, date } = valid(validatePurchaseInput(req.body))
+    sendData(res, pantry.markPurchased(ids, date))
   })
 
   router.post('/despensa/comprado/deshacer', (req, res) => {

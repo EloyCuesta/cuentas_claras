@@ -42,6 +42,10 @@ async function addProduct(
   await dialog.getByLabel('Nombre').fill(product.name)
   if (product.owner) await dialog.getByLabel('De quién es').selectOption({ label: product.owner })
   await dialog.getByLabel('Unidad').selectOption({ label: product.unit })
+  // Los productos nuevos se siguen por compras; para contar lo que hay se elige «Contando».
+  await expect(dialog.getByRole('radio', { name: 'Por compras' })).toBeChecked()
+  await expect(dialog.getByLabel('Hay ahora')).toHaveCount(0)
+  await dialog.getByRole('radio', { name: 'Contando' }).check()
   await dialog.getByLabel('Hay ahora').fill(product.quantity)
   await dialog.getByLabel('Quiero tener').fill(product.target)
   const frequency = dialog.getByLabel('Cada cuánto se compra')
@@ -78,7 +82,7 @@ test('el invitado solo ve la despensa y no pide datos financieros ni migra el na
   await expect(page.getByRole('button', { name: 'Tengo el código' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Resumen' })).toHaveCount(0)
   await expect(page.getByRole('navigation')).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'La despensa está vacía' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Empieza escaneando un ticket' })).toBeVisible()
 
   // Un enlace directo a una sección financiera también lleva a la despensa.
   await page.goto('/#resumen')
