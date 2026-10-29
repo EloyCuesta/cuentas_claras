@@ -4,8 +4,8 @@ import type { TicketDraft } from '#shared/tickets/ticketMatch.ts'
 import type { PantryItem, PantryPerson } from '#shared/pantry/types.ts'
 import type { PantryTicket, TicketSegment } from '#shared/tickets/types.ts'
 import { describeStorageError } from '../../api/storageErrors.ts'
-import type { PantryActions } from '../../state/usePantry.ts'
-import { defaultImageOptions, MAX_SEGMENTS, MAX_TOTAL_BYTES, prepareTicketImage, TicketImageError, type TicketImageOptions } from '../../ui/ticketImages.ts'
+import type { TicketActions } from './ticketActions.ts'
+import { defaultImageOptions, MAX_SEGMENTS, MAX_TOTAL_BYTES, prepareTicketImage, TicketImageError, type TicketImageOptions } from './ticketImages.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../../ui/Dialog.tsx'
 import { Icon } from '../../ui/Icon.tsx'
 import { TicketReview } from './TicketReview.tsx'
@@ -18,6 +18,21 @@ const MAX_IMAGES = 6
 /**
  * Escanear un ticket: elegir la captura (o capturas) de la app de la tienda, o
  * una foto del ticket de papel, o pegar su texto; leerlo; revisarlo y guardarlo.
+ *
+ * Pasos (`step`):
+ * - «elegir»: hasta 6 imágenes, cada una con su giro y su recorte, o el texto pegado.
+ * - «leyendo»: el navegador prepara las imágenes (ticketImages.ts: gira, recorta,
+ *   divide en franjas y, solo si es una foto de poco contraste, la retoca) y las
+ *   envía como `franjas` a POST /api/despensa/tickets/leer. El texto va tal cual.
+ *   Si algo falla se vuelve a «elegir» con el error.
+ * - «revisar»: TicketReview con el estado de ticketReviewState.ts.
+ * - Al guardar: si hay una posible compra duplicada sin confirmar, se avisa; si
+ *   quedan advertencias (no cuadra, líneas pendientes…), se pide confirmación
+ *   («Guardar con advertencias») y solo las líneas fiables cambian la despensa.
+ *
+ * Reglas: como mucho 24 franjas y 20 MB en total (los mismos límites que el
+ * servidor); la imagen original no se toca y es la que se ve al comparar; las URL
+ * locales de las imágenes se liberan al cerrar.
  */
 export function TicketScanDialog({
   items,
@@ -31,7 +46,7 @@ export function TicketScanDialog({
   people: readonly PantryPerson[]
   /** Persona elegida arriba en la despensa ('' = Compartido): dueña de los productos nuevos. */
   defaultOwnerId: string
-  actions: PantryActions
+  actions: TicketActions
   onSaved: (ticket: PantryTicket) => void
   onClose: () => void
 }) {

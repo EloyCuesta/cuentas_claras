@@ -6,7 +6,7 @@ import type { PantryItem } from '#shared/pantry/types.ts'
 import type { PantryTicket } from '#shared/tickets/types.ts'
 import { describeStorageError } from '../../api/storageErrors.ts'
 import { useToast } from '../../ui/toastContext.ts'
-import type { PantryActions } from '../../state/usePantry.ts'
+import type { TicketActions } from './ticketActions.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../../ui/Dialog.tsx'
 import { Icon } from '../../ui/Icon.tsx'
 
@@ -19,7 +19,7 @@ export function TicketDetailDialog({
 }: {
   ticketId: string
   items: readonly PantryItem[]
-  actions: PantryActions
+  actions: TicketActions
   onClose: () => void
 }) {
   const { notify } = useToast()

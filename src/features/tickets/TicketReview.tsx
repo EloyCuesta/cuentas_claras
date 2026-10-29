@@ -11,6 +11,25 @@ import { DateInput, Field } from '../../ui/forms.tsx'
 import { TicketLineCheck } from './TicketLineCheck.tsx'
 import { currentCalculation, LINE_STATE_LABELS, lineAmount, lineState, lineToInput, needsLineCheck, readAmount, reviewCheck, reviewLine, type Choice, type ReviewLine, type ReviewState, type SectionId } from './ticketReviewState.ts'
 
+/**
+ * Revisar un ticket leído antes de guardarlo.
+ *
+ * - Cabecera: tienda, fecha, hora, total y dirección; avisos de ticket ya
+ *   guardado o de posible compra duplicada (con su casilla «Confirmo que esta es
+ *   otra compra»), y la comprobación del total (`data-testid="ticket-check"`, con
+ *   `data-status`: cuadra, no cuadra, incompleto o pendiente de confirmar,
+ *   también con el desglose de IVA).
+ * - Las líneas del mismo producto van juntas, en cuatro apartados: «Para
+ *   revisar» (dudosas o emparejadas por parecido), «Productos nuevos», «Ya
+ *   conocidos» y «No se siguen» (los dos últimos, plegados).
+ * - Cada línea dudosa muestra su comprobación (TicketLineCheck) y su estado:
+ *   leída sin dudas, confirmada, sugerida o pendiente (ver ticketReviewState.ts).
+ * - Cualquier edición deja la línea sin confirmar y anota que el dato es manual.
+ * - Se puede comparar con la imagen original y añadir una línea a mano.
+ *
+ * No guarda nada: cada cambio llama a `onChange` con el estado nuevo.
+ */
+
 function TextField({ label, value, onChange, decimal = false, type = 'text' }: {
   label: string; value: string; onChange: (v: string) => void; decimal?: boolean; type?: string
 }) {

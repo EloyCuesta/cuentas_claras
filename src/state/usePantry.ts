@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { todayISO } from '#shared/common/dates.ts'
 import { sortItems, sortPeople } from '#shared/pantry/pantry.ts'
-import type { TicketDraft } from '#shared/tickets/ticketMatch.ts'
 import type { ISODate } from '#shared/common/types.ts'
 import type {
   PantryActivity,
@@ -13,9 +12,10 @@ import type {
   PantryPurchaseChange,
   PantrySettings,
 } from '#shared/pantry/types.ts'
-import type { PantryTicket, PantryTicketSummary, TicketSaveInput, TicketReadInput } from '#shared/tickets/types.ts'
+import type { PantryTicketSummary } from '#shared/tickets/types.ts'
 import { pantryApi } from '../services/pantryApi.ts'
 import { describeStorageError } from '../api/storageErrors.ts'
+import type { TicketActions } from '../features/tickets/index.ts'
 
 export interface PantryData {
   people: PantryPerson[]
@@ -30,7 +30,8 @@ export interface PantryData {
 
 export type PantryState = { status: 'loading' } | { status: 'error'; message: string } | ({ status: 'ready' } & PantryData)
 
-export interface PantryActions {
+/** Las acciones de la despensa y las de los tickets (TicketActions), que viven aquí porque guardar un ticket recarga toda la despensa. */
+export interface PantryActions extends TicketActions {
   reload(): Promise<void>
   createPerson(name: string): Promise<void>
   renamePerson(id: string, name: string): Promise<void>
@@ -49,12 +50,6 @@ export interface PantryActions {
   /** «Queda», «Queda poco», «Se acabó» o «Lo he comprado», con la fecha de hoy. Devuelve la revisión (para deshacerla). */
   addEvent(itemId: string, kind: PantryEventKind): Promise<PantryEvent>
   deleteEvent(id: string): Promise<void>
-  /** Lee un ticket (imágenes ya preparadas o texto). No guarda nada. */
-  readTicket(input: TicketReadInput): Promise<TicketDraft>
-  saveTicket(input: TicketSaveInput): Promise<PantryTicket>
-  getTicket(id: string): Promise<PantryTicket>
-  setTicketLine(ticketId: string, lineId: string, itemId: string | null): Promise<PantryTicket>
-  deleteTicket(id: string): Promise<void>
 }
 
 async function loadAll(): Promise<PantryData> {

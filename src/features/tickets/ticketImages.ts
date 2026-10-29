@@ -1,5 +1,13 @@
 import type { TicketSegment } from '#shared/tickets/types.ts'
 
+/**
+ * Preparar en el navegador las imágenes de un ticket antes de leerlas: girar,
+ * recortar (también los márgenes blancos), dividir las capturas largas en
+ * franjas que se solapan y, solo en las fotos de poco contraste, estirar el
+ * contraste y enfocar. La imagen original no se toca: esto es la copia que se
+ * envía al servidor. También estima si la resolución basta para leer bien.
+ */
+
 export class TicketImageError extends Error {}
 export interface TicketImageOptions {
   rotation: 0 | 90 | 180 | 270

@@ -14,6 +14,26 @@ import type {
   TicketSaveLine,
 } from '#shared/tickets/types.ts'
 
+/**
+ * El estado de la revisión de un ticket, sin React: lo que se ve y se edita
+ * en TicketReview y lo que se envía al guardar.
+ *
+ * - initialReview: parte de lo que leyó el servidor (TicketDraft). Cada producto
+ *   empieza con lo que se propone (lo aprendido, un nombre parecido o uno nuevo)
+ *   y va al apartado «Para revisar» si le falta el importe, tiene alguna marca o
+ *   se emparejó solo por parecido.
+ * - Cada línea pasa por cuatro estados (lineState): comprobado → confirmado, o
+ *   sugerido → confirmado, o pendiente. Solo «comprobado» y «confirmado» cambian
+ *   la despensa al guardar; el resto se guarda en el ticket como pendiente.
+ * - reviewCheck y reviewWarnings: la comprobación del total y del IVA tal como
+ *   está la revisión ahora, y las advertencias que pedirán confirmación.
+ * - reviewToInput: valida y convierte la revisión en lo que recibe
+ *   POST /api/despensa/tickets. Las líneas con el mismo nombre deben ir al mismo
+ *   producto.
+ *
+ * Los importes se escriben como texto (coma decimal) y se leen en céntimos.
+ */
+
 export type Choice =
   | { kind: 'item'; itemId: string }
   | { kind: 'new'; name: string; ownerId: string; frequency: PantryFrequency }

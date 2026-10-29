@@ -4,6 +4,12 @@ import { lineProblems } from '#shared/tickets/ticketArithmetic.ts'
 import type { TicketAmountOption, TicketSegment, TicketSource } from '#shared/tickets/types.ts'
 import { chooseAmountChange, currentCalculation, lineAmount, lineState, lineToInput, LINE_STATE_LABELS, type ReviewLine } from './ticketReviewState.ts'
 
+/**
+ * La comprobación visible de una línea dudosa del ticket: su trozo de imagen,
+ * lo que leyó el OCR, lo calculado, por qué no coinciden y las tres acciones
+ * («Usar 9,90 €», «Editar» y «Dejar pendiente»).
+ */
+
 /** Altura (px CSS) a la que se muestra la línea: legible también en un móvil. */
 const SNIPPET_HEIGHT = 52
 
