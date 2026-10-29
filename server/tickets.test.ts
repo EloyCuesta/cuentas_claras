@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3'
 import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import type { TicketSuggestion } from '#shared/tickets/ticketMatch.ts'
@@ -374,5 +375,33 @@ describe('API de tickets', () => {
     const data = (await api.call('GET', '/data')).body.data as Record<string, unknown[]>
     expect(data.movements).toEqual([])
     expect(JSON.stringify(data)).not.toMatch(/LECHE|Lidl/)
+  })
+
+  it('las huellas no cambian: los tickets ya guardados siguen contando como duplicados', async () => {
+    // Valores calculados con el código de antes de repartir los tickets en casos de uso: si
+    // cambian, los tickets que ya hay en una base de datos dejarían de reconocerse al leerlos otra vez.
+    const api = await startApi({ login: false, ticketReader: fakeReader() })
+    const fingerprintOf = (result: { body: { data?: unknown } }) => (result.body.data as { sourceFingerprint: string }).sourceFingerprint
+    // Huella del origen: el texto pegado (los espacios no cuentan) o las imágenes, byte a byte.
+    const pasted = await read(api, { texto: '  LIDL\nEUR\nPAN   1,00 A\nTOTAL 1,00\nFECHA: 28/10/26 ', hoy: '2026-10-29' })
+    expect(fingerprintOf(pasted)).toBe('a8737b2f4204b7b1b9c9b81440ae55228438a252a379693401a3cdfdc19a71e4')
+    expect(fingerprintOf(await read(api))).toBe('74707bc9bd62595e3ac455802d512b5aa806bf0bc49a863157e635ad2b397a5e')
+    // Huella del ticket guardado: tienda, fecha, hora, total, líneas y ajustes.
+    const saved = await guest(api).call('POST', '/despensa/tickets', {
+      store: 'lidl', storeName: 'Lidl', address: '', date: '2026-10-28', time: '19:24', totalCents: 100, acknowledged: true,
+      lines: [{ rawName: 'PAN', quantity: 1, unitPriceCents: null, amountCents: 100, discountCents: 0, weightKg: null, pricePerKgCents: null, taxCode: 'A', occasional: false }],
+      adjustments: [{ id: 'a1', label: 'Cupón', kind: 'coupon', amountCents: -10, needsReview: false }],
+      decisions: { PAN: { kind: 'ignore' } },
+      sourceFingerprint: fingerprintOf(pasted),
+    })
+    expect(saved.status).toBe(201)
+    const db = new Database(api.path, { readonly: true })
+    try {
+      expect(db.prepare('SELECT fingerprint, source_fingerprint FROM pantry_tickets').all()).toEqual([
+        { fingerprint: '4ee26779153a9a0ba92b3af35f8f543155cfe656884bd3d4d5693140d5baeb30', source_fingerprint: 'a8737b2f4204b7b1b9c9b81440ae55228438a252a379693401a3cdfdc19a71e4' },
+      ])
+    } finally {
+      db.close()
+    }
   })
 })
