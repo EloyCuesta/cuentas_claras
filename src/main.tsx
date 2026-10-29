@@ -4,7 +4,7 @@ import '@fontsource-variable/atkinson-hyperlegible-next'
 import './styles.css'
 import { Root } from './Root.tsx'
 import { ToastProvider } from './ui/ToastProvider.tsx'
-import { AuthProvider } from './state/AuthProvider.tsx'
+import { AuthProvider } from './features/auth/index.ts'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,6 +1,6 @@
 import { BackupPanel } from '../components/BackupPanel.tsx'
 import { CategoryEditor } from '../components/CategoryEditor.tsx'
-import { SessionPanel } from '../components/SessionPanel.tsx'
+import { SessionPanel } from '../features/auth/index.ts'
 
 export function SettingsPage() {
   return (

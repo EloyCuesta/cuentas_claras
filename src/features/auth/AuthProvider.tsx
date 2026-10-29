@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { apiRequest, onUnauthorized } from '../api/client.ts'
+import { onUnauthorized } from '../../api/client.ts'
+import { describeStorageError } from '../../api/storageErrors.ts'
+import { useToast } from '../../ui/toastContext.ts'
+import { authApi } from './api.ts'
 import { AuthContext, type AuthContextValue, type Role } from './authContext.ts'
-import { describeStorageError } from '../api/storageErrors.ts'
-import { useToast } from '../ui/toastContext.ts'
 
 type AuthState = { status: 'checking' } | { status: 'error'; message: string } | { status: 'ready'; role: Role }
 
@@ -29,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const current = ++generation.current
-    apiRequest<{ rol: Role }>('GET', '/auth/me').then(
+    authApi.me().then(
       ({ rol }) => {
         if (current === generation.current) apply(rol === 'admin' ? 'admin' : 'invitado')
       },
@@ -54,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (code: string) => {
       const current = ++generation.current
-      await apiRequest('POST', '/auth/login', { codigo: code })
+      await authApi.login(code)
       if (current !== generation.current) return
       // Sin evento hashchange: la vista de invitado (que se desmonta ahora) no lo devuelve a #despensa.
       history.replaceState(null, '', '#resumen')
@@ -65,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     // Si falla, se lanza el error y no se cambia nada: la sesión del servidor puede seguir abierta.
-    await apiRequest('POST', '/auth/logout')
+    await authApi.logout()
     generation.current++
     apply('invitado')
   }, [apply])
