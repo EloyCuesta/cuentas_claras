@@ -16,7 +16,7 @@ import { EMPTY_FILTERS, type MovementFilters } from '#shared/finance/filters.ts'
 import type { YearMonth } from '#shared/finance/period.ts'
 import { effectiveDate } from '#shared/finance/summary.ts'
 import type { Movement, MovementType } from '#shared/finance/types.ts'
-import { DespensaPage } from './pages/DespensaPage.tsx'
+import { DespensaPage } from './features/pantry/index.ts'
 import { yearRange } from './ui/helpers.ts'
 import { navigate, useHashRoute, type Route } from './ui/useHashRoute.ts'
 

@@ -11,7 +11,7 @@ import type {
   PantrySettings,
 } from '#shared/pantry/types.ts'
 import type { PantryTicket, PantryTicketSummary, TicketSaveInput, TicketReadInput } from '#shared/tickets/types.ts'
-import { apiRequest, segment } from '../api/client.ts'
+import { apiRequest, segment } from '../../api/client.ts'
 
 /**
  * Cliente de la API de la despensa (/api/despensa). Es pública: funciona igual

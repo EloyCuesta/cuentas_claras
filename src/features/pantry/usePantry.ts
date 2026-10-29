@@ -13,9 +13,9 @@ import type {
   PantrySettings,
 } from '#shared/pantry/types.ts'
 import type { PantryTicketSummary } from '#shared/tickets/types.ts'
-import { pantryApi } from '../services/pantryApi.ts'
-import { describeStorageError } from '../api/storageErrors.ts'
-import type { TicketActions } from '../features/tickets/index.ts'
+import { pantryApi } from './api.ts'
+import { describeStorageError } from '../../api/storageErrors.ts'
+import type { TicketActions } from '../tickets/index.ts'
 
 export interface PantryData {
   people: PantryPerson[]

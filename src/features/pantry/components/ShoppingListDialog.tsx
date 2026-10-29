@@ -10,10 +10,10 @@ import {
   type Rhythms,
 } from '#shared/pantry/pantry.ts'
 import type { PantryFrequency, PantryItem, PantryPerson } from '#shared/pantry/types.ts'
-import { describeStorageError } from '../../api/storageErrors.ts'
-import { downloadFile } from '../../ui/helpers.ts'
-import { Dialog, DialogError } from '../../ui/Dialog.tsx'
-import { Icon } from '../../ui/Icon.tsx'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import { downloadFile } from '../../../ui/helpers.ts'
+import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 import { OwnerSelect } from './owner.tsx'
 import { encodeOwner, parseOwner } from './ownerFilter.ts'
 
@@ -23,6 +23,18 @@ type CopyState = { kind: 'idle' } | { kind: 'copied' } | { kind: 'manual' }
  * Lista de la compra: el texto de lo que falta, con filtros, y las formas de
  * llevárselo. WhatsApp va primero porque funciona aunque la app vaya por HTTP
  * en la red de casa, donde el navegador no deja compartir ni copiar solo.
+ *
+ * - Qué entra (shoppingListItems, en shared/pantry): lo que se acabó, queda poco
+ *   o probablemente se acabó, con la cantidad de la última compra, y lo que
+ *   falta de lo que se cuenta. Se filtra por persona y frecuencia, y la fecha se
+ *   fija al abrir.
+ * - El texto (listaCompraTexto) va agrupado en Compartido y cada persona, con
+ *   negritas de WhatsApp y el total estimado.
+ * - Copiar pasa por tres estados (`copy`): sin copiar, «copiado» o, si el
+ *   navegador no deja copiar solo, «manual», que selecciona el texto para
+ *   copiarlo a mano. Compartir solo aparece si el navegador lo permite.
+ * - «Marcar todo como comprado» llama a `onMarkPurchased` (que ofrece
+ *   «Deshacer» en el aviso) y, si va bien, cierra la lista.
  */
 export function ShoppingListDialog({
   items,

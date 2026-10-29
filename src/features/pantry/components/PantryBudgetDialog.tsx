@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { centsToInput } from '#shared/common/money.ts'
 import { parsePantryCentsInput } from '#shared/pantry/pantryValidation.ts'
-import { describeStorageError } from '../../api/storageErrors.ts'
-import { Dialog, DialogError } from '../../ui/Dialog.tsx'
-import { AmountInput, Field } from '../../ui/forms.tsx'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { AmountInput, Field } from '../../../ui/forms.tsx'
 
 /** Presupuesto mensual estimado de la despensa (de toda la casa). No crea ningún presupuesto financiero. */
 export function PantryBudgetDialog({

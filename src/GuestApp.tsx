@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Icon, LogoMark } from './ui/Icon.tsx'
 import { LoginDialog } from './features/auth/index.ts'
-import { DespensaPage } from './pages/DespensaPage.tsx'
+import { DespensaPage } from './features/pantry/index.ts'
 
 /**
  * Vista de invitado: solo la despensa y el botón «Tengo el código». No usa

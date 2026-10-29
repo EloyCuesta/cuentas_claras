@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { PERSON_NAME_MAX } from '#shared/pantry/pantry.ts'
 import type { PantryPerson } from '#shared/pantry/types.ts'
-import { describeStorageError } from '../../api/storageErrors.ts'
-import { Dialog, DialogError } from '../../ui/Dialog.tsx'
-import { Icon } from '../../ui/Icon.tsx'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 
 function PersonRow({
   person,

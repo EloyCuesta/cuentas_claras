@@ -3,11 +3,11 @@ import { describeQuantity, missingQuantity, quantityStep, type Rhythms } from '#
 import type { ReviewSchedule } from '#shared/pantry/pantryReview.ts'
 import { agoText } from '#shared/pantry/pantryRhythm.ts'
 import type { PantryItem, PantryPerson } from '#shared/pantry/types.ts'
-import { ApiError } from '../../api/client.ts'
-import { describeStorageError } from '../../api/storageErrors.ts'
-import type { PantryActions } from '../../state/usePantry.ts'
-import { Dialog, DialogError } from '../../ui/Dialog.tsx'
-import { Icon } from '../../ui/Icon.tsx'
+import { ApiError } from '../../../api/client.ts'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import type { PantryActions } from '../usePantry.ts'
+import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 import { purchaseText, showsRhythmStatus } from './rhythmText.ts'
 import { RhythmStatus } from './RhythmStatus.tsx'
 
@@ -15,6 +15,18 @@ import { RhythmStatus } from './RhythmStatus.tsx'
  * Repaso de la semana: el aviso en la Despensa y la ventana que va producto a
  * producto. Cada respuesta se guarda al momento (si se cierra a medias, lo
  * hecho queda hecho); al llegar al final se apunta el día del repaso.
+ *
+ * - WeeklyReviewCard: si toca (a los 7 días del último repaso; la primera vez,
+ *   a los 7 de empezar) y no se ha pulsado «Hoy no», el aviso grande con
+ *   «Empezar el repaso»; si no, una línea con el último repaso y «Repasar ahora».
+ * - WeeklyReviewDialog: la cola de productos se decide al abrir (reviewItems, en
+ *   shared/pantry) y no cambia mientras se responde. Para cada uno: «Queda»,
+ *   «Queda poco» o «Se acabó» (una revisión cada uno), − y + en los que se
+ *   cuentan, «Saltar» o «Atrás». Al volver atrás y cambiar la respuesta, la
+ *   revisión anterior se borra (si ya no existe, no pasa nada). Al terminar:
+ *   «Repaso hecho», el resumen y el botón de la lista de la compra.
+ * - Una acción cada vez; los errores se quedan en la ventana, y el foco va al
+ *   nombre del producto en cada paso.
  */
 
 /** Aviso grande cuando toca; si no, una línea con el último repaso y «Repasar ahora». */
