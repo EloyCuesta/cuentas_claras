@@ -221,13 +221,39 @@ export interface TicketSegment {
   fullHeight: number
 }
 export type TicketReadInput = { imagenes: string[] } | { texto: string } | { franjas: TicketSegment[] }
+/**
+ * Por qué el importe leído no coincide con el calculado (precio × cantidad o
+ * peso × precio por kilo), y qué indica cada evidencia.
+ * - calculation: un error de lectura en el importe lo explica y en los datos de
+ *   la multiplicación no (o una lectura independiente da el calculado).
+ * - read: un error en el precio o la cantidad lo explica mejor que uno en el importe.
+ * - ambiguous: ninguna evidencia local permite decidir; hace falta una persona.
+ */
+export interface TicketDiscrepancy {
+  kind: 'units' | 'weight'
+  verdict: 'calculation' | 'read' | 'ambiguous'
+  recognizedCents: number
+  calculatedCents: number
+  explanation: string
+  reasons: string[]
+}
+/** Importes que la revisión ofrece como botón («Usar 9,90 €»), con su origen. */
+export interface TicketAmountOption {
+  cents: number
+  origin: 'read' | 'reread' | 'calculation'
+}
 export interface TicketEvidence {
+  /** Texto tal cual lo leyó el OCR (nunca se modifica). */
   text: string
   reread: string | null
+  /** El texto tras normalizar cifras y separadores, para comparar. */
+  normalized?: string
   recognizedCents: number | null
   calculatedCents: number | null
   selectedBy: 'read' | 'reread' | 'calculation' | 'manual'
   issues: string[]
+  discrepancy?: TicketDiscrepancy
+  options?: TicketAmountOption[]
   source?: TicketSource
 }
 export interface TicketAdjustment {

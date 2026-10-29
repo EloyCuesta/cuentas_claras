@@ -1,0 +1,252 @@
+{
+"provenance": "real-ocr-of-synthetic-image",
+"note": "ticket-lidl-ejemplo.png preparado por el navegador (1300 px, JPEG 0,92) con el código anterior; leído por el OCR actual.",
+"truth": "ticket-lidl-ejemplo.json",
+"lines": [
+{
+"text": "Copia",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "LIDL\n",
+"reread": null,
+"confidence": 92
+},
+{
+"text": "LIDL SUPERMERCADOS S.A.U.",
+"reread": null,
+"confidence": 91
+},
+{
+"text": "Calle del Ejemplo, 12",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "39001 Santander",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "NIF AOO000000",
+"reread": null,
+"confidence": 54
+},
+{
+"text": "www. Lidl.es\n",
+"reread": null,
+"confidence": 45
+},
+{
+"text": "EUR",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "LECHE SEMIDESNATADA    0,95x 6      5,70 A",
+"reread": "0,95x 6 5,70 A",
+"confidence": 91
+},
+{
+"text": "PAN DE MOLDE INTEGRA                1,29 A",
+"reread": "1,29 A",
+"confidence": 93
+},
+{
+"text": "HUEVOS CAMPEROS L                   2,939 A",
+"reread": "2,99 A",
+"confidence": 82
+},
+{
+"text": "YOGUR GRIEGO           0,55x 4      2,20 A",
+"reread": "0,55x 4 2,20 A",
+"confidence": 93
+},
+{
+"text": "PLÁTANO CANARIO                     2,31 A",
+"reread": "2,31 A",
+"confidence": 79
+},
+{
+"text": "0,812 kg x 2,85   EUR/ kg",
+"reread": "0,812 kg x 2,85 EUR/kg",
+"confidence": 94
+},
+{
+"text": "PECHUGA DE POLLO                    5,27 B",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "0,684 kg x 7,70  EUR/kg",
+"reread": "0,684 kg x 7,70 EUR/kg",
+"confidence": 92
+},
+{
+"text": "Desc.                           -0,53",
+"reread": "-0,53",
+"confidence": 91
+},
+{
+"text": "ARROZ REDONDO                       1,15 A",
+"reread": "1,15 A",
+"confidence": 64
+},
+{
+"text": "ACEITE DE OLIVA V.E.                7,49 B",
+"reread": null,
+"confidence": 93
+},
+{
+"text": "TOMATE TRITURADO       0,59x 3      1,77 B",
+"reread": "0,59x 3 1,77 B",
+"confidence": 92
+},
+{
+"text": "CAFÉ MOLIDO NATURAL                 3,29 B",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "PROMO LIDL PLUS                  -0,33",
+"reread": "-0,33",
+"confidence": 93
+},
+{
+"text": "MACARRONES                         0,85 B",
+"reread": null,
+"confidence": 93
+},
+{
+"text": "MACARRONES                         0,85 B",
+"reread": null,
+"confidence": 93
+},
+{
+"text": "QUESO EN LONCHAS                    2,15 B",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "MANZANA GOLDEN                      1,95 A",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "0,975 kg x 2,00  EUR/kg",
+"reread": "0,975 kg x 2,00 EUR/kg",
+"confidence": 90
+},
+{
+"text": "PAPEL HIGIÉNICO 12R                 3,75 C",
+"reread": "12 373",
+"confidence": 90
+},
+{
+"text": "DETERGENTE LÍQUIDO                  5,49 C",
+"reread": null,
+"confidence": 93
+},
+{
+"text": "Desc.                           -0,50",
+"reread": "-0,50",
+"confidence": 93
+},
+{
+"text": "ZUMO DE NARANJA 1L     1,19x 2      2,38 B",
+"reread": "1 1,19x 2 2,38 B",
+"confidence": 94
+},
+{
+"text": "PATATA 3 KG                        2,939 A",
+"reread": "2,939 A",
+"confidence": 83
+},
+{
+"text": "TOTAL                             52,51",
+"reread": "52 51",
+"confidence": 96
+},
+{
+"text": "Lidl Pay                          52,51",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "COMERCIO: Lidl Pay ES Stores",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "NUM. OPERACION: 1234abcdefgh",
+"reread": null,
+"confidence": 91
+},
+{
+"text": "METODO DE PAGO: ****+++6K4+++*7234",
+"reread": null,
+"confidence": 63
+},
+{
+"text": "FECHA: 24/10/26",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "HORA: 18:05:12",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "CAJA: 02",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "IMPORTE: 52,51 EUR",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "VENTA",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "0001  000001/01          24.10.26   18:03\n",
+"reread": null,
+"confidence": 92
+},
+{
+"text": "GRACIAS POR SU VISITA\n",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "Ofertas Lidl Plus",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "-10% Cookies\n",
+"reread": null,
+"confidence": 92
+},
+{
+"text": "Compra realizada en",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "Santander-Ejemplo\n",
+"reread": null,
+"confidence": 90
+},
+{
+"text": "39001 Santander",
+"reread": null,
+"confidence": 96
+}
+]
+}

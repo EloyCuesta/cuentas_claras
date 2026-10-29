@@ -3183,3 +3183,23 @@ body:has(dialog[open]) {
   .ticket-review--compare { display: flex; flex-direction: column; }
   .ticket-comparison { order: -1; margin-bottom: 18px; }
 }
+
+/* Comprobación visible de una línea dudosa del ticket */
+.ticket-line-check { display: grid; gap: 8px; margin: 0 12px 12px; padding: 12px; border: 1px solid var(--rule); border-left: 4px solid var(--warning-ink); border-radius: var(--radius-m); background: var(--warning-soft); min-width: 0; }
+.ticket-line-check--confirmado { border-left-color: var(--positive); background: color-mix(in srgb, var(--positive) 8%, var(--sheet)); }
+.ticket-line-check--pendiente { border-left-color: var(--negative); }
+.ticket-line-check p { margin: 0; }
+.ticket-line-check__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; overflow-wrap: anywhere; }
+.ticket-line-check__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 16px; margin: 0; }
+.ticket-line-check__facts div { display: grid; gap: 2px; }
+.ticket-line-check__facts dt { color: var(--ink-2); font-size: var(--step--1); }
+.ticket-line-check__facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ticket-line-check__warning { color: var(--warning-ink); font-weight: 700; }
+.ticket-line-check__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ticket-state { padding: 2px 8px; border-radius: 999px; font-size: var(--step--1); font-weight: 700; background: var(--sheet); border: 1px solid var(--rule-strong); white-space: nowrap; }
+.ticket-state--confirmado, .ticket-state--comprobado { color: var(--positive); border-color: var(--positive); }
+.ticket-state--sugerido { color: var(--warning-ink); border-color: var(--warning-ink); }
+.ticket-state--pendiente { color: var(--negative); border-color: var(--negative); }
+.ticket-snippet { max-width: 100%; overflow-x: auto; overflow-y: hidden; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; }
+.ticket-snippet__frame { position: relative; overflow: hidden; margin-left: auto; }
+.ticket-snippet__frame img { position: absolute; max-width: none; height: auto; }

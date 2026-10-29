@@ -114,6 +114,12 @@ export function TicketDetailDialog({
                       {line.occasional ? ' · para una ocasión' : ''}
                       {line.reviewStatus === 'pending' ? ' · pendiente: no actualiza la despensa' : ''}
                     </span>
+                    {line.evidence?.discrepancy && (
+                      <span className="muted small">
+                        Leído por el OCR: {formatEuros(line.evidence.discrepancy.recognizedCents)} · calculado: {formatEuros(line.evidence.discrepancy.calculatedCents)}
+                        {line.evidence.selectedBy === 'manual' ? ' · corregido a mano' : line.confirmed ? ' · confirmado' : ''}
+                      </span>
+                    )}
                   </div>
                   <label className="sr-only" htmlFor={`line-${line.id}`}>
                     Producto de {line.rawName}

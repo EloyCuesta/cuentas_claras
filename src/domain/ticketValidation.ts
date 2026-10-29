@@ -4,7 +4,7 @@ import { isPantryFrequency, MAX_PANTRY_CENTS, PANTRY_NAME_MAX } from './pantry.t
 import { nameKey } from './ticketText.ts'
 import { lineProblems } from './ticketArithmetic.ts'
 import { checkTicket } from './ticketParse.ts'
-import type { TicketAdjustment, TicketDecision, TicketEvidence, TicketSaveInput, TicketSaveLine } from './types.ts'
+import type { TicketAdjustment, TicketAmountOption, TicketDecision, TicketDiscrepancy, TicketEvidence, TicketSaveInput, TicketSaveLine } from './types.ts'
 
 /** Validación de lo que llega a la API al guardar un ticket revisado. */
 
@@ -61,18 +61,39 @@ function readLine(raw: unknown, index: number): TicketSaveLine {
   return line
 }
 
+const shortText = (value: unknown, max = 400) => typeof value === 'string' ? value.slice(0, max) : ''
+
 function readEvidence(raw: unknown): TicketEvidence | undefined {
   if (raw === undefined || raw === null) return undefined
   if (!isObject(raw)) fail('La evidencia de lectura no es válida.')
   if (!['read', 'reread', 'calculation', 'manual'].includes(String(raw.selectedBy))) fail('Origen del importe no válido.')
-  if (!Array.isArray(raw.issues) || raw.issues.length > 20 || raw.issues.some(i => typeof i !== 'string' || i.length > 200)) fail('Incidencias de lectura no válidas.')
-  return {
+  if (!Array.isArray(raw.issues) || raw.issues.length > 20 || raw.issues.some(i => typeof i !== 'string' || i.length > 400)) fail('Incidencias de lectura no válidas.')
+  const evidence: TicketEvidence = {
     text: typeof raw.text === 'string' ? raw.text.slice(0, 1000) : '',
     reread: typeof raw.reread === 'string' ? raw.reread.slice(0, 1000) : null,
     recognizedCents: int(raw.recognizedCents, 'Importe reconocido', -MAX_LINE_CENTS, MAX_LINE_CENTS, true),
     calculatedCents: int(raw.calculatedCents, 'Importe calculado', -MAX_LINE_CENTS, MAX_LINE_CENTS, true),
     selectedBy: raw.selectedBy as TicketEvidence['selectedBy'], issues: raw.issues as string[],
   }
+  if (typeof raw.normalized === 'string') evidence.normalized = raw.normalized.slice(0, 1000)
+  // La discrepancia original se guarda con el ticket: así se puede saber después qué leyó el OCR y por qué se propuso otra cifra.
+  if (raw.discrepancy !== undefined && raw.discrepancy !== null) {
+    const d = raw.discrepancy
+    if (!isObject(d) || !['units', 'weight'].includes(String(d.kind)) || !['calculation', 'read', 'ambiguous'].includes(String(d.verdict)) ||
+      !Array.isArray(d.reasons) || d.reasons.length > 10) fail('La discrepancia de lectura no es válida.')
+    evidence.discrepancy = { kind: d.kind as TicketDiscrepancy['kind'], verdict: d.verdict as TicketDiscrepancy['verdict'],
+      recognizedCents: int(d.recognizedCents, 'Importe leído', -MAX_LINE_CENTS, MAX_LINE_CENTS) as number,
+      calculatedCents: int(d.calculatedCents, 'Importe calculado', -MAX_LINE_CENTS, MAX_LINE_CENTS) as number,
+      explanation: shortText(d.explanation), reasons: d.reasons.map(r => shortText(r)) }
+  }
+  if (raw.options !== undefined) {
+    if (!Array.isArray(raw.options) || raw.options.length > 4) fail('Las opciones de importe no son válidas.')
+    evidence.options = raw.options.map(o => {
+      if (!isObject(o) || !['read', 'reread', 'calculation'].includes(String(o.origin))) fail('Las opciones de importe no son válidas.')
+      return { cents: int(o.cents, 'Opción de importe', -MAX_LINE_CENTS, MAX_LINE_CENTS) as number, origin: o.origin as TicketAmountOption['origin'] }
+    })
+  }
+  return evidence
 }
 
 function readAdjustments(raw: unknown): TicketAdjustment[] {
@@ -125,8 +146,8 @@ export function validateTicketSave(raw: unknown): ValidationResult<TicketSaveInp
     const lines = raw.lines.map(readLine)
     const adjustments = readAdjustments(raw.adjustments)
     const issues = raw.issues === undefined ? [] : raw.issues
-    if (!Array.isArray(issues) || issues.length > 30 || issues.some(i => typeof i !== 'string' || i.length > 200)) fail('Incidencias del ticket no válidas.')
-    const check = checkTicket(lines, totalCents, adjustments)
+    if (!Array.isArray(issues) || issues.length > 30 || issues.some(i => typeof i !== 'string' || i.length > 400)) fail('Incidencias del ticket no válidas.')
+    const check = checkTicket(lines.map(l => ({ ...l, pending: l.reviewStatus === 'pending' })), totalCents, adjustments)
     if ((check.status !== 'cuadra' || lines.some(l => l.reviewStatus === 'pending') || adjustments.some(a => a.needsReview || a.amountCents === null) || issues.length > 0) && raw.acknowledged !== true) {
       fail('Confirma el guardado con las advertencias pendientes. Solo las líneas fiables actualizarán la despensa.')
     }

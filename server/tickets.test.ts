@@ -95,12 +95,41 @@ describe('lector de tickets (OCR real)', () => {
   const reader = createTesseractReader()
   afterAll(() => reader.close())
 
-  it('lee la captura del ticket de ejemplo y cuadra con el total', { timeout: 120_000 }, async () => {
+  it('lee la captura del ticket de ejemplo: los importes suman el total', { timeout: 120_000 }, async () => {
     const pages = await reader.read([FIXTURE_PNG])
     const ticket = parseTicket(pages)
-    expect(ticket.check).toMatchObject({ status: 'cuadra', differenceCents: 0 })
+    // Tesseract da poca confianza a algún importe de esta imagen: la suma coincide, pero esas
+    // líneas quedan por confirmar («pendiente») salvo que una multiplicación las compruebe.
+    expect(['cuadra', 'pendiente']).toContain(ticket.check.status)
+    expect(ticket.check.differenceCents).toBe(0)
+    for (const line of ticket.lines.filter(l => l.flags.length)) {
+      expect(line.weightKg === null && line.unitPriceCents === null, line.rawName).toBe(true)
+      expect(line.evidence?.issues.length, line.rawName).toBeGreaterThan(0)
+    }
     expect(ticket.totalCents).toBe(TRUTH.totalCents)
     expect(ticket.lines.map((l) => [l.rawName, l.amountCents])).toEqual(TRUTH.lines.map((l) => [l.rawName, l.amountCents]))
+  })
+})
+
+describe('lector de tickets (OCR real) con el ticket sintético de Torrelavega', () => {
+  const reader = createTesseractReader()
+  afterAll(() => reader.close())
+  const truth = JSON.parse(readFileSync(new URL('./fixtures/ticket-torrelavega-sintetico.json', import.meta.url), 'utf8')) as {
+    totalCents: number; lines: { rawName: string; amountCents: number; quantity: number; unitPriceCents: number | null; weightKg: number | null }[]
+  }
+  it('lee multiplicaciones, pesos, IVA y publicidad sin aceptar ningún importe erróneo en silencio', { timeout: 120_000 }, async () => {
+    // Imagen SINTÉTICA con las líneas del ticket real que aportó el usuario; no es su captura de Lidl Plus.
+    const ticket = parseTicket(await reader.read([readFileSync(new URL('./fixtures/ticket-torrelavega-sintetico.png', import.meta.url))]))
+    expect(ticket).toMatchObject({ totalCents: truth.totalCents, date: '2026-10-28', time: '19:24', paymentMethod: 'Lidl Pay' })
+    expect(ticket.taxGroups?.map(g => g.code)).toEqual(['A', 'B', 'C'])
+    expect(ticket.lines.map(l => l.rawName)).toEqual(truth.lines.map(l => l.rawName))
+    truth.lines.forEach((real, i) => {
+      const line = ticket.lines[i]
+      expect([line.quantity, line.unitPriceCents, line.weightKg], real.rawName).toEqual([real.quantity, real.unitPriceCents, real.weightKg])
+      if (line.amountCents !== real.amountCents) expect(line.flags.length, real.rawName).toBeGreaterThan(0)
+    })
+    // La publicidad de después («CHOCOLATE NEGRO 72% 1,29 B») no es una compra.
+    expect(ticket.lines.some(l => /CHOCOLATE/.test(l.rawName))).toBe(false)
   })
 })
 
@@ -110,12 +139,53 @@ describe('API de tickets', () => {
     const { status, draft } = await read(api)
     expect(status).toBe(200)
     expect(draft.ticket).toMatchObject({ store: 'lidl', date: '2026-10-24', time: '18:05', totalCents: 5251 })
-    expect(draft.ticket.check.status).toBe('cuadra')
+    // La suma coincide; las tres lecturas con cifras de más quedan por confirmar.
+    expect(draft.ticket.check).toMatchObject({ status: 'pendiente', differenceCents: 0, pending: 3 })
     expect(draft.duplicate).toBeNull()
     expect(draft.suggestions['LECHE SEMIDESNATADA']).toEqual({ kind: 'new', name: 'Leche semidesnatada', frequency: 'semanal' })
     expect(draft.suggestions['PAPEL HIGIENICO 12R']).toMatchObject({ kind: 'new', frequency: 'mensual' })
     expect(await items(api)).toEqual([])
     expect((await guest(api).call('GET', '/despensa/tickets')).body.data).toEqual([])
+  })
+
+  it('un importe mal leído («92,90» por 9,90): se guarda con su evidencia y no toca la despensa hasta confirmarlo', async () => {
+    const api = await startApi({ login: false, ticketReader: fakeReader() })
+    const potatoes = 'LIDL SUPERMERCADOS S.A.U.\nEUR\nPATATA NUEVA 5 KG   4,95X   2   92,90 A\nTOTAL 9,90\nLidl Pay 9,90\nFECHA: 28/10/26\nHORA: 19:24:38'
+    const { status, draft } = await read(api, { texto: potatoes, hoy: '2026-10-29' })
+    expect(status).toBe(200)
+    const line = draft.ticket.lines[0]
+    expect(line).toMatchObject({ amountCents: 990, unitPriceCents: 495, quantity: 2, flags: ['corregido', 'dudoso'],
+      evidence: { recognizedCents: 9290, calculatedCents: 990, discrepancy: { verdict: 'calculation' } } })
+    const base = saveInput(draft)
+    const toSave = (confirmed: boolean, extra: Partial<TicketSaveInput> = {}) => ({ ...base, ...extra,
+      lines: base.lines.map(l => ({ ...l, confirmed, evidence: line.evidence })) })
+
+    // Sin confirmar: el ticket se guarda (historial), la línea queda pendiente y no crea producto ni precio.
+    const pending = await guest(api).call('POST', '/despensa/tickets', toSave(false))
+    expect(pending.status).toBe(201)
+    const saved = (await guest(api).call('GET', `/despensa/tickets/${(pending.body.data as { ticket: PantryTicket }).ticket.id}`)).body.data as PantryTicket
+    expect(saved.lines[0]).toMatchObject({ amountCents: 990, reviewStatus: 'pending', confirmed: false, itemId: null,
+      evidence: { recognizedCents: 9290, discrepancy: { recognizedCents: 9290, calculatedCents: 990, verdict: 'calculation' },
+        options: [{ cents: 990, origin: 'calculation' }, { cents: 9290, origin: 'read' }] } })
+    expect(byName(await items(api), 'Patata nueva 5 kg')).toBeUndefined()
+
+    // Confirmado (otra compra): ahora sí crea el producto, con el precio de 9,90 € / 2.
+    const confirmed = await guest(api).call('POST', '/despensa/tickets', toSave(true, { time: '20:00', distinctPurchase: true,
+      importId: undefined, sourceFingerprint: undefined }))
+    expect(confirmed.status).toBe(201)
+    expect(byName(await items(api), 'Patata nueva 5 kg')).toMatchObject({ priceCents: 495 })
+  })
+
+  it('la API nunca acepta como fiable 92,90 € con 4,95 × 2, aunque el cliente diga que está confirmado', async () => {
+    const api = await startApi({ login: false, ticketReader: fakeReader() })
+    const { draft } = await read(api, { texto: 'LIDL\nEUR\nPATATA NUEVA 5 KG   4,95X   2   92,90 A\nTOTAL 92,90\nFECHA: 28/10/26', hoy: '2026-10-29' })
+    const base = saveInput(draft)
+    const forced = { ...base, lines: base.lines.map(l => ({ ...l, amountCents: 9290, confirmed: true })) }
+    const result = await guest(api).call('POST', '/despensa/tickets', forced)
+    expect(result.status).toBe(201)
+    const saved = (await guest(api).call('GET', `/despensa/tickets/${(result.body.data as { ticket: PantryTicket }).ticket.id}`)).body.data as PantryTicket
+    expect(saved.lines[0]).toMatchObject({ amountCents: 9290, reviewStatus: 'pending' })
+    expect(byName(await items(api), 'Patata nueva 5 kg')).toBeUndefined()
   })
 
   it('valida las imágenes y acepta texto pegado', async () => {

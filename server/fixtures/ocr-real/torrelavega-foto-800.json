@@ -1,0 +1,237 @@
+{
+"provenance": "real-ocr-of-synthetic-image",
+"note": "Foto simulada: papel gris, poco contraste, desenfoque, ruido e inclinación de 1,2°, a 800 px; leída por el OCR actual sin preparar.",
+"truth": "ticket-torrelavega-sintetico.json",
+"lines": [
+{
+"text": "LL%fTÚ]oOIUL\n",
+"reread": null,
+"confidence": 0
+},
+{
+"text": "Copia",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "LIDL",
+"reread": null,
+"confidence": 92
+},
+{
+"text": "LIDL SUPERMERCADOS S.A.U.",
+"reread": null,
+"confidence": 91
+},
+{
+"text": "Avda. del Ejemplo s/n",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "39300 Torrelavega",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "NIF A00000000\n",
+"reread": null,
+"confidence": 88
+},
+{
+"text": "EUR",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "CHOCO SHELLS                     1,798",
+"reread": "1,79 B",
+"confidence": 91
+},
+{
+"text": "PECHUGA DE POLLO                 3,79 B",
+"reread": "3,722 B",
+"confidence": 89
+},
+{
+"text": "ACEITUNAS VERDES ANC              3,298",
+"reread": "3,298",
+"confidence": 85
+},
+{
+"text": "BURGER CERDO Y VACU.   3,95x 2      7,90 B",
+"reread": "3,95x 2 7,90 B",
+"confidence": 94
+},
+{
+"text": "HUEVOS MEDIANOS M     2,84x 2      5,68 A",
+"reread": "2,84x 2 5,68 A",
+"confidence": 94
+},
+{
+"text": "PATATA NUEVA 5 KG     4,95x 2      9,90 A",
+"reread": "4,95x 2 9,90 A",
+"confidence": 95
+},
+{
+"text": "PAPEL HIGIÉNICO                  2,39 €",
+"reread": "2,35 C",
+"confidence": 92
+},
+{
+"text": "LASAÑA 5 QUESOS       2, 79X:2      5,50 B",
+"reread": "2,75x 2 5,50 B",
+"confidence": 85
+},
+{
+"text": "LOMO ADOBADO                     3,67 B",
+"reread": null,
+"confidence": 92
+},
+{
+"text": "0,544 kg x 6,75 — EUR/kg",
+"reread": "0,544 kg x 6,75 EUR/kg",
+"confidence": 78
+},
+{
+"text": "FILETE DE PECHUGA               4,15 B",
+"reread": "4,15 B",
+"confidence": 92
+},
+{
+"text": "0,547 kg x 7,58 EUR/kg",
+"reread": "0,547 kg x 7,58 EUR/kg",
+"confidence": 84
+},
+{
+"text": "Desc.                          -0,17",
+"reread": "-0,17",
+"confidence": 94
+},
+{
+"text": "LECHE ENTERA                     0,89 A",
+"reread": "0,89 A",
+"confidence": 93
+},
+{
+"text": "LECHE ENTERA                    0,89 A",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "PIZZA FAMI JAM Y QUE              3,75 8",
+"reread": "3,758",
+"confidence": 91
+},
+{
+"text": "MANDARINA NACIONAL                 1,89 A",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "0,945 kg x 2,00 EUR/kg",
+"reread": "0,945 kg x 2,00 EUR/kg",
+"confidence": 90
+},
+{
+"text": "COOKIES PEPITAS CHOC              1,29 B",
+"reread": "1,29 B",
+"confidence": 88
+},
+{
+"text": "ARROZ LARGO                      1,09 A",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "PROMO LIDL PLUS                 -0,14",
+"reread": "-0,14",
+"confidence": 91
+},
+{
+"text": "TOTAL                           57,51",
+"reread": "57,51",
+"confidence": 96
+},
+{
+"text": "Lidl Pay                      57,51",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "IVA*%     BASE      CUOTA     TOTAL",
+"reread": null,
+"confidence": 89
+},
+{
+"text": "A 4%      19,56       0,78      20,34",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "B 10%     31,65      3,17     34,82",
+"reread": null,
+"confidence": 95
+},
+{
+"text": "c 21%      1,94      0,41      2/37\n",
+"reread": null,
+"confidence": 84
+},
+{
+"text": "FECHA: 28/10/26\n",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "HORA: 19:24:38\n",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "IMPORTE: 57,51 EUR\n",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "0001 6000001/01            28.10.26 19:24",
+"reread": null,
+"confidence": 69
+},
+{
+"text": "GRACIAS POR SU VISITA\n",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "Ofertas Lidl Plus",
+"reread": null,
+"confidence": 95
+},
+{
+"text": "CHOCOLATE NEGRO 72%  1,29B",
+"reread": null,
+"confidence": 74
+},
+{
+"text": "-20% Yogures naturales",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "Puntos Lidl Plus: 150",
+"reread": null,
+"confidence": 95
+},
+{
+"text": "Compra realizada en",
+"reread": null,
+"confidence": 96
+},
+{
+"text": "Torrelavega-Ejemplo",
+"reread": null,
+"confidence": 92
+}
+]
+}
