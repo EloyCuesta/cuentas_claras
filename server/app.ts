@@ -6,15 +6,10 @@ import type { OpenedDatabase } from './common/sqlite/openDatabase.ts'
 import { SqliteUnitOfWork } from './common/sqlite/SqliteUnitOfWork.ts'
 import { randomIds, systemClock } from './common/system.ts'
 import { createAuthModule } from './modules/auth/index.ts'
+import { createFinanceModule } from './modules/finance/index.ts'
 import { createHealthModule } from './modules/health/index.ts'
 import { createPantryModule } from './modules/pantry/index.ts'
 import { createTesseractReader, type TicketReader } from './ocr.ts'
-import { SqliteFinanceRepository } from './repository.ts'
-import { categoryRoutes } from './routes/categories.ts'
-import { dataRoutes } from './routes/data.ts'
-import { metaRoutes } from './routes/meta.ts'
-import { movementRoutes } from './routes/movements.ts'
-import { recurringRoutes } from './routes/recurring.ts'
 import { ticketRoutes } from './routes/tickets.ts'
 import { SqliteTicketRepository } from './ticketRepository.ts'
 
@@ -54,7 +49,7 @@ export function createApp({
   const unitOfWork = new SqliteUnitOfWork(database.db)
   const deps = { db: database.db, clock, ids, unitOfWork }
   const stamps = { now: () => clock.nowISO(), newId: () => ids.newId() }
-  const repository = new SqliteFinanceRepository(database.db, stamps)
+  const finance = createFinanceModule(deps)
   const pantry = createPantryModule(deps)
   const tickets = new SqliteTicketRepository(database.db, pantry.api, stamps)
   const reader = ticketReader ?? createTesseractReader()
@@ -80,17 +75,15 @@ export function createApp({
   api.use(ticketRoutes(tickets, pantry.api, reader))
 
   api.use(auth.requireAdmin)
-  api.use(dataRoutes(repository))
-  api.use(movementRoutes(repository))
-  api.use(categoryRoutes(repository))
-  api.use(recurringRoutes(repository))
-  api.use(metaRoutes(repository))
+  api.use(finance.router)
   if (testMode) {
     api.use(
-      testingRoutes(async () => {
-        await repository.reset()
-        pantry.reset()
-      }),
+      testingRoutes(() =>
+        unitOfWork.run(() => {
+          finance.reset()
+          pantry.reset()
+        }),
+      ),
     )
   }
   api.use(notFoundHandler)

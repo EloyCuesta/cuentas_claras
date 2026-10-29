@@ -5,22 +5,63 @@ import { monthPeriod } from '#shared/finance/period.ts'
 import { generationHorizon } from '#shared/finance/recurring.ts'
 import { periodSummary } from '#shared/finance/summary.ts'
 import { markAsPaid } from '#shared/finance/validation.ts'
+import type { ISODate } from '#shared/common/types.ts'
+import type { MetaKey } from '#shared/finance/meta.ts'
+import type { Category, FinanceData, Movement, RecurringRule, SaveRecurringOptions } from '#shared/finance/types.ts'
 import { movement, NOW, rule } from '#shared/testing/factories.ts'
-import { openDatabase } from './common/sqlite/openDatabase.ts'
-import { AppError } from './common/errors.ts'
-import { SqliteFinanceRepository } from './repository.ts'
-import { removeTempDbs, tempDbPath } from './common/testing/tempDb.ts'
+import { AppError } from '../../common/errors.ts'
+import { openDatabase } from '../../common/sqlite/openDatabase.ts'
+import { SqliteUnitOfWork } from '../../common/sqlite/SqliteUnitOfWork.ts'
+import { randomIds, systemClock } from '../../common/system.ts'
+import { removeTempDbs, tempDbPath } from '../../common/testing/tempDb.ts'
+import { createFinanceModule } from './index.ts'
 
 /**
- * El mismo contrato que src/storage/IndexedDbFinanceRepository.test.ts, ahora
- * contra SQLite en un archivo temporal: persistencia, totales al editar o
- * eliminar, pagos sin duplicar, vencimientos sin duplicar y copia de seguridad.
+ * Los casos de uso de las finanzas contra SQLite en un archivo temporal, con el
+ * mismo contrato que src/features/finance/browserMigration/IndexedDbFinanceRepository.test.ts:
+ * persistencia, totales al editar o eliminar, pagos sin duplicar, vencimientos
+ * sin duplicar y copia de seguridad.
  */
 
-const opened: SqliteFinanceRepository[] = []
+/**
+ * Los casos de uso con los nombres de siempre (los del contrato FinanceRepository
+ * de la web), async como entonces: así las aserciones son las mismas que antes
+ * de repartir el repositorio en casos de uso.
+ */
+function openFinance(path: string) {
+  const database = openDatabase(path)
+  const finance = createFinanceModule({
+    db: database.db,
+    clock: { ...systemClock, nowISO: () => NOW },
+    ids: randomIds,
+    unitOfWork: new SqliteUnitOfWork(database.db),
+  })
+  const { useCases } = finance
+  return {
+    loadAll: async () => useCases.queries.loadAll(),
+    saveMovement: async (m: Movement) => useCases.saveMovement.execute(m),
+    deleteMovement: async (id: string) => useCases.deleteMovement.execute(id),
+    saveCategory: async (c: Category) => useCases.saveCategory.execute(c),
+    deleteCategory: async (id: string, replacementId: string | null) => useCases.deleteCategory.execute(id, replacementId),
+    saveRecurring: async (r: RecurringRule, options: SaveRecurringOptions) => useCases.saveRecurring.execute(r, options),
+    deleteRecurring: async (id: string) => useCases.deleteRecurring.execute(id),
+    generateOccurrences: async (horizon: ISODate) => useCases.generateOccurrences.execute(horizon),
+    replaceAll: async (data: FinanceData) => useCases.restoreBackup.execute(data),
+    getMeta: async (key: MetaKey) => useCases.queries.getMeta(key),
+    setMeta: async (key: MetaKey, value: string) => useCases.setMeta.execute(key, value),
+    importBrowserData: async (data: FinanceData, lastBackupAt: string | null) => useCases.importBrowserData.execute(data, lastBackupAt),
+    reset: async () => finance.reset(),
+    /** Cierra la conexión (para simular cerrar la app). */
+    close: () => {
+      if (database.db.open) database.db.close()
+    },
+  }
+}
+
+const opened: ReturnType<typeof openFinance>[] = []
 
 function openRepository(path = tempDbPath()) {
-  const repository = new SqliteFinanceRepository(openDatabase(path).db, { now: () => NOW })
+  const repository = openFinance(path)
   opened.push(repository)
   return { repository, path }
 }
@@ -33,7 +74,7 @@ afterEach(() => {
 const TODAY = '2026-10-28'
 const HORIZON = generationHorizon(TODAY) // 30/11/2026
 
-describe('SqliteFinanceRepository', () => {
+describe('finanzas en SQLite', () => {
   it('empieza sin movimientos y con las categorías iniciales', async () => {
     const { repository } = openRepository()
     const data = await repository.loadAll()
