@@ -100,7 +100,8 @@ const TAX_MAP: Record<string, TaxCode> = {
 
 // Detrás del importe puede venir pegada la letra del IVA, una cifra mal leída o ambas («1,758», «1,155A», «1,15-»).
 const AMOUNT_TOKEN = /^(-?)(\d{1,4})[,.:;](\d{2})(\d?[A-Za-z€¢(]?|-[€¢]?)$/
-const UNIT_TOKEN = /^(\d{1,4})[,.:;](\d{2})[xX×%*]$/
+// La relectura a veces duplica la x («3,95Xx»).
+const UNIT_TOKEN = /^(\d{1,4})[,.:;](\d{2})[xX×%*]{1,2}$/
 const QTY_TOKEN = /^\d{1,3}$/
 const LOOSE_AMOUNT_TOKEN = /^(\d{3,4})\D?$/
 
@@ -189,7 +190,7 @@ function cleanText(text: string): string {
     .replace(/\b[0-9OISB]+[,.:;][0-9OISB]{2}(?=[ABC]?\b)/g, token => token.replace(/[OISB]/g, c => ({ O: '0', I: '1', S: '5', B: '8' })[c]!))
     .replace(/[—–_|]+/g, ' ')
     .replace(/(\d)\s*([,.:;])\s+(?=\d)/g, '$1$2')
-    .replace(/(\d)\s+([,.])(?=\d{2}\b)/g, '$1$2')
+    .replace(/(\d)\s+([,.])(?=\d{2}(?:\b|[xX×]))/g, '$1$2')
     .replace(/\s+$/g, '')
 }
 
@@ -395,8 +396,11 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
   if (letterCount(rawName) < 2) return null
 
   const amount: Candidate[] = []
+  // La relectura de solo cifras confunde 9 con 3 y la B con 5 («3,73 5» por «3,79B»); la lectura
+  // normal suele fallar añadiendo una cifra pegada («2,792 A»). Un importe limpio en la lectura
+  // normal manda; si no lo es, manda la relectura.
   if (fromReread?.amount) addCandidate(amount, fromReread.amount.cents, fromReread.amount.clean ? 2 : 1.5)
-  if (fromText.amount) addCandidate(amount, fromText.amount.cents, fromText.amount.clean ? 1 : 0.7)
+  if (fromText.amount) addCandidate(amount, fromText.amount.cents, fromText.amount.clean ? 2.5 : 0.7)
   if (fromReread && fromReread.looseAmountCents !== null) addCandidate(amount, fromReread.looseAmountCents, 0.4)
   if (fromText.looseAmountCents !== null) addCandidate(amount, fromText.looseAmountCents, 0.4)
 

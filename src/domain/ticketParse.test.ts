@@ -55,6 +55,26 @@ describe('parseTicket con el ticket de ejemplo leído por el OCR', () => {
   })
 })
 
+describe('parseTicket con lecturas reales de un ticket de Torrelavega (28/10/26)', () => {
+  const ticket = parseTicket([ocr(...HEADER,
+    ['CHOCO SHELLS                        1,79 B', '1,725'],
+    ['PECHUGA DE POLLO                    3,79B', '3,73 5'],
+    ['ACEITUNAS VERDES ANC                3,29 B', '2,23 B'],
+    ['BURGER CERDO Y VACU. 3,95x   2     7,920 B', '3, 95Xx 2 7,20 B'],
+    ['HUEVOS MEDIANOS M     2,84X   2     5,08 A', '2 ,84X 2 5,08 A'],
+    ['PATATA NUEVA 5 KG     4,95X 2     92,90 A', '4, 95Xx 2 92,390 A'],
+    'TOTAL 32,35', ...FOOTER)])
+
+  it('prefiere la lectura normal limpia a la relectura que confunde 9 con 3 o B con 5', () => {
+    expect(ticket.lines.slice(0, 3).map(l => l.amountCents)).toEqual([179, 379, 329])
+  })
+
+  it('reconoce «3, 95Xx» y «2 ,84X» como precio unitario y corrige el importe', () => {
+    expect(ticket.lines.slice(3).map(l => [l.quantity, l.unitPriceCents, l.amountCents])).toEqual([[2, 395, 790], [2, 284, 568], [2, 495, 990]])
+    expect(ticket.check.status).toBe('cuadra')
+  })
+})
+
 describe('parseTicket con lecturas difíciles', () => {
   it('usa la segunda lectura cuando la primera se equivoca, y deja el nombre limpio', () => {
     const ticket = parseTicket([
