@@ -112,6 +112,7 @@ export function TicketDetailDialog({
                       {line.weightKg !== null ? `${formatQuantity(line.weightKg)} kg · ` : line.quantity > 1 ? `${line.quantity} ud · ` : ''}
                       {line.amountCents !== null ? formatEuros(line.amountCents - line.discountCents) : 'sin importe'}
                       {line.occasional ? ' · para una ocasión' : ''}
+                      {line.reviewStatus === 'pending' ? ' · pendiente: no actualiza la despensa' : ''}
                     </span>
                   </div>
                   <label className="sr-only" htmlFor={`line-${line.id}`}>
@@ -134,6 +135,10 @@ export function TicketDetailDialog({
                 </li>
               ))}
             </ul>
+            {(ticket.adjustments ?? []).length > 0 && <section aria-label="Ajustes generales"><h3>Ajustes generales</h3><ul>
+              {ticket.adjustments!.map(a => <li key={a.id}>{a.label}: {a.amountCents === null ? 'importe pendiente' : formatEuros(a.amountCents)}{a.needsReview ? ' · pendiente' : ''}</li>)}
+            </ul></section>}
+            {(ticket.issues ?? []).length > 0 && <details><summary>Advertencias al guardar</summary><ul>{ticket.issues!.map(i => <li key={i}>{i}</li>)}</ul></details>}
           </>
         )}
       </div>

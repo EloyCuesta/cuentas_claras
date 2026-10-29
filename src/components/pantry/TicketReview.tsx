@@ -1,450 +1,186 @@
-import { useId, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { formatDate } from '../../domain/dates.ts'
-import { formatEuros } from '../../domain/money.ts'
-import { FREQUENCY_LABELS, formatQuantity, PANTRY_FREQUENCIES, PANTRY_NAME_MAX } from '../../domain/pantry.ts'
-import type { TicketDraft, TicketSuggestion } from '../../domain/ticketMatch.ts'
-import { checkTicket, type TicketLineFlag } from '../../domain/ticketParse.ts'
+import { centsToInput, formatEuros } from '../../domain/money.ts'
+import { FREQUENCY_LABELS, PANTRY_FREQUENCIES } from '../../domain/pantry.ts'
+import type { TicketDraft } from '../../domain/ticketMatch.ts'
+import { checkTicket } from '../../domain/ticketParse.ts'
 import { nameKey } from '../../domain/ticketText.ts'
-import type { PantryFrequency, PantryItem, PantryPerson } from '../../domain/types.ts'
+import type { PantryFrequency, PantryItem, PantryPerson, TicketSegment, TicketSource } from '../../domain/types.ts'
 import { DateInput, Field } from '../forms.tsx'
-import { Icon } from '../Icon.tsx'
-import { lineAmount, readAmount, WARNING_FLAGS, type Choice, type ReviewLine, type ReviewState, type SectionId } from './ticketReviewState.ts'
+import { currentCalculation, lineAmount, lineToInput, readAmount, reviewLine, type Choice, type ReviewLine, type ReviewState, type SectionId } from './ticketReviewState.ts'
 
-interface Group {
-  key: string
-  lines: ReviewLine[]
-  suggestion: TicketSuggestion | undefined
-}
-
-const FLAG_TEXT: Record<TicketLineFlag, string> = {
-  ilegible: 'No se lee el importe',
-  deducido: 'Importe calculado con el total',
-  corregido: 'Corregido con el total',
-  dudoso: 'Importe dudoso',
-}
-
-/**
- * Revisión de un ticket leído, antes de guardarlo. Se muestran los productos
- * (las líneas iguales juntas), primero lo que conviene mirar. Cada uno se
- * puede asociar a un producto de la despensa, crear como nuevo o no seguirlo,
- * y corregir sus importes. La suma se compara en vivo con el total.
- */
-
-/** «6 × 0,95 €», «0,812 kg × 2,85 €/kg». */
-function lineDetail(line: ReviewLine): string {
-  if (line.weightKg !== null) {
-    return `${formatQuantity(line.weightKg)} kg${line.pricePerKgCents !== null ? ` × ${formatEuros(line.pricePerKgCents)}/kg` : ''}`
-  }
-  if (line.quantity > 1) return `${line.quantity} × ${line.unitPriceCents !== null ? formatEuros(line.unitPriceCents) : '?'}`
-  return ''
-}
-
-function CheckBanner({ review, duplicate }: { review: ReviewState; duplicate: TicketDraft['duplicate'] }) {
-  const total = readAmount(review.totalText)
-  const totalCents = total.ok ? total.cents : null
-  const check = checkTicket(
-    review.lines.map((line) => ({ amountCents: lineAmount(line), discountCents: line.discountCents })),
-    totalCents,
-  )
-  const warned = review.lines.filter((line) => line.flags.some((f) => WARNING_FLAGS.includes(f))).length
-  return (
-    <div className="stack stack--tight" aria-live="polite">
-      {duplicate && (
-        <p className="notice notice--error" role="alert">
-          <Icon name="alert" />
-          <span>
-            Este ticket ya está guardado ({duplicate.storeName}, {formatDate(duplicate.date)}
-            {duplicate.totalCents !== null ? `, ${formatEuros(duplicate.totalCents)}` : ''}). No se puede guardar dos veces.
-          </span>
-        </p>
-      )}
-      {check.status === 'cuadra' ? (
-        <p className="notice ticket-check ticket-check--ok">
-          <Icon name="check" />
-          <span>
-            <strong>Cuadra con el total:</strong> {review.lines.length} {review.lines.length === 1 ? 'línea suma' : 'líneas suman'}{' '}
-            {formatEuros(check.linesTotalCents)}.
-            {warned > 0 && ` Revisa ${warned === 1 ? 'la línea marcada' : `las ${warned} líneas marcadas`}, por si acaso.`}
-          </span>
-        </p>
-      ) : check.status === 'no_cuadra' ? (
-        <p className="notice notice--warning ticket-check">
-          <Icon name="alert" />
-          <span>
-            <strong>No cuadra:</strong> las líneas suman {formatEuros(check.linesTotalCents)} y el total es{' '}
-            {formatEuros(totalCents ?? 0)}
-            {check.differenceCents !== null && check.differenceCents !== 0 && ` (diferencia de ${formatEuros(Math.abs(check.differenceCents))})`}.
-            {check.unreadable > 0 && ` Falta el importe de ${check.unreadable === 1 ? '1 línea' : `${check.unreadable} líneas`}.`} Corrige
-            los importes marcados comparándolos con el ticket.
-          </span>
-        </p>
-      ) : (
-        <p className="notice notice--warning ticket-check">
-          <Icon name="alert" />
-          <span>No se ha encontrado el total del ticket: escríbelo para comprobar que no falta nada.</span>
-        </p>
-      )}
-    </div>
-  )
-}
-
-function GroupEditor({
-  group,
-  choice,
-  items,
-  people,
-  onChoice,
-  onLine,
-  onDone,
-}: {
-  group: Group
-  choice: Choice
-  items: readonly PantryItem[]
-  people: readonly PantryPerson[]
-  onChoice: (choice: Choice) => void
-  onLine: (position: number, change: Partial<ReviewLine>) => void
-  onDone: () => void
+function TextField({ label, value, onChange, decimal = false, type = 'text' }: {
+  label: string; value: string; onChange: (v: string) => void; decimal?: boolean; type?: string
 }) {
-  const id = useId()
-  const sortedItems = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name, 'es')), [items])
-  const selectValue = choice.kind === 'item' ? choice.itemId : choice.kind === 'ignore' ? '__ignorar' : '__nuevo'
-  return (
-    <div className="ticket-editor">
-      <Field id={`${id}-product`} label="Es el producto">
-        {(control) => (
-          <select
-            {...control}
-            className="select"
-            value={selectValue}
-            onChange={(event) => {
-              const value = event.target.value
-              if (value === '__ignorar') onChoice({ kind: 'ignore' })
-              else if (value === '__nuevo')
-                onChoice({ kind: 'new', name: choice.kind === 'new' ? choice.name : group.lines[0].rawName, ownerId: '', frequency: 'semanal' })
-              else onChoice({ kind: 'item', itemId: value })
-            }}
-          >
-            <option value="__nuevo">Un producto nuevo</option>
-            <option value="__ignorar">No seguir esta línea (bolsas, envases…)</option>
-            {sortedItems.length > 0 && (
-              <optgroup label="Tus productos">
-                {sortedItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        )}
-      </Field>
-      {choice.kind === 'new' && (
-        <>
-          <Field id={`${id}-name`} label="Nombre del producto nuevo">
-            {(control) => (
-              <input
-                {...control}
-                className="input"
-                maxLength={PANTRY_NAME_MAX}
-                autoComplete="off"
-                value={choice.name}
-                onChange={(event) => onChoice({ ...choice, name: event.target.value })}
-              />
-            )}
-          </Field>
-          <div className="field-row">
-            <Field id={`${id}-owner`} label="De quién es">
-              {(control) => (
-                <select {...control} className="select" value={choice.ownerId} onChange={(event) => onChoice({ ...choice, ownerId: event.target.value })}>
-                  <option value="">Compartido</option>
-                  {people.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
-            <Field id={`${id}-frequency`} label="Se compra">
-              {(control) => (
-                <select
-                  {...control}
-                  className="select"
-                  value={choice.frequency}
-                  onChange={(event) => onChoice({ ...choice, frequency: event.target.value as PantryFrequency })}
-                >
-                  {PANTRY_FREQUENCIES.map((frequency) => (
-                    <option key={frequency} value={frequency}>
-                      {FREQUENCY_LABELS[frequency]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
-          </div>
-        </>
-      )}
-      {group.lines.map((line, i) => {
-        const invalid = !readAmount(line.amountText).ok
-        const detail = lineDetail(line)
-        return (
-          <Field
-            key={line.position}
-            id={`${id}-amount-${i}`}
-            label={group.lines.length > 1 ? `Importe (${i + 1}.ª línea)` : 'Importe'}
-            error={invalid ? 'Escribe un importe como 1,95 (con un menos delante si es una devolución).' : undefined}
-            hint={[detail, line.discountCents > 0 ? `Descuento: ${formatEuros(line.discountCents)}` : ''].filter(Boolean).join(' · ') || undefined}
-          >
-            {(control) => (
-              <div className="input-affix input-affix--short">
-                <input
-                  {...control}
-                  required={undefined}
-                  className="input input--amount"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="0,00"
-                  value={line.amountText}
-                  onChange={(event) => onLine(line.position, { amountText: event.target.value, flags: line.flags.filter((f) => f === 'corregido') })}
-                />
-                <span className="input-affix__suffix" aria-hidden="true">
-                  €
-                </span>
-              </div>
-            )}
-          </Field>
-        )
-      })}
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={group.lines.every((line) => line.occasional)}
-          onChange={(event) => group.lines.forEach((line) => onLine(line.position, { occasional: event.target.checked }))}
-        />
-        <span>Compra para una ocasión: no cuenta para saber cada cuánto se compra.</span>
-      </label>
-      <div>
-        <button type="button" className="btn btn--small" onClick={onDone}>
-          Listo
-        </button>
-      </div>
-    </div>
-  )
+  const id = `ticket-edit-${label.replace(/\s/g, '-')}`
+  return <Field id={id} label={label}>{control => <input {...control} required={undefined} className="input" type={type}
+    inputMode={decimal ? 'decimal' : undefined} value={value} onChange={e => onChange(e.target.value)} />}</Field>
 }
 
-function GroupRow({
-  group,
-  choice,
-  itemName,
-  inNewSection,
-  expanded,
-  onToggle,
-  children,
-}: {
-  group: Group
-  choice: Choice
-  itemName: string | null
-  /** En «Productos nuevos» no hace falta la etiqueta «Nuevo». */
-  inNewSection: boolean
-  expanded: boolean
-  onToggle: () => void
-  children: ReactNode
-}) {
-  const id = useId()
-  const flags = [...new Set(group.lines.flatMap((line) => line.flags))]
-  const amounts = group.lines.map(lineAmount)
-  const known = amounts.every((cents) => cents !== null)
-  const total = group.lines.reduce((sum, line) => sum + (lineAmount(line) ?? 0) - line.discountCents, 0)
-  const rawName = group.lines[0].rawName
-  const title = choice.kind === 'item' ? (itemName ?? 'Producto') : choice.kind === 'new' ? choice.name || 'Producto nuevo' : rawName
-  const occasional = group.lines.every((line) => line.occasional)
-  return (
-    <li className={`ticket-group${choice.kind === 'ignore' ? ' ticket-group--ignored' : ''}`}>
-      <button type="button" className="ticket-group__main" aria-expanded={expanded} aria-controls={`${id}-editor`} onClick={onToggle}>
-        <span className="ticket-group__text">
-          <span className="ticket-group__title">{title}</span>
-          <span className="ticket-group__meta">
-            {/* Lo que pone el ticket, si no es lo mismo que el título. */}
-            {nameKey(rawName) !== nameKey(title) && <span>En el ticket: {rawName}</span>}
-            {group.lines.length > 1 && <span>{group.lines.length} líneas</span>}
-            {group.lines.length === 1 && lineDetail(group.lines[0]) && <span>{lineDetail(group.lines[0])}</span>}
-            {choice.kind === 'new' && !inNewSection && <span className="tag tag--forecast">Nuevo</span>}
-            {choice.kind === 'ignore' && <span>No se sigue</span>}
-            {occasional && <span>Para una ocasión</span>}
-          </span>
-          {flags.length > 0 && (
-            <span className="ticket-group__flags">
-              {flags.map((flag) => (
-                <span key={flag} className={`chip ${WARNING_FLAGS.includes(flag) ? 'chip--late' : 'chip--info'}`}>
-                  <Icon name={WARNING_FLAGS.includes(flag) ? 'alert' : 'info'} size={14} />
-                  {FLAG_TEXT[flag]}
-                </span>
-              ))}
-            </span>
-          )}
-        </span>
-        <span className="ticket-group__amount">{known ? formatEuros(total) : '¿?'}</span>
-      </button>
-      {expanded && <div id={`${id}-editor`}>{children}</div>}
-    </li>
-  )
-}
-
-export function TicketReview({
-  draft,
-  review,
-  onChange,
-  items,
-  people,
-  previews,
-  onRestart,
-}: {
-  draft: TicketDraft
-  review: ReviewState
-  onChange: (review: ReviewState) => void
-  items: readonly PantryItem[]
-  people: readonly PantryPerson[]
-  /** Imágenes elegidas (URL locales), para comparar. */
-  previews: readonly string[]
-  /** Volver a elegir la imagen (o el texto) del ticket. */
-  onRestart: () => void
+export function TicketReview({ draft, review, onChange, items, people, previews, segments = [], onRestart }: {
+  draft: TicketDraft; review: ReviewState; onChange: (r: ReviewState) => void;
+  items: readonly PantryItem[]; people: readonly PantryPerson[]; previews: readonly string[];
+  segments?: readonly TicketSegment[]; onRestart: () => void
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showKnown, setShowKnown] = useState(false)
   const [showImage, setShowImage] = useState(false)
-  const itemNames = useMemo(() => new Map(items.map((item) => [item.id, item.name])), [items])
-
+  const [zoom, setZoom] = useState(false)
+  const [source, setSource] = useState<TicketSource | null>(null)
   const groups = useMemo(() => {
-    const result: Group[] = []
-    for (const line of review.lines) {
-      const group = result.find((g) => g.key === line.key)
-      if (group) group.lines.push(line)
-      else result.push({ key: line.key, lines: [line], suggestion: draft.suggestions[line.key] })
-    }
-    return result
-  }, [review.lines, draft.suggestions])
-
-  const inSection = (id: SectionId) => groups.filter((group) => review.sections[group.key] === id)
-  const sections: { id: SectionId; title: string; groups: Group[]; collapsible?: boolean }[] = [
-    { id: 'revisar', title: 'Para revisar', groups: inSection('revisar') },
-    { id: 'nuevos', title: 'Productos nuevos', groups: inSection('nuevos') },
-    { id: 'conocidos', title: 'Ya conocidos', groups: inSection('conocidos'), collapsible: true },
-    { id: 'ignorados', title: 'No se siguen', groups: inSection('ignorados'), collapsible: true },
-  ]
-
-  const setChoice = (key: string, choice: Choice) => onChange({ ...review, choices: { ...review.choices, [key]: choice } })
-  const setLine = (position: number, change: Partial<ReviewLine>) =>
-    onChange({ ...review, lines: review.lines.map((line) => (line.position === position ? { ...line, ...change } : line)) })
-
-  const renderGroup = (group: Group, section: SectionId) => {
-    const choice = review.choices[group.key]
-    return (
-      <GroupRow
-        key={group.key}
-        group={group}
-        choice={choice}
-        itemName={choice.kind === 'item' ? (itemNames.get(choice.itemId) ?? null) : null}
-        inNewSection={section === 'nuevos'}
-        expanded={expanded === group.key}
-        onToggle={() => setExpanded((current) => (current === group.key ? null : group.key))}
-      >
-        <GroupEditor
-          group={group}
-          choice={choice}
-          items={items}
-          people={people}
-          onChoice={(next) => setChoice(group.key, next)}
-          onLine={setLine}
-          onDone={() => setExpanded(null)}
-        />
-      </GroupRow>
-    )
+    const map = new Map<string, ReviewLine[]>()
+    for (const l of review.lines) map.set(l.key, [...(map.get(l.key) ?? []), l])
+    return [...map.entries()]
+  }, [review.lines])
+  const setLine = (position: number, change: Partial<ReviewLine>) => onChange({ ...review,
+    lines: review.lines.map(l => l.position === position ? { ...l, ...change,
+      confirmed: change.confirmed ?? false,
+      evidence: l.evidence && !('confirmed' in change) ? { ...l.evidence, selectedBy: 'manual' } : l.evidence } : l) })
+  const setChoice = (key: string, choice: Choice) => onChange({ ...review, choices: { ...review.choices, [key]: choice },
+    lines: review.lines.map(l => l.key === key ? { ...l, associationConfirmed: true } : l) })
+  const total = readAmount(review.totalText)
+  const check = checkTicket(review.lines.map(l => ({ amountCents: lineAmount(l), discountCents: lineToInput(l).line.discountCents })),
+    total.ok ? total.cents : null, review.adjustments.map(a => { const r = readAmount(a.amountText); return { amountCents: r.ok ? r.cents : null } }))
+  const pending = review.lines.filter(l => lineToInput(l).line.reviewStatus === 'pending').length
+  const sections: { id: SectionId; title: string; collapsible?: boolean }[] = [
+    { id: 'revisar', title: 'Para revisar' }, { id: 'nuevos', title: 'Productos nuevos' },
+    { id: 'conocidos', title: 'Ya conocidos', collapsible: true }, { id: 'ignorados', title: 'No se siguen', collapsible: true }]
+  const selectedSegment = source && segments.find(s => s.imageIndex === source.imageIndex && s.segmentIndex === source.segmentIndex)
+  const addLine = () => {
+    const position = review.nextPosition
+    const key = `manual-${position}`
+    const line = reviewLine({ position, key, rawName: 'Producto añadido', quantity: 1, unitPriceCents: null,
+      amountCents: null, discountCents: 0, weightKg: null, pricePerKgCents: null, taxCode: null, flags: [] })
+    onChange({ ...review, nextPosition: position + 1, lines: [...review.lines, line],
+      choices: { ...review.choices, [key]: { kind: 'new', name: 'Producto añadido', ownerId: '', frequency: 'semanal' } },
+      sections: { ...review.sections, [key]: 'revisar' } })
+    setExpanded(key)
   }
-
-  return (
-    <div className="ticket-review">
-      <div className="ticket-review__head">
-        <div className="field-row">
-          <Field id="ticket-store" label="Tienda">
-            {(control) => (
-              <input
-                {...control}
-                className="input"
-                maxLength={60}
-                autoComplete="off"
-                value={review.storeName}
-                onChange={(event) => onChange({ ...review, storeName: event.target.value })}
-              />
-            )}
-          </Field>
-          <Field id="ticket-date" label="Fecha de la compra">
-            {(control) => <DateInput control={control} value={review.date} onChange={(date) => onChange({ ...review, date })} />}
-          </Field>
-          <Field id="ticket-total" label="Total del ticket">
-            {(control) => (
-              <div className="input-affix">
-                <input
-                  {...control}
-                  required={undefined}
-                  className="input input--amount"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="0,00"
-                  value={review.totalText}
-                  onChange={(event) => onChange({ ...review, totalText: event.target.value })}
-                />
-                <span className="input-affix__suffix" aria-hidden="true">
-                  €
-                </span>
-              </div>
-            )}
-          </Field>
-        </div>
-        <CheckBanner review={review} duplicate={draft.duplicate} />
-        <div className="ticket-review__links">
-          {previews.length > 0 && (
-            <button type="button" className="link-btn" aria-expanded={showImage} onClick={() => setShowImage((v) => !v)}>
-              {showImage ? 'Ocultar la imagen' : 'Ver la imagen para comparar'}
-            </button>
-          )}
-          <button type="button" className="link-btn" onClick={onRestart}>
-            {previews.length > 0 ? 'Elegir otra imagen' : 'Volver a empezar'}
-          </button>
-        </div>
-        {showImage && previews.length > 0 && (
-          // Se desplaza por dentro: con tabIndex también se puede mover con el teclado.
-          <div className="ticket-preview" role="region" aria-label="Imagen del ticket" tabIndex={0}>
-            {previews.map((src, i) => (
-              <img key={src} src={src} alt={`Imagen ${i + 1} del ticket`} />
-            ))}
-          </div>
-        )}
+  return <div className={`ticket-review${showImage ? ' ticket-review--compare' : ''}`}>
+    <div className="ticket-review__form">
+      <div className="field-row">
+        <TextField label="Tienda" value={review.storeName} onChange={storeName => onChange({ ...review, storeName })} />
+        <Field id="ticket-date" label="Fecha de la compra">{control => <DateInput control={control} value={review.date} onChange={date => onChange({ ...review, date })} />}</Field>
+        <TextField label="Hora de la compra" type="time" value={review.time} onChange={time => onChange({ ...review, time })} />
+        <TextField label="Total del ticket" decimal value={review.totalText} onChange={totalText => onChange({ ...review, totalText })} />
       </div>
-
-      {sections.map((section) => {
-        if (section.groups.length === 0) return null
-        const hidden = section.collapsible && !showKnown
-        return (
-          <section key={section.id} className="ticket-section" aria-labelledby={`ticket-${section.id}`}>
-            <h3 id={`ticket-${section.id}`} className="subsection-title">
-              {section.title} ({section.groups.length})
-            </h3>
-            {section.id === 'revisar' && (
-              <p className="muted small">Pulsa cada uno para corregir el importe o elegir el producto.</p>
-            )}
-            {section.id === 'nuevos' && (
-              <p className="muted small">Se crearán con este nombre; pulsa uno para cambiarlo o asociarlo a un producto que ya tengas.</p>
-            )}
-            {hidden ? (
-              <button type="button" className="link-btn" onClick={() => setShowKnown(true)}>
-                Ver {section.groups.length === 1 ? 'el producto' : `los ${section.groups.length} productos`}
-              </button>
-            ) : (
-              <ul className="ticket-groups">{section.groups.map((group) => renderGroup(group, section.id))}</ul>
-            )}
-          </section>
-        )
+      <TextField label="Establecimiento o dirección" value={review.address} onChange={address => onChange({ ...review, address })} />
+      <div aria-live="polite">
+        {draft.duplicate && <p role="alert" className="notice notice--error">Este ticket ya está guardado ({draft.duplicate.storeName}, {formatDate(draft.duplicate.date)}). No se puede guardar dos veces.</p>}
+        {draft.possibleDuplicate && !draft.duplicate && <label className="checkbox notice notice--warning"><input type="checkbox" checked={review.distinctPurchase}
+          onChange={e => onChange({ ...review, distinctPurchase: e.target.checked })} />Hay otra compra con la misma fecha, hora y total. Confirmo que esta es otra compra.</label>}
+        <p className={`notice ${check.status === 'cuadra' ? 'ticket-check--ok' : 'notice--warning'}`}>
+          {check.status === 'cuadra' ? <><strong>Cuadra con el total:</strong> {review.lines.length} líneas suman {formatEuros(check.linesTotalCents)}{review.adjustments.length > 0 ? ' incluyendo ajustes' : ''}.</> :
+            <><strong>{check.status === 'sin_total' ? 'Sin total' : 'No cuadra'}:</strong> suma {formatEuros(check.linesTotalCents)}{check.differenceCents !== null && `; diferencia ${formatEuros(check.differenceCents)}`}.</>}
+          {pending > 0 && ` ${pending} líneas pendientes no actualizarán la despensa.`}
+        </p>
+        {(draft.ticket.issues ?? []).filter(i => !/Los importes no cuadran/.test(i)).map(i => <p className="muted small" key={i}>{i}</p>)}
+      </div>
+      <div className="ticket-review__links">
+        {previews.length > 0 && <button type="button" className="link-btn" aria-expanded={showImage} onClick={() => { setShowImage(!showImage); setSource(null) }}>{showImage ? 'Ocultar la imagen' : 'Ver la imagen para comparar'}</button>}
+        <button type="button" className="link-btn" onClick={onRestart}>Volver a empezar</button>
+      </div>
+      {sections.map(section => {
+        const entries = groups.filter(([key]) => review.sections[key] === section.id)
+        if (!entries.length) return null
+        return <section className="ticket-section" key={section.id} aria-label={section.title}>
+          <h3 className="subsection-title">{section.title} ({entries.length})</h3>
+          {section.id === 'nuevos' && <p className="muted small">Se crearán los productos con datos fiables. Puedes cambiar su nombre o asociarlos a uno existente.</p>}
+          {section.collapsible && !showKnown ? <button type="button" className="link-btn" onClick={() => setShowKnown(true)}>Ver los productos</button> :
+            <ul className="ticket-groups">{entries.map(([key, lines]) => {
+              const choice = review.choices[key]
+              const title = choice.kind === 'item' ? items.find(i => i.id === choice.itemId)?.name ?? 'Producto' : choice.kind === 'new' ? choice.name : lines[0].rawName
+              const sum = lines.reduce((s, l) => s + (lineAmount(l) ?? 0) - lineToInput(l).line.discountCents, 0)
+              return <li key={key} className="ticket-group">
+                <button type="button" className="ticket-group__main" aria-expanded={expanded === key} onClick={() => setExpanded(expanded === key ? null : key)}>
+                  <span className="ticket-group__text"><strong>{title}</strong><span className="ticket-group__meta">
+                    {lines.length > 1 && `${lines.length} líneas · `}{choice.kind === 'ignore' && 'No se sigue · '}
+                    {nameKey(title) !== nameKey(lines[0].rawName) && `En el ticket: ${lines[0].rawName}`}
+                    {lines.some(l => lineToInput(l).line.reviewStatus === 'pending') && ' · Para revisar'}
+                  </span></span><span>{formatEuros(sum)}</span>
+                </button>
+                {expanded === key && <div className="ticket-editor">
+                  <Field id={`product-${key}`} label="Es el producto">{control => <select {...control} className="select"
+                    value={choice.kind === 'item' ? choice.itemId : choice.kind === 'ignore' ? '__ignore' : '__new'} onChange={e => {
+                      const value = e.target.value
+                      setChoice(key, value === '__ignore' ? { kind: 'ignore' } : value === '__new' ? { kind: 'new', name: lines[0].rawName, ownerId: '', frequency: 'semanal' } : { kind: 'item', itemId: value })
+                    }}><option value="__new">Un producto nuevo</option><option value="__ignore">No seguir esta línea (bolsas, envases…)</option>
+                    {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}</select>}</Field>
+                  {choice.kind === 'new' && <>
+                    <TextField label="Nombre del producto nuevo" value={choice.name} onChange={name => setChoice(key, { ...choice, name })} />
+                    <div className="field-row"><Field id={`owner-${key}`} label="De quién es">{control => <select {...control} className="select" value={choice.ownerId} onChange={e => setChoice(key, { ...choice, ownerId: e.target.value })}>
+                      <option value="">Compartido</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}</Field>
+                      <Field id={`frequency-${key}`} label="Se compra">{control => <select {...control} className="select" value={choice.frequency} onChange={e => setChoice(key, { ...choice, frequency: e.target.value as PantryFrequency })}>
+                        {PANTRY_FREQUENCIES.map(f => <option key={f} value={f}>{FREQUENCY_LABELS[f]}</option>)}</select>}</Field></div>
+                  </>}
+                  {lines.map((line, index) => {
+                    const suffix = lines.length > 1 ? ` (${index + 1}.ª línea)` : ''
+                    const calculation = currentCalculation(line)
+                    const parsed = lineToInput(line)
+                    return <fieldset className="ticket-line-editor" key={line.position}><legend>Línea {line.position + 1}</legend>
+                      <TextField label={`Nombre en el ticket${suffix}`} value={line.rawName} onChange={rawName => setLine(line.position, { rawName, associationConfirmed: choice.kind !== 'item' })} />
+                      <div className="field-row">
+                        <TextField label={`Cantidad${suffix}`} decimal value={line.quantityText} onChange={quantityText => setLine(line.position, { quantityText })} />
+                        <TextField label={`Precio unitario${suffix}`} decimal value={line.unitPriceText} onChange={unitPriceText => setLine(line.position, { unitPriceText })} />
+                        <TextField label={`Importe${suffix}`} decimal value={line.amountText} onChange={amountText => setLine(line.position, { amountText })} />
+                        <TextField label={`Descuento${suffix}`} decimal value={line.discountText} onChange={discountText => setLine(line.position, { discountText })} />
+                        <TextField label={`Peso (kg)${suffix}`} decimal value={line.weightText} onChange={weightText => setLine(line.position, { weightText })} />
+                        <TextField label={`Precio por kilo${suffix}`} decimal value={line.pricePerKgText} onChange={pricePerKgText => setLine(line.position, { pricePerKgText })} />
+                      </div>
+                      {calculation !== null && <p>Importe calculado: {formatEuros(calculation)}. {calculation !== lineAmount(line) && <button type="button" className="link-btn" onClick={() => setLine(line.position, { amountText: centsToInput(calculation) })}>Usar importe calculado</button>}</p>}
+                      {line.evidence && <details><summary>Lectura original y dudas</summary><p className="ticket-raw">{line.evidence.text}</p>
+                        <p>Importe reconocido: {line.evidence.recognizedCents === null ? 'ilegible' : formatEuros(line.evidence.recognizedCents)}</p>
+                        {line.evidence.reread && <p>Segunda lectura: {line.evidence.reread}</p>}
+                        {line.evidence.issues.map(i => <p key={i}>{i}</p>)}</details>}
+                      {parsed.errors.map(e => <p role="alert" key={e}>{e}</p>)}
+                      {!line.associationConfirmed && <p className="notice notice--warning">La asociación es por parecido. Confírmala o elige otro producto.</p>}
+                      <label className="checkbox"><input type="checkbox" checked={line.confirmed} onChange={e => setLine(line.position, { confirmed: e.target.checked, associationConfirmed: e.target.checked })} />Confirmar línea {line.rawName}</label>
+                      <label className="checkbox"><input type="checkbox" checked={line.occasional} onChange={e => setLine(line.position, { occasional: e.target.checked })} />Compra para una ocasión</label>
+                      <div className="ticket-review__links">
+                        {line.evidence?.source && previews.length > 0 && <button type="button" className="link-btn" onClick={() => { setSource(line.evidence!.source!); setShowImage(true) }}>Ver esta línea en la imagen</button>}
+                        <button type="button" className="link-btn" onClick={() => onChange({ ...review, lines: review.lines.filter(l => l.position !== line.position) })}>Eliminar línea {line.position + 1}</button>
+                      </div>
+                    </fieldset>
+                  })}
+                  <button type="button" className="btn btn--small" onClick={() => setExpanded(null)}>Listo</button>
+                </div>}
+              </li>
+            })}</ul>}
+        </section>
       })}
+      <button type="button" className="btn" onClick={addLine}>Añadir producto omitido</button>
+      <section className="ticket-section" aria-label="Ajustes generales"><h3 className="subsection-title">Ajustes generales</h3>
+        {review.adjustments.map((a, index) => {
+          const update = (change: Partial<typeof a>) => onChange({ ...review, adjustments: review.adjustments.map(x => x.id === a.id ? { ...x, ...change } : x) })
+          return <fieldset className="ticket-line-editor" key={a.id}><legend>Ajuste {index + 1}</legend>
+            <TextField label={`Concepto del ajuste ${index + 1}`} value={a.label} onChange={label => update({ label, needsReview: true })} />
+            <TextField label={`Importe del ajuste ${index + 1}`} decimal value={a.amountText} onChange={amountText => update({ amountText, needsReview: true })} />
+            <p className="muted small">Los descuentos generales llevan signo negativo y no modifican el precio de un producto.</p>
+            <label className="checkbox"><input type="checkbox" checked={!a.needsReview} onChange={e => update({ needsReview: !e.target.checked })} />Confirmar ajuste {index + 1}</label>
+            <Field id={`adjustment-${a.id}`} label={`Asignar descuento a un artículo (${index + 1})`}>{control => <select {...control} className="select" value="" onChange={e => {
+              const position = Number(e.target.value); const r = readAmount(a.amountText)
+              if (!r.ok || r.cents === null || r.cents >= 0) return
+              onChange({ ...review, adjustments: review.adjustments.filter(x => x.id !== a.id), lines: review.lines.map(l => l.position === position ?
+                { ...l, confirmed: false, discountText: centsToInput(lineToInput(l).line.discountCents - r.cents!) } : l) })
+            }}><option value="">Mantener como ajuste general</option>{review.lines.map(l => <option value={l.position} key={l.position}>{l.position + 1}. {l.rawName}</option>)}</select>}</Field>
+            <button type="button" className="link-btn" onClick={() => onChange({ ...review, adjustments: review.adjustments.filter(x => x.id !== a.id) })}>Eliminar ajuste {index + 1}</button>
+          </fieldset>
+        })}
+        <button type="button" className="link-btn" onClick={() => onChange({ ...review, adjustments: [...review.adjustments,
+          { id: `manual-adjustment-${Date.now()}`, label: 'Descuento general', kind: 'other', amountCents: null, amountText: '', needsReview: true }] })}>Añadir ajuste general</button>
+      </section>
     </div>
-  )
+    {showImage && previews.length > 0 && <aside className="ticket-comparison" aria-label="Imagen del ticket">
+      <div className="ticket-review__links"><button type="button" className="link-btn" onClick={() => setZoom(!zoom)}>{zoom ? 'Reducir imagen' : 'Ampliar imagen'}</button>
+        <button type="button" className="link-btn" onClick={() => setSource(null)}>Ver originales completos</button></div>
+      <div className="ticket-preview" tabIndex={0}>
+        {selectedSegment && source ? <div className="ticket-image-region" style={{ width: zoom ? '200%' : '100%' }}>
+          <img src={`data:image/jpeg;base64,${selectedSegment.image}`} alt="Zona del ticket de la línea seleccionada" />
+          <span className="ticket-image-highlight" style={{ left: `${100 * source.box.x0 / source.width}%`, width: `${100 * (source.box.x1 - source.box.x0) / source.width}%`,
+            top: `${100 * (source.box.y0 - selectedSegment.offsetY) / Math.min(4096, selectedSegment.fullHeight - selectedSegment.offsetY)}%`,
+            height: `${100 * (source.box.y1 - source.box.y0) / Math.min(4096, selectedSegment.fullHeight - selectedSegment.offsetY)}%` }} />
+        </div> : previews.map((src, i) => <img style={{ width: zoom ? '200%' : '100%', maxWidth: 'none' }} key={src} src={src} alt={`Imagen original ${i + 1} del ticket`} />)}
+      </div>
+    </aside>}
+  </div>
 }

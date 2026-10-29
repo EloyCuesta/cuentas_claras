@@ -1,10 +1,11 @@
 import type Database from 'better-sqlite3'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { addDays, todayISO } from '../src/domain/dates.ts'
 import { nowISO } from '../src/domain/ids.ts'
 import { MAX_PANTRY_CENTS } from '../src/domain/pantry.ts'
 import type { AliasRecord } from '../src/domain/ticketMatch.ts'
 import { nameKey } from '../src/domain/ticketText.ts'
+import { canApplyLine, roundRatio } from '../src/domain/ticketArithmetic.ts'
 import type {
   ISODate,
   PantryActivity,
@@ -39,6 +40,8 @@ interface TicketRow {
   created_at: string
   lines_count?: number
   products_count?: number
+  adjustments_json: string
+  issues_json: string
 }
 
 interface LineRow {
@@ -56,11 +59,14 @@ interface LineRow {
   tax_code: TicketTaxCode | null
   item_id: string | null
   occasional: number
+  review_status: 'verified' | 'pending'
+  confirmed: number
+  evidence_json: string | null
 }
 
-const TICKET_COLUMNS = 'id, store, store_name, address, purchase_date, purchase_time, total_cents, created_at'
+const TICKET_COLUMNS = 'id, store, store_name, address, purchase_date, purchase_time, total_cents, created_at, adjustments_json, issues_json'
 const LINE_COLUMNS =
-  'id, ticket_id, position, raw_name, name_key, quantity, unit_price_cents, amount_cents, discount_cents, weight_kg, price_per_kg_cents, tax_code, item_id, occasional'
+  'id, ticket_id, position, raw_name, name_key, quantity, unit_price_cents, amount_cents, discount_cents, weight_kg, price_per_kg_cents, tax_code, item_id, occasional, review_status, confirmed, evidence_json'
 
 const toSummary = (r: TicketRow): PantryTicketSummary => ({
   id: r.id,
@@ -88,6 +94,9 @@ const toLine = (r: LineRow): PantryTicketLine => ({
   taxCode: r.tax_code,
   itemId: r.item_id,
   occasional: r.occasional === 1,
+  reviewStatus: r.review_status,
+  confirmed: r.confirmed === 1,
+  evidence: r.evidence_json ? JSON.parse(r.evidence_json) : undefined,
 })
 
 /** Las equivalencias se aprenden por tienda: Lidl, o el nombre de cada otra tienda. */
@@ -96,9 +105,12 @@ export function aliasStoreOf(store: TicketStoreKind, storeName: string): string 
 }
 
 /** Tienda, fecha, hora y total: el mismo ticket no se guarda dos veces. */
-export function ticketFingerprint(input: Pick<TicketSaveInput, 'store' | 'storeName' | 'date' | 'time' | 'totalCents' | 'lines'>): string {
-  const linesTotal = input.lines.reduce((sum, line) => sum + (line.amountCents ?? 0) - line.discountCents, 0)
-  return [aliasStoreOf(input.store, input.storeName), input.date, input.time ?? '', input.totalCents ?? `l${linesTotal}`].join('|')
+type DuplicateInput = Pick<TicketSaveInput, 'store' | 'storeName' | 'date' | 'time' | 'totalCents' | 'lines' | 'adjustments' | 'importId' | 'sourceFingerprint'>
+export function ticketFingerprint(input: DuplicateInput): string {
+  const lines = input.lines.map(l => [nameKey(l.rawName), l.quantity, l.unitPriceCents, l.amountCents,
+    l.discountCents, l.weightKg === null ? null : Math.round(l.weightKg * 1000), l.pricePerKgCents]).map(l => JSON.stringify(l)).sort()
+  const adjustments = (input.adjustments ?? []).map(a => [a.kind, a.amountCents]).map(a => JSON.stringify(a)).sort()
+  return createHash('sha256').update(JSON.stringify([aliasStoreOf(input.store, input.storeName), input.date, input.time, input.totalCents, lines, adjustments])).digest('hex')
 }
 
 const COUNT_UNITS: ReadonlySet<PantryUnit> = new Set(['ud', 'paquete', 'lata', 'botella', 'bolsa', 'docena'])
@@ -106,26 +118,26 @@ const paid = (line: Pick<TicketSaveLine, 'amountCents' | 'discountCents'>) => (l
 
 /** Precio por unidad (o por kilo) que deja un ticket para un producto, si la unidad lo permite. */
 function priceFromLines(lines: readonly TicketSaveLine[], unit: PantryUnit): number | null {
-  const usable = lines.filter((line) => line.amountCents !== null && line.amountCents > 0)
+  const usable = lines.filter(canApplyLine)
   const last = usable[usable.length - 1]
   if (!last) return null
   let price: number | null = null
   if (last.weightKg !== null && (unit === 'kg' || unit === 'g')) {
-    price = last.pricePerKgCents ?? Math.round(paid(last) / last.weightKg)
+    price = roundRatio(paid(last) * 1000, Math.round(last.weightKg * 1000))
   } else if (last.weightKg === null && COUNT_UNITS.has(unit)) {
-    price = Math.round(paid(last) / last.quantity)
+    price = roundRatio(paid(last), last.quantity)
   }
   return price !== null && price >= 0 && price <= MAX_PANTRY_CENTS ? price : null
 }
 
 /** Cuánto se compró en la unidad del producto (para los que se cuentan). */
 function quantityFromLines(lines: readonly TicketSaveLine[], unit: PantryUnit): number | null {
-  const bought = lines.filter((line) => line.amountCents === null || line.amountCents > 0)
+  const bought = lines.filter(canApplyLine)
   if (bought.length === 0) return null
   if (bought.every((line) => line.weightKg !== null)) {
-    const kg = bought.reduce((sum, line) => sum + (line.weightKg as number), 0)
-    if (unit === 'kg') return Math.round(kg * 1000) / 1000
-    if (unit === 'g') return Math.round(kg * 1000)
+    const grams = bought.reduce((sum, line) => sum + Math.round((line.weightKg as number) * 1000), 0)
+    if (unit === 'kg') return grams / 1000
+    if (unit === 'g') return grams
     return null
   }
   if (bought.every((line) => line.weightKg === null) && COUNT_UNITS.has(unit)) return bought.reduce((sum, line) => sum + line.quantity, 0)
@@ -145,7 +157,7 @@ export class SqliteTicketRepository {
     this.now = options.now ?? nowISO
     this.newId = options.newId ?? randomUUID
     const summary = `SELECT ${TICKET_COLUMNS.split(', ').map((c) => `t.${c}`).join(', ')},
-        COUNT(l.id) AS lines_count, COUNT(DISTINCT l.item_id) AS products_count
+        COUNT(l.id) AS lines_count, COUNT(DISTINCT CASE WHEN l.review_status = 'verified' AND l.amount_cents >= 0 THEN l.item_id END) AS products_count
       FROM pantry_tickets t LEFT JOIN pantry_ticket_lines l ON l.ticket_id = t.id`
     this.sql = {
       aliases: db.prepare<[string], { name_key: string; item_id: string | null }>('SELECT name_key, item_id FROM pantry_aliases WHERE store = ?'),
@@ -154,6 +166,8 @@ export class SqliteTicketRepository {
          ON CONFLICT (store, name_key) DO UPDATE SET item_id = excluded.item_id, ignored = excluded.ignored, updated_at = excluded.updated_at`,
       ),
       byFingerprint: db.prepare<[string], TicketRow>(`${summary} WHERE t.fingerprint = ? GROUP BY t.id`),
+      byImport: db.prepare<[string, string], TicketRow>(`${summary} WHERE t.import_id = ? OR t.source_fingerprint = ? GROUP BY t.id`),
+      candidates: db.prepare<[string, number | null], TicketRow>(`${summary} WHERE t.purchase_date = ? AND t.total_cents IS ? GROUP BY t.id`),
       summaries: db.prepare<[number], TicketRow>(
         `${summary} GROUP BY t.id ORDER BY t.purchase_date DESC, t.purchase_time DESC, t.created_at DESC LIMIT ?`,
       ),
@@ -161,13 +175,13 @@ export class SqliteTicketRepository {
       lines: db.prepare<[string], LineRow>(`SELECT ${LINE_COLUMNS} FROM pantry_ticket_lines WHERE ticket_id = ? ORDER BY position`),
       line: db.prepare<[string, string], LineRow>(`SELECT ${LINE_COLUMNS} FROM pantry_ticket_lines WHERE ticket_id = ? AND id = ?`),
       insertTicket: db.prepare(
-        `INSERT INTO pantry_tickets (id, store, store_name, address, purchase_date, purchase_time, total_cents, fingerprint, created_at)
-         VALUES (@id, @store, @store_name, @address, @purchase_date, @purchase_time, @total_cents, @fingerprint, @created_at)`,
+        `INSERT INTO pantry_tickets (id, store, store_name, address, purchase_date, purchase_time, total_cents, fingerprint, created_at, adjustments_json, issues_json, import_id, source_fingerprint)
+         VALUES (@id, @store, @store_name, @address, @purchase_date, @purchase_time, @total_cents, @fingerprint, @created_at, @adjustments_json, @issues_json, @import_id, @source_fingerprint)`,
       ),
       insertLine: db.prepare(
         `INSERT INTO pantry_ticket_lines (${LINE_COLUMNS})
          VALUES (@id, @ticket_id, @position, @raw_name, @name_key, @quantity, @unit_price_cents, @amount_cents, @discount_cents,
-                 @weight_kg, @price_per_kg_cents, @tax_code, @item_id, @occasional)`,
+                 @weight_kg, @price_per_kg_cents, @tax_code, @item_id, @occasional, @review_status, @confirmed, @evidence_json)`,
       ),
       setLineItem: db.prepare<[string | null, string]>('UPDATE pantry_ticket_lines SET item_id = ? WHERE id = ?'),
       deleteTicket: db.prepare<[string]>('DELETE FROM pantry_tickets WHERE id = ?'),
@@ -177,22 +191,35 @@ export class SqliteTicketRepository {
       >(
         `SELECT ${LINE_COLUMNS.split(', ').map((c) => `l.${c}`).join(', ')}, t.purchase_date, t.store_name, t.created_at
          FROM pantry_ticket_lines l JOIN pantry_tickets t ON t.id = l.ticket_id
-         WHERE l.item_id IS NOT NULL AND l.occasional = 0 AND t.purchase_date >= ?
+         WHERE l.item_id IS NOT NULL AND l.occasional = 0 AND l.review_status = 'verified' AND t.purchase_date >= ?
          ORDER BY t.purchase_date, l.position`,
       ),
     }
   }
 
   private transaction<T>(work: () => T): T {
-    return this.db.transaction(work)()
+    return this.db.transaction(work).immediate()
   }
 
   aliases(store: TicketStoreKind, storeName: string): AliasRecord[] {
     return this.sql.aliases.all(aliasStoreOf(store, storeName)).map((row) => ({ key: row.name_key, itemId: row.item_id }))
   }
 
-  findDuplicate(input: Pick<TicketSaveInput, 'store' | 'storeName' | 'date' | 'time' | 'totalCents' | 'lines'>): PantryTicketSummary | null {
-    const row = this.sql.byFingerprint.get(ticketFingerprint(input))
+  findDuplicate(input: DuplicateInput): PantryTicketSummary | null {
+    const fingerprint = ticketFingerprint(input)
+    const row = this.sql.byImport.get(input.importId ?? '', input.sourceFingerprint ?? '') ?? this.sql.byFingerprint.get(fingerprint)
+    if (row) return toSummary(row)
+    // Legacy rows have their original fingerprint; compare their contents.
+    for (const candidate of this.sql.candidates.all(input.date, input.totalCents)) {
+      const saved = this.getTicket(candidate.id)
+      if (ticketFingerprint({ ...saved, store: candidate.store }) === fingerprint) return saved
+    }
+    return null
+  }
+
+  possibleDuplicate(input: DuplicateInput): PantryTicketSummary | null {
+    const row = this.sql.candidates.all(input.date, input.totalCents).find(r => aliasStoreOf(r.store, r.store_name) === aliasStoreOf(input.store, input.storeName) &&
+      (r.purchase_time === input.time || r.purchase_time === null || input.time === null))
     return row ? toSummary(row) : null
   }
 
@@ -203,7 +230,7 @@ export class SqliteTicketRepository {
   getTicket(id: string): PantryTicket {
     const row = this.sql.summary.get(id)
     if (!row) throw new AppError('NOT_FOUND', 'Ese ticket ya no existe.')
-    return { ...toSummary(row), lines: this.sql.lines.all(id).map(toLine) }
+    return { ...toSummary(row), lines: this.sql.lines.all(id).map(toLine), adjustments: JSON.parse(row.adjustments_json), issues: JSON.parse(row.issues_json) }
   }
 
   /**
@@ -217,6 +244,7 @@ export class SqliteTicketRepository {
       if (duplicate) {
         throw new AppError('CONFLICT', `Este ticket ya está guardado (${duplicate.storeName}, ${duplicate.date.split('-').reverse().join('/')}).`)
       }
+      if (!input.distinctPurchase && this.possibleDuplicate(input)) throw new AppError('CONFLICT', 'Hay una compra con la misma fecha, hora y total. Confirma si se trata de otra compra.')
       const aliasStore = aliasStoreOf(input.store, input.storeName)
       const now = this.now()
       const linesByKey = new Map<string, TicketSaveLine[]>()
@@ -242,6 +270,7 @@ export class SqliteTicketRepository {
           itemOfKey.set(key, decision.itemId)
           continue
         }
+        if (!lines.some(canApplyLine)) { itemOfKey.set(key, null); continue }
         const sameNew = `${nameKey(decision.name)}|${decision.ownerId ?? ''}`
         let id = created.get(sameNew)
         if (!id) {
@@ -250,7 +279,7 @@ export class SqliteTicketRepository {
               const d = input.decisions[k]
               return d?.kind === 'new' && `${nameKey(d.name)}|${d.ownerId ?? ''}` === sameNew
             })
-            .flatMap(([, l]) => l)
+            .flatMap(([, l]) => l).filter(canApplyLine)
           const unit: PantryUnit = allLines.every((line) => line.weightKg !== null) ? 'kg' : 'ud'
           id = this.pantry.createItem({
             name: decision.name,
@@ -269,13 +298,16 @@ export class SqliteTicketRepository {
       }
 
       // Lo aprendido y lo que cambia en los productos que ya existían.
-      for (const [key, itemId] of itemOfKey) this.sql.upsertAlias.run(aliasStore, key, itemId, itemId === null ? 1 : 0, now)
+      for (const [key, itemId] of itemOfKey) {
+        if (linesByKey.get(key)?.some(canApplyLine)) this.sql.upsertAlias.run(aliasStore, key, itemId, itemId === null ? 1 : 0, now)
+      }
       const touched = new Map<string, TicketSaveLine[]>()
       for (const [key, itemId] of itemOfKey) {
         if (itemId === null || [...created.values()].includes(itemId)) continue
-        touched.set(itemId, [...(touched.get(itemId) ?? []), ...(linesByKey.get(key) ?? [])])
+        touched.set(itemId, [...(touched.get(itemId) ?? []), ...(linesByKey.get(key) ?? []).filter(canApplyLine)])
       }
       for (const [itemId, lines] of touched) {
+        if (!lines.length) continue
         // «Para una ocasión» no cuenta para el ritmo, pero lo comprado sí está en casa.
         const item = this.pantry.getItem(itemId) as PantryItem
         this.pantry.applyTicketPurchase(itemId, {
@@ -295,6 +327,10 @@ export class SqliteTicketRepository {
         total_cents: input.totalCents,
         fingerprint: ticketFingerprint(input),
         created_at: now,
+        adjustments_json: JSON.stringify(input.adjustments ?? []),
+        issues_json: JSON.stringify(input.issues ?? []),
+        import_id: input.importId ?? null,
+        source_fingerprint: input.sourceFingerprint ?? null,
       })
       input.lines.forEach((line, position) => {
         this.sql.insertLine.run({
@@ -312,6 +348,9 @@ export class SqliteTicketRepository {
           tax_code: line.taxCode,
           item_id: itemOfKey.get(nameKey(line.rawName)) ?? null,
           occasional: line.occasional ? 1 : 0,
+          review_status: canApplyLine(line) || (line.amountCents !== null && line.amountCents < 0 && line.reviewStatus !== 'pending') ? 'verified' : 'pending',
+          confirmed: line.confirmed ? 1 : 0,
+          evidence_json: line.evidence ? JSON.stringify(line.evidence) : null,
         })
       })
       return { ticket: this.getTicket(ticketId), items: this.pantry.listItems() }

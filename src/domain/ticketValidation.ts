@@ -2,7 +2,9 @@ import type { ValidationResult } from './backup.ts'
 import { isValidISODate } from './dates.ts'
 import { isPantryFrequency, MAX_PANTRY_CENTS, PANTRY_NAME_MAX } from './pantry.ts'
 import { nameKey } from './ticketText.ts'
-import type { TicketDecision, TicketSaveInput, TicketSaveLine } from './types.ts'
+import { lineProblems } from './ticketArithmetic.ts'
+import { checkTicket } from './ticketParse.ts'
+import type { TicketAdjustment, TicketDecision, TicketEvidence, TicketSaveInput, TicketSaveLine } from './types.ts'
 
 /** Validación de lo que llega a la API al guardar un ticket revisado. */
 
@@ -37,7 +39,8 @@ function readLine(raw: unknown, index: number): TicketSaveLine {
   }
   const taxCode = raw.taxCode ?? null
   if (taxCode !== null && taxCode !== 'A' && taxCode !== 'B' && taxCode !== 'C') fail(`${label}: la letra del IVA debe ser A, B, C o null.`)
-  return {
+  const evidence = readEvidence(raw.evidence)
+  const line: TicketSaveLine = {
     rawName,
     quantity: int(raw.quantity, `${label}, cantidad`, 1, 999) as number,
     unitPriceCents: int(raw.unitPriceCents, `${label}, precio unitario`, 0, MAX_PANTRY_CENTS, true),
@@ -47,7 +50,44 @@ function readLine(raw: unknown, index: number): TicketSaveLine {
     pricePerKgCents: int(raw.pricePerKgCents, `${label}, precio por kilo`, 0, MAX_PANTRY_CENTS, true),
     taxCode,
     occasional: raw.occasional === true,
+    confirmed: raw.confirmed === true,
+    evidence,
   }
+  // Invalid structure is rejected; incomplete/inconsistent economic data may
+  // be archived but cannot change pantry stock or prices.
+  const problems = lineProblems(line)
+  line.reviewStatus = raw.reviewStatus === 'pending' || problems.length > 0 ||
+    ((evidence?.issues.length ?? 0) > 0 && !line.confirmed) ? 'pending' : 'verified'
+  return line
+}
+
+function readEvidence(raw: unknown): TicketEvidence | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (!isObject(raw)) fail('La evidencia de lectura no es válida.')
+  if (!['read', 'reread', 'calculation', 'manual'].includes(String(raw.selectedBy))) fail('Origen del importe no válido.')
+  if (!Array.isArray(raw.issues) || raw.issues.length > 20 || raw.issues.some(i => typeof i !== 'string' || i.length > 200)) fail('Incidencias de lectura no válidas.')
+  return {
+    text: typeof raw.text === 'string' ? raw.text.slice(0, 1000) : '',
+    reread: typeof raw.reread === 'string' ? raw.reread.slice(0, 1000) : null,
+    recognizedCents: int(raw.recognizedCents, 'Importe reconocido', -MAX_LINE_CENTS, MAX_LINE_CENTS, true),
+    calculatedCents: int(raw.calculatedCents, 'Importe calculado', -MAX_LINE_CENTS, MAX_LINE_CENTS, true),
+    selectedBy: raw.selectedBy as TicketEvidence['selectedBy'], issues: raw.issues as string[],
+  }
+}
+
+function readAdjustments(raw: unknown): TicketAdjustment[] {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw) || raw.length > 100) fail('Ajustes del ticket no válidos.')
+  const ids = new Set<string>()
+  return raw.map(a => {
+    if (!isObject(a) || typeof a.id !== 'string' || a.id.length === 0 || a.id.length > 100 || ids.has(a.id)) fail('Identificador de ajuste no válido o repetido.')
+    ids.add(a.id)
+    if (typeof a.label !== 'string' || !a.label.trim() || a.label.length > 120) fail('Escribe el concepto del ajuste.')
+    if (!['discount', 'coupon', 'promotion', 'other'].includes(String(a.kind))) fail('Tipo de ajuste no válido.')
+    return { id: a.id, label: a.label.trim(), kind: a.kind as TicketAdjustment['kind'],
+      amountCents: int(a.amountCents, 'Importe del ajuste', -MAX_LINE_CENTS, MAX_LINE_CENTS, true),
+      needsReview: a.needsReview !== false, originalText: typeof a.originalText === 'string' ? a.originalText.slice(0, 1000) : undefined }
+  })
 }
 
 function readDecision(raw: unknown, key: string): TicketDecision {
@@ -79,16 +119,31 @@ export function validateTicketSave(raw: unknown): ValidationResult<TicketSaveInp
     if (!isValidISODate(raw.date)) fail('La fecha del ticket debe ser AAAA-MM-DD.')
     const time = raw.time ?? null
     if (time !== null && (typeof time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) fail('La hora del ticket debe ser HH:MM.')
-    const totalCents = int(raw.totalCents, 'El total', 0, MAX_LINE_CENTS, true)
+    const totalCents = int(raw.totalCents, 'El total', -MAX_LINE_CENTS, MAX_LINE_CENTS, true)
     if (!Array.isArray(raw.lines) || raw.lines.length === 0) fail('El ticket no tiene ninguna línea.')
     if (raw.lines.length > MAX_LINES) fail(`Un ticket puede tener como máximo ${MAX_LINES} líneas.`)
     const lines = raw.lines.map(readLine)
+    const adjustments = readAdjustments(raw.adjustments)
+    const issues = raw.issues === undefined ? [] : raw.issues
+    if (!Array.isArray(issues) || issues.length > 30 || issues.some(i => typeof i !== 'string' || i.length > 200)) fail('Incidencias del ticket no válidas.')
+    const check = checkTicket(lines, totalCents, adjustments)
+    if ((check.status !== 'cuadra' || lines.some(l => l.reviewStatus === 'pending') || adjustments.some(a => a.needsReview || a.amountCents === null) || issues.length > 0) && raw.acknowledged !== true) {
+      fail('Confirma el guardado con las advertencias pendientes. Solo las líneas fiables actualizarán la despensa.')
+    }
     if (!isObject(raw.decisions)) fail('Faltan las decisiones de los productos.')
     const decisions: Record<string, TicketDecision> = {}
     for (const key of new Set(lines.map((line) => nameKey(line.rawName)))) {
       decisions[key] = readDecision((raw.decisions as Raw)[key], key)
     }
-    return { ok: true, value: { store: raw.store, storeName, address, date: raw.date, time, totalCents, lines, decisions } }
+    const identifier = (value: unknown, name: string) => {
+      if (value === undefined) return undefined
+      if (typeof value !== 'string' || !/^[a-zA-Z0-9-]{16,128}$/.test(value)) fail(`${name} no válido.`)
+      return value
+    }
+    return { ok: true, value: { store: raw.store, storeName, address, date: raw.date, time, totalCents, lines, decisions,
+      adjustments, issues: issues as string[], acknowledged: raw.acknowledged === true,
+      importId: identifier(raw.importId, 'Identificador de importación'), sourceFingerprint: identifier(raw.sourceFingerprint, 'Huella del origen'),
+      distinctPurchase: raw.distinctPurchase === true } }
   } catch (error) {
     if (error instanceof InputError) return { ok: false, error: error.message }
     throw error

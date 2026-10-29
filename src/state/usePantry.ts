@@ -15,6 +15,7 @@ import type {
   PantryTicket,
   PantryTicketSummary,
   TicketSaveInput,
+  TicketReadInput,
 } from '../domain/types.ts'
 import { pantryApi } from '../services/pantryApi.ts'
 import { describeStorageError } from './storageErrors.ts'
@@ -52,7 +53,7 @@ export interface PantryActions {
   addEvent(itemId: string, kind: PantryEventKind): Promise<PantryEvent>
   deleteEvent(id: string): Promise<void>
   /** Lee un ticket (imágenes ya preparadas o texto). No guarda nada. */
-  readTicket(input: { imagenes: string[] } | { texto: string }): Promise<TicketDraft>
+  readTicket(input: TicketReadInput): Promise<TicketDraft>
   saveTicket(input: TicketSaveInput): Promise<PantryTicket>
   getTicket(id: string): Promise<PantryTicket>
   setTicketLine(ticketId: string, lineId: string, itemId: string | null): Promise<PantryTicket>

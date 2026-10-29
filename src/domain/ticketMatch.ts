@@ -27,11 +27,13 @@ export interface TicketDraft {
   suggestions: Record<string, TicketSuggestion>
   /** Si ya hay un ticket igual guardado. */
   duplicate: PantryTicketSummary | null
+  possibleDuplicate?: PantryTicketSummary | null
+  sourceFingerprint?: string
+  importId?: string
 }
 
 const ALIAS_SIMILARITY = 0.85
 const NAME_SIMILARITY = 0.8
-const SAME_TICKET_SIMILARITY = 0.85
 
 /** El destino (producto) más parecido y cuánto le saca al segundo. */
 function bestMatch<T>(key: string, options: readonly T[], keyOf: (option: T) => string, targetOf: (option: T) => string | null) {
@@ -39,7 +41,10 @@ function bestMatch<T>(key: string, options: readonly T[], keyOf: (option: T) => 
   for (const option of options) {
     const target = targetOf(option)
     if (target === null) continue
-    const score = similarity(key, keyOf(option))
+    const other = keyOf(option)
+    // Numbers identify sizes, percentages and varieties, not OCR noise.
+    if ((key.match(/\d+/g) ?? []).join('|') !== (other.match(/\d+/g) ?? []).join('|')) continue
+    const score = similarity(key, other)
     const current = perTarget.get(target)
     if (!current || score > current.score) perTarget.set(target, { option, score })
   }
@@ -91,17 +96,6 @@ export function suggestForTicket(
     unmatched.push(entry)
   }
 
-  // Productos nuevos: las variantes parecidas del mismo ticket usan el nombre de la más repetida.
-  const groups: (typeof keys)[] = []
-  for (const entry of unmatched) {
-    const group = groups.find((g) => similarity(g[0].key, entry.key) >= SAME_TICKET_SIMILARITY)
-    if (group) group.push(entry)
-    else groups.push([entry])
-  }
-  for (const group of groups) {
-    const main = [...group].sort((a, b) => b.count - a.count)[0]
-    const suggestion: TicketSuggestion = { kind: 'new', name: prettyName(main.rawName), frequency: guessFrequency(main.rawName) }
-    for (const entry of group) result.set(entry.key, suggestion)
-  }
+  for (const entry of unmatched) result.set(entry.key, { kind: 'new', name: prettyName(entry.rawName), frequency: guessFrequency(entry.rawName) })
   return result
 }

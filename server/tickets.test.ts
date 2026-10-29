@@ -70,6 +70,8 @@ function saveInput(draft: Draft, overrides: Partial<TicketSaveInput> = {}, decid
     date: draft.ticket.date ?? '2026-10-25',
     time: draft.ticket.time,
     totalCents: draft.ticket.totalCents,
+    adjustments: draft.ticket.adjustments.map(a => ({ ...a, needsReview: false })),
+    acknowledged: true,
     lines: draft.ticket.lines.map((line) => ({
       rawName: line.rawName,
       quantity: line.quantity,
@@ -146,9 +148,9 @@ describe('API de tickets', () => {
     // 18 líneas: los macarrones dos veces y el detergente no se sigue.
     expect(list).toHaveLength(16)
     expect(byName(list, 'Leche semidesnatada')).toMatchObject({ tracking: 'compras', unit: 'ud', priceCents: 95 })
-    expect(byName(list, 'Pechuga de pollo')).toMatchObject({ unit: 'kg', priceCents: 770 })
-    // Café: 3,29 € con 0,33 € de promo.
-    expect(byName(list, 'Café molido natural')).toMatchObject({ priceCents: 296, frequency: 'mensual' })
+    expect(byName(list, 'Pechuga de pollo')).toMatchObject({ unit: 'kg', priceCents: 693 })
+    // La promoción general no se asigna al café; el descuento del pollo sí afecta a su precio por kilo.
+    expect(byName(list, 'Café molido natural')).toMatchObject({ priceCents: 329, frequency: 'mensual' })
     expect(ticket.productsCount).toBe(16)
 
     expect((await guest(api).call('POST', '/despensa/tickets', input)).status).toBe(409)

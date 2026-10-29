@@ -27,6 +27,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
+    ...(process.env.CUENTAS_E2E_CHANNEL ? { channel: process.env.CUENTAS_E2E_CHANNEL } : {}),
     baseURL: `http://localhost:${WEB_PORT}/`,
     locale: 'es-ES',
     timezoneId: 'Europe/Madrid',

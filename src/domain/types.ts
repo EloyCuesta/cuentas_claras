@@ -200,6 +200,44 @@ export interface PantryActivity {
 export interface OcrLine {
   text: string
   reread: string | null
+  confidence?: number
+  words?: { text: string; confidence: number; box: TicketBox }[]
+  source?: TicketSource
+}
+
+export interface TicketBox { x0: number; y0: number; x1: number; y1: number }
+export interface TicketSource {
+  imageIndex: number
+  segmentIndex: number
+  box: TicketBox
+  width: number
+  height: number
+}
+export interface TicketSegment {
+  image: string
+  imageIndex: number
+  segmentIndex: number
+  offsetY: number
+  fullHeight: number
+}
+export type TicketReadInput = { imagenes: string[] } | { texto: string } | { franjas: TicketSegment[] }
+export interface TicketEvidence {
+  text: string
+  reread: string | null
+  recognizedCents: number | null
+  calculatedCents: number | null
+  selectedBy: 'read' | 'reread' | 'calculation' | 'manual'
+  issues: string[]
+  source?: TicketSource
+}
+export interface TicketAdjustment {
+  id: string
+  label: string
+  kind: 'discount' | 'coupon' | 'promotion' | 'other'
+  /** Signed amount: discounts subtract. null is unknown, never zero. */
+  amountCents: number | null
+  needsReview: boolean
+  originalText?: string
 }
 
 export type TicketStoreKind = 'lidl' | 'otra'
@@ -235,10 +273,15 @@ export interface PantryTicketLine {
   itemId: string | null
   /** «Para una ocasión»: no cuenta para el ritmo de compra. */
   occasional: boolean
+  reviewStatus?: 'verified' | 'pending'
+  confirmed?: boolean
+  evidence?: TicketEvidence
 }
 
 export interface PantryTicket extends PantryTicketSummary {
   lines: PantryTicketLine[]
+  adjustments?: TicketAdjustment[]
+  issues?: string[]
 }
 
 /** Qué hacer con un producto del ticket al guardarlo. */
@@ -259,4 +302,10 @@ export interface TicketSaveInput {
   totalCents: number | null
   lines: TicketSaveLine[]
   decisions: Record<string, TicketDecision>
+  adjustments?: TicketAdjustment[]
+  issues?: string[]
+  acknowledged?: boolean
+  importId?: string
+  sourceFingerprint?: string
+  distinctPurchase?: boolean
 }

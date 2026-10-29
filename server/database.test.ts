@@ -117,7 +117,7 @@ describe('openDatabase', () => {
     expect(db.prepare('SELECT concept FROM movements').pluck().all()).toEqual(['Mercadona'])
     expect(db.prepare('SELECT value FROM meta').pluck().get()).toBe('y')
     expect(db.prepare('SELECT COUNT(*) FROM categories').pluck().get()).toBe(DEFAULT_CATEGORIES.length)
-    expect(db.prepare('SELECT version FROM schema_migrations ORDER BY version').pluck().all()).toEqual([1, 2, 3, 4])
+    expect(db.prepare('SELECT version FROM schema_migrations ORDER BY version').pluck().all()).toEqual([1, 2, 3, 4, 5])
 
     // Al volver a abrir no se repite ni se borra nada.
     db.prepare("INSERT INTO pantry_people (id, name, created_at) VALUES ('p1', 'Eloy', 'x')").run()

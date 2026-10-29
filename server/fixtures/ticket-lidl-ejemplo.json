@@ -1,188 +1,195 @@
 {
- "store": "lidl",
- "date": "2026-10-24",
- "time": "18:05",
- "totalCents": 5251,
- "lines": [
-  {
-   "rawName": "LECHE SEMIDESNATADA",
-   "quantity": 6,
-   "unitPriceCents": 95,
-   "amountCents": 570,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "PAN DE MOLDE INTEGRA",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 129,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "HUEVOS CAMPEROS L",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 299,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "YOGUR GRIEGO",
-   "quantity": 4,
-   "unitPriceCents": 55,
-   "amountCents": 220,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "PLÁTANO CANARIO",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 231,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": 0.812,
-   "pricePerKgCents": 285
-  },
-  {
-   "rawName": "PECHUGA DE POLLO",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 527,
-   "taxCode": "B",
-   "discountCents": 53,
-   "weightKg": 0.684,
-   "pricePerKgCents": 770
-  },
-  {
-   "rawName": "ARROZ REDONDO",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 115,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "ACEITE DE OLIVA V.E.",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 749,
-   "taxCode": "B",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "TOMATE TRITURADO",
-   "quantity": 3,
-   "unitPriceCents": 59,
-   "amountCents": 177,
-   "taxCode": "B",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "CAFÉ MOLIDO NATURAL",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 329,
-   "taxCode": "B",
-   "discountCents": 33,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "MACARRONES",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 85,
-   "taxCode": "B",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "MACARRONES",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 85,
-   "taxCode": "B",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "QUESO EN LONCHAS",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 215,
-   "taxCode": "B",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "MANZANA GOLDEN",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 195,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": 0.975,
-   "pricePerKgCents": 200
-  },
-  {
-   "rawName": "PAPEL HIGIÉNICO 12R",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 375,
-   "taxCode": "C",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "DETERGENTE LÍQUIDO",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 549,
-   "taxCode": "C",
-   "discountCents": 50,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "ZUMO DE NARANJA 1L",
-   "quantity": 2,
-   "unitPriceCents": 119,
-   "amountCents": 238,
-   "taxCode": "B",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  },
-  {
-   "rawName": "PATATA 3 KG",
-   "quantity": 1,
-   "unitPriceCents": null,
-   "amountCents": 299,
-   "taxCode": "A",
-   "discountCents": 0,
-   "weightKg": null,
-   "pricePerKgCents": null
-  }
- ]
+  "store": "lidl",
+  "date": "2026-10-24",
+  "time": "18:05",
+  "totalCents": 5251,
+  "lines": [
+    {
+      "rawName": "LECHE SEMIDESNATADA",
+      "quantity": 6,
+      "unitPriceCents": 95,
+      "amountCents": 570,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "PAN DE MOLDE INTEGRA",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 129,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "HUEVOS CAMPEROS L",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 299,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "YOGUR GRIEGO",
+      "quantity": 4,
+      "unitPriceCents": 55,
+      "amountCents": 220,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "PLÁTANO CANARIO",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 231,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": 0.812,
+      "pricePerKgCents": 285
+    },
+    {
+      "rawName": "PECHUGA DE POLLO",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 527,
+      "taxCode": "B",
+      "discountCents": 53,
+      "weightKg": 0.684,
+      "pricePerKgCents": 770
+    },
+    {
+      "rawName": "ARROZ REDONDO",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 115,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "ACEITE DE OLIVA V.E.",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 749,
+      "taxCode": "B",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "TOMATE TRITURADO",
+      "quantity": 3,
+      "unitPriceCents": 59,
+      "amountCents": 177,
+      "taxCode": "B",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "CAFÉ MOLIDO NATURAL",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 329,
+      "taxCode": "B",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "MACARRONES",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 85,
+      "taxCode": "B",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "MACARRONES",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 85,
+      "taxCode": "B",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "QUESO EN LONCHAS",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 215,
+      "taxCode": "B",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "MANZANA GOLDEN",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 195,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": 0.975,
+      "pricePerKgCents": 200
+    },
+    {
+      "rawName": "PAPEL HIGIÉNICO 12R",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 375,
+      "taxCode": "C",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "DETERGENTE LÍQUIDO",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 549,
+      "taxCode": "C",
+      "discountCents": 50,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "ZUMO DE NARANJA 1L",
+      "quantity": 2,
+      "unitPriceCents": 119,
+      "amountCents": 238,
+      "taxCode": "B",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    },
+    {
+      "rawName": "PATATA 3 KG",
+      "quantity": 1,
+      "unitPriceCents": null,
+      "amountCents": 299,
+      "taxCode": "A",
+      "discountCents": 0,
+      "weightKg": null,
+      "pricePerKgCents": null
+    }
+  ],
+  "provenance": "synthetic",
+  "adjustments": [
+    {
+      "kind": "promotion",
+      "amountCents": -33
+    }
+  ]
 }

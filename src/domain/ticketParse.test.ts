@@ -96,10 +96,11 @@ describe('parseTicket con lecturas difíciles', () => {
     ])
     expect(ticket.check.status).toBe('cuadra')
     // El ticket se leyó como 7,20 y 4,64: se avisa de que se han corregido.
-    expect(ticket.lines.map((l) => l.flags)).toEqual([['corregido'], [], ['corregido']])
+    expect(ticket.lines.map((l) => l.flags)).toEqual([['corregido', 'dudoso'], [], ['corregido', 'dudoso']])
+    expect(ticket.lines[0].evidence).toMatchObject({ recognizedCents: 720, calculatedCents: 790, selectedBy: 'calculation' })
   })
 
-  it('aplica los descuentos y la promo de Lidl Plus al producto de encima', () => {
+  it('aplica Desc. al artículo y conserva la promoción como ajuste pendiente', () => {
     const ticket = parseTicket([
       ocr(
         ...HEADER,
@@ -113,12 +114,13 @@ describe('parseTicket con lecturas difíciles', () => {
     ])
     expect(ticket.lines.map((l) => [l.rawName, l.amountCents, l.discountCents])).toEqual([
       ['PECHUGA DE POLLO', 379, 60],
-      ['COOKIES PEPITAS CHOC', 129, 14],
+      ['COOKIES PEPITAS CHOC', 129, 0],
     ])
     expect(ticket.check).toMatchObject({ status: 'cuadra', linesTotalCents: 434 })
+    expect(ticket.adjustments).toEqual([expect.objectContaining({ kind: 'promotion', amountCents: -14, needsReview: true })])
   })
 
-  it('deduce del total un único importe ilegible y lo marca', () => {
+  it('conserva como ilegible un importe sin evidencia aunque se pueda despejar del total', () => {
     const ticket = parseTicket([
       ocr(
         ...HEADER,
@@ -128,16 +130,16 @@ describe('parseTicket con lecturas difíciles', () => {
         ...FOOTER,
       ),
     ])
-    expect(ticket.lines[1]).toMatchObject({ rawName: 'COOKIES PEPITAS CHOC', amountCents: 129, flags: ['deducido'] })
-    expect(ticket.check.status).toBe('cuadra')
+    expect(ticket.lines[1]).toMatchObject({ rawName: 'COOKIES PEPITAS CHOC', amountCents: null, flags: ['ilegible'] })
+    expect(ticket.check.status).toBe('no_cuadra')
   })
 
-  it('corrige una sola cifra si eso explica la diferencia con el total', () => {
+  it('no cambia una cifra para explicar la diferencia con el total', () => {
     const ticket = parseTicket([
       ocr(...HEADER, ['RULO DE CABRA                       2,23 A', '2,23 A'], ['DÁTIL SIN HUESO 1,25 A', '1,25 A'], 'TOTAL 3,54', ...FOOTER),
     ])
     expect(ticket.lines.map((l) => [l.amountCents, l.flags])).toEqual([
-      [229, ['corregido']],
+      [223, []],
       [125, []],
     ])
   })
@@ -154,8 +156,9 @@ describe('parseTicket con lecturas difíciles', () => {
       ),
     ])
     expect(ticket.check).toEqual({ status: 'no_cuadra', linesTotalCents: 901, differenceCents: 11, unreadable: 0 })
-    // Las dos lecturas del rulo coinciden: lo dudoso es lo que solo se leyó una vez.
-    expect(ticket.lines.map((l) => l.flags)).toEqual([['dudoso'], [], ['dudoso']])
+    // Un descuadre global no demuestra cuál de los importes es incorrecto.
+    expect(ticket.issues).toContain('Los importes no cuadran con el total')
+    expect(ticket.lines.map((l) => l.amountCents)).toEqual([233, 223, 445])
     // Dos ilegibles: no se puede deducir ninguno.
     const two = parseTicket([ocr(...HEADER, ['PAN 1-29:B', '?'], ['SAL 9;9;9', '?'], 'TOTAL 2,00')])
     expect(two.lines.map((l) => [l.amountCents, l.flags])).toEqual([

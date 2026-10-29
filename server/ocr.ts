@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { createWorker, OEM, PSM, type Line, type Word, type Worker } from 'tesseract.js'
-import type { OcrLine } from '../src/domain/types.ts'
+import type { OcrLine, TicketSegment } from '../src/domain/types.ts'
+import { endsProducts } from '../src/domain/ticketParse.ts'
 import { imageInfo, type ImageInfo } from './imageInfo.ts'
 
 /**
@@ -24,7 +25,7 @@ import { imageInfo, type ImageInfo } from './imageInfo.ts'
 
 export interface TicketReader {
   /** Una lista de líneas por imagen, en orden. */
-  read(images: readonly Buffer[]): Promise<OcrLine[][]>
+  read(images: readonly Buffer[], segments?: readonly Omit<TicketSegment, 'image'>[]): Promise<OcrLine[][]>
   close(): Promise<void>
 }
 
@@ -71,11 +72,11 @@ function clampRect(rect: Rect, image: ImageInfo): Rect {
 /** Líneas que merece la pena releer: las de productos, entre la cabecera «EUR» y el TOTAL (incluido). */
 function rereadRange(lines: readonly Line[]): [number, number] {
   const start = lines.findIndex((line) => /^\s*EUR\s*$/i.test(line.text))
-  const end = lines.findIndex((line, i) => i > start && /^\s*TOTAL\b/i.test(line.text))
+  const end = lines.findIndex((line, i) => i > start && (/^\s*TOTAL\b/i.test(line.text) || endsProducts(line.text)))
   return [start === -1 ? 0 : start + 1, end === -1 ? lines.length - 1 : end]
 }
 
-async function readImage(worker: Worker, image: Buffer, info: ImageInfo): Promise<OcrLine[]> {
+async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source: Omit<TicketSegment, 'image'>): Promise<OcrLine[]> {
   await worker.setParameters({
     tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
     tessedit_char_whitelist: '',
@@ -83,7 +84,11 @@ async function readImage(worker: Worker, image: Buffer, info: ImageInfo): Promis
   })
   const { data } = await worker.recognize(image, {}, { text: true, blocks: true })
   const lines = (data.blocks ?? []).flatMap((block) => block.paragraphs.flatMap((paragraph) => paragraph.lines))
-  const result: OcrLine[] = lines.map((line) => ({ text: line.text.replace(/\n$/, ''), reread: null }))
+  const result: OcrLine[] = lines.map((line) => ({ text: line.text.replace(/\n$/, ''), reread: null,
+    confidence: line.confidence,
+    words: line.words.map(w => ({ text: w.text, confidence: w.confidence, box: { ...w.bbox, y0: w.bbox.y0 + source.offsetY, y1: w.bbox.y1 + source.offsetY } })),
+    source: { imageIndex: source.imageIndex, segmentIndex: source.segmentIndex, width: info.width, height: source.fullHeight,
+      box: { ...line.bbox, y0: line.bbox.y0 + source.offsetY, y1: line.bbox.y1 + source.offsetY } } }))
 
   const [from, to] = rereadRange(lines)
   const tails: { index: number; rect: Rect }[] = []
@@ -99,6 +104,10 @@ async function readImage(worker: Worker, image: Buffer, info: ImageInfo): Promis
     }
     const start = numericTailStart(line.words)
     if (start === null) continue
+    const numeric = line.words.slice(start)
+    // Multiunit arithmetic benefits from an independent reading. Clean,
+    // high-confidence single amounts do not need another Tesseract call.
+    if (numeric.every(w => w.confidence >= 90) && /\d[,.]\d{2}\s+[ABC]\s*$/.test(line.text) && !/\d\s*[xX×*]\s*\d/.test(line.text)) continue
     const first = line.words[start]
     const rect = { left: first.bbox.x0 - pad, top: line.bbox.y0 - pad, width: line.bbox.x1 - first.bbox.x0 + 2 * pad, height: height + 2 * pad }
     tails.push({ index: i, rect: clampRect(rect, info) })
@@ -145,15 +154,15 @@ export function createTesseractReader({ idleMs = IDLE_MS }: { idleMs?: number } 
   }
 
   return {
-    read(images) {
+    read(images, segments) {
       const job = queue.then(async () => {
         if (idleTimer) clearTimeout(idleTimer)
         const tesseract = await getWorker()
         const pages: OcrLine[][] = []
-        for (const image of images) {
+        for (const [i, image] of images.entries()) {
           const info = imageInfo(image)
           if (!info) throw new Error('Imagen no válida')
-          pages.push(await readImage(tesseract, image, info))
+          pages.push(await readImage(tesseract, image, info, segments?.[i] ?? { imageIndex: i, segmentIndex: 0, offsetY: 0, fullHeight: info.height }))
         }
         return pages
       })

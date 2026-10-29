@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { movement } from '../src/test/factories.ts'
 import { startApi, stopApis, TEST_CODE } from './api-test-helpers.ts'
@@ -73,13 +72,12 @@ describe('checkAccessCode', () => {
 })
 
 describe('arranque del servidor', () => {
-  const tsx = join(process.cwd(), 'node_modules', '.bin', 'tsx')
   const start = (code: string | undefined) => {
     const dbPath = tempDbPath()
     const env: NodeJS.ProcessEnv = { ...process.env, CUENTAS_DB_PATH: dbPath, CUENTAS_PORT: '0' }
     delete env.CUENTAS_CODIGO
     if (code !== undefined) env.CUENTAS_CODIGO = code
-    const result = spawnSync(tsx, ['server/index.ts'], { env, encoding: 'utf8', timeout: 20_000 })
+    const result = spawnSync(process.execPath, ['--import', 'tsx', 'server/index.ts'], { env, encoding: 'utf8', timeout: 20_000 })
     return { ...result, dbPath }
   }
 

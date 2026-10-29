@@ -3160,3 +3160,26 @@ body:has(dialog[open]) {
     transition: none;
   }
 }
+
+/* Ticket comparison and complete review */
+.ticket-review__form { min-width: 0; }
+.ticket-line-editor { border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 12px; margin: 12px 0; min-width: 0; }
+.ticket-line-editor .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ticket-line-editor input { min-width: 0; width: 100%; }
+.ticket-raw { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ticket-comparison { min-width: 0; }
+.ticket-comparison .ticket-preview { max-height: 65vh; overflow: auto; }
+.ticket-image-region { position: relative; }
+.ticket-image-region img { width: 100%; display: block; }
+.ticket-image-highlight { position: absolute; border: 2px solid #aa5d00; background: #ffc94d55; pointer-events: none; }
+.ticket-image-options { display: grid; grid-template-columns: minmax(70px, 120px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.ticket-image-options > img { max-width: 100%; max-height: 180px; object-fit: contain; }
+@media (min-width: 1000px) {
+  .dialog--wide { max-width: 1200px; width: calc(100vw - 60px); }
+  .ticket-review--compare { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 42%); gap: 24px; }
+  .ticket-comparison { position: sticky; top: 0; align-self: start; }
+}
+@media (max-width: 999px) {
+  .ticket-review--compare { display: flex; flex-direction: column; }
+  .ticket-comparison { order: -1; margin-bottom: 18px; }
+}

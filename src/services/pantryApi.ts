@@ -12,6 +12,7 @@ import type {
   PantryTicket,
   PantryTicketSummary,
   TicketSaveInput,
+  TicketReadInput,
 } from '../domain/types.ts'
 import { apiRequest, segment } from './apiClient.ts'
 
@@ -44,7 +45,7 @@ export const pantryApi = {
     apiRequest<{ changes: PantryPurchaseChange[]; items: PantryItem[] }>('POST', '/despensa/comprado', { ids, date }),
   undoPurchase: (changes: readonly PantryPurchaseChange[]) => apiRequest<PantryItem[]>('POST', '/despensa/comprado/deshacer', { changes }),
 
-  readTicket: (input: { imagenes: string[] } | { texto: string }, today: ISODate) =>
+  readTicket: (input: TicketReadInput, today: ISODate) =>
     apiRequest<TicketDraft>('POST', '/despensa/tickets/leer', { ...input, hoy: today }),
   saveTicket: (input: TicketSaveInput) => apiRequest<{ ticket: PantryTicket; items: PantryItem[] }>('POST', '/despensa/tickets', input),
   listTickets: () => apiRequest<PantryTicketSummary[]>('GET', '/despensa/tickets'),

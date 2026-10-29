@@ -1,6 +1,7 @@
 import { isValidISODate, toISODate } from './dates.ts'
 import { nameKey, similarity } from './ticketText.ts'
-import type { ISODate, OcrLine } from './types.ts'
+import { calculatedAmount, roundRatio } from './ticketArithmetic.ts'
+import type { ISODate, OcrLine, TicketAdjustment, TicketEvidence } from './types.ts'
 
 /**
  * Analizador de tickets de la compra: convierte las líneas leídas por el OCR
@@ -44,6 +45,7 @@ export interface ParsedTicketLine {
   pricePerKgCents: number | null
   taxCode: TaxCode | null
   flags: TicketLineFlag[]
+  evidence?: TicketEvidence
 }
 
 export interface TicketCheck {
@@ -66,6 +68,8 @@ export interface ParsedTicket {
   totalCents: number | null
   lines: ParsedTicketLine[]
   check: TicketCheck
+  adjustments: TicketAdjustment[]
+  issues: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +185,8 @@ function readTail(tokens: readonly string[]): TailReading {
 /** Arregla lo que el OCR separa o ensucia: «0, 99x» → «0,99x», rayas y subrayados → espacio. */
 function cleanText(text: string): string {
   return text
+    .replace(/[−–](?=\s*\d)/g, '-')
+    .replace(/\b[0-9OISB]+[,.:;][0-9OISB]{2}(?=[ABC]?\b)/g, token => token.replace(/[OISB]/g, c => ({ O: '0', I: '1', S: '5', B: '8' })[c]!))
     .replace(/[—–_|]+/g, ' ')
     .replace(/(\d)\s*([,.:;])\s+(?=\d)/g, '$1$2')
     .replace(/(\d)\s+([,.])(?=\d{2}\b)/g, '$1$2')
@@ -203,6 +209,11 @@ const DISCOUNT_LINE = /^\s*(desc\b|desc\.|desc,|dto\b|descuento|promo\b|cup[oó]
 const TOTAL_LINE = /^\s*TOTAL\b(?!\s*(oferta|desc|ahorro))/i
 const HEADER_WORDS = /^\s*(descripci[oó]n|cantidad|p\.?\s*unit|precio|importe|eur)\b/i
 
+export const PAYMENT_LINE = /^\s*(Lidl\s*Pay|tarjeta|efectivo|cambio|pagado|pago\b|m[eé]todo de pago|comercio:|num\.?\s*operaci[oó]n|FECHA:|HORA:|CAJA:|IMPORTE:)/i
+export const FISCAL_LINE = /^\s*(IVA\b|I\.?V\.?A\.?\s|TIPO\s+IVA|BASE\s+IMP|CUOTA\b|[ABC]\s+\d{1,2}[,.]?\d*\s*%)/i
+export const PROMOTIONAL_LINE = /^\s*(ofertas?\b|puntos?\b|recompensas?\b|gracias\b|atenci[oó]n\b|compra realizada|pr[oó]xima compra|v[aá]lido|www\.|tel[eé]fono|ahorro\s+total|total\s+(ahorro|desc|oferta)|has ahorrado)/i
+export const endsProducts = (text: string) => PAYMENT_LINE.test(text) || FISCAL_LINE.test(text) || PROMOTIONAL_LINE.test(text)
+
 // ---------------------------------------------------------------------------
 // Varias capturas de un mismo ticket
 
@@ -214,13 +225,32 @@ const HEADER_WORDS = /^\s*(descripci[oó]n|cantidad|p\.?\s*unit|precio|importe|e
  */
 export function mergePages(pages: readonly (readonly OcrLine[])[]): OcrLine[] {
   const merged: OcrLine[] = []
-  const same = (a: OcrLine, b: OcrLine) => nameKey(a.text) !== '' && similarity(a.text, b.text) >= 0.85
+  const same = (a: OcrLine, b: OcrLine) => {
+    const x = readTail(tokensOf(cleanText(a.text)))
+    const y = readTail(tokensOf(cleanText(b.text)))
+    return nameKey(a.text) !== '' && similarity(a.text, b.text) >= 0.95 &&
+      x.amount?.cents === y.amount?.cents && x.quantity === y.quantity && x.unitCents === y.unitCents && x.tax === y.tax
+  }
   for (const page of pages) {
+    // Internal strips refer to the same source coordinate system. Match by
+    // geometry, never by name alone: repeated products have distinct boxes.
+    if (page[0]?.source && merged.some(l => l.source?.imageIndex === page[0].source!.imageIndex)) {
+      for (const line of page) {
+        const source = line.source
+        const duplicate = source && merged.findIndex(l => l.source?.imageIndex === source.imageIndex &&
+          Math.abs((l.source.box.y0 + l.source.box.y1) / 2 - (source.box.y0 + source.box.y1) / 2) <
+          Math.max(4, (source.box.y1 - source.box.y0) / 2))
+        if (typeof duplicate === 'number' && duplicate >= 0) {
+          if ((line.confidence ?? 0) > (merged[duplicate].confidence ?? 0)) merged[duplicate] = line
+        } else merged.push(line)
+      }
+      continue
+    }
     let overlap = 0
     for (let k = Math.min(merged.length, page.length, 40); k >= 2; k--) {
       let all = true
       for (let j = 0; j < k && all; j++) all = same(merged[merged.length - k + j], page[j])
-      if (all) {
+      if (all && new Set(page.slice(0, k).map(l => nameKey(l.text))).size >= 2) {
         overlap = k
         break
       }
@@ -305,6 +335,8 @@ interface WorkLine {
   taxCode: TaxCode | null
   amount: Candidate[]
   discounts: Candidate[][]
+  source: OcrLine
+  issues: string[]
 }
 
 function addCandidate(list: Candidate[], cents: number, score: number, read = true): void {
@@ -314,8 +346,6 @@ function addCandidate(list: Candidate[], cents: number, score: number, read = tr
     existing.read ||= read
   } else list.push({ cents, score, read })
 }
-
-const roundHalfUp = (value: number) => Math.floor(value + 0.5 + 1e-9)
 
 function readWeight(line: OcrLine): { weightKg: number; pricePerKgCents: number; agreed: boolean } | null {
   const reads = [line.reread, line.text].flatMap((text) => {
@@ -392,6 +422,8 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
     taxCode: fromReread?.tax ?? fromText.tax,
     amount,
     discounts: [],
+    source: line,
+    issues: [],
   }
 }
 
@@ -424,118 +456,47 @@ function readDiscount(line: OcrLine): Candidate[] {
 }
 
 // ---------------------------------------------------------------------------
-// Elegir importes con el total
-
-interface Entry {
-  line: WorkLine
-  /** -1 = importe del producto; 0, 1… = descuento n.º */
-  slot: number
-  sign: 1 | -1
-  candidates: Candidate[]
-  chosen: number | null
-  flags: Set<TicketLineFlag>
-}
-
+// Selección local: el total nunca modifica un dato de producto.
 const sorted = (candidates: readonly Candidate[]) => [...candidates].sort((a, b) => b.score - a.score || a.cents - b.cents)
 
-/** ¿Se diferencian en una sola cifra? (2,33 € y 2,39 €). */
-function oneDigitApart(a: number, b: number): boolean {
-  const x = String(Math.abs(a))
-  const y = String(Math.abs(b))
-  if (x.length !== y.length || Math.sign(a) !== Math.sign(b)) return false
-  let differences = 0
-  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) differences++
-  return differences === 1
-}
-
-const MAX_COMBINATIONS = 200_000
-
-function solve(entries: Entry[], totalCents: number | null): TicketCheck['status'] {
-  for (const entry of entries) entry.candidates = sorted(entry.candidates).slice(0, 3)
-  const unknown = entries.filter((e) => e.candidates.length === 0)
-  const lowConfidence = (e: Entry) => e.candidates.length > 1 || (e.candidates[0]?.score ?? 0) < 3
-  const chooseTop = () => {
-    for (const entry of entries) entry.chosen = entry.candidates[0]?.cents ?? null
+function selectLine(line: WorkLine): ParsedTicketLine {
+  const reads = sorted(line.amount.filter(c => c.read))
+  const primary = readTail(tokensOf(cleanText(line.source.text))).amount?.cents ?? null
+  const secondary = line.source.reread ? readTail(tokensOf(cleanText(line.source.reread))).amount?.cents ?? null : null
+  const read = reads[0]?.cents ?? null
+  const calculated = calculatedAmount({ quantity: line.quantity, unitPriceCents: line.unitCents,
+    weightKg: line.weightKg, pricePerKgCents: line.pricePerKgCents, amountCents: read })
+  const flags = new Set<TicketLineFlag>()
+  const issues = [...line.issues]
+  let amount = read
+  let selectedBy: TicketEvidence['selectedBy'] = secondary !== null && read === secondary ? 'reread' : 'read'
+  // Arithmetic is evidence only when its independent OCR readings agreed.
+  const arithmetic = line.amount.find(c => !c.read && c.score >= 3.5)
+  if (arithmetic && arithmetic.cents !== read) {
+    amount = arithmetic.cents
+    selectedBy = 'calculation'
+    flags.add('corregido')
+    issues.push('Importe corregido mediante cantidad o peso; confirma la lectura')
   }
-  const sumChosen = () => entries.reduce((sum, e) => sum + (e.chosen ?? 0) * e.sign, 0)
-  const markDoubtful = () => {
-    for (const entry of entries) {
-      if (entry.candidates.length === 0) entry.flags.add('ilegible')
-      else if (lowConfidence(entry)) entry.flags.add('dudoso')
-    }
+  if (amount === null) { flags.add('ilegible'); issues.push('No se lee el importe') }
+  if (reads.length > 1 && !arithmetic) issues.push('Las lecturas del importe no coinciden')
+  if (calculated !== null && amount !== null && calculated !== amount) issues.push('El importe no coincide con cantidad o peso × precio')
+  if ((line.source.confidence ?? 100) < 75) issues.push('Lectura de baja confianza')
+  if (/[0-9OISB]+[,.:;][0-9OISB]{2}/.test(line.source.text) &&
+      /[OISB]/.test(line.source.text.match(/[0-9OISB]+[,.:;][0-9OISB]{2}/)?.[0] ?? '')) issues.push('Se han interpretado letras como cifras')
+  let discountCents = 0
+  for (const discount of line.discounts) {
+    const choices = sorted(discount)
+    discountCents += choices[0]?.cents ?? 0
+    if (!choices.length || choices.length > 1) issues.push('Descuento ilegible o ambiguo')
   }
-
-  chooseTop()
-  if (totalCents === null) {
-    markDoubtful()
-    return 'sin_total'
-  }
-
-  if (unknown.length === 1) {
-    const missing = unknown[0].sign * (totalCents - sumChosen())
-    if (missing > 0 && missing < 1_000_000) {
-      unknown[0].chosen = missing
-      unknown[0].flags.add('deducido')
-      for (const entry of entries) if (entry !== unknown[0] && lowConfidence(entry)) entry.flags.add('dudoso')
-      return 'cuadra'
-    }
-  }
-  if (unknown.length > 0) {
-    markDoubtful()
-    return 'no_cuadra'
-  }
-
-  // Combinaciones de candidatos de las líneas con dudas, empezando por las menos fiables.
-  const ambiguous = entries
-    .filter((e) => e.candidates.length > 1)
-    .sort((a, b) => a.candidates[0].score - b.candidates[0].score)
-    .slice(0, 14)
-  const fixedSum = entries.filter((e) => !ambiguous.includes(e)).reduce((sum, e) => sum + e.candidates[0].cents * e.sign, 0)
-  let best: { picks: number[]; score: number } | null = null
-  let tie = false
-  let count = 0
-  const picks: number[] = []
-  const search = (index: number, sum: number, score: number) => {
-    if (count++ > MAX_COMBINATIONS) return
-    if (index === ambiguous.length) {
-      if (sum !== totalCents) return
-      if (!best || score > best.score + 1e-9) {
-        best = { picks: [...picks], score }
-        tie = false
-      } else if (Math.abs(score - best.score) < 1e-9) tie = true
-      return
-    }
-    const entry = ambiguous[index]
-    for (let k = 0; k < entry.candidates.length; k++) {
-      picks[index] = k
-      search(index + 1, sum + entry.candidates[k].cents * entry.sign, score + entry.candidates[k].score)
-    }
-  }
-  search(0, fixedSum, 0)
-  const found = best as { picks: number[]; score: number } | null
-  if (found) {
-    ambiguous.forEach((entry, i) => {
-      entry.chosen = entry.candidates[found.picks[i]].cents
-      if (found.picks[i] !== 0) entry.flags.add('corregido')
-      if (tie) entry.flags.add('dudoso')
-    })
-    return 'cuadra'
-  }
-
-  // Ninguna combinación cuadra: ¿lo explica una sola cifra mal leída en una sola línea?
-  const difference = totalCents - sumChosen()
-  const fixes = entries.filter((e) => {
-    const fixed = (e.chosen as number) + difference * e.sign
-    return fixed > 0 && oneDigitApart(e.chosen as number, fixed)
-  })
-  if (fixes.length === 1) {
-    fixes[0].chosen = (fixes[0].chosen as number) + difference * fixes[0].sign
-    fixes[0].flags.add('corregido')
-    return 'cuadra'
-  }
-  markDoubtful()
-  for (const entry of fixes) entry.flags.add('dudoso')
-  return 'no_cuadra'
+  if (amount !== null && discountCents > Math.max(0, amount)) issues.push('Descuento mayor que el importe')
+  if (issues.length && !flags.has('ilegible')) flags.add('dudoso')
+  return { position: line.position, rawName: line.rawName, key: nameKey(line.rawName), quantity: line.quantity,
+    unitPriceCents: line.unitCents, amountCents: amount, discountCents, weightKg: line.weightKg,
+    pricePerKgCents: line.pricePerKgCents, taxCode: line.taxCode, flags: [...flags],
+    evidence: { text: line.source.text, reread: line.source.reread, recognizedCents: primary,
+      calculatedCents: calculated, selectedBy, issues: [...new Set(issues)], source: line.source.source } }
 }
 
 // ---------------------------------------------------------------------------
@@ -548,20 +509,20 @@ function readTotal(lines: readonly OcrLine[], totalIndex: number | null): number
     const tokens = tokensOf(cleanText(text))
     for (let i = tokens.length - 1; i >= 0; i--) {
       const amount = readAmountToken(tokens[i])
-      if (amount && amount.cents > 0) return amount.cents
+      if (amount) return amount.cents
     }
     return null
   }
   if (totalIndex !== null) {
     const fromReread = lastAmount(lines[totalIndex].reread)
     const fromText = lastAmount(lines[totalIndex].text)
-    if (fromReread) addCandidate(votes, fromReread, 2)
-    if (fromText) addCandidate(votes, fromText, 1.5)
+    if (fromText !== null) return fromText
+    if (fromReread !== null) return fromReread
   }
   for (const line of lines.slice(totalIndex ?? 0)) {
     if (/^\s*(IMPORTE|Lidl\s*Pay|TARJETA|Suma)\b/i.test(line.text)) {
       const value = lastAmount(line.text)
-      if (value) addCandidate(votes, value, 1)
+      if (value !== null) addCandidate(votes, value, 1)
     }
   }
   return sorted(votes)[0]?.cents ?? null
@@ -571,106 +532,104 @@ function readTotal(lines: readonly OcrLine[], totalIndex: number | null): number
 
 /** Analiza las líneas leídas de una o varias capturas (o el texto pegado, una línea por renglón). */
 export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicket {
-  const lines = mergePages(pages).filter((line) => line.text.trim() !== '')
+  const lines = mergePages(pages).filter(line => line.text.trim() !== '')
   const store = detectStore(lines)
-
-  const eurIndex = lines.findIndex((line) => /^\s*EUR\s*$/i.test(line.text))
-  let start: number
-  if (eurIndex !== -1) start = eurIndex + 1
-  else {
-    // Sin la cabecera «EUR»: desde la primera línea con nombre e importe.
-    const first = lines.findIndex((line) => {
-      const reading = readTail(tokensOf(cleanText(line.text)))
-      return reading.amount !== null && letterCount(reading.nameTokens.join(' ')) >= 2 && !TOTAL_LINE.test(line.text)
-    })
-    start = first === -1 ? lines.length : first
-  }
-  const totalFound = lines.findIndex((line, i) => i >= start && TOTAL_LINE.test(line.text))
-  const totalIndex = totalFound === -1 ? null : totalFound
-  const end = totalIndex ?? lines.length
-
+  const issues: string[] = []
+  const adjustments: TicketAdjustment[] = []
   const work: WorkLine[] = []
-  for (let i = start; i < end; i++) {
+  let state: 'header' | 'products' | 'adjustments' | 'closed' = 'header'
+  let previousWasItem = false
+  let totalIndex: number | null = null
+  let promoIndex = lines.length
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    if (isSeparator(line.text) || HEADER_WORDS.test(line.text)) continue
+    if (PROMOTIONAL_LINE.test(line.text) && state !== 'header') promoIndex = Math.min(promoIndex, i)
+    if (TOTAL_LINE.test(line.text) && state !== 'header' && totalIndex === null && i < promoIndex) {
+      totalIndex = i
+      state = 'closed'
+    }
+    if (state === 'closed') continue
+    if (endsProducts(line.text)) {
+      if (state !== 'header') state = 'closed'
+      continue
+    }
+    if (/^\s*EUR\s*$/i.test(line.text)) { state = 'products'; continue }
+    if (HEADER_WORDS.test(line.text) || isSeparator(line.text)) continue
+    if (state === 'header') {
+      const tail = readTail(tokensOf(cleanText(line.text)))
+      if (tail.amount === null || letterCount(tail.nameTokens.join(' ')) < 2 || DISCOUNT_LINE.test(line.text) || TOTAL_LINE.test(line.text)) continue
+      state = 'products'
+    }
     const previous = work[work.length - 1]
     const weight = readWeight(line)
     if (weight && /^\s*\d/.test(line.text)) {
-      if (previous && previous.weightKg === null) {
+      if (previous && previousWasItem && previous.weightKg === null) {
         previous.weightKg = weight.weightKg
         previous.pricePerKgCents = weight.pricePerKgCents
-        addCandidate(previous.amount, roundHalfUp(weight.weightKg * weight.pricePerKgCents), weight.agreed ? 3.5 : 2, false)
-      }
+        const sign = sorted(previous.amount)[0]?.cents < 0 ? -1 : 1
+        addCandidate(previous.amount, sign * roundRatio(Math.round(weight.weightKg * 1000) * weight.pricePerKgCents, 1000), weight.agreed ? 3.5 : 2, false)
+      } else issues.push('Línea de peso sin producto identificable')
       continue
     }
     if (DISCOUNT_LINE.test(line.text)) {
-      if (previous) previous.discounts.push(readDiscount(line))
+      if (/^\s*(ahorro|ahorrado|resumen)\b/i.test(line.text)) { previousWasItem = false; continue }
+      const discount = readDiscount(line)
+      // A short Desc./Dto. continuation is the supported article-discount
+      // grammar. A named coupon/promotion is never assigned by proximity.
+      if (/^\s*(desc[.,]?|dto[.,]?|descuento art[ií]culo)\s+-/i.test(cleanText(line.text)) && previous && previousWasItem) {
+        previous.discounts.push(discount)
+      } else {
+        const kind = /cup[oó]n/i.test(line.text) ? 'coupon' : /promo/i.test(line.text) ? 'promotion' : 'discount'
+        adjustments.push({ id: `adjustment-${i}`, label: line.text.trim().slice(0, 120), kind,
+          amountCents: discount.length ? -sorted(discount)[0].cents : null,
+          needsReview: true, originalText: line.text })
+        state = 'adjustments'
+      }
+      previousWasItem = false
       continue
     }
+    if (work.length >= 300) { issues.push('El ticket supera las 300 líneas; lectura incompleta'); state = 'closed'; continue }
     const item = readItemLine(line, work.length)
     if (item) {
       work.push(item)
+      previousWasItem = true
+      state = 'products'
       continue
     }
-    // Un importe suelto en su propia línea: es del producto anterior si este no tenía.
     const tail = readTail(tokensOf(cleanText(line.text)))
-    if (previous && previous.amount.length === 0 && tail.amount) addCandidate(previous.amount, tail.amount.cents, 1)
+    if (previous && previousWasItem && previous.amount.length === 0 && tail.amount) addCandidate(previous.amount, tail.amount.cents, 1)
+    else previousWasItem = false
   }
-
-  const entries: Entry[] = []
-  for (const line of work) {
-    entries.push({ line, slot: -1, sign: 1, candidates: line.amount, chosen: null, flags: new Set() })
-    line.discounts.forEach((candidates, slot) => entries.push({ line, slot, sign: -1, candidates, chosen: null, flags: new Set() }))
-  }
-  const totalCents = readTotal(lines, totalIndex)
-  solve(entries, totalCents)
-  // Si se ha elegido un importe distinto del leído (calculado o corregido con el total), se avisa.
-  for (const entry of entries) {
-    const readBest = sorted(entry.candidates.filter((c) => c.read))[0]
-    if (entry.chosen !== null && readBest && entry.chosen !== readBest.cents && !entry.flags.has('deducido')) entry.flags.add('corregido')
-  }
-
-  const parsed: ParsedTicketLine[] = work.map((line) => {
-    const own = entries.filter((e) => e.line === line)
-    const amountEntry = own.find((e) => e.slot === -1)!
-    const flags = new Set<TicketLineFlag>()
-    for (const entry of own) for (const flag of entry.flags) flags.add(flag)
-    const amountCents = amountEntry.chosen
-    return {
-      position: line.position,
-      rawName: line.rawName,
-      key: nameKey(line.rawName),
-      quantity: line.quantity,
-      unitPriceCents: line.unitCents,
-      amountCents,
-      discountCents: own.filter((e) => e.slot >= 0).reduce((sum, e) => sum + (e.chosen ?? 0), 0),
-      weightKg: line.weightKg,
-      pricePerKgCents: line.pricePerKgCents,
-      taxCode: line.taxCode,
-      flags: [...flags],
+  const metadata = lines.slice(0, promoIndex)
+  const totalCents = readTotal(metadata, totalIndex)
+  if (totalIndex === null) issues.push(totalCents === null ? 'No se ha encontrado el total' : 'Total obtenido del pago: confirma que es el importe completo')
+  if (state !== 'closed') issues.push('No se ha identificado el final del ticket; podría estar recortado')
+  const parsed = work.map(selectLine)
+  const check = checkTicket(parsed, totalCents, adjustments)
+  if (check.status === 'no_cuadra') issues.push('Los importes no cuadran con el total')
+  for (let p = 1; p < pages.length; p++) {
+    const previous = pages[p - 1]
+    const next = pages[p]
+    if (previous.length && next.length && !next[0].source && nameKey(previous.at(-1)!.text) === nameKey(next[0].text)) {
+      if (nameKey(next[0].text) === nameKey(next[1]?.text ?? '')) issues.push('Solapamiento ambiguo: se han conservado los productos repetidos')
     }
-  })
-
-  const { date, time } = dateAndTime(lines)
-  return {
-    store,
-    storeName: storeNameOf(store, lines),
-    address: addressOf(store, lines),
-    date,
-    time,
-    totalCents,
-    lines: parsed,
-    check: checkTicket(parsed, totalCents),
   }
+  const paymentTotals = metadata.filter(l => /^\s*(Lidl\s*Pay|IMPORTE:|TOTAL\b)/i.test(l.text))
+    .map(l => readTotal([l], /^\s*TOTAL\b/i.test(l.text) ? 0 : null)).filter(n => n !== null)
+  if (new Set(paymentTotals).size > 1) issues.push('Los totales de compra y pago no coinciden')
+  const { date, time } = dateAndTime(metadata)
+  if (!date) issues.push('No se ha reconocido la fecha de compra')
+  return { store, storeName: storeNameOf(store, lines), address: addressOf(store, lines), date, time,
+    totalCents, lines: parsed, adjustments, issues: [...new Set(issues)], check }
 }
-
 /** Suma de las líneas y si cuadra con el total. Sirve también tras editar importes en la revisión. */
 export function checkTicket(
   lines: readonly Pick<ParsedTicketLine, 'amountCents' | 'discountCents'>[],
   totalCents: number | null,
+  adjustments: readonly Pick<TicketAdjustment, 'amountCents'>[] = [],
 ): TicketCheck {
-  const linesTotalCents = lines.reduce((sum, line) => sum + (line.amountCents ?? 0) - line.discountCents, 0)
-  const unreadable = lines.filter((line) => line.amountCents === null).length
+  const linesTotalCents = lines.reduce((sum, line) => sum + (line.amountCents ?? 0) - line.discountCents, 0) + adjustments.reduce((sum, a) => sum + (a.amountCents ?? 0), 0)
+  const unreadable = lines.filter((line) => line.amountCents === null).length + adjustments.filter(a => a.amountCents === null).length
   const differenceCents = totalCents === null ? null : totalCents - linesTotalCents
   const status: TicketCheck['status'] =
     totalCents === null ? 'sin_total' : differenceCents === 0 && unreadable === 0 ? 'cuadra' : 'no_cuadra'

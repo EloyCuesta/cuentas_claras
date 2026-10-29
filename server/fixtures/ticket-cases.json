@@ -1,0 +1,49 @@
+[
+  {
+    "id": "lidl-torrelavega-parcial-2026-10-28",
+    "provenance": "provided-partial-transcription",
+    "note": "Datos aportados por el usuario, sin imagen ni listado completo. Orden reconstruido para probar fragmentos; los descuentos no tienen artículo demostrado.",
+    "text": "LIDL SUPERMERCADOS S.A.U.\nTorrelavega\nEUR\nDesc. -0,17\nPROMO LIDL PLUS -0,14\nPAPEL HIGIÉNICO 2,35 C\nBURGER CERDO Y VACU. 3,95x 2 7,90 B\nLASAÑA 5 QUESOS 2,75 × 2 5,50 B\nLOMO ADOBADO 3,67 B\n0,544 kg x 6,75 EUR/kg\nFILETE DE PECHUGA 4,15 B\n0,547 kg x 7,58 EUR/kg\nTOTAL 179,42\nLidl Pay 179,42\nFECHA: 28/10/26\nHORA: 19:24:38\nIMPORTE: 179,42 EUR\nIVA BASE CUOTA\nA 4% 1,00 0,04\nB 10% 1,00 0,10\nC 21% 1,00 0,21\nAhorro total 0,31\nOfertas Lidl Plus\nLECHE FUTURA 0,75 A\nPuntos Lidl 250",
+    "expected": {
+      "date": "2026-10-28", "time": "19:24", "totalCents": 17942, "status": "no_cuadra",
+      "lines": [
+        { "rawName": "PAPEL HIGIÉNICO", "quantity": 1, "unitPriceCents": null, "amountCents": 235, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "C" },
+        { "rawName": "BURGER CERDO Y VACU.", "quantity": 2, "unitPriceCents": 395, "amountCents": 790, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "LASAÑA 5 QUESOS", "quantity": 2, "unitPriceCents": 275, "amountCents": 550, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "LOMO ADOBADO", "quantity": 1, "unitPriceCents": null, "amountCents": 367, "discountCents": 0, "weightKg": 0.544, "pricePerKgCents": 675, "taxCode": "B" },
+        { "rawName": "FILETE DE PECHUGA", "quantity": 1, "unitPriceCents": null, "amountCents": 415, "discountCents": 0, "weightKg": 0.547, "pricePerKgCents": 758, "taxCode": "B" }
+      ], "adjustments": [-17, -14]
+    }
+  },
+  {
+    "id": "papel-lidl-sintetico", "provenance": "synthetic-text",
+    "text": "LIDL\nEUR\nPAN 1,00 A\nDesc. -0,10\nLECHE 0,89 A\nLECHE 0,89 A\nTOTAL 2,68\nTARJETA 2,68\n0001 000001/01 28.10.2026 19:24\nIVA BASE CUOTA\nA 4% 2,58 0,10\nGRACIAS POR SU VISITA",
+    "expected": { "date": "2026-10-28", "time": "19:24", "totalCents": 268, "status": "cuadra", "adjustments": [],
+      "lines": [
+        { "rawName": "PAN", "quantity": 1, "unitPriceCents": null, "amountCents": 100, "discountCents": 10, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" },
+        { "rawName": "LECHE", "quantity": 1, "unitPriceCents": null, "amountCents": 89, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" },
+        { "rawName": "LECHE", "quantity": 1, "unitPriceCents": null, "amountCents": 89, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" }
+      ] }
+  },
+  {
+    "id": "sin-total-con-publicidad", "provenance": "synthetic-text",
+    "text": "LIDL\nEUR\nPAN 1,00 A\nLidl Pay 1,00\nFECHA: 28-10-2026\nHORA: 19:24:38\nIVA BASE CUOTA\nA 4% 0,96 0,04\nOfertas Lidl Plus\nCHOCOLATE 2,99 B\nVÁLIDO HASTA 30/10/2026\nPuntos Lidl 250",
+    "expected": { "date": "2026-10-28", "time": "19:24", "totalCents": 100, "status": "cuadra", "adjustments": [],
+      "lines": [{ "rawName": "PAN", "quantity": 1, "unitPriceCents": null, "amountCents": 100, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" }] }
+  },
+  {
+    "id": "devolucion-completa", "provenance": "synthetic-text",
+    "text": "LIDL\nEUR\nLECHE -0,89 A\nTOTAL -0,89\nFECHA: 28/10/26\nHORA: 19:24",
+    "expected": { "date": "2026-10-28", "time": "19:24", "totalCents": -89, "status": "cuadra", "adjustments": [],
+      "lines": [{ "rawName": "LECHE", "quantity": 1, "unitPriceCents": null, "amountCents": -89, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" }] }
+  },
+  {
+    "id": "incompleto-importe-ilegible", "provenance": "synthetic-text",
+    "text": "LIDL\nEUR\nPAN 1,00 A\nSAL ???\nTOTAL 1,50\nFECHA: 28/10/2026\nHORA: 19:24",
+    "expected": { "date": "2026-10-28", "time": "19:24", "totalCents": 150, "status": "no_cuadra", "adjustments": [],
+      "lines": [
+        { "rawName": "PAN", "quantity": 1, "unitPriceCents": null, "amountCents": 100, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" },
+        { "rawName": "SAL ???", "quantity": 1, "unitPriceCents": null, "amountCents": null, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": null }
+      ] }
+  }
+]

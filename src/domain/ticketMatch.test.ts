@@ -28,10 +28,10 @@ describe('suggestForTicket', () => {
     expect(result.get('PAPEL HIGIENICO 12R')).toEqual({ kind: 'new', name: 'Papel higiénico 12r', frequency: 'mensual' })
   })
 
-  it('agrupa las variantes del mismo producto dentro del ticket', () => {
+  it('mantiene separadas las variantes nuevas hasta que el usuario las asocie', () => {
     const lines = [line('FILETE DE PAVO'), line('FTLETE DE PAVO'), line('FILETE DE PAVO'), line('NOCILLA')]
     const result = suggestForTicket(lines, [], [])
-    expect(result.get('FTLETE DE PAVO')).toEqual(result.get('FILETE DE PAVO'))
+    expect(result.get('FTLETE DE PAVO')).not.toEqual(result.get('FILETE DE PAVO'))
     expect(result.get('FILETE DE PAVO')).toMatchObject({ kind: 'new', name: 'Filete de pavo' })
     expect(result.get('NOCILLA')).toMatchObject({ kind: 'new', name: 'Nocilla' })
   })

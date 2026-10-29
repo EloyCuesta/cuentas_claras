@@ -22,6 +22,7 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
 
   await page.getByRole('button', { name: 'Escanear ticket' }).click()
   await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('server/fixtures/ticket-lidl-ejemplo.png')
+  await page.getByRole('button', { name: 'Leer imágenes', exact: true }).click()
   const review = page.getByRole('dialog', { name: 'Revisar el ticket' })
   await expect(review).toBeVisible({ timeout: 90_000 })
 
@@ -42,6 +43,8 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   await review.getByLabel('Es el producto').selectOption({ label: 'No seguir esta línea (bolsas, envases…)' })
   await review.getByRole('button', { name: 'Listo' }).click()
   await expect(review.getByRole('button', { name: /^PAPEL HIGIÉNICO 12R.*No se sigue/ })).toBeVisible()
+
+  await review.getByLabel('Confirmar ajuste 1', { exact: true }).check()
 
   await review.getByRole('button', { name: 'Guardar ticket' }).click()
   await expect(review).toBeHidden()
@@ -71,6 +74,7 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   // El mismo ticket no se puede guardar dos veces.
   await page.getByRole('button', { name: 'Escanear ticket' }).click()
   await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('server/fixtures/ticket-lidl-ejemplo.png')
+  await page.getByRole('button', { name: 'Leer imágenes', exact: true }).click()
   await expect(review.getByText(/Este ticket ya está guardado/)).toBeVisible({ timeout: 90_000 })
   await expect(review.getByRole('heading', { name: 'Ya conocidos (16)' })).toBeVisible()
   await expect(review.getByRole('button', { name: 'Guardar ticket' })).toBeDisabled()
