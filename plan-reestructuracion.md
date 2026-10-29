@@ -37,8 +37,8 @@ Tests por archivo en la línea base, para comparar al final: app 10 · auth 17 �
 - [x] 2. Dominio a `shared/`; `#shared/*` funciona en tsx, Vite, Vitest y `tsc -b`, así que se usa
 - [x] 3. `server/common/` (más 6 tests: ruta por defecto, migraciones congeladas y transacciones)
 - [x] 4. Módulos: health y auth → pantry → finance → huella golden → tickets → test de arquitectura (366 + 2 tests)
-- [ ] 5. Web: api/ui → auth → finance → tickets → pantry → DespensaPage
-- [ ] 6. Documentación, README y test de documentación
+- [x] 5. Web: api/ui → auth → finance → tickets → pantry → DespensaPage (y reglas de la web en el test de arquitectura); e2e 46 de 46
+- [x] 6. Documentación, README y test de documentación (376 tests)
 - [ ] 7. Comprobación final, decisiones a `docs/decisiones.md`, borrar este plan, subir la rama y abrir el PR
 
 ## 1. Estructura final
