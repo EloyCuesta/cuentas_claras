@@ -33,10 +33,10 @@ Tests por archivo en la línea base, para comparar al final: app 10 · auth 17 �
 ## Progreso
 
 - [x] 0. Línea base y plan
-- [ ] 1. Fixtures a `fixtures/tickets/`
-- [ ] 2. Dominio a `shared/` (y `#shared/*` si funciona)
-- [ ] 3. `server/common/`
-- [ ] 4. Módulos: health y auth → pantry → finance → huella golden → tickets → test de arquitectura
+- [x] 1. Fixtures a `fixtures/tickets/`
+- [x] 2. Dominio a `shared/`; `#shared/*` funciona en tsx, Vite, Vitest y `tsc -b`, así que se usa
+- [x] 3. `server/common/` (más 6 tests: ruta por defecto, migraciones congeladas y transacciones)
+- [x] 4. Módulos: health y auth → pantry → finance → huella golden → tickets → test de arquitectura (366 + 2 tests)
 - [ ] 5. Web: api/ui → auth → finance → tickets → pantry → DespensaPage
 - [ ] 6. Documentación, README y test de documentación
 - [ ] 7. Comprobación final, decisiones a `docs/decisiones.md`, borrar este plan, subir la rama y abrir el PR
@@ -71,7 +71,7 @@ Hay un `CLAUDE.md` con `@AGENTS.md` junto a **cada** `AGENTS.md`: 15 pares (raí
 - el `index.ts` de un módulo puede importar todo su módulo, `common/`, `shared/` y librerías;
 - `server/index.ts` y `app.ts` solo importan los `index.ts` de los módulos y `common/`;
 - `common/` (salvo `testing/`) no importa módulos;
-- `migrations/` solo importa librerías y a sí misma;
+- `migrations/` solo importa librerías, `shared/` (la 001 siembra las categorías iniciales) y a sí misma;
 - un adaptador no importa otro adaptador.
 
 **Puertos comunes** (`common/ports.ts`; las implementaciones reales están en `common/system.ts`):
