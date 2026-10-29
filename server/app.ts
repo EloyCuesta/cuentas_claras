@@ -1,20 +1,20 @@
 import express, { Router, type Express } from 'express'
-import { AccessControl, authRoutes, requireAdmin } from './auth.ts'
 import { errorHandler, notFoundHandler } from './common/http/response.ts'
+import { testingRoutes } from './common/http/testingRoutes.ts'
 import type { Clock, IdGenerator } from './common/ports.ts'
 import type { OpenedDatabase } from './common/sqlite/openDatabase.ts'
 import { randomIds, systemClock } from './common/system.ts'
+import { createAuthModule } from './modules/auth/index.ts'
+import { createHealthModule } from './modules/health/index.ts'
 import { createTesseractReader, type TicketReader } from './ocr.ts'
 import { SqlitePantryRepository } from './pantryRepository.ts'
 import { SqliteFinanceRepository } from './repository.ts'
 import { categoryRoutes } from './routes/categories.ts'
 import { dataRoutes } from './routes/data.ts'
-import { healthRoutes } from './routes/health.ts'
 import { metaRoutes } from './routes/meta.ts'
 import { movementRoutes } from './routes/movements.ts'
 import { pantryRoutes } from './routes/pantry.ts'
 import { recurringRoutes } from './routes/recurring.ts'
-import { testingRoutes } from './common/http/testingRoutes.ts'
 import { ticketRoutes } from './routes/tickets.ts'
 import { SqliteTicketRepository } from './ticketRepository.ts'
 
@@ -49,7 +49,8 @@ export function createApp({
   ticketReader,
 }: AppOptions): Express {
   // Lanza si falta el código o no es válido: nunca hay una aplicación con el acceso abierto.
-  const access = new AccessControl(accessCode, () => clock.nowMs())
+  const auth = createAuthModule({ accessCode, clock })
+  const health = createHealthModule({ database })
   const stamps = { now: () => clock.nowISO(), newId: () => ids.newId() }
   const repository = new SqliteFinanceRepository(database.db, stamps)
   const pantry = new SqlitePantryRepository(database.db, stamps)
@@ -71,12 +72,12 @@ export function createApp({
     res.set('Cache-Control', 'no-store')
     next()
   })
-  api.use(healthRoutes(database))
-  api.use(authRoutes(access))
+  api.use(health.router)
+  api.use(auth.router)
   api.use(pantryRoutes(pantry))
   api.use(ticketRoutes(tickets, pantry, reader))
 
-  api.use(requireAdmin(access))
+  api.use(auth.requireAdmin)
   api.use(dataRoutes(repository))
   api.use(movementRoutes(repository))
   api.use(categoryRoutes(repository))

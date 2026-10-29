@@ -2,11 +2,11 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { movement } from '#shared/testing/factories.ts'
-import { startApi, stopApis, TEST_CODE } from './common/testing/testApi.ts'
-import { createApp } from './app.ts'
-import { ATTEMPT_WINDOW_MS, checkAccessCode, LOCK_MS, SESSION_MS } from './auth.ts'
-import { openDatabase } from './common/sqlite/openDatabase.ts'
-import { removeTempDbs, tempDbPath } from './common/testing/tempDb.ts'
+import { startApi, stopApis, TEST_CODE } from '../../common/testing/testApi.ts'
+import { createApp } from '../../app.ts'
+import { ATTEMPT_WINDOW_MS, checkAccessCode, LOCK_MS, SESSION_MS } from './index.ts'
+import { openDatabase } from '../../common/sqlite/openDatabase.ts'
+import { removeTempDbs, tempDbPath } from '../../common/testing/tempDb.ts'
 
 afterEach(async () => {
   await stopApis()

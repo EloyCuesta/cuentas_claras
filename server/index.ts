@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { createApp } from './app.ts'
-import { checkAccessCode } from './auth.ts'
+import { checkAccessCode } from './modules/auth/index.ts'
 import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './common/sqlite/openDatabase.ts'
 import { createTesseractReader } from './ocr.ts'
 
