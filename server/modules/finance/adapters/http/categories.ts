@@ -11,7 +11,13 @@ import type { SaveCategory } from '../../application/SaveCategory.ts'
  * - DELETE /api/categories/:id?replacementId=…     elimina la categoría y sus subcategorías; sus
  *                                                  movimientos y recurrentes pasan a `replacementId`.
  */
-export function categoryRoutes({ saveCategory, deleteCategory }: { saveCategory: SaveCategory; deleteCategory: DeleteCategory }): Router {
+export function categoryRoutes({
+  saveCategory,
+  deleteCategory,
+}: {
+  saveCategory: SaveCategory
+  deleteCategory: DeleteCategory
+}): Router {
   const router = Router()
 
   router.put('/categories/:id', (req, res) => {

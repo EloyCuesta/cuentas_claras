@@ -49,7 +49,8 @@ export function fingerprintSource(input: FingerprintInput): string {
     .map((a) => [a.kind, a.amountCents])
     .map((a) => JSON.stringify(a))
     .sort()
-  return JSON.stringify([aliasStoreOf(input.store, input.storeName), input.date, input.time, input.totalCents, lines, adjustments])
+  const store = aliasStoreOf(input.store, input.storeName)
+  return JSON.stringify([store, input.date, input.time, input.totalCents, lines, adjustments])
 }
 
 /** Huella del texto pegado: el mismo texto con otros espacios o saltos de línea es el mismo ticket. */

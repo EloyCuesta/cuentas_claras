@@ -64,7 +64,14 @@ export async function startApi({
   ticketReader?: TicketReader
 } = {}) {
   const database = openDatabase(path)
-  const app = createApp({ database, accessCode: TEST_CODE, testMode, clock: { ...systemClock, ...clock }, ids, ticketReader })
+  const app = createApp({
+    database,
+    accessCode: TEST_CODE,
+    testMode,
+    clock: { ...systemClock, ...clock },
+    ids,
+    ticketReader,
+  })
   const server = app.listen(0, '127.0.0.1')
   await once(server, 'listening')
   running.push({ server, database })

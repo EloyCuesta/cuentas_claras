@@ -29,7 +29,13 @@ export class MarkPurchased {
   private readonly clock: Clock
   private readonly unitOfWork: UnitOfWork
 
-  constructor(repository: PantryRepository, queries: PantryQueries, addEvent: AddEvent, clock: Clock, unitOfWork: UnitOfWork) {
+  constructor(
+    repository: PantryRepository,
+    queries: PantryQueries,
+    addEvent: AddEvent,
+    clock: Clock,
+    unitOfWork: UnitOfWork,
+  ) {
     this.repository = repository
     this.queries = queries
     this.addEvent = addEvent
@@ -42,7 +48,10 @@ export class MarkPurchased {
       const unique = [...new Set(ids)]
       const items = this.repository.getItems(unique)
       if (items.length !== unique.length) {
-        throw new AppError('NOT_FOUND', 'Algún producto de la lista ya no existe. Vuelve a cargar la despensa; no se ha cambiado nada.')
+        throw new AppError(
+          'NOT_FOUND',
+          'Algún producto de la lista ya no existe. Vuelve a cargar la despensa; no se ha cambiado nada.',
+        )
       }
       const bought: PantryPurchaseChange[] = items
         .filter((item) => item.tracking === 'compras')
@@ -51,7 +60,11 @@ export class MarkPurchased {
       // Una sola escritura para todos los productos que se cuentan.
       if (pending.length > 0) this.repository.fillToTarget(pending.map((item) => item.id), this.clock.nowISO())
       const changes: PantryPurchaseChange[] = [
-        ...pending.map((item) => ({ id: item.id, previousQuantity: item.quantity, version: requireItem(this.repository, item.id).version })),
+        ...pending.map((item) => ({
+          id: item.id,
+          previousQuantity: item.quantity,
+          version: requireItem(this.repository, item.id).version,
+        })),
         ...bought,
       ]
       return { changes, items: this.queries.listItems() }

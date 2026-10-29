@@ -14,9 +14,14 @@ export function ticketFingerprint(hasher: Hasher, input: FingerprintInput): stri
  * origen, con la misma huella o, en los guardados con una huella anterior,
  * con el mismo contenido (entonces se devuelve el ticket entero, con sus líneas).
  */
-export function findDuplicate(repository: TicketRepository, hasher: Hasher, input: DuplicateInput): PantryTicketSummary | PantryTicket | null {
+export function findDuplicate(
+  repository: TicketRepository,
+  hasher: Hasher,
+  input: DuplicateInput,
+): PantryTicketSummary | PantryTicket | null {
   const fingerprint = ticketFingerprint(hasher, input)
-  const found = repository.findByImport(input.importId ?? '', input.sourceFingerprint ?? '') ?? repository.findByFingerprint(fingerprint)
+  const found =
+    repository.findByImport(input.importId ?? '', input.sourceFingerprint ?? '') ?? repository.findByFingerprint(fingerprint)
   if (found) return found
   // Los tickets guardados con una huella anterior la conservan: se compara su contenido.
   for (const candidate of repository.candidates(input.date, input.totalCents)) {
@@ -36,9 +41,7 @@ export function possibleDuplicate(
   input: Pick<DuplicateInput, 'store' | 'storeName' | 'date' | 'time' | 'totalCents'>,
 ): PantryTicketSummary | null {
   const store = aliasStoreOf(input.store, input.storeName)
-  return (
-    repository
-      .candidates(input.date, input.totalCents)
-      .find((s) => aliasStoreOf(s.store, s.storeName) === store && (s.time === input.time || s.time === null || input.time === null)) ?? null
-  )
+  const sameTime = (time: string | null) => time === input.time || time === null || input.time === null
+  const candidates = repository.candidates(input.date, input.totalCents)
+  return candidates.find((s) => aliasStoreOf(s.store, s.storeName) === store && sameTime(s.time)) ?? null
 }

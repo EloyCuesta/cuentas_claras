@@ -58,10 +58,16 @@ export class SaveTicket {
       () => {
         const duplicate = findDuplicate(this.repository, this.hasher, input)
         if (duplicate) {
-          throw new AppError('CONFLICT', `Este ticket ya está guardado (${duplicate.storeName}, ${duplicate.date.split('-').reverse().join('/')}).`)
+          throw new AppError(
+            'CONFLICT',
+            `Este ticket ya está guardado (${duplicate.storeName}, ${duplicate.date.split('-').reverse().join('/')}).`,
+          )
         }
         if (!input.distinctPurchase && possibleDuplicate(this.repository, input)) {
-          throw new AppError('CONFLICT', 'Hay una compra con la misma fecha, hora y total. Confirma si se trata de otra compra.')
+          throw new AppError(
+            'CONFLICT',
+            'Hay una compra con la misma fecha, hora y total. Confirma si se trata de otra compra.',
+          )
         }
         const aliasStore = aliasStoreOf(input.store, input.storeName)
         const now = this.clock.nowISO()
@@ -83,7 +89,10 @@ export class SaveTicket {
           }
           if (decision.kind === 'item') {
             if (!this.pantry.getItem(decision.itemId)) {
-              throw new AppError('VALIDATION', `«${lines[0].rawName}» está asociado a un producto que ya no existe. Elige otro.`)
+              throw new AppError(
+                'VALIDATION',
+                `«${lines[0].rawName}» está asociado a un producto que ya no existe. Elige otro.`,
+              )
             }
             itemOfKey.set(key, decision.itemId)
             continue

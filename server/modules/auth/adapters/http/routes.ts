@@ -53,7 +53,15 @@ const clientIp = (req: Request) => req.ip ?? req.socket.remoteAddress ?? 'descon
  * - POST /api/auth/logout              → borra la sesión y la cookie (siempre 200).
  * - GET  /api/auth/me                  → { rol: 'admin' | 'invitado' }.
  */
-export function authRoutes({ login, logout, checkSession }: { login: Login; logout: Logout; checkSession: CheckSession }): Router {
+export function authRoutes({
+  login,
+  logout,
+  checkSession,
+}: {
+  login: Login
+  logout: Logout
+  checkSession: CheckSession
+}): Router {
   const router = Router()
 
   router.post('/auth/login', (req, res) => {

@@ -42,6 +42,9 @@ export class TicketQueries {
    */
   activity(today: ISODate | null): PantryActivity {
     const since = addDays(today ?? this.clock.today(), -ACTIVITY_DAYS)
-    return { purchases: purchasesFromLines(this.repository.purchaseLinesSince(since)), events: this.pantry.eventsSince(since) }
+    return {
+      purchases: purchasesFromLines(this.repository.purchaseLinesSince(since)),
+      events: this.pantry.eventsSince(since),
+    }
   }
 }

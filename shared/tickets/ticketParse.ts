@@ -12,7 +12,8 @@ import type { OcrLine, TicketAdjustment, TicketAmountOption, TicketDiscrepancy, 
  *
  * Está pensado para el ticket de Lidl (app Lidl Plus o papel), con un modo
  * genérico para otras tiendas. Cada línea puede venir con dos lecturas (la
- * normal y la de solo cifras, ver server/ocr.ts). El importe de cada producto
+ * normal y la de solo cifras, ver el lector de Tesseract en
+ * server/modules/tickets/adapters/tesseract/TesseractTicketReader.ts). El importe de cada producto
  * se elige entre los candidatos leídos y los que se pueden calcular
  * (cantidad × precio, peso × precio por kilo), comprobando que la suma cuadre
  * con el TOTAL del ticket. Lo que no se puede asegurar se marca para revisar.

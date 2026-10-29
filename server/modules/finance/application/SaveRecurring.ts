@@ -37,7 +37,11 @@ export class SaveRecurring {
       const planned = planOccurrences(rule, kept, options.horizon, this.clock.nowISO(), () => this.ids.newId())
       for (const movement of planned) {
         const paidAlready = options.markPaidBefore && (movement.occurrenceDate as string) < options.markPaidBefore
-        this.store.insertOccurrence(paidAlready ? { ...movement, status: 'realizado', paidDate: movement.occurrenceDate } : movement)
+        // Un préstamo empezado: lo anterior a markPaidBefore se crea ya pagado, en su fecha.
+        const occurrence = paidAlready
+          ? { ...movement, status: 'realizado' as const, paidDate: movement.occurrenceDate }
+          : movement
+        this.store.insertOccurrence(occurrence)
       }
       return planned.length
     })

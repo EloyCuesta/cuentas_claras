@@ -9,7 +9,13 @@ import type { SaveMovement } from '../../application/SaveMovement.ts'
  * - PUT /api/movements/:id     crea o actualiza un movimiento (marcar como pagado incluido).
  * - DELETE /api/movements/:id  lo elimina; si era un vencimiento, no se vuelve a generar.
  */
-export function movementRoutes({ saveMovement, deleteMovement }: { saveMovement: SaveMovement; deleteMovement: DeleteMovement }): Router {
+export function movementRoutes({
+  saveMovement,
+  deleteMovement,
+}: {
+  saveMovement: SaveMovement
+  deleteMovement: DeleteMovement
+}): Router {
   const router = Router()
 
   router.put('/movements/:id', (req, res) => {

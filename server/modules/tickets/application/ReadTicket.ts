@@ -65,9 +65,13 @@ export class ReadTicket {
 
     const ticket = parseTicket(pages)
     if (ticket.lines.length === 0) {
-      throw new AppError('VALIDATION', 'No se ha encontrado ningún producto en el ticket. Prueba con una captura más nítida o pega el texto.')
+      throw new AppError(
+        'VALIDATION',
+        'No se ha encontrado ningún producto en el ticket. Prueba con una captura más nítida o pega el texto.',
+      )
     }
-    const suggestions = suggestForTicket(ticket.lines, this.repository.aliases(aliasStoreOf(ticket.store, ticket.storeName)), this.pantry.listItems())
+    const learned = this.repository.aliases(aliasStoreOf(ticket.store, ticket.storeName))
+    const suggestions = suggestForTicket(ticket.lines, learned, this.pantry.listItems())
     const lines = ticket.lines.map((line) => ({ ...line, occasional: false }))
     const duplicate = findDuplicate(this.repository, this.hasher, {
       store: ticket.store,

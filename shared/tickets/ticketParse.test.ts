@@ -8,8 +8,10 @@ import type { OcrLine } from './types.ts'
 /**
  * El ticket de las pruebas es INVENTADO (fixtures/tickets/ticket-lidl-ejemplo.png),
  * con el mismo formato que la app Lidl Plus. ticket-lidl-ejemplo.ocr.json es lo
- * que leyó de verdad el OCR de esa imagen (server/ocr.ts), con sus pequeños
- * errores («2,992 A», «1,155A»), y ticket-lidl-ejemplo.json lo que pone el ticket.
+ * que leyó de verdad el OCR de esa imagen
+ * (server/modules/tickets/adapters/tesseract/TesseractTicketReader.ts), con sus
+ * pequeños errores («2,992 A», «1,155A»), y ticket-lidl-ejemplo.json lo que pone
+ * el ticket.
  */
 const ocrLines = ocrFixture as OcrLine[]
 const truth = truthFixture as { date: string; time: string; totalCents: number; lines: Record<string, unknown>[] }

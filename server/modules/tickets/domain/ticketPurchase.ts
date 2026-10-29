@@ -36,7 +36,9 @@ export function quantityFromLines(lines: readonly TicketSaveLine[], unit: Pantry
     if (unit === 'g') return grams
     return null
   }
-  if (bought.every((line) => line.weightKg === null) && COUNT_UNITS.has(unit)) return bought.reduce((sum, line) => sum + line.quantity, 0)
+  if (bought.every((line) => line.weightKg === null) && COUNT_UNITS.has(unit)) {
+    return bought.reduce((sum, line) => sum + line.quantity, 0)
+  }
   return null
 }
 
@@ -50,5 +52,6 @@ export function newItemUnit(usableLines: readonly TicketSaveLine[]): PantryUnit 
  * nadie ha dejado pendiente); si no, pendiente, y no cambia la despensa.
  */
 export function lineReviewStatus(line: TicketSaveLine): 'verified' | 'pending' {
-  return canApplyLine(line) || (line.amountCents !== null && line.amountCents < 0 && line.reviewStatus !== 'pending') ? 'verified' : 'pending'
+  const confirmedReturn = line.amountCents !== null && line.amountCents < 0 && line.reviewStatus !== 'pending'
+  return canApplyLine(line) || confirmedReturn ? 'verified' : 'pending'
 }
