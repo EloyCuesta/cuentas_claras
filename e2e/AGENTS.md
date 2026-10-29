@@ -36,7 +36,7 @@ Las trazas de los fallos quedan en la carpeta test-results, fuera de git.
 - Los puertos 3101 y 4174 tienen que estar libres.
 - `e2e/tickets.spec.ts` usa Tesseract de verdad: una lectura tarda unos segundos.
 - La zona horaria es Europe/Madrid y el idioma es-ES (`playwright.config.ts`).
-- Estos archivos no los comprueba `tsc -b`: los transforma Playwright al ejecutarlos.
+- Playwright transforma estos archivos al ejecutarlos; los tipos los comprueba `npm run typecheck` con `tsconfig.e2e.json`, que incluye la librería DOM porque el código de `page.evaluate` se ejecuta en el navegador.
 
 ## Si cambias algo aquí
 
