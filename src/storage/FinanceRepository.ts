@@ -1,6 +1,6 @@
-import type { ISODate } from '../../shared/common/types.ts'
-import type { MetaKey } from '../../shared/finance/meta.ts'
-import type { Category, FinanceData, Movement, RecurringRule, SaveRecurringOptions } from '../../shared/finance/types.ts'
+import type { ISODate } from '#shared/common/types.ts'
+import type { MetaKey } from '#shared/finance/meta.ts'
+import type { Category, FinanceData, Movement, RecurringRule, SaveRecurringOptions } from '#shared/finance/types.ts'
 
 /**
  * Contrato del almacenamiento. La interfaz de React solo conoce esta interfaz,

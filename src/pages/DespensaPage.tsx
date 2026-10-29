@@ -14,8 +14,8 @@ import { TicketDetailDialog } from '../components/pantry/TicketDetailDialog.tsx'
 import { TicketScanDialog } from '../components/pantry/TicketScanDialog.tsx'
 import { WeeklyReviewCard, WeeklyReviewDialog } from '../components/pantry/WeeklyReview.tsx'
 import { Section } from '../components/Section.tsx'
-import { formatDate } from '../../shared/common/dates.ts'
-import { formatEuros } from '../../shared/common/money.ts'
+import { formatDate } from '#shared/common/dates.ts'
+import { formatEuros } from '#shared/common/money.ts'
 import {
   describeQuantity,
   excessQuantity,
@@ -29,11 +29,11 @@ import {
   quantityStep,
   type OwnerFilter,
   type Rhythms,
-} from '../../shared/pantry/pantry.ts'
-import { reviewItems, reviewSchedule } from '../../shared/pantry/pantryReview.ts'
-import { needsReview, rhythmsFor, type ItemRhythm } from '../../shared/pantry/pantryRhythm.ts'
-import type { PantryEventKind, PantryItem, PantryPerson } from '../../shared/pantry/types.ts'
-import type { PantryTicketSummary } from '../../shared/tickets/types.ts'
+} from '#shared/pantry/pantry.ts'
+import { reviewItems, reviewSchedule } from '#shared/pantry/pantryReview.ts'
+import { needsReview, rhythmsFor, type ItemRhythm } from '#shared/pantry/pantryRhythm.ts'
+import type { PantryEventKind, PantryItem, PantryPerson } from '#shared/pantry/types.ts'
+import type { PantryTicketSummary } from '#shared/tickets/types.ts'
 import { describeStorageError } from '../state/storageErrors.ts'
 import { useToast } from '../state/toastContext.ts'
 import { usePantry, type PantryActions } from '../state/usePantry.ts'

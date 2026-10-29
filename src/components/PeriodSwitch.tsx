@@ -1,4 +1,4 @@
-import type { Period } from '../../shared/finance/period.ts'
+import type { Period } from '#shared/finance/period.ts'
 
 /** Cambia entre la plantilla mensual (#resumen) y la anual (#anual). */
 export function PeriodSwitch({ kind }: { kind: Period['kind'] }) {

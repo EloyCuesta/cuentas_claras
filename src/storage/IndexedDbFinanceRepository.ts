@@ -1,11 +1,11 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import { DEFAULT_CATEGORIES, withDescendants } from '../../shared/finance/categories.ts'
-import { newId as defaultNewId, nowISO } from '../../shared/common/ids.ts'
-import { planOccurrences } from '../../shared/finance/recurring.ts'
-import type { ISODate } from '../../shared/common/types.ts'
-import type { Category, FinanceData, Movement, RecurringRule } from '../../shared/finance/types.ts'
-import type { MetaKey } from '../../shared/finance/meta.ts'
-import type { SaveRecurringOptions } from '../../shared/finance/types.ts'
+import { DEFAULT_CATEGORIES, withDescendants } from '#shared/finance/categories.ts'
+import { newId as defaultNewId, nowISO } from '#shared/common/ids.ts'
+import { planOccurrences } from '#shared/finance/recurring.ts'
+import type { ISODate } from '#shared/common/types.ts'
+import type { Category, FinanceData, Movement, RecurringRule } from '#shared/finance/types.ts'
+import type { MetaKey } from '#shared/finance/meta.ts'
+import type { SaveRecurringOptions } from '#shared/finance/types.ts'
 import type { FinanceRepository } from './FinanceRepository.ts'
 
 /**

@@ -1,5 +1,5 @@
-import { formatEuros } from '../../shared/common/money.ts'
-import type { BudgetLine } from '../../shared/finance/summary.ts'
+import { formatEuros } from '#shared/common/money.ts'
+import type { BudgetLine } from '#shared/finance/summary.ts'
 import { Icon } from './Icon.tsx'
 
 type MeterLine = Pick<BudgetLine, 'budgetCents' | 'spentCents' | 'pendingCents' | 'leftCents'>

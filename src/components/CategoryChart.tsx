@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { formatEuros } from '../../shared/common/money.ts'
-import type { CategoryTotal } from '../../shared/finance/summary.ts'
+import { formatEuros } from '#shared/common/money.ts'
+import type { CategoryTotal } from '#shared/finance/summary.ts'
 import { Icon } from './Icon.tsx'
 
 /**

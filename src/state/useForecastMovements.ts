@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { generationHorizon, projectOccurrences } from '../../shared/finance/recurring.ts'
-import type { ISODate } from '../../shared/common/types.ts'
-import type { Movement } from '../../shared/finance/types.ts'
+import { generationHorizon, projectOccurrences } from '#shared/finance/recurring.ts'
+import type { ISODate } from '#shared/common/types.ts'
+import type { Movement } from '#shared/finance/types.ts'
 import { useFinance } from './financeContext.ts'
 
 /**

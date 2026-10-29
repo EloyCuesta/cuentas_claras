@@ -1,8 +1,8 @@
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { createWorker, OEM, PSM, type Line, type Word, type Worker } from 'tesseract.js'
-import type { OcrLine, TicketSegment } from '../shared/tickets/types.ts'
-import { endsProducts } from '../shared/tickets/ticketParse.ts'
+import type { OcrLine, TicketSegment } from '#shared/tickets/types.ts'
+import { endsProducts } from '#shared/tickets/ticketParse.ts'
 import { imageInfo, type ImageInfo } from './imageInfo.ts'
 
 /**

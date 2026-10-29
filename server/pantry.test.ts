@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { DEFAULT_CATEGORIES } from '../shared/finance/categories.ts'
-import type { FinanceData } from '../shared/finance/types.ts'
-import type { PantryItem, PantryPerson, PantryPurchaseChange } from '../shared/pantry/types.ts'
-import { movement } from '../shared/testing/factories.ts'
+import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
+import type { FinanceData } from '#shared/finance/types.ts'
+import type { PantryItem, PantryPerson, PantryPurchaseChange } from '#shared/pantry/types.ts'
+import { movement } from '#shared/testing/factories.ts'
 import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
 import { removeTempDbs } from './test-helpers.ts'
 

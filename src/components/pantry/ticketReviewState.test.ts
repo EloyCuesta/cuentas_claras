@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { TicketDraft } from '../../../shared/tickets/ticketMatch.ts'
-import { linesFromText, parseTicket } from '../../../shared/tickets/ticketParse.ts'
+import type { TicketDraft } from '#shared/tickets/ticketMatch.ts'
+import { linesFromText, parseTicket } from '#shared/tickets/ticketParse.ts'
 import { chooseAmountChange, initialReview, lineState, lineToInput, needsLineCheck, reviewCheck, reviewToInput, type ReviewLine, type ReviewState } from './ticketReviewState.ts'
 
 const draftOf = (text: string): TicketDraft => {

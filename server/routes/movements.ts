@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { validateMovement } from '../../shared/finance/backup.ts'
+import { validateMovement } from '#shared/finance/backup.ts'
 import { sameId, sendData, valid } from '../http.ts'
 import type { SqliteFinanceRepository } from '../repository.ts'
 

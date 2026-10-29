@@ -1,15 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
-import type { TicketSuggestion } from '../shared/tickets/ticketMatch.ts'
-import { parseTicket, type ParsedTicket } from '../shared/tickets/ticketParse.ts'
-import type { PantryActivity, PantryItem, PantryPurchaseChange } from '../shared/pantry/types.ts'
+import type { TicketSuggestion } from '#shared/tickets/ticketMatch.ts'
+import { parseTicket, type ParsedTicket } from '#shared/tickets/ticketParse.ts'
+import type { PantryActivity, PantryItem, PantryPurchaseChange } from '#shared/pantry/types.ts'
 import type {
   OcrLine,
   PantryTicket,
   PantryTicketSummary,
   TicketDecision,
   TicketSaveInput,
-} from '../shared/tickets/types.ts'
+} from '#shared/tickets/types.ts'
 import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
 import { createTesseractReader, type TicketReader } from './ocr.ts'
 import { removeTempDbs } from './test-helpers.ts'

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { capitalize, parseISODate } from '../../shared/common/dates.ts'
+import { capitalize, parseISODate } from '#shared/common/dates.ts'
 import { Icon } from './Icon.tsx'
 
 /** Atributos de accesibilidad que el campo pasa a su control. */

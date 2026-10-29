@@ -1,4 +1,4 @@
-import type { PantryPerson } from '../../../shared/pantry/types.ts'
+import type { PantryPerson } from '#shared/pantry/types.ts'
 import { ownerOptions } from './ownerFilter.ts'
 
 /** Selector superior de la despensa: botones de opción que se desplazan en horizontal si no caben. */

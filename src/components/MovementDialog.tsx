@@ -1,18 +1,18 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { categoryOptions } from '../../shared/finance/categories.ts'
-import { formatDate } from '../../shared/common/dates.ts'
-import { newId, nowISO } from '../../shared/common/ids.ts'
-import { centsToInput, formatEuros } from '../../shared/common/money.ts'
-import { categoryForConcept, conceptSuggestions } from '../../shared/finance/suggestions.ts'
-import type { Movement, MovementStatus, MovementType } from '../../shared/finance/types.ts'
-import type { FieldErrors } from '../../shared/common/validation.ts'
+import { categoryOptions } from '#shared/finance/categories.ts'
+import { formatDate } from '#shared/common/dates.ts'
+import { newId, nowISO } from '#shared/common/ids.ts'
+import { centsToInput, formatEuros } from '#shared/common/money.ts'
+import { categoryForConcept, conceptSuggestions } from '#shared/finance/suggestions.ts'
+import type { Movement, MovementStatus, MovementType } from '#shared/finance/types.ts'
+import type { FieldErrors } from '#shared/common/validation.ts'
 import {
   buildMovement,
   MAX_CONCEPT_LENGTH,
   MAX_NOTES_LENGTH,
   validateMovementDraft,
   type MovementDraft,
-} from '../../shared/finance/validation.ts'
+} from '#shared/finance/validation.ts'
 import { useFinance } from '../state/financeContext.ts'
 import { describeStorageError } from '../state/storageErrors.ts'
 import { useToast } from '../state/toastContext.ts'

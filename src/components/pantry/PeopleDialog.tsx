@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { PERSON_NAME_MAX } from '../../../shared/pantry/pantry.ts'
-import type { PantryPerson } from '../../../shared/pantry/types.ts'
+import { PERSON_NAME_MAX } from '#shared/pantry/pantry.ts'
+import type { PantryPerson } from '#shared/pantry/types.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
 import { Dialog, DialogError } from '../Dialog.tsx'
 import { Icon } from '../Icon.tsx'

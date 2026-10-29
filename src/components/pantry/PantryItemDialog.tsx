@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { centsToInput } from '../../../shared/common/money.ts'
+import { centsToInput } from '#shared/common/money.ts'
 import {
   DECIMAL_UNITS,
   FREQUENCY_LABELS,
@@ -9,17 +9,17 @@ import {
   PANTRY_UNITS,
   priceUnitLabel,
   unitName,
-} from '../../../shared/pantry/pantry.ts'
-import { agoText, durationText, RHYTHM_LABELS, type ItemRhythm } from '../../../shared/pantry/pantryRhythm.ts'
-import { quantityToInput, validateItemDraft, type PantryItemDraft } from '../../../shared/pantry/pantryValidation.ts'
+} from '#shared/pantry/pantry.ts'
+import { agoText, durationText, RHYTHM_LABELS, type ItemRhythm } from '#shared/pantry/pantryRhythm.ts'
+import { quantityToInput, validateItemDraft, type PantryItemDraft } from '#shared/pantry/pantryValidation.ts'
 import type {
   PantryItem,
   PantryItemInput,
   PantryPerson,
   PantryTracking,
   PantryUnit,
-} from '../../../shared/pantry/types.ts'
-import type { FieldErrors } from '../../../shared/common/validation.ts'
+} from '#shared/pantry/types.ts'
+import type { FieldErrors } from '#shared/common/validation.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
 import { focusFirstError } from '../../ui/helpers.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../Dialog.tsx'

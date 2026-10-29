@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "Ingresos, gastos y próximos pagos (React + TypeScript + Express + SQLite).",
   "type": "module",
+  "imports": {
+    "#shared/*": "./shared/*"
+  },
   "engines": {
     "node": ">=22.12.0"
   },

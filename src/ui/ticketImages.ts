@@ -1,4 +1,4 @@
-import type { TicketSegment } from '../../shared/tickets/types.ts'
+import type { TicketSegment } from '#shared/tickets/types.ts'
 
 export class TicketImageError extends Error {}
 export interface TicketImageOptions {

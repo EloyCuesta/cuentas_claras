@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
-import { movement } from '../shared/testing/factories.ts'
+import { movement } from '#shared/testing/factories.ts'
 import { startApi, stopApis, TEST_CODE } from './api-test-helpers.ts'
 import { createApp } from './app.ts'
 import { ATTEMPT_WINDOW_MS, checkAccessCode, LOCK_MS, SESSION_MS } from './auth.ts'

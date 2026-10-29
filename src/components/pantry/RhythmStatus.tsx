@@ -1,4 +1,4 @@
-import { RHYTHM_LABELS, type ItemRhythm, type RhythmStatus as Status } from '../../../shared/pantry/pantryRhythm.ts'
+import { RHYTHM_LABELS, type ItemRhythm, type RhythmStatus as Status } from '#shared/pantry/pantryRhythm.ts'
 import { Icon } from '../Icon.tsx'
 
 const TONES: Record<Status, string> = {

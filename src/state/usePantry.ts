@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { todayISO } from '../../shared/common/dates.ts'
-import { sortItems, sortPeople } from '../../shared/pantry/pantry.ts'
-import type { TicketDraft } from '../../shared/tickets/ticketMatch.ts'
-import type { ISODate } from '../../shared/common/types.ts'
+import { todayISO } from '#shared/common/dates.ts'
+import { sortItems, sortPeople } from '#shared/pantry/pantry.ts'
+import type { TicketDraft } from '#shared/tickets/ticketMatch.ts'
+import type { ISODate } from '#shared/common/types.ts'
 import type {
   PantryActivity,
   PantryEvent,
@@ -12,8 +12,8 @@ import type {
   PantryPerson,
   PantryPurchaseChange,
   PantrySettings,
-} from '../../shared/pantry/types.ts'
-import type { PantryTicket, PantryTicketSummary, TicketSaveInput, TicketReadInput } from '../../shared/tickets/types.ts'
+} from '#shared/pantry/types.ts'
+import type { PantryTicket, PantryTicketSummary, TicketSaveInput, TicketReadInput } from '#shared/tickets/types.ts'
 import { pantryApi } from '../services/pantryApi.ts'
 import { describeStorageError } from './storageErrors.ts'
 

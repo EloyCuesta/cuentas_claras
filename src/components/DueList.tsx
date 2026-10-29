@@ -1,7 +1,7 @@
-import { categoryPath, type CategoryMap } from '../../shared/finance/categories.ts'
-import { describeDue, MONTH_NAMES } from '../../shared/common/dates.ts'
-import type { ISODate } from '../../shared/common/types.ts'
-import type { Movement } from '../../shared/finance/types.ts'
+import { categoryPath, type CategoryMap } from '#shared/finance/categories.ts'
+import { describeDue, MONTH_NAMES } from '#shared/common/dates.ts'
+import type { ISODate } from '#shared/common/types.ts'
+import type { Movement } from '#shared/finance/types.ts'
 import { Amount } from './Amount.tsx'
 import { Icon } from './Icon.tsx'
 

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { validateFinanceData } from '../../shared/finance/backup.ts'
+import { validateFinanceData } from '#shared/finance/backup.ts'
 import { AppError } from '../errors.ts'
 import { readBody, sendData, valid } from '../http.ts'
 import type { SqliteFinanceRepository } from '../repository.ts'
