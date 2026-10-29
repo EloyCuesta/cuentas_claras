@@ -9,9 +9,7 @@ import { createAuthModule } from './modules/auth/index.ts'
 import { createFinanceModule } from './modules/finance/index.ts'
 import { createHealthModule } from './modules/health/index.ts'
 import { createPantryModule } from './modules/pantry/index.ts'
-import { createTesseractReader, type TicketReader } from './ocr.ts'
-import { ticketRoutes } from './routes/tickets.ts'
-import { SqliteTicketRepository } from './ticketRepository.ts'
+import { createTesseractReader, createTicketsModule, type TicketReader } from './modules/tickets/index.ts'
 
 export interface AppOptions {
   database: OpenedDatabase
@@ -48,11 +46,9 @@ export function createApp({
   const health = createHealthModule({ database })
   const unitOfWork = new SqliteUnitOfWork(database.db)
   const deps = { db: database.db, clock, ids, unitOfWork }
-  const stamps = { now: () => clock.nowISO(), newId: () => ids.newId() }
   const finance = createFinanceModule(deps)
   const pantry = createPantryModule(deps)
-  const tickets = new SqliteTicketRepository(database.db, pantry.api, stamps)
-  const reader = ticketReader ?? createTesseractReader()
+  const tickets = createTicketsModule({ ...deps, pantry: pantry.api, reader: ticketReader ?? createTesseractReader() })
 
   const app = express()
   app.disable('x-powered-by')
@@ -72,7 +68,7 @@ export function createApp({
   api.use(health.router)
   api.use(auth.router)
   api.use(pantry.router)
-  api.use(ticketRoutes(tickets, pantry.api, reader))
+  api.use(tickets.router)
 
   api.use(auth.requireAdmin)
   api.use(finance.router)
@@ -81,6 +77,7 @@ export function createApp({
       testingRoutes(() =>
         unitOfWork.run(() => {
           finance.reset()
+          tickets.reset()
           pantry.reset()
         }),
       ),

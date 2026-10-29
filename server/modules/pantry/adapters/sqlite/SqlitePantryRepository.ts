@@ -257,10 +257,7 @@ export class SqlitePantryRepository implements PantryRepository {
   }
 
   reset(): void {
-    // Los tickets y lo aprendido también, mientras el módulo tickets no tenga su propio reset.
-    this.db.exec(`
-      DELETE FROM pantry_tickets; DELETE FROM pantry_aliases; DELETE FROM pantry_events;
-      DELETE FROM pantry_items; DELETE FROM pantry_people; DELETE FROM pantry_settings;
-    `)
+    // Los tickets y lo aprendido los vacía antes el módulo tickets (app.ts), por las claves foráneas.
+    this.db.exec('DELETE FROM pantry_events; DELETE FROM pantry_items; DELETE FROM pantry_people; DELETE FROM pantry_settings;')
   }
 }

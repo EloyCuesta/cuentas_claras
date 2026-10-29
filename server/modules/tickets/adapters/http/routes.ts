@@ -5,13 +5,13 @@ import { suggestForTicket, type TicketDraft } from '#shared/tickets/ticketMatch.
 import { linesFromText, parseTicket } from '#shared/tickets/ticketParse.ts'
 import { validateLineUpdate, validateTicketSave } from '#shared/tickets/ticketValidation.ts'
 import type { OcrLine, TicketSegment } from '#shared/tickets/types.ts'
-import { AppError } from '../common/errors.ts'
-import { readBody, valid } from '../common/http/request.ts'
-import { sendData } from '../common/http/response.ts'
-import { imageInfo } from '../common/imageInfo.ts'
-import type { TicketReader } from '../ocr.ts'
-import type { PantryApi } from '../modules/pantry/index.ts'
-import type { SqliteTicketRepository } from '../ticketRepository.ts'
+import { AppError } from '../../../../common/errors.ts'
+import { readBody, valid } from '../../../../common/http/request.ts'
+import { sendData } from '../../../../common/http/response.ts'
+import { imageInfo } from '../../../../common/imageInfo.ts'
+import type { TicketReader } from '../tesseract/TesseractTicketReader.ts'
+import type { PantryApi } from '../../../pantry/index.ts'
+import type { SqliteTicketRepository } from '../sqlite/SqliteTicketRepository.ts'
 
 const MAX_IMAGES = 6
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024

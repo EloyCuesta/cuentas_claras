@@ -70,7 +70,7 @@ Solo estas: `npx vitest run server/modules/pantry`.
 
 ## Trampas y decisiones
 - MarkPurchased apunta las compras con AddEvent, en una transacción anidada.
-- Hasta que tickets tenga su propio reset, `SqlitePantryRepository.reset` vacía también `pantry_tickets` y `pantry_aliases`.
+- `reset` solo vacía las tablas de la despensa: los tickets y lo aprendido los vacía antes el módulo tickets, en la misma transacción (`server/app.ts`).
 - Un producto creado por la API sin `tracking` se sigue contando (`cantidad`); los que crean los tickets van por compras: ver `docs/decisiones.md`.
 
 ## Si cambias este módulo

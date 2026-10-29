@@ -17,8 +17,8 @@ import type {
   TicketStoreKind,
   TicketTaxCode,
 } from '#shared/tickets/types.ts'
-import { AppError } from './common/errors.ts'
-import type { PantryApi } from './modules/pantry/index.ts'
+import { AppError } from '../../../../common/errors.ts'
+import type { PantryApi } from '../../../pantry/index.ts'
 
 /**
  * Tickets de la compra en SQLite: guardarlos (creando o actualizando los
@@ -196,6 +196,11 @@ export class SqliteTicketRepository {
 
   private transaction<T>(work: () => T): T {
     return this.db.transaction(work).immediate()
+  }
+
+  /** Vacía los tickets (sus líneas se van en cascada) y lo aprendido (solo para las pruebas). */
+  reset(): void {
+    this.db.exec('DELETE FROM pantry_tickets; DELETE FROM pantry_aliases;')
   }
 
   aliases(store: TicketStoreKind, storeName: string): AliasRecord[] {

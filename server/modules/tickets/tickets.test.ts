@@ -11,9 +11,9 @@ import type {
   TicketDecision,
   TicketSaveInput,
 } from '#shared/tickets/types.ts'
-import { startApi, stopApis, type TestApi } from './common/testing/testApi.ts'
-import { createTesseractReader, type TicketReader } from './ocr.ts'
-import { removeTempDbs } from './common/testing/tempDb.ts'
+import { startApi, stopApis, type TestApi } from '../../common/testing/testApi.ts'
+import { createTesseractReader, type TicketReader } from './index.ts'
+import { removeTempDbs } from '../../common/testing/tempDb.ts'
 
 /**
  * Tickets de la compra por la API. El ticket es INVENTADO (fixtures/tickets/ticket-lidl-ejemplo.png).
@@ -21,9 +21,9 @@ import { removeTempDbs } from './common/testing/tempDb.ts'
  * que el OCR leyó de esa imagen (fixtures/tickets/ticket-lidl-ejemplo.ocr.json), para ir rápido.
  */
 
-const FIXTURE_PNG = readFileSync(new URL('../fixtures/tickets/ticket-lidl-ejemplo.png', import.meta.url))
-const FIXTURE_OCR = JSON.parse(readFileSync(new URL('../fixtures/tickets/ticket-lidl-ejemplo.ocr.json', import.meta.url), 'utf8')) as OcrLine[]
-const TRUTH = JSON.parse(readFileSync(new URL('../fixtures/tickets/ticket-lidl-ejemplo.json', import.meta.url), 'utf8')) as {
+const FIXTURE_PNG = readFileSync(new URL('../../../fixtures/tickets/ticket-lidl-ejemplo.png', import.meta.url))
+const FIXTURE_OCR = JSON.parse(readFileSync(new URL('../../../fixtures/tickets/ticket-lidl-ejemplo.ocr.json', import.meta.url), 'utf8')) as OcrLine[]
+const TRUTH = JSON.parse(readFileSync(new URL('../../../fixtures/tickets/ticket-lidl-ejemplo.json', import.meta.url), 'utf8')) as {
   totalCents: number
   lines: { rawName: string; amountCents: number }[]
 }
@@ -113,12 +113,12 @@ describe('lector de tickets (OCR real)', () => {
 describe('lector de tickets (OCR real) con el ticket sintético de Torrelavega', () => {
   const reader = createTesseractReader()
   afterAll(() => reader.close())
-  const truth = JSON.parse(readFileSync(new URL('../fixtures/tickets/ticket-torrelavega-sintetico.json', import.meta.url), 'utf8')) as {
+  const truth = JSON.parse(readFileSync(new URL('../../../fixtures/tickets/ticket-torrelavega-sintetico.json', import.meta.url), 'utf8')) as {
     totalCents: number; lines: { rawName: string; amountCents: number; quantity: number; unitPriceCents: number | null; weightKg: number | null }[]
   }
   it('lee multiplicaciones, pesos, IVA y publicidad sin aceptar ningún importe erróneo en silencio', { timeout: 120_000 }, async () => {
     // Imagen SINTÉTICA con las líneas del ticket real que aportó el usuario; no es su captura de Lidl Plus.
-    const ticket = parseTicket(await reader.read([readFileSync(new URL('../fixtures/tickets/ticket-torrelavega-sintetico.png', import.meta.url))]))
+    const ticket = parseTicket(await reader.read([readFileSync(new URL('../../../fixtures/tickets/ticket-torrelavega-sintetico.png', import.meta.url))]))
     expect(ticket).toMatchObject({ totalCents: truth.totalCents, date: '2026-10-28', time: '19:24', paymentMethod: 'Lidl Pay' })
     expect(ticket.taxGroups?.map(g => g.code)).toEqual(['A', 'B', 'C'])
     expect(ticket.lines.map(l => l.rawName)).toEqual(truth.lines.map(l => l.rawName))
