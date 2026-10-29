@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import ocrFixture from '../../server/fixtures/ticket-lidl-ejemplo.ocr.json'
-import truthFixture from '../../server/fixtures/ticket-lidl-ejemplo.json'
+import ocrFixture from '../../fixtures/tickets/ticket-lidl-ejemplo.ocr.json'
+import truthFixture from '../../fixtures/tickets/ticket-lidl-ejemplo.json'
 import { checkTicket, linesFromText, mergePages, parseTicket } from './ticketParse.ts'
 import { guessFrequency, nameKey, prettyName, similarity } from './ticketText.ts'
 import type { OcrLine } from './types.ts'
 
 /**
- * El ticket de las pruebas es INVENTADO (server/fixtures/ticket-lidl-ejemplo.png),
+ * El ticket de las pruebas es INVENTADO (fixtures/tickets/ticket-lidl-ejemplo.png),
  * con el mismo formato que la app Lidl Plus. ticket-lidl-ejemplo.ocr.json es lo
  * que leyó de verdad el OCR de esa imagen (server/ocr.ts), con sus pequeños
  * errores («2,992 A», «1,155A»), y ticket-lidl-ejemplo.json lo que pone el ticket.

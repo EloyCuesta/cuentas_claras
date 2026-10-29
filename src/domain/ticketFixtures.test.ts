@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import cases from '../../server/fixtures/ticket-cases.json'
+import cases from '../../fixtures/tickets/ticket-cases.json'
 import { linesFromText, parseTicket } from './ticketParse.ts'
 import { roundRatio } from './ticketArithmetic.ts'
 import { imageLayout } from '../ui/ticketImages.ts'

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import browserStrip from '../../server/fixtures/ocr-real/ejemplo-franja-navegador.json'
-import lowRes from '../../server/fixtures/ocr-real/torrelavega-400px.json'
-import photoEnhanced from '../../server/fixtures/ocr-real/torrelavega-foto-1600-mejorada.json'
-import photo from '../../server/fixtures/ocr-real/torrelavega-foto-800.json'
-import exampleTruth from '../../server/fixtures/ticket-lidl-ejemplo.json'
-import torrelavegaTruth from '../../server/fixtures/ticket-torrelavega-sintetico.json'
+import browserStrip from '../../fixtures/tickets/ocr-real/ejemplo-franja-navegador.json'
+import lowRes from '../../fixtures/tickets/ocr-real/torrelavega-400px.json'
+import photoEnhanced from '../../fixtures/tickets/ocr-real/torrelavega-foto-1600-mejorada.json'
+import photo from '../../fixtures/tickets/ocr-real/torrelavega-foto-800.json'
+import exampleTruth from '../../fixtures/tickets/ticket-lidl-ejemplo.json'
+import torrelavegaTruth from '../../fixtures/tickets/ticket-torrelavega-sintetico.json'
 import { canApplyLine } from './ticketArithmetic.ts'
 import { checkTaxGroups, linesFromText, mergePages, parseTicket, readTaxGroups, type ParsedTicketLine } from './ticketParse.ts'
 import type { OcrLine, TicketSaveLine } from './types.ts'
@@ -16,7 +16,7 @@ import { imageQuality } from '../ui/ticketImages.ts'
  * - Líneas literales del ticket de Lidl de Torrelavega (28/10/26) que aportó el
  *   usuario, y los errores de OCR que describió. No hay imagen de ese ticket en
  *   el repositorio: la prueba con la captura original de Lidl Plus está PENDIENTE.
- * - server/fixtures/ocr-real/*.json: lo que leyó de verdad Tesseract de imágenes
+ * - fixtures/tickets/ocr-real/*.json: lo que leyó de verdad Tesseract de imágenes
  *   SINTÉTICAS (dibujadas imitando un ticket de Lidl). Son errores reales de OCR,
  *   pero no de una foto real.
  * - El resto, texto sintético escrito para cada caso.
