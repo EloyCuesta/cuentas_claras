@@ -1,0 +1,173 @@
+{
+ "provenance": "synthetic-image",
+ "note": "Ticket SINTÉTICO dibujado con DejaVu Sans Mono imitando el formato de Lidl, con las líneas que aportó el usuario del ticket de Torrelavega del 28/10/26 (no es su captura). Importes coherentes: 4,95 × 2 = 9,90; 0,544 kg × 6,75 = 3,67; desglose de IVA calculado.",
+ "store": "lidl",
+ "date": "2026-10-28",
+ "time": "19:24",
+ "totalCents": 5751,
+ "lines": [
+  {
+   "rawName": "CHOCO SHELLS",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 179,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "PECHUGA DE POLLO",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 379,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "ACEITUNAS VERDES ANC",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 329,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "BURGER CERDO Y VACU.",
+   "quantity": 2,
+   "unitPriceCents": 395,
+   "amountCents": 790,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "HUEVOS MEDIANOS M",
+   "quantity": 2,
+   "unitPriceCents": 284,
+   "amountCents": 568,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "PATATA NUEVA 5 KG",
+   "quantity": 2,
+   "unitPriceCents": 495,
+   "amountCents": 990,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "PAPEL HIGIÉNICO",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 235,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "LASAÑA 5 QUESOS",
+   "quantity": 2,
+   "unitPriceCents": 275,
+   "amountCents": 550,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "LOMO ADOBADO",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 367,
+   "discountCents": 0,
+   "weightKg": 0.544,
+   "pricePerKgCents": 675,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "FILETE DE PECHUGA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 415,
+   "discountCents": 17,
+   "weightKg": 0.547,
+   "pricePerKgCents": 758,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "LECHE ENTERA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 89,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "LECHE ENTERA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 89,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "PIZZA FAMI JAM Y QUE",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 375,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "MANDARINA NACIONAL",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 189,
+   "discountCents": 0,
+   "weightKg": 0.945,
+   "pricePerKgCents": 200,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "COOKIES PEPITAS CHOC",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 129,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "ARROZ LARGO",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 109,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  }
+ ],
+ "adjustments": [
+  -14
+ ]
+}

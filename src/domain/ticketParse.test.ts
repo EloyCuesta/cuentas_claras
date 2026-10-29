@@ -48,9 +48,13 @@ describe('parseTicket con el ticket de ejemplo leído por el OCR', () => {
     }))).toEqual(truth.lines)
   })
 
-  it('cuadra con el total y no marca nada para revisar', () => {
-    expect(ticket.check).toEqual({ status: 'cuadra', linesTotalCents: truth.totalCents, differenceCents: 0, unreadable: 0 })
-    expect(ticket.lines.flatMap((line) => line.flags)).toEqual([])
+  it('suma el total y solo deja por confirmar las lecturas con cifras de más', () => {
+    // «2,992 A» y «1,155A»: quitar la cifra sobrante acierta aquí, pero es una suposición (en la
+    // ruta del navegador «2,939» era 2,99 y no 2,93). Sin multiplicación que lo compruebe, se confirma a mano.
+    expect(ticket.check).toEqual({ status: 'pendiente', linesTotalCents: truth.totalCents, differenceCents: 0, unreadable: 0, pending: 3 })
+    expect(ticket.lines.filter(l => l.flags.length).map(l => [l.rawName, l.amountCents])).toEqual([
+      ['HUEVOS CAMPEROS L', 299], ['ARROZ REDONDO', 115], ['PATATA 3 KG', 299]])
+    expect(ticket.lines[2].evidence?.issues).toEqual(['Una lectura del importe tiene cifras de más («2,992»): confirma el importe'])
     expect(ticket.lines.map((line) => line.key).slice(0, 2)).toEqual(['LECHE SEMIDESNATADA', 'PAN DE MOLDE INTEGRA'])
   })
 })
@@ -69,9 +73,17 @@ describe('parseTicket con lecturas reales de un ticket de Torrelavega (28/10/26)
     expect(ticket.lines.slice(0, 3).map(l => l.amountCents)).toEqual([179, 379, 329])
   })
 
-  it('reconoce «3, 95Xx» y «2 ,84X» como precio unitario y corrige el importe', () => {
-    expect(ticket.lines.slice(3).map(l => [l.quantity, l.unitPriceCents, l.amountCents])).toEqual([[2, 395, 790], [2, 284, 568], [2, 495, 990]])
-    expect(ticket.check.status).toBe('cuadra')
+  it('reconoce «3, 95Xx» y «2 ,84X» como precio unitario y propone el importe solo con evidencia', () => {
+    // BURGER «7,920»: cifra sobrante en un importe inestable entre lecturas → 7,90.
+    // PATATA «92,90»: una cifra de más; ningún error de una cifra en 4,95 × 2 daría 92,90 → 9,90.
+    // HUEVOS «5,08»: las dos pasadas leen 2,84 × 2 y 5,08. Tanto 5,68 → 5,08 como 2,54 → 2,84
+    // son un solo error, así que no se elige ninguna cifra: quedan las dos como opciones.
+    expect(ticket.lines.slice(3).map(l => [l.quantity, l.unitPriceCents, l.amountCents])).toEqual([[2, 395, 790], [2, 284, null], [2, 495, 990]])
+    expect(ticket.lines[4].evidence).toMatchObject({ recognizedCents: 508, calculatedCents: 568, discrepancy: { verdict: 'ambiguous' },
+      options: [{ cents: 568, origin: 'calculation' }, { cents: 508, origin: 'read' }] })
+    expect(ticket.lines[5].evidence).toMatchObject({ recognizedCents: 9290, calculatedCents: 990, discrepancy: { verdict: 'calculation' } })
+    expect(ticket.lines.slice(3).every(l => l.flags.includes('dudoso'))).toBe(true)
+    expect(ticket.check.status).toBe('incompleto')
   })
 })
 
@@ -94,7 +106,9 @@ describe('parseTicket con lecturas difíciles', () => {
       ['MANDARINA NACIONAL', 189, 'A'],
       ['PAPEL HIGIÉNICO 12R', 375, 'C'],
     ])
-    expect(ticket.check.status).toBe('cuadra')
+    // PIZZA y FRUTA solo se leen en la relectura de cifras: suman, pero quedan por confirmar.
+    expect(ticket.check.status).toBe('pendiente')
+    expect(ticket.lines.slice(0, 2).every(l => l.flags.includes('dudoso'))).toBe(true)
   })
 
   it('cantidad × precio y peso × precio por kilo corrigen un importe mal leído', () => {
@@ -112,12 +126,16 @@ describe('parseTicket con lecturas difíciles', () => {
     expect(ticket.lines.map((l) => [l.rawName, l.quantity, l.unitPriceCents, l.amountCents, l.weightKg])).toEqual([
       ['BURGER CERDO Y VACU.', 2, 395, 790, null],
       ['LASAÑA 5 QUESOS', 2, 275, 550, null],
-      ['FILETE DE PECHUGA', 1, null, 415, 0.547],
+      // 4,64 frente a 0,547 kg × 7,58 = 4,15: harían falta dos errores en el importe o varios en
+      // la línea de peso, y las dos se leyeron igual dos veces. No hay evidencia para elegir.
+      ['FILETE DE PECHUGA', 1, null, null, 0.547],
     ])
-    expect(ticket.check.status).toBe('cuadra')
-    // El ticket se leyó como 7,20 y 4,64: se avisa de que se han corregido.
-    expect(ticket.lines.map((l) => l.flags)).toEqual([['corregido', 'dudoso'], [], ['corregido', 'dudoso']])
+    expect(ticket.check.status).toBe('incompleto')
+    // 7,20 → 7,90: una cifra cambiada en el importe; ningún error de una cifra en 3,95 × 2 da 7,20.
+    expect(ticket.lines.map((l) => l.flags)).toEqual([['corregido', 'dudoso'], [], ['dudoso']])
     expect(ticket.lines[0].evidence).toMatchObject({ recognizedCents: 720, calculatedCents: 790, selectedBy: 'calculation' })
+    expect(ticket.lines[2].evidence).toMatchObject({ discrepancy: { kind: 'weight', verdict: 'ambiguous' },
+      options: [{ cents: 415, origin: 'calculation' }, { cents: 464, origin: 'read' }] })
   })
 
   it('aplica Desc. al artículo y conserva la promoción como ajuste pendiente', () => {
@@ -151,7 +169,7 @@ describe('parseTicket con lecturas difíciles', () => {
       ),
     ])
     expect(ticket.lines[1]).toMatchObject({ rawName: 'COOKIES PEPITAS CHOC', amountCents: null, flags: ['ilegible'] })
-    expect(ticket.check.status).toBe('no_cuadra')
+    expect(ticket.check.status).toBe('incompleto')
   })
 
   it('no cambia una cifra para explicar la diferencia con el total', () => {
@@ -175,7 +193,7 @@ describe('parseTicket con lecturas difíciles', () => {
         ...FOOTER,
       ),
     ])
-    expect(ticket.check).toEqual({ status: 'no_cuadra', linesTotalCents: 901, differenceCents: 11, unreadable: 0 })
+    expect(ticket.check).toEqual({ status: 'no_cuadra', linesTotalCents: 901, differenceCents: 11, unreadable: 0, pending: 1 })
     // Un descuadre global no demuestra cuál de los importes es incorrecto.
     expect(ticket.issues).toContain('Los importes no cuadran con el total')
     expect(ticket.lines.map((l) => l.amountCents)).toEqual([233, 223, 445])
@@ -185,7 +203,7 @@ describe('parseTicket con lecturas difíciles', () => {
       [null, ['ilegible']],
       [null, ['ilegible']],
     ])
-    expect(two.check).toMatchObject({ status: 'no_cuadra', unreadable: 2 })
+    expect(two.check).toMatchObject({ status: 'incompleto', unreadable: 2 })
   })
 
   it('una devolución resta', () => {
@@ -246,8 +264,10 @@ describe('checkTicket', () => {
       linesTotalCents: 140,
       differenceCents: 0,
       unreadable: 0,
+      pending: 0,
     })
-    expect(checkTicket([{ amountCents: null, discountCents: 0 }], 140)).toMatchObject({ status: 'no_cuadra', unreadable: 1 })
+    expect(checkTicket([{ amountCents: null, discountCents: 0 }], 140)).toMatchObject({ status: 'incompleto', unreadable: 1 })
+    expect(checkTicket([{ amountCents: 140, discountCents: 0, pending: true }], 140)).toMatchObject({ status: 'pendiente', pending: 1 })
   })
 })
 

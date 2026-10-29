@@ -10,6 +10,80 @@ export const defaultImageOptions = (): TicketImageOptions => ({ rotation: 0, cro
 export const MAX_SEGMENTS = 24
 export const MAX_TOTAL_BYTES = 20 * 1024 * 1024
 
+/**
+ * Una línea de ticket de Lidl tiene unos 44 caracteres de ancho. Con la
+ * anchura útil de la imagen (en píxeles originales, antes de ampliarla) se
+ * estima cuántos píxeles tiene cada letra. Ampliar después no recupera detalle:
+ * por debajo de unos 7 px por letra el OCR confunde cifras con frecuencia.
+ */
+export const CHARS_PER_TICKET_LINE = 44
+export type ImageQualityLevel = 'buena' | 'baja' | 'insuficiente'
+export function imageQuality(usefulWidth: number): { level: ImageQualityLevel; pixelsPerChar: number; warning: string | null } {
+  const pixelsPerChar = Math.round((usefulWidth / CHARS_PER_TICKET_LINE) * 10) / 10
+  if (pixelsPerChar < 7) return { level: 'insuficiente', pixelsPerChar, warning:
+    `La imagen tiene muy poca resolución (unos ${pixelsPerChar} px por letra): muchas cifras pueden leerse mal. Usa la captura original sin comprimir o haz la foto más cerca.` }
+  if (pixelsPerChar < 11) return { level: 'baja', pixelsPerChar, warning:
+    `La imagen tiene poca resolución (unos ${pixelsPerChar} px por letra): revisa los importes con la imagen. Ampliarla no recupera letras perdidas.` }
+  return { level: 'buena', pixelsPerChar, warning: null }
+}
+
+/** Brillo de un píxel RGBA (0-255). */
+const luminance = (d: Uint8ClampedArray, p: number) => (d[p] * 299 + d[p + 1] * 587 + d[p + 2] * 114) / 1000
+
+/** Percentiles 1 y 99 del brillo, sobre una muestra de como mucho ~200 000 píxeles. */
+export function luminanceRange(rgba: Uint8ClampedArray): { low: number; high: number } {
+  const histogram = new Uint32Array(256)
+  const pixels = rgba.length / 4
+  const step = Math.max(1, Math.floor(pixels / 200_000))
+  let count = 0
+  for (let i = 0; i < pixels; i += step) { histogram[Math.round(luminance(rgba, i * 4))]++; count++ }
+  const percentile = (q: number) => {
+    let seen = 0
+    for (let v = 0; v < 256; v++) { seen += histogram[v]; if (seen >= q * count) return v }
+    return 255
+  }
+  return { low: percentile(0.01), high: percentile(0.99) }
+}
+
+/**
+ * Solo vale la pena retocar una imagen de poco contraste (una foto de papel
+ * grisáceo). Una captura de pantalla ya va de casi negro a blanco y no se toca:
+ * en las pruebas con OCR real no mejoraba y a veces empeoraba.
+ */
+export const needsEnhancement = ({ low, high }: { low: number; high: number }) => high - low < 200 && high - low >= 30
+
+/**
+ * Prepara una franja para el OCR, en su sitio: escala de grises, contraste
+ * estirado (low → 0, high → 255) y, si se ha ampliado, un enfoque suave
+ * (máscara de desenfoque 3 × 3). La imagen original del usuario no se modifica:
+ * esto solo afecta a la copia que se envía al lector.
+ */
+export function enhanceForOcr(rgba: Uint8ClampedArray, width: number, height: number, range: { low: number; high: number }, sharpen: boolean): void {
+  // Búferes de 8 bits (no de coma flotante): una franja de 1300 × 4096 ocupa ~5 MB cada uno, no ~21 MB.
+  const span = Math.max(1, range.high - range.low)
+  const gray = new Uint8ClampedArray(width * height)
+  for (let i = 0; i < gray.length; i++) gray[i] = (luminance(rgba, i * 4) - range.low) * 255 / span
+  let out = gray
+  if (sharpen) {
+    out = new Uint8ClampedArray(gray.length)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let sum = 0
+        for (let dy = -1; dy <= 1; dy++) {
+          const yy = Math.min(height - 1, Math.max(0, y + dy)) * width
+          for (let dx = -1; dx <= 1; dx++) sum += gray[yy + Math.min(width - 1, Math.max(0, x + dx))]
+        }
+        const v = gray[y * width + x]
+        out[y * width + x] = v + 0.6 * (v - sum / 9)
+      }
+    }
+  }
+  for (let i = 0; i < out.length; i++) {
+    rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = out[i]
+    rgba[i * 4 + 3] = 255
+  }
+}
+
 function loadImage(file: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
@@ -41,7 +115,9 @@ export function imageLayout(width: number, height: number) {
 }
 
 /** A strip canvas never exceeds 1800 × 4096. No full-height scaled canvas. */
-export async function prepareTicketImage(file: Blob, imageIndex = 0, options = defaultImageOptions()): Promise<{ segments: TicketSegment[]; bytes: number; warnings: string[] }> {
+export async function prepareTicketImage(file: Blob, imageIndex = 0, options = defaultImageOptions()): Promise<{
+  segments: TicketSegment[]; bytes: number; warnings: string[]; quality: ImageQualityLevel; enhanced: boolean
+}> {
   if (!file.type.startsWith('image/')) throw new TicketImageError('Elige una imagen del ticket.')
   const image = await loadImage(file)
   if (image.naturalWidth * image.naturalHeight > 40_000_000) throw new TicketImageError('La imagen supera 40 millones de píxeles. Elige una captura más pequeña.')
@@ -59,8 +135,9 @@ export async function prepareTicketImage(file: Blob, imageIndex = 0, options = d
   let top = Math.floor(height * crop.top / 100)
   let right = Math.ceil(width * (1 - crop.right / 100))
   let bottom = Math.ceil(height * (1 - crop.bottom / 100))
-  if (options.autoCrop) {
-    // Low-resolution probe only removes uniformly white outer margins.
+  // Una copia pequeña de la imagen: para quitar márgenes blancos y medir el contraste.
+  let range: { low: number; high: number } | null = null
+  {
     const probe = document.createElement('canvas')
     const ratio = Math.min(1, 320 / width, 1200 / height)
     probe.width = Math.max(1, Math.round(width * ratio)); probe.height = Math.max(1, Math.round(height * ratio))
@@ -69,21 +146,26 @@ export async function prepareTicketImage(file: Blob, imageIndex = 0, options = d
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, probe.width, probe.height)
       ctx.scale(ratio, ratio); drawRotated(ctx)
       const data = ctx.getImageData(0, 0, probe.width, probe.height).data
+      range = luminanceRange(data)
       const white = (x: number, y: number) => { const p = (y * probe.width + x) * 4; return data[p] >= 250 && data[p + 1] >= 250 && data[p + 2] >= 250 }
       let x0 = 0, x1 = probe.width - 1, y0 = 0, y1 = probe.height - 1
-      while (x0 < probe.width / 4 && Array.from({ length: probe.height }, (_, y) => white(x0, y)).every(Boolean)) x0++
-      while (x1 > probe.width * 3 / 4 && Array.from({ length: probe.height }, (_, y) => white(x1, y)).every(Boolean)) x1--
-      while (y0 < probe.height / 4 && Array.from({ length: probe.width }, (_, x) => white(x, y0)).every(Boolean)) y0++
-      while (y1 > probe.height * 3 / 4 && Array.from({ length: probe.width }, (_, x) => white(x, y1)).every(Boolean)) y1--
-      const margin = 12 / ratio
-      left = Math.max(left, Math.floor(x0 / ratio - margin)); right = Math.min(right, Math.ceil((x1 + 1) / ratio + margin))
-      top = Math.max(top, Math.floor(y0 / ratio - margin)); bottom = Math.min(bottom, Math.ceil((y1 + 1) / ratio + margin))
+      if (options.autoCrop) {
+        while (x0 < probe.width / 4 && Array.from({ length: probe.height }, (_, y) => white(x0, y)).every(Boolean)) x0++
+        while (x1 > probe.width * 3 / 4 && Array.from({ length: probe.height }, (_, y) => white(x1, y)).every(Boolean)) x1--
+        while (y0 < probe.height / 4 && Array.from({ length: probe.width }, (_, x) => white(x, y0)).every(Boolean)) y0++
+        while (y1 > probe.height * 3 / 4 && Array.from({ length: probe.width }, (_, x) => white(x, y1)).every(Boolean)) y1--
+        const margin = 12 / ratio
+        left = Math.max(left, Math.floor(x0 / ratio - margin)); right = Math.min(right, Math.ceil((x1 + 1) / ratio + margin))
+        top = Math.max(top, Math.floor(y0 / ratio - margin)); bottom = Math.min(bottom, Math.ceil((y1 + 1) / ratio + margin))
+      }
     }
     probe.width = probe.height = 1
   }
   const layout = imageLayout(right - left, bottom - top)
   const warnings: string[] = []
-  if (right - left < 450) warnings.push('La captura es estrecha: ampliarla no recupera letras perdidas. Si hay dudas, usa la captura original sin comprimir.')
+  const quality = imageQuality(right - left)
+  if (quality.warning) warnings.push(quality.warning)
+  const enhance = range !== null && needsEnhancement(range)
   if (width > height * 1.5) warnings.push('La imagen es horizontal. Si el texto está girado, vuelve atrás y gira la foto antes de leer.')
   const segments: TicketSegment[] = []
   let bytes = 0
@@ -96,6 +178,12 @@ export async function prepareTicketImage(file: Blob, imageIndex = 0, options = d
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
     ctx.translate(0, -offsetY); ctx.scale(layout.scale, layout.scale); ctx.translate(-left, -top)
     drawRotated(ctx)
+    if (enhance) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      enhanceForOcr(pixels.data, canvas.width, canvas.height, range!, layout.scale > 1.3)
+      ctx.putImageData(pixels, 0, 0)
+    }
     const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
     if (!blob) throw new TicketImageError('No se ha podido preparar una franja del ticket.')
     bytes += blob.size
@@ -103,5 +191,5 @@ export async function prepareTicketImage(file: Blob, imageIndex = 0, options = d
     segments.push({ image: await toBase64(blob), imageIndex, segmentIndex, offsetY, fullHeight: layout.height })
     canvas.width = canvas.height = 1
   }
-  return { segments, bytes, warnings }
+  return { segments, bytes, warnings, quality: quality.level, enhanced: enhance }
 }

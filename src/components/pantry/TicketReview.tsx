@@ -3,11 +3,12 @@ import { formatDate } from '../../domain/dates.ts'
 import { centsToInput, formatEuros } from '../../domain/money.ts'
 import { FREQUENCY_LABELS, PANTRY_FREQUENCIES } from '../../domain/pantry.ts'
 import type { TicketDraft } from '../../domain/ticketMatch.ts'
-import { checkTicket } from '../../domain/ticketParse.ts'
+import { CHECK_LABELS } from '../../domain/ticketParse.ts'
 import { nameKey } from '../../domain/ticketText.ts'
 import type { PantryFrequency, PantryItem, PantryPerson, TicketSegment, TicketSource } from '../../domain/types.ts'
 import { DateInput, Field } from '../forms.tsx'
-import { currentCalculation, lineAmount, lineToInput, readAmount, reviewLine, type Choice, type ReviewLine, type ReviewState, type SectionId } from './ticketReviewState.ts'
+import { TicketLineCheck } from './TicketLineCheck.tsx'
+import { currentCalculation, LINE_STATE_LABELS, lineAmount, lineState, lineToInput, needsLineCheck, readAmount, reviewCheck, reviewLine, type Choice, type ReviewLine, type ReviewState, type SectionId } from './ticketReviewState.ts'
 
 function TextField({ label, value, onChange, decimal = false, type = 'text' }: {
   label: string; value: string; onChange: (v: string) => void; decimal?: boolean; type?: string
@@ -32,15 +33,16 @@ export function TicketReview({ draft, review, onChange, items, people, previews,
     for (const l of review.lines) map.set(l.key, [...(map.get(l.key) ?? []), l])
     return [...map.entries()]
   }, [review.lines])
+  // Cualquier edición deja la línea sin confirmar y anota que el dato es manual; las acciones
+  // («Usar 9,90 €», «Confirmar», «Dejar pendiente») dicen ellas mismas cómo queda.
   const setLine = (position: number, change: Partial<ReviewLine>) => onChange({ ...review,
     lines: review.lines.map(l => l.position === position ? { ...l, ...change,
       confirmed: change.confirmed ?? false,
-      evidence: l.evidence && !('confirmed' in change) ? { ...l.evidence, selectedBy: 'manual' } : l.evidence } : l) })
+      evidence: 'evidence' in change ? change.evidence
+        : l.evidence && !('confirmed' in change) && !('heldPending' in change) ? { ...l.evidence, selectedBy: 'manual' } : l.evidence } : l) })
   const setChoice = (key: string, choice: Choice) => onChange({ ...review, choices: { ...review.choices, [key]: choice },
     lines: review.lines.map(l => l.key === key ? { ...l, associationConfirmed: true } : l) })
-  const total = readAmount(review.totalText)
-  const check = checkTicket(review.lines.map(l => ({ amountCents: lineAmount(l), discountCents: lineToInput(l).line.discountCents })),
-    total.ok ? total.cents : null, review.adjustments.map(a => { const r = readAmount(a.amountText); return { amountCents: r.ok ? r.cents : null } }))
+  const check = reviewCheck(review)
   const pending = review.lines.filter(l => lineToInput(l).line.reviewStatus === 'pending').length
   const sections: { id: SectionId; title: string; collapsible?: boolean }[] = [
     { id: 'revisar', title: 'Para revisar' }, { id: 'nuevos', title: 'Productos nuevos' },
@@ -69,12 +71,18 @@ export function TicketReview({ draft, review, onChange, items, people, previews,
         {draft.duplicate && <p role="alert" className="notice notice--error">Este ticket ya está guardado ({draft.duplicate.storeName}, {formatDate(draft.duplicate.date)}). No se puede guardar dos veces.</p>}
         {draft.possibleDuplicate && !draft.duplicate && <label className="checkbox notice notice--warning"><input type="checkbox" checked={review.distinctPurchase}
           onChange={e => onChange({ ...review, distinctPurchase: e.target.checked })} />Hay otra compra con la misma fecha, hora y total. Confirmo que esta es otra compra.</label>}
-        <p className={`notice ${check.status === 'cuadra' ? 'ticket-check--ok' : 'notice--warning'}`}>
-          {check.status === 'cuadra' ? <><strong>Cuadra con el total:</strong> {review.lines.length} líneas suman {formatEuros(check.linesTotalCents)}{review.adjustments.length > 0 ? ' incluyendo ajustes' : ''}.</> :
-            <><strong>{check.status === 'sin_total' ? 'Sin total' : 'No cuadra'}:</strong> suma {formatEuros(check.linesTotalCents)}{check.differenceCents !== null && `; diferencia ${formatEuros(check.differenceCents)}`}.</>}
-          {pending > 0 && ` ${pending} líneas pendientes no actualizarán la despensa.`}
+        <p className={`notice ${check.status === 'cuadra' ? 'ticket-check--ok' : 'notice--warning'}`} data-testid="ticket-check" data-status={check.status}>
+          <strong>{CHECK_LABELS[check.status]}:</strong>{' '}
+          {check.status === 'cuadra' && <>{review.lines.length} líneas suman {formatEuros(check.linesTotalCents)}{review.adjustments.length > 0 ? ' incluyendo ajustes' : ''}.</>}
+          {check.status === 'pendiente' && <>{review.lines.length} líneas suman {formatEuros(check.linesTotalCents)}, igual que el total, pero {check.pending === 1 ? 'una línea tiene' : `${check.pending} líneas tienen`} datos sin confirmar. Que la suma coincida no demuestra que cada importe sea correcto.</>}
+          {check.status === 'no_cuadra' && <>suma {formatEuros(check.linesTotalCents)}; diferencia {formatEuros(check.differenceCents!)}.</>}
+          {check.status === 'incompleto' && <>{check.unreadable === 1 ? 'falta un importe' : `faltan ${check.unreadable} importes`}; la suma ({formatEuros(check.linesTotalCents)}) no se puede comprobar con el total.</>}
+          {check.status === 'sin_total' && <>suma {formatEuros(check.linesTotalCents)}.</>}
+          {pending > 0 && ` ${pending === 1 ? 'Una línea pendiente no actualizará' : `${pending} líneas pendientes no actualizarán`} la despensa.`}
         </p>
-        {(draft.ticket.issues ?? []).filter(i => !/Los importes no cuadran/.test(i)).map(i => <p className="muted small" key={i}>{i}</p>)}
+        {check.taxMismatches.map(m => <p className="notice notice--warning small" key={m.code}>El desglose de IVA {m.code} no coincide con sus artículos (diferencia {formatEuros(m.differenceCents)}): alguno de esos importes puede estar mal leído.</p>)}
+        {draft.ticket.paymentMethod && <p className="muted small">Pagado con {draft.ticket.paymentMethod}.</p>}
+        {(draft.ticket.issues ?? []).filter(i => !/Los importes no cuadran|La suma coincide|desglose de IVA/.test(i)).map(i => <p className="muted small" key={i}>{i}</p>)}
       </div>
       <div className="ticket-review__links">
         {previews.length > 0 && <button type="button" className="link-btn" aria-expanded={showImage} onClick={() => { setShowImage(!showImage); setSource(null) }}>{showImage ? 'Ocultar la imagen' : 'Ver la imagen para comparar'}</button>}
@@ -96,9 +104,11 @@ export function TicketReview({ draft, review, onChange, items, people, previews,
                   <span className="ticket-group__text"><strong>{title}</strong><span className="ticket-group__meta">
                     {lines.length > 1 && `${lines.length} líneas · `}{choice.kind === 'ignore' && 'No se sigue · '}
                     {nameKey(title) !== nameKey(lines[0].rawName) && `En el ticket: ${lines[0].rawName}`}
-                    {lines.some(l => lineToInput(l).line.reviewStatus === 'pending') && ' · Para revisar'}
+                    {lines.some(l => lineState(l) === 'pendiente') ? ' · Pendiente' : lines.some(l => lineState(l) === 'sugerido') ? ' · Para confirmar' : ''}
                   </span></span><span>{formatEuros(sum)}</span>
                 </button>
+                {lines.filter(needsLineCheck).map(line => <TicketLineCheck key={line.position} line={line} segments={segments}
+                  onChange={change => setLine(line.position, change)} onEdit={() => setExpanded(key)} />)}
                 {expanded === key && <div className="ticket-editor">
                   <Field id={`product-${key}`} label="Es el producto">{control => <select {...control} className="select"
                     value={choice.kind === 'item' ? choice.itemId : choice.kind === 'ignore' ? '__ignore' : '__new'} onChange={e => {
@@ -117,7 +127,7 @@ export function TicketReview({ draft, review, onChange, items, people, previews,
                     const suffix = lines.length > 1 ? ` (${index + 1}.ª línea)` : ''
                     const calculation = currentCalculation(line)
                     const parsed = lineToInput(line)
-                    return <fieldset className="ticket-line-editor" key={line.position}><legend>Línea {line.position + 1}</legend>
+                    return <fieldset className="ticket-line-editor" key={line.position}><legend>Línea {line.position + 1} · {LINE_STATE_LABELS[lineState(line)]}</legend>
                       <TextField label={`Nombre en el ticket${suffix}`} value={line.rawName} onChange={rawName => setLine(line.position, { rawName, associationConfirmed: choice.kind !== 'item' })} />
                       <div className="field-row">
                         <TextField label={`Cantidad${suffix}`} decimal value={line.quantityText} onChange={quantityText => setLine(line.position, { quantityText })} />

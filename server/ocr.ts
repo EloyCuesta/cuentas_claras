@@ -11,13 +11,20 @@ import { imageInfo, type ImageInfo } from './imageInfo.ts'
  * español viene en node_modules (@tesseract.js-data/spa).
  *
  * Dos pasadas por imagen:
- * 1. Texto completo, línea a línea (nombres, fechas, total…).
+ * 1. Texto completo, línea a línea (nombres, fechas, total…), en modo «una
+ *    columna» (PSM 4): un ticket es una sola columna de texto de distintos
+ *    tamaños. Medido con OCR real sobre 132 líneas de tickets de prueba (capturas
+ *    a 400-1080 px y fotos): 111 líneas limpias frente a 104 con PSM 6 (bloque),
+ *    sin ningún importe erróneo aceptado en silencio en ninguno de los dos.
  * 2. Solo la parte final de cada línea de producto (cantidad × precio,
  *    importe y letra de IVA), leída otra vez con una lista de caracteres
  *    permitidos (cifras, coma, x, A/B/C). En las capturas pequeñas o
  *    borrosas es donde más se equivoca la primera pasada.
+ *    Leer solo la palabra del importe (PSM 8) o quitar la lista de caracteres
+ *    dio peores resultados en esa misma medición.
  * Las dos lecturas se entregan al analizador (src/domain/ticketParse.ts), que
- * elige el importe que cuadra con el total del ticket.
+ * las compara entre sí y con la multiplicación de la línea. El total del
+ * ticket nunca decide un importe.
  *
  * Un solo «worker» para todas las peticiones, de una en una. Se cierra tras
  * unos minutos sin uso para liberar memoria y se vuelve a abrir al necesitarlo.
@@ -78,7 +85,7 @@ function rereadRange(lines: readonly Line[]): [number, number] {
 
 async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source: Omit<TicketSegment, 'image'>): Promise<OcrLine[]> {
   await worker.setParameters({
-    tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+    tessedit_pageseg_mode: PSM.SINGLE_COLUMN,
     tessedit_char_whitelist: '',
     preserve_interword_spaces: '1',
   })

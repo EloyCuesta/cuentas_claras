@@ -40,7 +40,7 @@
   {
     "id": "incompleto-importe-ilegible", "provenance": "synthetic-text",
     "text": "LIDL\nEUR\nPAN 1,00 A\nSAL ???\nTOTAL 1,50\nFECHA: 28/10/2026\nHORA: 19:24",
-    "expected": { "date": "2026-10-28", "time": "19:24", "totalCents": 150, "status": "no_cuadra", "adjustments": [],
+    "expected": { "date": "2026-10-28", "time": "19:24", "totalCents": 150, "status": "incompleto", "adjustments": [],
       "lines": [
         { "rawName": "PAN", "quantity": 1, "unitPriceCents": null, "amountCents": 100, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" },
         { "rawName": "SAL ???", "quantity": 1, "unitPriceCents": null, "amountCents": null, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": null }

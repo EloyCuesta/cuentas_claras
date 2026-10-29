@@ -1,5 +1,39 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 import { resetDatabase } from './auth.ts'
+
+/** Lo que dice de verdad el ticket de ejemplo (para resolver las dudas del OCR como lo haría una persona mirando la imagen). */
+const TRUTH = JSON.parse(readFileSync('server/fixtures/ticket-lidl-ejemplo.json', 'utf8')) as { lines: { rawName: string; amountCents: number }[] }
+const euros = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, '0')}`
+
+/**
+ * Resuelve cada línea dudosa desde su panel de comprobación: si el lector
+ * ofrece el importe correcto, «Usar …»; si no, «Editar» y escribirlo. Así la
+ * prueba no depende de qué cifras exactas confunda el OCR en este navegador.
+ */
+async function resolveDoubts(page: Page, review: Locator) {
+  for (let round = 0; round < 30; round++) {
+    const open = review.locator('.ticket-line-check--sugerido, .ticket-line-check--pendiente').first()
+    if (await open.count() === 0) return
+    const name = (await open.locator('.ticket-line-check__head strong').innerText()).trim()
+    const truth = TRUTH.lines.find(l => l.rawName === name)
+    expect(truth, `línea inesperada: ${name}`).toBeTruthy()
+    const amount = euros(truth!.amountCents)
+    // La línea se ve en la imagen, junto a lo que leyó el OCR.
+    await expect(open.getByRole('img', { name: `Línea ${name} en la imagen del ticket` })).toBeVisible()
+    const use = open.getByRole('button', { name: new RegExp(`^Usar ${amount} €`) })
+    if (await use.count()) {
+      await use.click()
+    } else {
+      await open.getByRole('button', { name: 'Editar' }).click()
+      const editor = review.locator('.ticket-editor .ticket-line-editor').filter({ has: page.getByLabel(`Confirmar línea ${name}`, { exact: true }) }).first()
+      await editor.getByLabel(/^Importe/).first().fill(amount)
+      await editor.getByLabel(`Confirmar línea ${name}`, { exact: true }).check()
+      await review.getByRole('button', { name: 'Listo' }).click()
+    }
+  }
+  throw new Error('Quedan líneas dudosas sin resolver')
+}
 
 /**
  * Tickets de la compra y ritmo de compra, como invitado (sin el código): leer
@@ -29,8 +63,13 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   await expect(review.getByLabel('Tienda')).toHaveValue('Lidl')
   await expect(review.getByLabel('Fecha de la compra')).toHaveValue('2026-10-24')
   await expect(review.getByLabel('Total del ticket')).toHaveValue('52,51')
+  // El OCR real del navegador deja alguna cifra dudosa: nunca se acepta en silencio.
+  const status = review.getByTestId('ticket-check')
+  await expect(status).not.toHaveAttribute('data-status', 'cuadra')
+  await expect(review.getByRole('heading', { name: /^Para revisar \(\d+\)$/ })).toBeVisible()
+  await resolveDoubts(page, review)
   await expect(review.getByText(/Cuadra con el total: 18 líneas suman 52,51/)).toBeVisible()
-  await expect(review.getByRole('heading', { name: 'Productos nuevos (17)' })).toBeVisible()
+  await expect(status).toHaveAttribute('data-status', 'cuadra')
 
   // Las dos líneas de macarrones van juntas.
   await expect(review.getByRole('button', { name: /^Macarrones.*2 líneas/ })).toBeVisible()
@@ -76,8 +115,81 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('server/fixtures/ticket-lidl-ejemplo.png')
   await page.getByRole('button', { name: 'Leer imágenes', exact: true }).click()
   await expect(review.getByText(/Este ticket ya está guardado/)).toBeVisible({ timeout: 90_000 })
-  await expect(review.getByRole('heading', { name: 'Ya conocidos (16)' })).toBeVisible()
+  await expect(review.getByRole('heading', { name: /^Ya conocidos \(\d+\)$/ })).toBeVisible()
   await expect(review.getByRole('button', { name: 'Guardar ticket' })).toBeDisabled()
+})
+
+async function pasteTicket(page: Page, lines: string[]) {
+  await page.getByRole('button', { name: 'Escanear ticket' }).click()
+  const scan = page.getByRole('dialog', { name: 'Escanear un ticket' })
+  await scan.getByRole('button', { name: 'O pega el texto del ticket' }).click()
+  await scan.getByLabel('Texto del ticket').fill(lines.join('\n'))
+  await scan.getByRole('button', { name: 'Leer el texto' }).click()
+  const review = page.getByRole('dialog', { name: 'Revisar el ticket' })
+  await expect(review).toBeVisible()
+  return review
+}
+
+// «PATATA NUEVA 5 KG 4,95X 2 9,90 A» leído como «92,90»: el caso real que motivó la revisión.
+const POTATO_TICKET = ['LIDL SUPERMERCADOS S.A.U.', 'EUR', 'PATATA NUEVA 5 KG   4,95X   2   92,90 A', 'HUEVOS MEDIANOS M   2,84X   2   5,68 A',
+  'TOTAL 15,58', 'Lidl Pay 15,58', 'FECHA: 28/10/26', 'HORA: 19:24:38']
+
+test('un importe mal leído: se ve la discrepancia y se usa el calculado', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-29T10:00:00+01:00'))
+  await page.goto('/')
+  const review = await pasteTicket(page, POTATO_TICKET)
+  const status = review.getByTestId('ticket-check')
+  // Con 9,90 propuesto la suma coincide, pero la línea aún no está confirmada.
+  await expect(status).toHaveAttribute('data-status', 'pendiente')
+
+  const check = review.getByRole('group', { name: 'Comprobar PATATA NUEVA 5 KG' })
+  await expect(check).toContainText('Cantidad2')
+  await expect(check).toContainText('Precio unitario4,95 €')
+  await expect(check).toContainText('OCR92,90 €')
+  await expect(check).toContainText('Calculado9,90 €')
+  await expect(check).toContainText('Sugerido: confírmalo')
+  await expect(check).toContainText('Se explica por una cifra de más en el importe')
+  // La línea de los huevos cuadra y no pide nada.
+  await expect(review.getByRole('group', { name: 'Comprobar HUEVOS MEDIANOS M' })).toHaveCount(0)
+
+  // Elegir la lectura del OCR deja la incoherencia a la vista.
+  await check.getByRole('button', { name: 'Usar 92,90 € (leído)' }).click()
+  await expect(check).toContainText('El importe reconocido no coincide con el precio unitario multiplicado por la cantidad.')
+  await expect(check).toContainText('Pendiente')
+  await expect(status).toHaveAttribute('data-status', 'no_cuadra')
+
+  await check.getByRole('button', { name: 'Usar 9,90 €', exact: true }).click()
+  await expect(check).toContainText('Confirmado')
+  await expect(status).toHaveAttribute('data-status', 'cuadra')
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  await expect(review).toBeHidden()
+  await expect(page.getByText('Ticket guardado: 2 productos apuntados')).toBeVisible()
+  // El precio que aprende la despensa sale de 9,90 € (4,95 € cada una), nunca de 92,90 €.
+  await expect(item(page, 'Patata nueva 5 kg')).toContainText('4,95 €/ud')
+})
+
+test('«Dejar pendiente»: la línea se guarda en el ticket, pero no toca la despensa', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-29T10:00:00+01:00'))
+  await page.goto('/')
+  const review = await pasteTicket(page, POTATO_TICKET)
+  const check = review.getByRole('group', { name: 'Comprobar PATATA NUEVA 5 KG' })
+  await check.getByRole('button', { name: 'Dejar pendiente' }).click()
+  await expect(check.getByRole('button', { name: 'Quitar de pendientes' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(check).toContainText('no cambia la despensa')
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  const confirm = page.getByRole('dialog', { name: 'Guardar con advertencias' })
+  await expect(confirm).toContainText('1 líneas quedarán pendientes y no actualizarán la despensa')
+  await confirm.getByRole('button', { name: 'Guardar solo líneas fiables en la despensa' }).click()
+  await expect(page.getByText('Ticket guardado: 1 producto apuntado')).toBeVisible()
+  await expect(item(page, 'Patata nueva 5 kg')).toHaveCount(0)
+  await expect(item(page, 'Huevos medianos M')).toBeVisible()
+
+  // En el ticket guardado se conservan la línea, su estado y lo que leyó el OCR.
+  const recent = page.getByRole('region', { name: 'Últimas compras' })
+  await recent.getByRole('button', { name: /Lidl · 28\/10\/2026/ }).click()
+  const detail = page.getByRole('dialog', { name: 'Lidl · 28/10/2026' })
+  await expect(detail).toContainText('pendiente: no actualiza la despensa')
+  await expect(detail).toContainText('Leído por el OCR: 92,90 € · calculado: 9,90 €')
 })
 
 /** Un ticket guardado directamente por la API (sin leer ninguna imagen). */

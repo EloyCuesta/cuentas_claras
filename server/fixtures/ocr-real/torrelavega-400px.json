@@ -1,0 +1,232 @@
+{
+"provenance": "real-ocr-of-synthetic-image",
+"note": "ticket-torrelavega-sintetico.png reducido a 400 px de ancho (captura de muy poca resolución); leído por el OCR actual sin preparar.",
+"truth": "ticket-torrelavega-sintetico.json",
+"lines": [
+{
+"text": "Copia",
+"reread": null,
+"confidence": 87
+},
+{
+"text": "LIDL",
+"reread": null,
+"confidence": 81
+},
+{
+"text": "LIDL SUPERNERCADOS $.A.U",
+"reread": null,
+"confidence": 61
+},
+{
+"text": "Avda. del Ejemplo s/n",
+"reread": null,
+"confidence": 91
+},
+{
+"text": "39300 Torrelavega",
+"reread": null,
+"confidence": 49
+},
+{
+"text": "NIF A0G000000\n",
+"reread": null,
+"confidence": 58
+},
+{
+"text": "EUR",
+"reread": null,
+"confidence": 88
+},
+{
+"text": "cHOCO SHELLS                       1,798",
+"reread": "1,729 8",
+"confidence": 45
+},
+{
+"text": "PECHUGA DE POLLO:                3.798",
+"reread": "3,79 8",
+"confidence": 81
+},
+{
+"text": "ACEITUNAS VERDES ANC              2,28",
+"reread": "3,298",
+"confidence": 71
+},
+{
+"text": "BURGER CERDO Y VACU. 3,95% 2      7,908",
+"reread": "3,95x 2 7,90 8",
+"confidence": 77
+},
+{
+"text": "HUEVOS MEDIANOS M—— 2,89% 2      5.684",
+"reread": "2,84x 2 5,68 A",
+"confidence": 60
+},
+{
+"text": "PATATA NUEVA 5 KG 4,95% 2      9,94",
+"reread": "4,95x 2 9,9 A",
+"confidence": 75
+},
+{
+"text": "PAPEL HIGIÉNICO                    235€",
+"reread": "2,35",
+"confidence": 73
+},
+{
+"text": "LASAÑA 5 QUESOS      2,752      5.508",
+"reread": "2,75x 2 5,508",
+"confidence": 77
+},
+{
+"text": "LOMO ADOBADO                      2,678",
+"reread": "3,67 B",
+"confidence": 66
+},
+{
+"text": "0,544 kg x 6,75 EUR/K",
+"reread": "0,544 kg x 6,75 EUR/kg",
+"confidence": 69
+},
+{
+"text": "FILETE DE PECHUGA               4.158",
+"reread": "4,158",
+"confidence": 88
+},
+{
+"text": "0,547 kg x 7,58 EUR/K",
+"reread": "0,547 kg x 7,58 EUR/kg",
+"confidence": 80
+},
+{
+"text": "Desc.                         -0,17",
+"reread": "-0,17",
+"confidence": 77
+},
+{
+"text": "LECHE ENTERA                     0,894",
+"reread": "0,89 A",
+"confidence": 87
+},
+{
+"text": "LECHE ENTERA                      0,894",
+"reread": "0,89 A",
+"confidence": 88
+},
+{
+"text": "PIZZA FAN JAM Y QUE              3.758",
+"reread": "3,758",
+"confidence": 69
+},
+{
+"text": "MANDARINA NACIONAL                1,89 A",
+"reread": "1,89 A",
+"confidence": 67
+},
+{
+"text": "0,945 kg x 2,00 EUR/Kg",
+"reread": "0,945 kg x 2,00 EUR/kg",
+"confidence": 74
+},
+{
+"text": "COOKIES PEPITAS CHOC              1,298",
+"reread": "1,298",
+"confidence": 78
+},
+{
+"text": "ARROZ LARGO                      1,09 4",
+"reread": "1,09 A",
+"confidence": 74
+},
+{
+"text": "PROMO LIOL PLUS                 -0,14",
+"reread": "-0,14",
+"confidence": 60
+},
+{
+"text": "TOTAL                          57.51",
+"reread": "57,51",
+"confidence": 89
+},
+{
+"text": "Lidl Pay                     57.51",
+"reread": null,
+"confidence": 65
+},
+{
+"text": "TAS BASE      CUOTA TOTAL",
+"reread": null,
+"confidence": 43
+},
+{
+"text": "AM 19,56       0,78 20,4",
+"reread": null,
+"confidence": 44
+},
+{
+"text": "810 31,65      317 20,8",
+"reread": null,
+"confidence": 44
+},
+{
+"text": "cn      1,94      0,41      2,35",
+"reread": null,
+"confidence": 64
+},
+{
+"text": "FECHA: 28/10/26",
+"reread": null,
+"confidence": 86
+},
+{
+"text": "HORA: 19:24:38",
+"reread": null,
+"confidence": 77
+},
+{
+"text": "IMPORTE: 57,51 EUR",
+"reread": null,
+"confidence": 71
+},
+{
+"text": "0001 000001/01        28.19.26 16\n",
+"reread": null,
+"confidence": 55
+},
+{
+"text": "GRACIAS POR SU VISITA",
+"reread": null,
+"confidence": 94
+},
+{
+"text": "Ofertas Lidl Plus\n",
+"reread": null,
+"confidence": 89
+},
+{
+"text": "CHOCOLATE NEGRO 72% 1298\n",
+"reread": null,
+"confidence": 80
+},
+{
+"text": "-20% Yogures naturales.\n",
+"reread": null,
+"confidence": 85
+},
+{
+"text": "Puntos Li Plus: 150\n",
+"reread": null,
+"confidence": 79
+},
+{
+"text": "Compra realizada en\n",
+"reread": null,
+"confidence": 91
+},
+{
+"text": "Torrelavega:Ejemplo",
+"reread": null,
+"confidence": 58
+}
+]
+}
