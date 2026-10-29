@@ -1,5 +1,5 @@
-import type { OwnerFilter } from '../../domain/pantry.ts'
-import type { PantryPerson } from '../../domain/types.ts'
+import type { OwnerFilter } from '../../../shared/pantry/pantry.ts'
+import type { PantryPerson } from '../../../shared/pantry/types.ts'
 
 /** El filtro de dueño como texto para los controles: «compartido», «todo» o «p:<id>». */
 export function encodeOwner(owner: OwnerFilter): string {

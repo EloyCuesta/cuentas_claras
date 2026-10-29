@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { centsToInput } from '../../domain/money.ts'
-import { parsePantryCentsInput } from '../../domain/pantryValidation.ts'
+import { centsToInput } from '../../../shared/common/money.ts'
+import { parsePantryCentsInput } from '../../../shared/pantry/pantryValidation.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
 import { Dialog, DialogError } from '../Dialog.tsx'
 import { AmountInput, Field } from '../forms.tsx'

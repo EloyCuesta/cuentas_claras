@@ -1,5 +1,5 @@
-import { periodUnit, type Period } from '../domain/period.ts'
-import type { BudgetLine } from '../domain/summary.ts'
+import { periodUnit, type Period } from '../../shared/finance/period.ts'
+import type { BudgetLine } from '../../shared/finance/summary.ts'
 import { BudgetMeter } from './BudgetMeter.tsx'
 import { Section } from './Section.tsx'
 

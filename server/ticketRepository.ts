@@ -1,25 +1,22 @@
 import type Database from 'better-sqlite3'
 import { createHash, randomUUID } from 'node:crypto'
-import { addDays, todayISO } from '../src/domain/dates.ts'
-import { nowISO } from '../src/domain/ids.ts'
-import { MAX_PANTRY_CENTS } from '../src/domain/pantry.ts'
-import type { AliasRecord } from '../src/domain/ticketMatch.ts'
-import { nameKey } from '../src/domain/ticketText.ts'
-import { canApplyLine, roundRatio } from '../src/domain/ticketArithmetic.ts'
+import { addDays, todayISO } from '../shared/common/dates.ts'
+import { nowISO } from '../shared/common/ids.ts'
+import { MAX_PANTRY_CENTS } from '../shared/pantry/pantry.ts'
+import type { AliasRecord } from '../shared/tickets/ticketMatch.ts'
+import { nameKey } from '../shared/tickets/ticketText.ts'
+import { canApplyLine, roundRatio } from '../shared/tickets/ticketArithmetic.ts'
+import type { ISODate } from '../shared/common/types.ts'
+import type { PantryActivity, PantryItem, PantryPurchase, PantryUnit } from '../shared/pantry/types.ts'
 import type {
-  ISODate,
-  PantryActivity,
-  PantryItem,
-  PantryPurchase,
   PantryTicket,
   PantryTicketLine,
   PantryTicketSummary,
-  PantryUnit,
   TicketSaveInput,
   TicketSaveLine,
   TicketStoreKind,
   TicketTaxCode,
-} from '../src/domain/types.ts'
+} from '../shared/tickets/types.ts'
 import { AppError } from './errors.ts'
 import type { SqlitePantryRepository } from './pantryRepository.ts'
 

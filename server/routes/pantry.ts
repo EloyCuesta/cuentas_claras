@@ -8,7 +8,7 @@ import {
   validatePurchaseInput,
   validateReviewInput,
   validateUndoInput,
-} from '../../src/domain/pantryValidation.ts'
+} from '../../shared/pantry/pantryValidation.ts'
 import { sendData, valid } from '../http.ts'
 import type { SqlitePantryRepository } from '../pantryRepository.ts'
 

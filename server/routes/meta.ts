@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { META_KEYS, type MetaKey } from '../../src/storage/FinanceRepository.ts'
+import { META_KEYS, type MetaKey } from '../../shared/finance/meta.ts'
 import { AppError } from '../errors.ts'
 import { readBody, sendData } from '../http.ts'
 import type { SqliteFinanceRepository } from '../repository.ts'

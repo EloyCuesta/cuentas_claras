@@ -1,10 +1,18 @@
-import { centsToInput, MINUS, parseAmount } from '../../domain/money.ts'
-import { isValidISODate } from '../../domain/dates.ts'
-import { calculatedAmount, lineProblems } from '../../domain/ticketArithmetic.ts'
-import { nameKey } from '../../domain/ticketText.ts'
-import type { TicketDraft, TicketSuggestion } from '../../domain/ticketMatch.ts'
-import { checkTaxGroups, checkTicket, type ParsedTicketLine, type TicketCheck, type TicketLineFlag, type TicketTaxGroup } from '../../domain/ticketParse.ts'
-import type { PantryFrequency, TicketAdjustment, TicketAmountOption, TicketDecision, TicketEvidence, TicketSaveInput, TicketSaveLine } from '../../domain/types.ts'
+import { centsToInput, MINUS, parseAmount } from '../../../shared/common/money.ts'
+import { isValidISODate } from '../../../shared/common/dates.ts'
+import { calculatedAmount, lineProblems } from '../../../shared/tickets/ticketArithmetic.ts'
+import { nameKey } from '../../../shared/tickets/ticketText.ts'
+import type { TicketDraft, TicketSuggestion } from '../../../shared/tickets/ticketMatch.ts'
+import { checkTaxGroups, checkTicket, type ParsedTicketLine, type TicketCheck, type TicketLineFlag, type TicketTaxGroup } from '../../../shared/tickets/ticketParse.ts'
+import type { PantryFrequency } from '../../../shared/pantry/types.ts'
+import type {
+  TicketAdjustment,
+  TicketAmountOption,
+  TicketDecision,
+  TicketEvidence,
+  TicketSaveInput,
+  TicketSaveLine,
+} from '../../../shared/tickets/types.ts'
 
 export type Choice =
   | { kind: 'item'; itemId: string }

@@ -1,4 +1,6 @@
-import type { Category, FinanceData, ISODate, Movement, RecurringRule } from '../domain/types.ts'
+import type { ISODate } from '../../shared/common/types.ts'
+import type { MetaKey } from '../../shared/finance/meta.ts'
+import type { Category, FinanceData, Movement, RecurringRule, SaveRecurringOptions } from '../../shared/finance/types.ts'
 
 /**
  * Contrato del almacenamiento. La interfaz de React solo conoce esta interfaz,
@@ -45,20 +47,3 @@ export interface FinanceRepository {
   getMeta(key: MetaKey): Promise<string | null>
   setMeta(key: MetaKey, value: string): Promise<void>
 }
-
-export interface SaveRecurringOptions {
-  /** Último día para el que se crean vencimientos. */
-  horizon: ISODate
-  /**
-   * Si se indica, los vencimientos anteriores a esa fecha se guardan como ya
-   * pagados (en su fecha). Sirve para dar de alta un préstamo ya empezado.
-   */
-  markPaidBefore?: ISODate | null
-}
-
-/**
- * Datos auxiliares que no forman parte de la copia de seguridad: la fecha de la
- * última copia descargada y la de la importación de los datos del navegador.
- */
-export const META_KEYS = ['lastBackupAt', 'browserImportAt'] as const
-export type MetaKey = (typeof META_KEYS)[number]

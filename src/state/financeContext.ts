@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
-import type { Category, FinanceData, ISODate, Movement, RecurringRule } from '../domain/types.ts'
+import type { ISODate } from '../../shared/common/types.ts'
+import type { Category, FinanceData, Movement, RecurringRule } from '../../shared/finance/types.ts'
 
 /** Acciones disponibles para la interfaz. Todas guardan y recargan los datos. */
 export interface FinanceActions {

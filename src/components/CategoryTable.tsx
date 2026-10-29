@@ -1,5 +1,5 @@
-import { formatEuros } from '../domain/money.ts'
-import type { BreakdownSide, CategoryBreakdown } from '../domain/summary.ts'
+import { formatEuros } from '../../shared/common/money.ts'
+import type { BreakdownSide, CategoryBreakdown } from '../../shared/finance/summary.ts'
 import { Total } from './Amount.tsx'
 
 /** Importe de una celda; el cero se escribe como una raya para que destaque lo que tiene importe. */

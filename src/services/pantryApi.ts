@@ -1,6 +1,6 @@
-import type { TicketDraft } from '../domain/ticketMatch.ts'
+import type { TicketDraft } from '../../shared/tickets/ticketMatch.ts'
+import type { ISODate } from '../../shared/common/types.ts'
 import type {
-  ISODate,
   PantryActivity,
   PantryEvent,
   PantryEventKind,
@@ -9,11 +9,8 @@ import type {
   PantryPerson,
   PantryPurchaseChange,
   PantrySettings,
-  PantryTicket,
-  PantryTicketSummary,
-  TicketSaveInput,
-  TicketReadInput,
-} from '../domain/types.ts'
+} from '../../shared/pantry/types.ts'
+import type { PantryTicket, PantryTicketSummary, TicketSaveInput, TicketReadInput } from '../../shared/tickets/types.ts'
 import { apiRequest, segment } from './apiClient.ts'
 
 /**

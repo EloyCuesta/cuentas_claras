@@ -1,5 +1,5 @@
-import { capitalize, MONTH_NAMES } from '../domain/dates.ts'
-import { monthPeriod, shiftPeriod, yearPeriod, type Period, type YearMonth } from '../domain/period.ts'
+import { capitalize, MONTH_NAMES } from '../../shared/common/dates.ts'
+import { monthPeriod, shiftPeriod, yearPeriod, type Period, type YearMonth } from '../../shared/finance/period.ts'
 import { Icon } from './Icon.tsx'
 
 /**

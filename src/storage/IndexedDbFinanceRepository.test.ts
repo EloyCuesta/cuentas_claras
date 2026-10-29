@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { parseBackup, serializeBackup } from '../domain/backup.ts'
-import { DEFAULT_CATEGORIES } from '../domain/categories.ts'
-import { generationHorizon } from '../domain/recurring.ts'
-import { monthPeriod } from '../domain/period.ts'
-import { periodSummary } from '../domain/summary.ts'
-import { markAsPaid } from '../domain/validation.ts'
-import { movement, NOW, rule } from '../test/factories.ts'
+import { parseBackup, serializeBackup } from '../../shared/finance/backup.ts'
+import { DEFAULT_CATEGORIES } from '../../shared/finance/categories.ts'
+import { generationHorizon } from '../../shared/finance/recurring.ts'
+import { monthPeriod } from '../../shared/finance/period.ts'
+import { periodSummary } from '../../shared/finance/summary.ts'
+import { markAsPaid } from '../../shared/finance/validation.ts'
+import { movement, NOW, rule } from '../../shared/testing/factories.ts'
 import { IndexedDbFinanceRepository } from './IndexedDbFinanceRepository.ts'
 
 /**

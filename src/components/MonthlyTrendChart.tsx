@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
-import type { MonthPoint } from '../domain/annual.ts'
-import { capitalize, MONTH_NAMES, shortMonthName } from '../domain/dates.ts'
-import { formatCompactEuros, formatEuros } from '../domain/money.ts'
+import type { MonthPoint } from '../../shared/finance/annual.ts'
+import { capitalize, MONTH_NAMES, shortMonthName } from '../../shared/common/dates.ts'
+import { formatCompactEuros, formatEuros } from '../../shared/common/money.ts'
 import { Total } from './Amount.tsx'
 import { Icon } from './Icon.tsx'
 

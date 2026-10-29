@@ -18,7 +18,7 @@ export default defineConfig({
   server: { proxy: apiProxy },
   preview: { proxy: apiProxy },
   test: {
-    include: ['src/**/*.test.ts', 'server/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'server/**/*.test.ts', 'shared/**/*.test.ts'],
     environment: 'node',
     // IndexedDB en memoria para probar el almacenamiento del navegador sin navegador.
     setupFiles: ['./src/test/setup.ts'],

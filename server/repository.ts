@@ -1,19 +1,21 @@
 import Database from 'better-sqlite3'
-import { hasUserData } from '../src/domain/backup.ts'
-import { DEFAULT_CATEGORIES, withDescendants } from '../src/domain/categories.ts'
-import { newId as defaultNewId, nowISO } from '../src/domain/ids.ts'
-import { planOccurrences } from '../src/domain/recurring.ts'
+import { hasUserData } from '../shared/finance/backup.ts'
+import { DEFAULT_CATEGORIES, withDescendants } from '../shared/finance/categories.ts'
+import { newId as defaultNewId, nowISO } from '../shared/common/ids.ts'
+import { planOccurrences } from '../shared/finance/recurring.ts'
+import type { ISODate } from '../shared/common/types.ts'
 import type {
   Category,
   FinanceData,
   Frequency,
-  ISODate,
   Movement,
   MovementStatus,
   MovementType,
   RecurringRule,
-} from '../src/domain/types.ts'
-import type { FinanceRepository, MetaKey, SaveRecurringOptions } from '../src/storage/FinanceRepository.ts'
+} from '../shared/finance/types.ts'
+import type { MetaKey } from '../shared/finance/meta.ts'
+import type { SaveRecurringOptions } from '../shared/finance/types.ts'
+import type { FinanceRepository } from '../src/storage/FinanceRepository.ts'
 import { AppError } from './errors.ts'
 
 /**

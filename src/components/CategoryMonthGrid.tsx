@@ -1,6 +1,6 @@
-import { MONTHS, type CategoryMonthMatrix, type MonthCell } from '../domain/annual.ts'
-import { capitalize, MONTH_NAMES, shortMonthName } from '../domain/dates.ts'
-import { formatAmount, formatEuros } from '../domain/money.ts'
+import { MONTHS, type CategoryMonthMatrix, type MonthCell } from '../../shared/finance/annual.ts'
+import { capitalize, MONTH_NAMES, shortMonthName } from '../../shared/common/dates.ts'
+import { formatAmount, formatEuros } from '../../shared/common/money.ts'
 
 /**
  * Una celda del año: lo pagado más lo pendiente. Si incluye algo pendiente va «a

@@ -1,10 +1,10 @@
 import type Database from 'better-sqlite3'
 import { randomUUID } from 'node:crypto'
-import { todayISO } from '../src/domain/dates.ts'
-import { nowISO } from '../src/domain/ids.ts'
-import { checkQuantity, sortItems, sortPeople, stepQuantity } from '../src/domain/pantry.ts'
+import { todayISO } from '../shared/common/dates.ts'
+import { nowISO } from '../shared/common/ids.ts'
+import { checkQuantity, sortItems, sortPeople, stepQuantity } from '../shared/pantry/pantry.ts'
+import type { ISODate } from '../shared/common/types.ts'
 import type {
-  ISODate,
   PantryEvent,
   PantryEventKind,
   PantryFrequency,
@@ -15,7 +15,7 @@ import type {
   PantrySettings,
   PantryTracking,
   PantryUnit,
-} from '../src/domain/types.ts'
+} from '../shared/pantry/types.ts'
 import { AppError } from './errors.ts'
 
 /**

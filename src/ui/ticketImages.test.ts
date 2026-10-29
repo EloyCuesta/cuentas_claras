@@ -44,3 +44,25 @@ describe('preparación de la imagen del ticket', () => {
     expect(layout.offsets.at(-1)! + 4096).toBeGreaterThanOrEqual(layout.height)
   })
 })
+
+// Estas dos venían de los tests del dominio (ticketFixtures y el caso 14 de ticketCases), con
+// el mismo nombre: prueban código de la web, y shared/ no puede importar nada de src/.
+describe('fixtures identificadas por procedencia', () => {
+  it('segmenta una captura larga conservando la anchura y un solape de 128 px', () => {
+    const layout = imageLayout(650, 12000)
+    expect(layout.width).toBe(1300)
+    expect(layout.height).toBe(24000)
+    expect(layout.offsets[1]).toBe(3968)
+    expect(layout.offsets).toHaveLength(7)
+    expect(imageLayout(200, 1000).width).toBe(800)
+  })
+})
+
+describe('14. Imagen de resolución insuficiente', () => {
+  it('se avisa antes de leer según los píxeles por letra', () => {
+    expect(imageQuality(1080).level).toBe('buena')
+    expect(imageQuality(400)).toMatchObject({ level: 'baja' })
+    expect(imageQuality(280)).toMatchObject({ level: 'insuficiente' })
+    expect(imageQuality(280).warning).toContain('muy poca resolución')
+  })
+})

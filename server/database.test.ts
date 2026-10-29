@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
-import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
+import { DEFAULT_CATEGORIES } from '../shared/finance/categories.ts'
 import { openDatabase } from './database.ts'
 import { initialSchema } from './migrations/001-esquema-inicial.ts'
 import { pantrySchema } from './migrations/002-despensa.ts'

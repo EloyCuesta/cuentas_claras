@@ -7,10 +7,10 @@ import {
   nextOrder,
   topLevelCategories,
   withDescendants,
-} from '../domain/categories.ts'
-import { newId } from '../domain/ids.ts'
-import type { Category, MovementType } from '../domain/types.ts'
-import { MAX_CATEGORY_NAME_LENGTH, validateCategoryName } from '../domain/validation.ts'
+} from '../../shared/finance/categories.ts'
+import { newId } from '../../shared/common/ids.ts'
+import type { Category, MovementType } from '../../shared/finance/types.ts'
+import { MAX_CATEGORY_NAME_LENGTH, validateCategoryName } from '../../shared/finance/validation.ts'
 import { useFinance } from '../state/financeContext.ts'
 import { describeStorageError } from '../state/storageErrors.ts'
 import { useToast } from '../state/toastContext.ts'

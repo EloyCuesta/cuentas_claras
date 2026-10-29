@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
-import type { FinanceData, Movement } from '../src/domain/types.ts'
+import { DEFAULT_CATEGORIES } from '../shared/finance/categories.ts'
+import type { FinanceData, Movement } from '../shared/finance/types.ts'
 import { resetDatabase, signIn } from './auth.ts'
 
 /**

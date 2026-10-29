@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { formatEuros } from '../../domain/money.ts'
-import { lineProblems } from '../../domain/ticketArithmetic.ts'
-import type { TicketAmountOption, TicketSegment, TicketSource } from '../../domain/types.ts'
+import { formatEuros } from '../../../shared/common/money.ts'
+import { lineProblems } from '../../../shared/tickets/ticketArithmetic.ts'
+import type { TicketAmountOption, TicketSegment, TicketSource } from '../../../shared/tickets/types.ts'
 import { chooseAmountChange, currentCalculation, lineAmount, lineState, lineToInput, LINE_STATE_LABELS, type ReviewLine } from './ticketReviewState.ts'
 
 /** Altura (px CSS) a la que se muestra la línea: legible también en un móvil. */

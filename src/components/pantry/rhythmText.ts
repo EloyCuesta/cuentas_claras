@@ -1,5 +1,5 @@
-import { describeQuantity } from '../../domain/pantry.ts'
-import { agoText, durationText, type ItemRhythm } from '../../domain/pantryRhythm.ts'
+import { describeQuantity } from '../../../shared/pantry/pantry.ts'
+import { agoText, durationText, type ItemRhythm } from '../../../shared/pantry/pantryRhythm.ts'
 
 /** ¿Hay algo que decir de su ritmo? «Comprado hace 5 días» ya dice que está al día. */
 export const showsRhythmStatus = (rhythm: ItemRhythm | undefined) =>

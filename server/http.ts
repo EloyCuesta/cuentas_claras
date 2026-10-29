@@ -1,8 +1,8 @@
 import Database from 'better-sqlite3'
 import type { ErrorRequestHandler, RequestHandler, Response } from 'express'
-import type { ValidationResult } from '../src/domain/backup.ts'
-import { isValidISODate } from '../src/domain/dates.ts'
-import type { ISODate } from '../src/domain/types.ts'
+import type { ValidationResult } from '../shared/common/validation.ts'
+import { isValidISODate } from '../shared/common/dates.ts'
+import type { ISODate } from '../shared/common/types.ts'
 import { AppError, type ErrorCode } from './errors.ts'
 
 /**

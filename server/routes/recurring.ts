@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { validateRecurring } from '../../src/domain/backup.ts'
+import { validateRecurring } from '../../shared/finance/backup.ts'
 import { readBody, readDate, readOptionalDate, sameId, sendData, valid } from '../http.ts'
 import type { SqliteFinanceRepository } from '../repository.ts'
 

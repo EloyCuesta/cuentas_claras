@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3'
-import { DEFAULT_CATEGORIES } from '../../src/domain/categories.ts'
+import { DEFAULT_CATEGORIES } from '../../shared/finance/categories.ts'
 import type { Migration } from './index.ts'
 
 /**

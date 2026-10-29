@@ -1,8 +1,8 @@
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { createWorker, OEM, PSM, type Line, type Word, type Worker } from 'tesseract.js'
-import type { OcrLine, TicketSegment } from '../src/domain/types.ts'
-import { endsProducts } from '../src/domain/ticketParse.ts'
+import type { OcrLine, TicketSegment } from '../shared/tickets/types.ts'
+import { endsProducts } from '../shared/tickets/ticketParse.ts'
 import { imageInfo, type ImageInfo } from './imageInfo.ts'
 
 /**
@@ -22,7 +22,7 @@ import { imageInfo, type ImageInfo } from './imageInfo.ts'
  *    borrosas es donde más se equivoca la primera pasada.
  *    Leer solo la palabra del importe (PSM 8) o quitar la lista de caracteres
  *    dio peores resultados en esa misma medición.
- * Las dos lecturas se entregan al analizador (src/domain/ticketParse.ts), que
+ * Las dos lecturas se entregan al analizador (shared/tickets/ticketParse.ts), que
  * las compara entre sí y con la multiplicación de la línea. El total del
  * ticket nunca decide un importe.
  *

@@ -1,18 +1,19 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { categoryOptions } from '../domain/categories.ts'
-import { addMonthsClamped, formatDate, isValidISODate } from '../domain/dates.ts'
-import { newId, nowISO } from '../domain/ids.ts'
-import { centsToInput } from '../domain/money.ts'
-import { FREQUENCY_LABELS, generationHorizon, pastDates, scheduleDates } from '../domain/recurring.ts'
-import type { Frequency, ISODate, MovementType, RecurringRule } from '../domain/types.ts'
+import { categoryOptions } from '../../shared/finance/categories.ts'
+import { addMonthsClamped, formatDate, isValidISODate } from '../../shared/common/dates.ts'
+import { newId, nowISO } from '../../shared/common/ids.ts'
+import { centsToInput } from '../../shared/common/money.ts'
+import { FREQUENCY_LABELS, generationHorizon, pastDates, scheduleDates } from '../../shared/finance/recurring.ts'
+import type { ISODate } from '../../shared/common/types.ts'
+import type { Frequency, MovementType, RecurringRule } from '../../shared/finance/types.ts'
+import type { FieldErrors } from '../../shared/common/validation.ts'
 import {
   buildRecurringRule,
   MAX_CONCEPT_LENGTH,
   MAX_NOTES_LENGTH,
   validateRecurringDraft,
-  type FieldErrors,
   type RecurringDraft,
-} from '../domain/validation.ts'
+} from '../../shared/finance/validation.ts'
 import { useFinance } from '../state/financeContext.ts'
 import { describeStorageError } from '../state/storageErrors.ts'
 import { useToast } from '../state/toastContext.ts'

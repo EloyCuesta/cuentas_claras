@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
-import { formatEuros } from '../domain/money.ts'
-import { formatPeriod, periodUnit, type Period } from '../domain/period.ts'
-import type { PeriodSummary } from '../domain/summary.ts'
+import { formatEuros } from '../../shared/common/money.ts'
+import { formatPeriod, periodUnit, type Period } from '../../shared/finance/period.ts'
+import type { PeriodSummary } from '../../shared/finance/summary.ts'
 import { Total } from './Amount.tsx'
 
 function Row({

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { todayISO } from '../../domain/dates.ts'
+import { todayISO } from '../../../shared/common/dates.ts'
 import {
   FREQUENCY_TITLES,
   listaCompraTexto,
@@ -8,8 +8,8 @@ import {
   whatsAppUrl,
   type OwnerFilter,
   type Rhythms,
-} from '../../domain/pantry.ts'
-import type { PantryFrequency, PantryItem, PantryPerson } from '../../domain/types.ts'
+} from '../../../shared/pantry/pantry.ts'
+import type { PantryFrequency, PantryItem, PantryPerson } from '../../../shared/pantry/types.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
 import { downloadFile } from '../../ui/helpers.ts'
 import { Dialog, DialogError } from '../Dialog.tsx'

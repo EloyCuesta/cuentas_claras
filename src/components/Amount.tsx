@@ -1,5 +1,5 @@
-import { formatEuros, MINUS } from '../domain/money.ts'
-import type { MovementType } from '../domain/types.ts'
+import { formatEuros, MINUS } from '../../shared/common/money.ts'
+import type { MovementType } from '../../shared/finance/types.ts'
 
 /** Importe con signo según el tipo: −54,30 € (gasto) o +1.850,00 € (ingreso). */
 export function Amount({ cents, type, pending = false }: { cents: number; type: MovementType; pending?: boolean }) {
