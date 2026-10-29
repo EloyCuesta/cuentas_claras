@@ -82,3 +82,58 @@ export interface FinanceData {
   movements: Movement[]
   recurring: RecurringRule[]
 }
+
+// ---------------------------------------------------------------------------
+// Despensa. Independiente de las finanzas: no forma parte de FinanceData ni de
+// las copias JSON, y sus estimaciones no crean movimientos ni presupuestos.
+
+export type PantryUnit = 'ud' | 'g' | 'kg' | 'ml' | 'l' | 'paquete' | 'lata' | 'botella' | 'bolsa' | 'docena'
+
+/** Cada cuánto se compra: casi todas las semanas, una vez al mes o de vez en cuando. */
+export type PantryFrequency = 'semanal' | 'mensual' | 'ocasional'
+
+/** Una persona de casa. Sus productos no se mezclan con los compartidos. */
+export interface PantryPerson {
+  id: string
+  name: string
+  createdAt: string
+}
+
+export interface PantryItem {
+  id: string
+  name: string
+  /** null = Compartido; si no, id de una persona. */
+  ownerId: string | null
+  unit: PantryUnit
+  /** Lo que hay ahora. */
+  quantity: number
+  /** Lo que se quiere tener. */
+  target: number
+  frequency: PantryFrequency
+  /**
+   * Precio estimado en céntimos por una unidad (por kilo en "g" y por litro en
+   * "ml"). null = no se conoce; 0 es un precio conocido.
+   */
+  priceCents: number | null
+  notes: string
+  /** Aumenta en cada escritura: permite deshacer sin pisar cambios posteriores. */
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** Campos que la interfaz envía al crear o editar un producto (el resto lo pone el servidor). */
+export type PantryItemInput = Pick<PantryItem, 'name' | 'ownerId' | 'unit' | 'quantity' | 'target' | 'frequency' | 'priceCents' | 'notes'>
+
+export interface PantrySettings {
+  /** Presupuesto mensual estimado del hogar en céntimos. null = sin presupuesto. */
+  monthlyBudgetCents: number | null
+}
+
+/** Lo que cambió al marcar productos como comprados: basta para deshacerlo. */
+export interface PantryPurchaseChange {
+  id: string
+  previousQuantity: number
+  /** Versión del producto justo después de la compra. */
+  version: number
+}

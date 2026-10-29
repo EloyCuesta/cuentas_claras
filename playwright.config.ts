@@ -1,6 +1,7 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
+import { E2E_CODE } from './e2e/auth.ts'
 
 /**
  * Pruebas de extremo a extremo en un navegador real (Chromium).
@@ -10,6 +11,9 @@ import { defineConfig, devices } from '@playwright/test'
  * carpeta temporal del sistema, y su propia web (puerto 4174) apuntada a él.
  * Nunca se reutiliza un servidor ya abierto, así que no pueden tocar los datos
  * reales (server/data/cuentas.db) ni el servidor de npm run dev.
+ *
+ * El servidor de pruebas usa su propio código de acceso (E2E_CODE). Las
+ * variables de entorno tienen prioridad sobre un .env personal.
  */
 const API_PORT = 3101
 const WEB_PORT = 4174
@@ -36,7 +40,7 @@ export default defineConfig({
     {
       command: 'npm run server',
       url: `http://127.0.0.1:${API_PORT}/api/health`,
-      env: { CUENTAS_PORT: String(API_PORT), CUENTAS_DB_PATH: TEST_DB, CUENTAS_TEST: '1' },
+      env: { CUENTAS_PORT: String(API_PORT), CUENTAS_DB_PATH: TEST_DB, CUENTAS_TEST: '1', CUENTAS_CODIGO: E2E_CODE },
       reuseExistingServer: false,
       timeout: 60_000,
     },

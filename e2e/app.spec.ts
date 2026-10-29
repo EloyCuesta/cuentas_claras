@@ -2,16 +2,20 @@ import { readFile } from 'node:fs/promises'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
 import type { FinanceData, Movement } from '../src/domain/types.ts'
+import { resetDatabase, signIn } from './auth.ts'
 
 /**
  * Comprobaciones pedidas, hechas como lo haría una persona: con la interfaz y
  * en un navegador real. Los datos van a la base de datos SQLite del servidor de
  * pruebas (ver playwright.config.ts), que se vacía antes de cada prueba.
+ *
+ * Son pruebas de las funciones financieras: el navegador inicia sesión con el
+ * código antes de cada una (las del invitado están en despensa.spec.ts).
  */
 
-test.beforeEach(async ({ request }) => {
-  const reset = await request.post('/api/test/reset')
-  expect(reset.ok()).toBe(true)
+test.beforeEach(async ({ request, page }) => {
+  await resetDatabase(request)
+  await signIn(page.request)
 })
 
 /** Importe de una fila de la cuenta del resumen ("Gastos pagados", "Resultado previsto"…). */
@@ -225,6 +229,7 @@ test('exportar y restaurar una copia conserva los datos', async ({ page, browser
   // confirmación y deja los mismos datos.
   expect((await page.request.post('/api/test/reset')).ok()).toBe(true)
   const otherContext = await browser.newContext({ locale: 'es-ES', timezoneId: 'Europe/Madrid' })
+  await signIn(otherContext.request)
   const other = await otherContext.newPage()
   await other.goto('/#ajustes')
   await other.locator('[data-testid=restore-input]').setInputFiles(await download.path())

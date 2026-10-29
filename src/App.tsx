@@ -8,6 +8,7 @@ import type { YearMonth } from './domain/period.ts'
 import { effectiveDate } from './domain/summary.ts'
 import type { Movement, MovementType } from './domain/types.ts'
 import { BudgetsPage } from './pages/BudgetsPage.tsx'
+import { DespensaPage } from './pages/DespensaPage.tsx'
 import { MovementsPage } from './pages/MovementsPage.tsx'
 import { RecurringPage } from './pages/RecurringPage.tsx'
 import { SettingsPage } from './pages/SettingsPage.tsx'
@@ -22,6 +23,7 @@ const NAV: { route: Route; label: string; icon: IconName }[] = [
   { route: 'movimientos', label: 'Movimientos', icon: 'list' },
   { route: 'recurrentes', label: 'Recurrentes', icon: 'repeat' },
   { route: 'presupuestos', label: 'Presupuestos', icon: 'gauge' },
+  { route: 'despensa', label: 'Despensa', icon: 'basket' },
   { route: 'ajustes', label: 'Ajustes', icon: 'settings' },
 ]
 
@@ -80,6 +82,9 @@ export default function App() {
       break
     case 'presupuestos':
       page = <BudgetsPage month={month} years={years} onMonthChange={setMonth} />
+      break
+    case 'despensa':
+      page = <DespensaPage />
       break
     case 'ajustes':
       page = <SettingsPage />
@@ -149,10 +154,13 @@ export default function App() {
         {page}
       </main>
 
-      <button type="button" className="fab" onClick={() => openNew()}>
-        <Icon name="plus" size={22} />
-        Añadir<span className="sr-only"> movimiento</span>
-      </button>
+      {/* En la despensa el botón flotante taparía los botones + y − de los productos. */}
+      {route !== 'despensa' && (
+        <button type="button" className="fab" onClick={() => openNew()}>
+          <Icon name="plus" size={22} />
+          Añadir<span className="sr-only"> movimiento</span>
+        </button>
+      )}
 
       {editor?.kind === 'movement' && (
         <MovementDialog movement={editor.movement} initialType={editor.type} onClose={() => setEditor(null)} />

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
  * Navegación mínima con el "hash" de la URL (#movimientos, #anual, #ajustes…).
  * No necesita servidor ni librería: funciona abriendo los archivos estáticos.
  */
-export const ROUTES = ['resumen', 'anual', 'movimientos', 'recurrentes', 'presupuestos', 'ajustes'] as const
+export const ROUTES = ['resumen', 'anual', 'movimientos', 'recurrentes', 'presupuestos', 'despensa', 'ajustes'] as const
 export type Route = (typeof ROUTES)[number]
 
 function parse(hash: string): Route {

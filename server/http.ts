@@ -13,7 +13,13 @@ import { AppError, type ErrorCode } from './errors.ts'
 export type ApiErrorCode = ErrorCode | 'INTERNAL'
 export type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: { code: ApiErrorCode; message: string } }
 
-const STATUS: Record<ErrorCode, number> = { VALIDATION: 400, NOT_FOUND: 404, CONFLICT: 409 }
+const STATUS: Record<ErrorCode, number> = {
+  VALIDATION: 400,
+  UNAUTHORIZED: 401,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  TOO_MANY_ATTEMPTS: 429,
+}
 
 export function sendData<T>(res: Response, data: T, status = 200): void {
   res.status(status).json({ ok: true, data } satisfies ApiResponse<T>)
@@ -37,6 +43,7 @@ function bodyParserErrorType(error: unknown): string | null {
 /** Gestión centralizada de errores: todos acaban en una respuesta JSON con el mismo formato. */
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof AppError) {
+    if (error.retryAfterSeconds !== null) res.set('Retry-After', String(error.retryAfterSeconds))
     sendError(res, STATUS[error.code], error.code, error.message)
     return
   }

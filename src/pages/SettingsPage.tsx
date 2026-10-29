@@ -1,5 +1,6 @@
 import { BackupPanel } from '../components/BackupPanel.tsx'
 import { CategoryEditor } from '../components/CategoryEditor.tsx'
+import { SessionPanel } from '../components/SessionPanel.tsx'
 
 export function SettingsPage() {
   return (
@@ -12,6 +13,7 @@ export function SettingsPage() {
       <div className="settings-grid">
         <BackupPanel />
         <CategoryEditor />
+        <SessionPanel />
       </div>
     </div>
   )

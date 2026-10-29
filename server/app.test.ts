@@ -1,76 +1,32 @@
-import { once } from 'node:events'
-import type { Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
 import type { FinanceData } from '../src/domain/types.ts'
 import { movement, rule } from '../src/test/factories.ts'
-import { createApp } from './app.ts'
-import { openDatabase } from './database.ts'
-import { SqliteFinanceRepository } from './repository.ts'
-import { removeTempDbs, tempDbPath } from './test-helpers.ts'
+import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
+import { LATEST_VERSION } from './migrations/index.ts'
+import { removeTempDbs } from './test-helpers.ts'
 
-/** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch. */
-
-interface ApiBody {
-  ok: boolean
-  data?: unknown
-  error?: { code: string; message: string }
-}
-
-const running: { server: Server; repository: SqliteFinanceRepository }[] = []
-
-async function startApi({ path = tempDbPath(), testMode = false } = {}) {
-  const database = openDatabase(path)
-  const repository = new SqliteFinanceRepository(database.db)
-  const server = createApp({ database, repository, testMode }).listen(0, '127.0.0.1')
-  await once(server, 'listening')
-  running.push({ server, repository })
-  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`
-
-  async function call(method: string, path: string, body?: unknown, rawBody?: string) {
-    const response = await fetch(`${base}${path}`, {
-      method,
-      headers: body !== undefined || rawBody !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
-    })
-    return { status: response.status, body: (await response.json()) as ApiBody }
-  }
-  const stop = async () => {
-    server.close()
-    await once(server, 'close')
-    repository.close()
-  }
-  return { call, stop, path }
-}
+/** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch, con la sesión iniciada. */
 
 afterEach(async () => {
-  for (const { server, repository } of running.splice(0)) {
-    if (server.listening) {
-      server.close()
-      await once(server, 'close')
-    }
-    repository.close()
-  }
+  await stopApis()
   removeTempDbs()
 })
 
-const dataOf = async (call: Awaited<ReturnType<typeof startApi>>['call']) => (await call('GET', '/data')).body.data as FinanceData
+const dataOf = async (call: TestApi['call']) => (await call('GET', '/data')).body.data as FinanceData
 
 describe('API', () => {
-  it('GET /api/health responde con el estado y la base de datos', async () => {
-    const { call, path } = await startApi()
-    expect(await call('GET', '/health')).toEqual({
-      status: 200,
-      body: { ok: true, data: { status: 'ok', database: path, schemaVersion: 1 } },
-    })
+  it('GET /api/health responde con el estado, sin revelar datos', async () => {
+    const { call } = await startApi({ login: false })
+    // Pública y sin datos: ni la ruta del archivo ni nada financiero.
+    expect((await call('GET', '/health')).body).toEqual({ ok: true, data: { status: 'ok', schemaVersion: LATEST_VERSION } })
   })
 
   it('crea, consulta, modifica y elimina un gasto, y persiste tras reiniciar el servidor', async () => {
     const first = await startApi()
     const expense = movement({ concept: 'Mercadona', amountCents: 5430 })
 
-    expect(await first.call('PUT', `/movements/${expense.id}`, expense)).toEqual({ status: 200, body: { ok: true, data: null } })
+    expect(await first.call('PUT', `/movements/${expense.id}`, expense)).toMatchObject({ status: 200, body: { ok: true, data: null } })
     expect((await dataOf(first.call)).movements).toEqual([expense])
 
     const edited = { ...expense, amountCents: 6000, updatedAt: '2026-10-29T08:00:00.000Z' }
@@ -91,9 +47,9 @@ describe('API', () => {
     const expense = movement()
 
     const missing = await call('PUT', `/movements/${expense.id}`, { ...expense, concept: '' })
-    expect(missing).toEqual({ status: 400, body: { ok: false, error: { code: 'VALIDATION', message: 'El movimiento: el campo «concept» está vacío.' } } })
+    expect(missing).toMatchObject({ status: 400, body: { ok: false, error: { code: 'VALIDATION', message: 'El movimiento: el campo «concept» está vacío.' } } })
     expect((await call('PUT', '/movements/otro-id', expense)).body.error?.message).toMatch(/no coincide/)
-    expect((await call('PUT', `/movements/${expense.id}`, undefined, '{"roto"')).status).toBe(400)
+    expect((await call('PUT', `/movements/${expense.id}`, undefined, { raw: '{"roto"' })).status).toBe(400)
     expect((await call('PUT', `/movements/${expense.id}`, { ...expense, amountCents: 12.5 })).status).toBe(400)
     expect((await call('PUT', `/movements/${expense.id}`, { ...expense, categoryId: 'no-existe' })).body.error?.code).toBe('VALIDATION')
     expect((await call('POST', '/occurrences/generate', { horizon: '30/11/2026' })).status).toBe(400)
@@ -113,7 +69,7 @@ describe('API', () => {
     const a = movement(occurrence)
     const b = movement(occurrence)
     await call('PUT', `/movements/${a.id}`, a)
-    expect(await call('PUT', `/movements/${b.id}`, b)).toEqual({
+    expect(await call('PUT', `/movements/${b.id}`, b)).toMatchObject({
       status: 409,
       body: { ok: false, error: { code: 'CONFLICT', message: 'Ese vencimiento ya existe, así que no se ha creado otro.' } },
     })
@@ -152,7 +108,7 @@ describe('API', () => {
     const { call } = await startApi()
     const browser = { categories: DEFAULT_CATEGORIES, movements: [movement()], recurring: [] }
     const imported = await call('POST', '/import', { data: browser, lastBackupAt: '2026-10-01T10:00:00.000Z' })
-    expect(imported).toEqual({ status: 201, body: { ok: true, data: { categories: DEFAULT_CATEGORIES.length, movements: 1, recurring: 0 } } })
+    expect(imported).toMatchObject({ status: 201, body: { ok: true, data: { categories: DEFAULT_CATEGORIES.length, movements: 1, recurring: 0 } } })
     expect((await call('POST', '/import', { data: browser, lastBackupAt: null })).status).toBe(409)
     expect((await dataOf(call)).movements).toHaveLength(1)
     expect((await call('GET', '/meta/lastBackupAt')).body.data).toEqual({ value: '2026-10-01T10:00:00.000Z' })

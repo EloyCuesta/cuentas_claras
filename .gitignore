@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Configuración personal (código de acceso): nunca va al repositorio
+.env
+
 # Base de datos SQLite: son tus datos personales, nunca van al repositorio
 server/data/*.db
 server/data/*.db-wal

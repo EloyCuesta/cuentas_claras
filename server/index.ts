@@ -1,18 +1,34 @@
 import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { createApp } from './app.ts'
+import { checkAccessCode } from './auth.ts'
 import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './database.ts'
 import { SqliteFinanceRepository } from './repository.ts'
 
 /**
  * Servidor de Cuentas claras: la API REST sobre SQLite.
  *
- * Variables de entorno (todas opcionales):
+ * Variables de entorno. Los scripts de package.json las leen también del
+ * archivo .env, si existe (ver .env.example).
+ *
+ * Obligatoria:
+ * - CUENTAS_CODIGO   código de acceso a las finanzas (al menos 4 caracteres). Sin él
+ *                    el servidor no arranca. Quien no lo sepa solo puede usar la despensa.
+ *
+ * Opcionales:
  * - CUENTAS_DB_PATH  archivo de la base de datos (por defecto server/data/cuentas.db)
  * - CUENTAS_PORT     puerto (por defecto 3001)
  * - CUENTAS_HOST     dirección (por defecto 127.0.0.1: solo accesible desde este equipo)
  * - CUENTAS_TEST=1   modo pruebas: activa POST /api/test/reset
  */
+
+// Lo primero: sin un código válido no se abre (ni se crea) la base de datos.
+const accessCode = checkAccessCode(process.env.CUENTAS_CODIGO)
+if (!accessCode.ok) {
+  console.error(`[api] ${accessCode.message}`)
+  process.exit(1)
+}
+
 const port = Number(process.env.CUENTAS_PORT ?? 3001)
 const host = process.env.CUENTAS_HOST ?? '127.0.0.1'
 const dbPath = process.env.CUENTAS_DB_PATH ? resolve(process.env.CUENTAS_DB_PATH) : DEFAULT_DB_PATH
@@ -27,7 +43,7 @@ try {
 }
 
 const repository = new SqliteFinanceRepository(database.db)
-const server = createServer(createApp({ database, repository, testMode }))
+const server = createServer(createApp({ database, repository, accessCode: accessCode.code, testMode }))
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {

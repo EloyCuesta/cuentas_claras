@@ -2378,3 +2378,292 @@ body:has(dialog[open]) {
     display: none;
   }
 }
+
+/* 6. Código de acceso y despensa ------------------------------------------- */
+
+.guest {
+  min-height: 100dvh;
+}
+
+.guest__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+}
+
+.guest__bar .brand {
+  padding: 8px 0;
+}
+
+.guest__main {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-block: 8px calc(48px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.guest__main:focus {
+  outline: none;
+}
+
+/* Seis secciones en la barra inferior del móvil */
+.nav__list {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.nav__link span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.toast__action {
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+/* Campos con la unidad escrita al final («paquete», «€/kg») */
+.input-affix--text .input {
+  padding-right: 6.5rem;
+}
+
+.input-affix--text .input-affix__suffix {
+  font-size: var(--step-0);
+}
+
+/* Selector de dueño: se desplaza en horizontal si hay muchas personas */
+.segmented--scroll .segmented__options {
+  grid-auto-columns: max-content;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.segmented--scroll .segmented__option span {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.pantry-owners {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.pantry-owners .segmented {
+  flex: 1 1 260px;
+}
+
+.pantry-summary {
+  display: grid;
+  gap: 20px;
+}
+
+.pantry-summary__big {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--step-1);
+  font-weight: 750;
+}
+
+.pantry-summary__numbers {
+  display: grid;
+  gap: 6px;
+}
+
+.pantry-budget {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.pantry-budget .subsection-title {
+  margin: 0;
+}
+
+.pantry-list {
+  display: grid;
+}
+
+.pantry-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.pantry-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.pantry-item__main {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.pantry-item__name {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-size: var(--step-0);
+  font-weight: 750;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 4px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.pantry-item__name:hover {
+  color: var(--accent);
+}
+
+.pantry-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.pantry-item__notes {
+  color: var(--pencil);
+  font-size: var(--step--1);
+  overflow-wrap: anywhere;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1.5px solid var(--rule);
+  border-radius: calc(var(--radius-m) + 3px);
+  background: var(--sheet-2);
+}
+
+.stepper__btn {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1.5px solid var(--rule-strong);
+  border-radius: var(--radius-m);
+  background: var(--sheet);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.stepper__btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.stepper__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stepper__value {
+  min-width: 5.5em;
+  padding: 0 4px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.person-list {
+  display: grid;
+  gap: 10px;
+}
+
+.person-row {
+  display: grid;
+  gap: 4px;
+}
+
+.person-row__form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.person-row__form .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.person-row__form .btn {
+  flex: none;
+}
+
+.shopping-filters {
+  display: grid;
+  gap: 16px;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.checks .checkbox {
+  align-items: center;
+  min-height: 44px;
+}
+
+.shopping-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--step--1);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.shopping-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 599px) {
+  .shopping-actions .btn {
+    flex: 1 1 100%;
+  }
+
+  .pantry-item .stepper {
+    margin-left: auto;
+  }
+}

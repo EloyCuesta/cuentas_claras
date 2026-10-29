@@ -30,6 +30,18 @@ export class ServerUnavailableError extends Error {
   }
 }
 
+/**
+ * Pérdida de sesión: cualquier 401 de la API (salvo el del propio formulario de
+ * acceso) avisa a quien escuche, para volver al modo invitado en un solo sitio.
+ */
+type UnauthorizedListener = () => void
+const unauthorizedListeners = new Set<UnauthorizedListener>()
+
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListeners.add(listener)
+  return () => unauthorizedListeners.delete(listener)
+}
+
 type Envelope = { ok: true; data: unknown } | { ok: false; error: { code: string; message: string } }
 
 function isEnvelope(value: unknown): value is Envelope {
@@ -41,6 +53,9 @@ export async function apiRequest<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', p
   try {
     response = await fetch(`${API_BASE}${path}`, {
       method,
+      // La cookie de sesión (HttpOnly) va sola en las peticiones al mismo origen; nada se guarda en el navegador.
+      credentials: 'same-origin',
+      cache: 'no-store',
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
@@ -56,6 +71,7 @@ export async function apiRequest<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', p
   }
   if (isEnvelope(payload)) {
     if (payload.ok) return payload.data as T
+    if (response.status === 401 && !path.startsWith('/auth/')) for (const listener of unauthorizedListeners) listener()
     throw new ApiError(payload.error.message, response.status, payload.error.code)
   }
   if (response.status >= 500) throw new ServerUnavailableError()
