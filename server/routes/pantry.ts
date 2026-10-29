@@ -9,7 +9,8 @@ import {
   validateReviewInput,
   validateUndoInput,
 } from '#shared/pantry/pantryValidation.ts'
-import { sendData, valid } from '../http.ts'
+import { valid } from '../common/http/request.ts'
+import { sendData } from '../common/http/response.ts'
 import type { SqlitePantryRepository } from '../pantryRepository.ts'
 
 /**

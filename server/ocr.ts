@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { createWorker, OEM, PSM, type Line, type Word, type Worker } from 'tesseract.js'
 import type { OcrLine, TicketSegment } from '#shared/tickets/types.ts'
 import { endsProducts } from '#shared/tickets/ticketParse.ts'
-import { imageInfo, type ImageInfo } from './imageInfo.ts'
+import { imageInfo, type ImageInfo } from './common/imageInfo.ts'
 
 /**
  * Lector de tickets: OCR con Tesseract (tesseract.js), en este mismo equipo.

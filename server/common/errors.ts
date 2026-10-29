@@ -1,5 +1,5 @@
 /**
- * Errores previstos del servidor. El código decide el estado HTTP (ver http.ts)
+ * Errores previstos del servidor. El código decide el estado HTTP (ver http/response.ts)
  * y el mensaje, en español, llega tal cual a la interfaz.
  */
 export type ErrorCode = 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'UNAUTHORIZED' | 'TOO_MANY_ATTEMPTS'

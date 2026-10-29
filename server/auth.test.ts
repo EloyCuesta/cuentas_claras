@@ -2,12 +2,11 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { movement } from '#shared/testing/factories.ts'
-import { startApi, stopApis, TEST_CODE } from './api-test-helpers.ts'
+import { startApi, stopApis, TEST_CODE } from './common/testing/testApi.ts'
 import { createApp } from './app.ts'
 import { ATTEMPT_WINDOW_MS, checkAccessCode, LOCK_MS, SESSION_MS } from './auth.ts'
-import { openDatabase } from './database.ts'
-import { SqliteFinanceRepository } from './repository.ts'
-import { removeTempDbs, tempDbPath } from './test-helpers.ts'
+import { openDatabase } from './common/sqlite/openDatabase.ts'
+import { removeTempDbs, tempDbPath } from './common/testing/tempDb.ts'
 
 afterEach(async () => {
   await stopApis()
@@ -59,14 +58,13 @@ describe('checkAccessCode', () => {
 
   it('createApp no se crea sin un código válido: el acceso nunca queda abierto', () => {
     const database = openDatabase(tempDbPath())
-    const repository = new SqliteFinanceRepository(database.db)
     try {
-      expect(() => createApp({ database, repository, accessCode: '' })).toThrow(/código/)
-      expect(() => createApp({ database, repository, accessCode: '   ' })).toThrow(/espacios/)
+      expect(() => createApp({ database, accessCode: '' })).toThrow(/código/)
+      expect(() => createApp({ database, accessCode: '   ' })).toThrow(/espacios/)
       // @ts-expect-error: accessCode es obligatorio
-      expect(() => createApp({ database, repository })).toThrow(/código/)
+      expect(() => createApp({ database })).toThrow(/código/)
     } finally {
-      repository.close()
+      database.db.close()
     }
   })
 })
@@ -162,7 +160,7 @@ describe('acceso con código', () => {
 
   it('la sesión dura 12 horas', async () => {
     const clock = fakeClock()
-    const api = await startApi({ clock: clock.now })
+    const api = await startApi({ clock: { nowMs: clock.now } })
     clock.advance(SESSION_MS - 1)
     expect((await api.call('GET', '/data')).status).toBe(200)
     clock.advance(1)
@@ -210,7 +208,7 @@ describe('límite de intentos', () => {
 
   it('el bloqueo caduca a los 15 minutos', async () => {
     const clock = fakeClock()
-    const api = await startApi({ login: false, clock: clock.now })
+    const api = await startApi({ login: false, clock: { nowMs: clock.now } })
     for (let i = 0; i < 5; i++) await failLogin(api)
     clock.advance(LOCK_MS - 1000)
     const almost = await api.signIn()
@@ -222,7 +220,7 @@ describe('límite de intentos', () => {
 
   it('los fallos se olvidan pasada la ventana de 15 minutos, y un acceso correcto reinicia la cuenta', async () => {
     const clock = fakeClock()
-    const api = await startApi({ login: false, clock: clock.now })
+    const api = await startApi({ login: false, clock: { nowMs: clock.now } })
     for (let i = 0; i < 4; i++) await failLogin(api)
     clock.advance(ATTEMPT_WINDOW_MS)
     for (let i = 0; i < 4; i++) expect((await failLogin(api)).status).toBe(401)

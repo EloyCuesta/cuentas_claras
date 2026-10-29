@@ -10,9 +10,9 @@ import type {
   TicketDecision,
   TicketSaveInput,
 } from '#shared/tickets/types.ts'
-import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
+import { startApi, stopApis, type TestApi } from './common/testing/testApi.ts'
 import { createTesseractReader, type TicketReader } from './ocr.ts'
-import { removeTempDbs } from './test-helpers.ts'
+import { removeTempDbs } from './common/testing/tempDb.ts'
 
 /**
  * Tickets de la compra por la API. El ticket es INVENTADO (fixtures/tickets/ticket-lidl-ejemplo.png).

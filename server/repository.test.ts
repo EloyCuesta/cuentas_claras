@@ -6,10 +6,10 @@ import { generationHorizon } from '#shared/finance/recurring.ts'
 import { periodSummary } from '#shared/finance/summary.ts'
 import { markAsPaid } from '#shared/finance/validation.ts'
 import { movement, NOW, rule } from '#shared/testing/factories.ts'
-import { openDatabase } from './database.ts'
-import { AppError } from './errors.ts'
+import { openDatabase } from './common/sqlite/openDatabase.ts'
+import { AppError } from './common/errors.ts'
 import { SqliteFinanceRepository } from './repository.ts'
-import { removeTempDbs, tempDbPath } from './test-helpers.ts'
+import { removeTempDbs, tempDbPath } from './common/testing/tempDb.ts'
 
 /**
  * El mismo contrato que src/storage/IndexedDbFinanceRepository.test.ts, ahora

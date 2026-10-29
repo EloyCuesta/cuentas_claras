@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
 import { movement, rule } from '#shared/testing/factories.ts'
-import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
+import { startApi, stopApis, type TestApi } from './common/testing/testApi.ts'
 import { LATEST_VERSION } from './migrations/index.ts'
-import { removeTempDbs } from './test-helpers.ts'
+import { removeTempDbs } from './common/testing/tempDb.ts'
 
 /** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch, con la sesión iniciada. */
 

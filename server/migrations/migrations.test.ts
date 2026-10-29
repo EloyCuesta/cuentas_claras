@@ -1,13 +1,16 @@
 import Database from 'better-sqlite3'
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readdirSync, readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
-import { openDatabase } from './database.ts'
-import { initialSchema } from './migrations/001-esquema-inicial.ts'
-import { pantrySchema } from './migrations/002-despensa.ts'
-import { ticketsSchema } from './migrations/003-tickets.ts'
-import { LATEST_VERSION } from './migrations/index.ts'
-import { removeTempDbs, tempDbPath } from './test-helpers.ts'
+import { openDatabase } from '../common/sqlite/openDatabase.ts'
+import { removeTempDbs, tempDbPath } from '../common/testing/tempDb.ts'
+import { initialSchema } from './001-esquema-inicial.ts'
+import { pantrySchema } from './002-despensa.ts'
+import { ticketsSchema } from './003-tickets.ts'
+import { LATEST_VERSION } from './index.ts'
+
+/** Las migraciones (de una versión a otra, sin perder datos) y las restricciones de las tablas. */
 
 const opened: Database.Database[] = []
 
@@ -25,62 +28,24 @@ afterEach(() => {
 const tables = (db: Database.Database) =>
   (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as { name: string }[]).map((t) => t.name)
 
-describe('openDatabase', () => {
-  it('crea el archivo, las tablas y las categorías iniciales si no existe', () => {
-    const path = tempDbPath()
-    expect(existsSync(path)).toBe(false)
-    const { db, schemaVersion } = open(path)
-    expect(existsSync(path)).toBe(true)
-    expect(schemaVersion).toBe(LATEST_VERSION)
-    expect(tables(db)).toEqual([
-      'categories',
-      'meta',
-      'movements',
-      'pantry_aliases',
-      'pantry_events',
-      'pantry_items',
-      'pantry_people',
-      'pantry_settings',
-      'pantry_ticket_lines',
-      'pantry_tickets',
-      'recurring_excluded_dates',
-      'recurring_rules',
-      'schema_migrations',
-    ])
-    expect((db.prepare('SELECT COUNT(*) AS n FROM categories').get() as { n: number }).n).toBe(DEFAULT_CATEGORIES.length)
-  })
-
-  it('activa WAL y las claves foráneas', () => {
-    const { db } = open(tempDbPath())
-    expect(db.pragma('journal_mode', { simple: true })).toBe('wal')
-    expect(db.pragma('foreign_keys', { simple: true })).toBe(1)
-  })
-
-  it('al volver a abrir no repite migraciones ni toca los datos', () => {
-    const path = tempDbPath()
-    const first = open(path).db
-    first.prepare("DELETE FROM categories WHERE id = 'g-ocio'").run()
-    first.prepare("INSERT INTO meta (key, value) VALUES ('lastBackupAt', 'x')").run()
-    first.close()
-
-    const { db } = open(path)
-    const ids = (db.prepare('SELECT id FROM categories').all() as { id: string }[]).map((c) => c.id)
-    expect(ids).not.toContain('g-ocio')
-    expect(ids).toHaveLength(DEFAULT_CATEGORIES.length - 1)
-    expect(db.prepare('SELECT value FROM meta').pluck().get()).toBe('x')
-    expect(db.prepare('SELECT COUNT(*) FROM schema_migrations').pluck().get()).toBe(LATEST_VERSION)
-  })
-
-  it('se niega a abrir una base de datos de una versión más nueva sin modificarla', () => {
-    const path = tempDbPath()
-    const first = open(path).db
-    first.prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (99, 'futura', 'x')").run()
-    first.close()
-    expect(() => openDatabase(path)).toThrow(/versión más nueva/)
-
-    const check = new Database(path)
-    opened.push(check)
-    expect(check.prepare('SELECT MAX(version) FROM schema_migrations').pluck().get()).toBe(99)
+describe('migraciones y restricciones', () => {
+  it('las migraciones ya publicadas no cambian: los cambios van en una migración nueva', () => {
+    // Huella del texto (con saltos de línea normalizados). En la 001 solo cambió la línea del
+    // import de DEFAULT_CATEGORIES al pasar el dominio a shared/; el SQL y los datos son los de siempre.
+    const files = readdirSync(new URL('./', import.meta.url)).filter((name) => /^00[1-5]-.*\.ts$/.test(name)).sort()
+    const hashes = Object.fromEntries(
+      files.map((name) => {
+        const text = readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+        return [name, createHash('sha256').update(text).digest('hex')]
+      }),
+    )
+    expect(hashes).toEqual({
+      '001-esquema-inicial.ts': 'b719418b52ee36e5cf36884c14d914352a37e6196e83cfff1bcb081d5113a9bc',
+      '002-despensa.ts': '4884d012a3026da12dcbbe9cabbc7338ec210859e9dd027c69cb39545334d262',
+      '003-tickets.ts': '211e433730a0c29f14b23a4a95575b9754e1eb95b897a84f3d355f6506f3c0ed',
+      '004-repaso.ts': '7a9b2f2ac8cee46c94a15802501dcf4f99eb4fca963cecb96bde0641ef950fab',
+      '005-ticket-review.ts': '4261b8453c88a32d03ab493e927f689c868c8b84a6633da42df71c43d7cac0bd',
+    })
   })
 
   it('las restricciones de la base de datos protegen los datos', () => {

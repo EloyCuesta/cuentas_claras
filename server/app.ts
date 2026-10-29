@@ -1,10 +1,12 @@
 import express, { Router, type Express } from 'express'
 import { AccessControl, authRoutes, requireAdmin } from './auth.ts'
-import type { OpenedDatabase } from './database.ts'
-import { errorHandler, notFoundHandler } from './http.ts'
+import { errorHandler, notFoundHandler } from './common/http/response.ts'
+import type { Clock, IdGenerator } from './common/ports.ts'
+import type { OpenedDatabase } from './common/sqlite/openDatabase.ts'
+import { randomIds, systemClock } from './common/system.ts'
 import { createTesseractReader, type TicketReader } from './ocr.ts'
-import { SqlitePantryRepository, type PantryRepositoryOptions } from './pantryRepository.ts'
-import type { SqliteFinanceRepository } from './repository.ts'
+import { SqlitePantryRepository } from './pantryRepository.ts'
+import { SqliteFinanceRepository } from './repository.ts'
 import { categoryRoutes } from './routes/categories.ts'
 import { dataRoutes } from './routes/data.ts'
 import { healthRoutes } from './routes/health.ts'
@@ -12,21 +14,20 @@ import { metaRoutes } from './routes/meta.ts'
 import { movementRoutes } from './routes/movements.ts'
 import { pantryRoutes } from './routes/pantry.ts'
 import { recurringRoutes } from './routes/recurring.ts'
-import { testingRoutes } from './routes/testing.ts'
+import { testingRoutes } from './common/http/testingRoutes.ts'
 import { ticketRoutes } from './routes/tickets.ts'
 import { SqliteTicketRepository } from './ticketRepository.ts'
 
 export interface AppOptions {
   database: OpenedDatabase
-  repository: SqliteFinanceRepository
   /** Código que da acceso a las finanzas (CUENTAS_CODIGO). Obligatorio: sin él no se crea la aplicación. */
   accessCode: string
   /** Activa POST /api/test/reset (solo para las pruebas en navegador). También exige sesión. */
   testMode?: boolean
-  /** Reloj en milisegundos para las sesiones y los bloqueos (inyectable en los tests). */
-  clock?: () => number
-  /** Inyectables de la despensa para los tests. */
-  pantry?: PantryRepositoryOptions
+  /** Reloj del servidor: sesiones, bloqueos, marcas de tiempo y la fecha de respaldo (inyectable en los tests). */
+  clock?: Clock
+  /** Ids de lo que crea el servidor (inyectables en los tests). */
+  ids?: IdGenerator
   /** Lector de tickets (OCR). Por defecto, Tesseract en este equipo; los tests pasan uno falso. */
   ticketReader?: TicketReader
 }
@@ -41,17 +42,18 @@ export interface AppOptions {
  */
 export function createApp({
   database,
-  repository,
   accessCode,
   testMode = false,
-  clock,
-  pantry: pantryOptions,
+  clock = systemClock,
+  ids = randomIds,
   ticketReader,
 }: AppOptions): Express {
   // Lanza si falta el código o no es válido: nunca hay una aplicación con el acceso abierto.
-  const access = new AccessControl(accessCode, clock)
-  const pantry = new SqlitePantryRepository(database.db, pantryOptions)
-  const tickets = new SqliteTicketRepository(database.db, pantry, pantryOptions)
+  const access = new AccessControl(accessCode, () => clock.nowMs())
+  const stamps = { now: () => clock.nowISO(), newId: () => ids.newId() }
+  const repository = new SqliteFinanceRepository(database.db, stamps)
+  const pantry = new SqlitePantryRepository(database.db, stamps)
+  const tickets = new SqliteTicketRepository(database.db, pantry, stamps)
   const reader = ticketReader ?? createTesseractReader()
 
   const app = express()
@@ -80,7 +82,14 @@ export function createApp({
   api.use(categoryRoutes(repository))
   api.use(recurringRoutes(repository))
   api.use(metaRoutes(repository))
-  if (testMode) api.use(testingRoutes(repository, pantry))
+  if (testMode) {
+    api.use(
+      testingRoutes(async () => {
+        await repository.reset()
+        pantry.reset()
+      }),
+    )
+  }
   api.use(notFoundHandler)
 
   app.use('/api', api)

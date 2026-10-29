@@ -16,7 +16,7 @@ import type {
   PantryTracking,
   PantryUnit,
 } from '#shared/pantry/types.ts'
-import { AppError } from './errors.ts'
+import { AppError } from './common/errors.ts'
 
 /**
  * Despensa en SQLite. Va aparte de SqliteFinanceRepository: restaurar una copia

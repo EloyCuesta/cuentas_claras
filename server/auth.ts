@@ -1,7 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { Router, type Request, type RequestHandler, type Response } from 'express'
-import { AppError } from './errors.ts'
-import { readBody, sendData } from './http.ts'
+import { AppError } from './common/errors.ts'
+import { readBody } from './common/http/request.ts'
+import { sendData } from './common/http/response.ts'
 
 /**
  * Código de acceso a las funciones financieras.

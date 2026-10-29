@@ -1,14 +1,12 @@
 import Database from 'better-sqlite3'
 import type { ErrorRequestHandler, RequestHandler, Response } from 'express'
-import type { ValidationResult } from '#shared/common/validation.ts'
-import { isValidISODate } from '#shared/common/dates.ts'
-import type { ISODate } from '#shared/common/types.ts'
-import { AppError, type ErrorCode } from './errors.ts'
+import { AppError, type ErrorCode } from '../errors.ts'
 
 /**
  * Formato de todas las respuestas de la API:
  *   { "ok": true,  "data": … }
  *   { "ok": false, "error": { "code": "VALIDATION", "message": "…" } }
+ * y la gestión centralizada de errores, que deja cualquier error en ese formato.
  */
 export type ApiErrorCode = ErrorCode | 'INTERNAL'
 export type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: { code: ApiErrorCode; message: string } }
@@ -62,36 +60,4 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   }
   console.error('[api] Error inesperado:', error)
   sendError(res, 500, 'INTERNAL', 'Error interno del servidor. Revisa la consola donde se ejecuta npm run dev.')
-}
-
-/* Validación de peticiones ------------------------------------------------- */
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-/** Devuelve el valor validado o responde 400 con el mensaje del validador. */
-export function valid<T>(result: ValidationResult<T>): T {
-  if (!result.ok) throw new AppError('VALIDATION', result.error)
-  return result.value
-}
-
-/** El id de la URL y el del cuerpo deben coincidir (PUT /movements/:id …). */
-export function sameId<T extends { id: string }>(record: T, id: string): T {
-  if (record.id !== id) throw new AppError('VALIDATION', 'El id de la dirección no coincide con el de los datos.')
-  return record
-}
-
-export function readBody(body: unknown): Record<string, unknown> {
-  if (!isRecord(body)) throw new AppError('VALIDATION', 'Falta el cuerpo de la petición en JSON.')
-  return body
-}
-
-export function readDate(value: unknown, field: string): ISODate {
-  if (!isValidISODate(value)) throw new AppError('VALIDATION', `El campo «${field}» debe ser una fecha AAAA-MM-DD.`)
-  return value
-}
-
-export function readOptionalDate(value: unknown, field: string): ISODate | null {
-  return value === null || value === undefined ? null : readDate(value, field)
 }

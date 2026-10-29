@@ -2,10 +2,10 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { runMigrations } from './migrations/index.ts'
+import { runMigrations } from '../../migrations/index.ts'
 
 /** Archivo de la base de datos si no se indica otro con CUENTAS_DB_PATH. */
-export const DEFAULT_DB_PATH = fileURLToPath(new URL('./data/cuentas.db', import.meta.url))
+export const DEFAULT_DB_PATH = fileURLToPath(new URL('../../data/cuentas.db', import.meta.url))
 
 export interface OpenedDatabase {
   db: Database.Database

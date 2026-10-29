@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import type { OpenedDatabase } from '../database.ts'
-import { sendData } from '../http.ts'
+import type { OpenedDatabase } from '../common/sqlite/openDatabase.ts'
+import { sendData } from '../common/http/response.ts'
 
 /**
  * GET /api/health: el servidor responde y la base de datos se puede consultar.

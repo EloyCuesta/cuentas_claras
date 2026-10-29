@@ -16,7 +16,7 @@ import type {
 import type { MetaKey } from '#shared/finance/meta.ts'
 import type { SaveRecurringOptions } from '#shared/finance/types.ts'
 import type { FinanceRepository } from '../src/storage/FinanceRepository.ts'
-import { AppError } from './errors.ts'
+import { AppError } from './common/errors.ts'
 
 /**
  * Implementación de FinanceRepository con SQLite (better-sqlite3).

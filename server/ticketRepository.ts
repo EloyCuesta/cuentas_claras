@@ -17,7 +17,7 @@ import type {
   TicketStoreKind,
   TicketTaxCode,
 } from '#shared/tickets/types.ts'
-import { AppError } from './errors.ts'
+import { AppError } from './common/errors.ts'
 import type { SqlitePantryRepository } from './pantryRepository.ts'
 
 /**

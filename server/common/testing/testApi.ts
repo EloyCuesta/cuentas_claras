@@ -1,12 +1,12 @@
 import { once } from 'node:events'
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { createApp } from './app.ts'
-import { openDatabase } from './database.ts'
-import type { TicketReader } from './ocr.ts'
-import type { PantryRepositoryOptions } from './pantryRepository.ts'
-import { SqliteFinanceRepository } from './repository.ts'
-import { tempDbPath } from './test-helpers.ts'
+import { createApp } from '../../app.ts'
+import type { TicketReader } from '../../ocr.ts'
+import type { Clock, IdGenerator } from '../ports.ts'
+import { openDatabase, type OpenedDatabase } from '../sqlite/openDatabase.ts'
+import { systemClock } from '../system.ts'
+import { tempDbPath } from './tempDb.ts'
 
 /**
  * Servidor de la API real en un puerto libre, con una base de datos temporal,
@@ -35,7 +35,11 @@ export interface CallResult {
   headers: Headers
 }
 
-const running: { server: Server; repository: SqliteFinanceRepository }[] = []
+const running: { server: Server; database: OpenedDatabase }[] = []
+
+const closeDatabase = (database: OpenedDatabase) => {
+  if (database.db.open) database.db.close()
+}
 
 /** Lector de tickets para las pruebas que no leen imágenes: no arranca Tesseract. */
 const unusedReader: TicketReader = {
@@ -47,22 +51,23 @@ export async function startApi({
   path = tempDbPath(),
   testMode = false,
   clock,
-  pantry,
+  ids,
   login = true,
   ticketReader = unusedReader,
 }: {
   path?: string
   testMode?: boolean
-  clock?: () => number
-  pantry?: PantryRepositoryOptions
+  /** Partes del reloj que se sustituyen (por ejemplo, solo nowMs); el resto es el de verdad. */
+  clock?: Partial<Clock>
+  ids?: IdGenerator
   login?: boolean
   ticketReader?: TicketReader
 } = {}) {
   const database = openDatabase(path)
-  const repository = new SqliteFinanceRepository(database.db)
-  const server = createApp({ database, repository, accessCode: TEST_CODE, testMode, clock, pantry, ticketReader }).listen(0, '127.0.0.1')
+  const app = createApp({ database, accessCode: TEST_CODE, testMode, clock: { ...systemClock, ...clock }, ids, ticketReader })
+  const server = app.listen(0, '127.0.0.1')
   await once(server, 'listening')
-  running.push({ server, repository })
+  running.push({ server, database })
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`
   let session: string | null = null
 
@@ -90,7 +95,7 @@ export async function startApi({
   const stop = async () => {
     server.close()
     await once(server, 'close')
-    repository.close()
+    closeDatabase(database)
   }
 
   if (login) {
@@ -101,7 +106,6 @@ export async function startApi({
   return {
     base,
     path,
-    repository,
     call,
     signIn,
     stop,
@@ -118,11 +122,11 @@ export type TestApi = Awaited<ReturnType<typeof startApi>>
 
 /** Para afterEach: cierra los servidores que sigan abiertos. */
 export async function stopApis(): Promise<void> {
-  for (const { server, repository } of running.splice(0)) {
+  for (const { server, database } of running.splice(0)) {
     if (server.listening) {
       server.close()
       await once(server, 'close')
     }
-    repository.close()
+    closeDatabase(database)
   }
 }
