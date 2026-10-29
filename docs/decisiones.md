@@ -58,6 +58,10 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Pruebas e2e con el Chrome instalado.** En el equipo de desarrollo la descarga de Chromium de Playwright caduca; `CUENTAS_E2E_CHANNEL=chrome` usa el Chrome del sistema (una opción que ya tenía `playwright.config.ts`).
 
+**Los tipos de las e2e también se comprueban.** `e2e/` y `playwright.config.ts` no estaban en ningún tsconfig. Ahora `tsconfig.e2e.json` los incluye en `tsc -b`, con la librería DOM porque el código de `page.evaluate` se ejecuta en el navegador.
+
+**Cómo se hizo.** Se hizo en pasos pequeños y con `npm run check` en verde en cada commit. Primero se midió la línea base: 359 tests de Vitest y 46 pruebas e2e. Los movimientos se hicieron con `git mv` y en commits separados de los que reparten la lógica. Antes de tocar los tickets se escribió un test golden de las huellas con el código de entonces. Al terminar hay 376 tests, porque se añadieron 17 (arquitectura, documentación y guardas) y no se quitó ninguno, y siguen pasando las 46 pruebas e2e.
+
 ## Pendiente
 
 **Retirar la migración de los datos del navegador** (IndexedDB → SQLite), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:
