@@ -10,7 +10,7 @@ import { readBody, valid } from '../common/http/request.ts'
 import { sendData } from '../common/http/response.ts'
 import { imageInfo } from '../common/imageInfo.ts'
 import type { TicketReader } from '../ocr.ts'
-import type { SqlitePantryRepository } from '../pantryRepository.ts'
+import type { PantryApi } from '../modules/pantry/index.ts'
 import type { SqliteTicketRepository } from '../ticketRepository.ts'
 
 const MAX_IMAGES = 6
@@ -47,7 +47,7 @@ function decodeImages(value: unknown, max = MAX_IMAGES): Buffer[] {
  * - DELETE /api/despensa/tickets/:id
  * - GET    /api/despensa/actividad?hoy=AAAA-MM-DD   compras y revisiones del último año, para el ritmo de compra
  */
-export function ticketRoutes(tickets: SqliteTicketRepository, pantry: SqlitePantryRepository, reader: TicketReader): Router {
+export function ticketRoutes(tickets: SqliteTicketRepository, pantry: PantryApi, reader: TicketReader): Router {
   const router = Router()
 
   router.post('/despensa/tickets/leer', async (req, res) => {

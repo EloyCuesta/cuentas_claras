@@ -18,7 +18,7 @@ import type {
   TicketTaxCode,
 } from '#shared/tickets/types.ts'
 import { AppError } from './common/errors.ts'
-import type { SqlitePantryRepository } from './pantryRepository.ts'
+import type { PantryApi } from './modules/pantry/index.ts'
 
 /**
  * Tickets de la compra en SQLite: guardarlos (creando o actualizando los
@@ -143,12 +143,12 @@ function quantityFromLines(lines: readonly TicketSaveLine[], unit: PantryUnit): 
 
 export class SqliteTicketRepository {
   private readonly db: Database.Database
-  private readonly pantry: SqlitePantryRepository
+  private readonly pantry: PantryApi
   private readonly now: () => string
   private readonly newId: () => string
   private readonly sql
 
-  constructor(db: Database.Database, pantry: SqlitePantryRepository, options: { now?: () => string; newId?: () => string } = {}) {
+  constructor(db: Database.Database, pantry: PantryApi, options: { now?: () => string; newId?: () => string } = {}) {
     this.db = db
     this.pantry = pantry
     this.now = options.now ?? nowISO

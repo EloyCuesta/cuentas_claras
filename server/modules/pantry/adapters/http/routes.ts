@@ -9,9 +9,40 @@ import {
   validateReviewInput,
   validateUndoInput,
 } from '#shared/pantry/pantryValidation.ts'
-import { valid } from '../common/http/request.ts'
-import { sendData } from '../common/http/response.ts'
-import type { SqlitePantryRepository } from '../pantryRepository.ts'
+import { valid } from '../../../../common/http/request.ts'
+import { sendData } from '../../../../common/http/response.ts'
+import type { AddEvent } from '../../application/AddEvent.ts'
+import type { AdjustItem } from '../../application/AdjustItem.ts'
+import type { CreateItem } from '../../application/CreateItem.ts'
+import type { CreatePerson } from '../../application/CreatePerson.ts'
+import type { DeleteEvent } from '../../application/DeleteEvent.ts'
+import type { DeleteItem } from '../../application/DeleteItem.ts'
+import type { DeletePerson } from '../../application/DeletePerson.ts'
+import type { MarkPurchased } from '../../application/MarkPurchased.ts'
+import type { PantryQueries } from '../../application/queries.ts'
+import type { RenamePerson } from '../../application/RenamePerson.ts'
+import type { SetBudget } from '../../application/SetBudget.ts'
+import type { SetReviewDate } from '../../application/SetReviewDate.ts'
+import type { UndoPurchase } from '../../application/UndoPurchase.ts'
+import type { UpdateItem } from '../../application/UpdateItem.ts'
+
+/** Lo que usan las rutas de la despensa: un caso de uso por ruta que escribe y las lecturas. */
+export interface PantryRouteDeps {
+  queries: PantryQueries
+  createPerson: CreatePerson
+  renamePerson: RenamePerson
+  deletePerson: DeletePerson
+  createItem: CreateItem
+  updateItem: UpdateItem
+  adjustItem: AdjustItem
+  deleteItem: DeleteItem
+  addEvent: AddEvent
+  deleteEvent: DeleteEvent
+  setBudget: SetBudget
+  setReviewDate: SetReviewDate
+  markPurchased: MarkPurchased
+  undoPurchase: UndoPurchase
+}
 
 /**
  * Despensa. Rutas públicas a propósito: las puede usar cualquiera de casa,
@@ -40,76 +71,77 @@ import type { SqlitePantryRepository } from '../pantryRepository.ts'
  *
  * Los id inexistentes responden 404 sin cambiar nada.
  */
-export function pantryRoutes(pantry: SqlitePantryRepository): Router {
+export function pantryRoutes(deps: PantryRouteDeps): Router {
+  const { queries } = deps
   const router = Router()
 
   router.get('/despensa/personas', (_req, res) => {
-    sendData(res, pantry.listPeople())
+    sendData(res, queries.listPeople())
   })
 
   router.post('/despensa/personas', (req, res) => {
-    sendData(res, pantry.createPerson(valid(validatePersonInput(req.body)).name), 201)
+    sendData(res, deps.createPerson.execute(valid(validatePersonInput(req.body)).name), 201)
   })
 
   router.put('/despensa/personas/:id', (req, res) => {
-    sendData(res, pantry.renamePerson(req.params.id, valid(validatePersonInput(req.body)).name))
+    sendData(res, deps.renamePerson.execute(req.params.id, valid(validatePersonInput(req.body)).name))
   })
 
   router.delete('/despensa/personas/:id', (req, res) => {
-    pantry.deletePerson(req.params.id)
+    deps.deletePerson.execute(req.params.id)
     sendData(res, null)
   })
 
   router.get('/despensa/productos', (_req, res) => {
-    sendData(res, pantry.listItems())
+    sendData(res, queries.listItems())
   })
 
   router.post('/despensa/productos', (req, res) => {
-    sendData(res, pantry.createItem(valid(validateItemInput(req.body))), 201)
+    sendData(res, deps.createItem.execute(valid(validateItemInput(req.body))), 201)
   })
 
   router.put('/despensa/productos/:id', (req, res) => {
-    sendData(res, pantry.updateItem(req.params.id, valid(validateItemInput(req.body))))
+    sendData(res, deps.updateItem.execute(req.params.id, valid(validateItemInput(req.body))))
   })
 
   router.post('/despensa/productos/:id/ajustar', (req, res) => {
-    sendData(res, pantry.adjustItem(req.params.id, valid(validateDeltaInput(req.body))))
+    sendData(res, deps.adjustItem.execute(req.params.id, valid(validateDeltaInput(req.body))))
   })
 
   router.post('/despensa/productos/:id/revision', (req, res) => {
     const { kind, date } = valid(validateEventInput(req.body))
-    sendData(res, pantry.addEvent(req.params.id, kind, date), 201)
+    sendData(res, deps.addEvent.execute(req.params.id, kind, date), 201)
   })
 
   router.delete('/despensa/revisiones/:id', (req, res) => {
-    pantry.deleteEvent(req.params.id)
+    deps.deleteEvent.execute(req.params.id)
     sendData(res, null)
   })
 
   router.delete('/despensa/productos/:id', (req, res) => {
-    pantry.deleteItem(req.params.id)
+    deps.deleteItem.execute(req.params.id)
     sendData(res, null)
   })
 
   router.get('/despensa/presupuesto', (_req, res) => {
-    sendData(res, pantry.getSettings())
+    sendData(res, queries.getSettings())
   })
 
   router.put('/despensa/presupuesto', (req, res) => {
-    sendData(res, pantry.setBudget(valid(validateBudgetInput(req.body)).monthlyBudgetCents))
+    sendData(res, deps.setBudget.execute(valid(validateBudgetInput(req.body)).monthlyBudgetCents))
   })
 
   router.put('/despensa/repaso', (req, res) => {
-    sendData(res, pantry.setReviewDate(valid(validateReviewInput(req.body)).date))
+    sendData(res, deps.setReviewDate.execute(valid(validateReviewInput(req.body)).date))
   })
 
   router.post('/despensa/comprado', (req, res) => {
     const { ids, date } = valid(validatePurchaseInput(req.body))
-    sendData(res, pantry.markPurchased(ids, date))
+    sendData(res, deps.markPurchased.execute(ids, date))
   })
 
   router.post('/despensa/comprado/deshacer', (req, res) => {
-    sendData(res, pantry.undoPurchase(valid(validateUndoInput(req.body))))
+    sendData(res, deps.undoPurchase.execute(valid(validateUndoInput(req.body))))
   })
 
   return router

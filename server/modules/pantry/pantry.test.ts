@@ -3,8 +3,8 @@ import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
 import type { PantryItem, PantryPerson, PantryPurchaseChange } from '#shared/pantry/types.ts'
 import { movement } from '#shared/testing/factories.ts'
-import { startApi, stopApis, type TestApi } from './common/testing/testApi.ts'
-import { removeTempDbs } from './common/testing/tempDb.ts'
+import { startApi, stopApis, type TestApi } from '../../common/testing/testApi.ts'
+import { removeTempDbs } from '../../common/testing/tempDb.ts'
 
 afterEach(async () => {
   await stopApis()
