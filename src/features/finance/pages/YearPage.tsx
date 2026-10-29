@@ -5,15 +5,15 @@ import { periodBounds, yearPeriod, type YearMonth } from '#shared/finance/period
 import { budgetLines, periodSummary } from '#shared/finance/summary.ts'
 import { BudgetSummary } from '../components/BudgetSummary.tsx'
 import { CategoryMonthGrid } from '../components/CategoryMonthGrid.tsx'
-import { Icon } from '../ui/Icon.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 import { Ledger } from '../components/Ledger.tsx'
 import { MonthlyTrendChart } from '../components/MonthlyTrendChart.tsx'
 import { PeriodPicker } from '../components/PeriodPicker.tsx'
 import { PeriodSwitch } from '../components/PeriodSwitch.tsx'
-import { Section } from '../ui/Section.tsx'
-import { useFinance } from '../state/financeContext.ts'
-import { useForecastMovements } from '../state/useForecastMovements.ts'
-import { downloadFile } from '../ui/helpers.ts'
+import { Section } from '../../../ui/Section.tsx'
+import { useFinance } from '../financeContext.ts'
+import { useForecastMovements } from '../useForecastMovements.ts'
+import { downloadFile } from '../../../ui/helpers.ts'
 
 /** Plantilla anual: las cuentas del año, su evolución mes a mes, cada categoría por meses y el presupuesto anual. */
 export function YearPage({

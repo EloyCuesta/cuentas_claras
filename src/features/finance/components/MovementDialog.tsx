@@ -13,13 +13,13 @@ import {
   validateMovementDraft,
   type MovementDraft,
 } from '#shared/finance/validation.ts'
-import { useFinance } from '../state/financeContext.ts'
-import { describeStorageError } from '../api/storageErrors.ts'
-import { useToast } from '../ui/toastContext.ts'
-import { focusFirstError } from '../ui/helpers.ts'
-import { ConfirmDialog, Dialog, DialogError } from '../ui/Dialog.tsx'
-import { AmountInput, DateInput, Field, Segmented } from '../ui/forms.tsx'
-import { Icon } from '../ui/Icon.tsx'
+import { useFinance } from '../financeContext.ts'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import { useToast } from '../../../ui/toastContext.ts'
+import { focusFirstError } from '../../../ui/helpers.ts'
+import { ConfirmDialog, Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { AmountInput, DateInput, Field, Segmented } from '../../../ui/forms.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 
 const FIELD_IDS: [keyof MovementDraft, string][] = [
   ['amount', 'mov-amount'],

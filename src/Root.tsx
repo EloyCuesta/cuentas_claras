@@ -1,9 +1,12 @@
 import App from './App.tsx'
 import { GuestApp } from './GuestApp.tsx'
-import { ApiFinanceRepository } from './services/ApiFinanceRepository.ts'
-import { describeBrowserMigration, migrateBrowserData } from './services/browserDataMigration.ts'
+import {
+  ApiFinanceRepository,
+  describeBrowserMigration,
+  migrateBrowserData,
+  FinanceProvider,
+} from './features/finance/index.ts'
 import { useAuth } from './features/auth/index.ts'
-import { FinanceProvider } from './state/FinanceProvider.tsx'
 
 // Único punto donde se elige el almacenamiento: la base de datos SQLite del
 // servidor (server/), a través de su API REST.

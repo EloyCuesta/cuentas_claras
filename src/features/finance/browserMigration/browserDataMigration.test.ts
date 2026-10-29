@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
-import { IndexedDbFinanceRepository } from '../storage/IndexedDbFinanceRepository.ts'
+import { IndexedDbFinanceRepository } from './IndexedDbFinanceRepository.ts'
 import { movement, NOW, rule } from '#shared/testing/factories.ts'
-import { ApiError } from '../api/client.ts'
+import { ApiError } from '../../../api/client.ts'
 import { describeBrowserMigration, migrateBrowserData } from './browserDataMigration.ts'
 
 /**

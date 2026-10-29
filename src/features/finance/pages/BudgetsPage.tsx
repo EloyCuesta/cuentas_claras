@@ -3,12 +3,12 @@ import { capitalize, formatMonthYear } from '#shared/common/dates.ts'
 import { centsToInput, formatEuros, parseAmount, sumCents } from '#shared/common/money.ts'
 import { monthPeriod, periodBounds, type YearMonth } from '#shared/finance/period.ts'
 import { budgetLines, type BudgetLine } from '#shared/finance/summary.ts'
-import { BudgetMeter } from '../ui/BudgetMeter.tsx'
+import { BudgetMeter } from '../../../ui/BudgetMeter.tsx'
 import { PeriodPicker } from '../components/PeriodPicker.tsx'
-import { useFinance } from '../state/financeContext.ts'
-import { describeStorageError } from '../api/storageErrors.ts'
-import { useToast } from '../ui/toastContext.ts'
-import { useForecastMovements } from '../state/useForecastMovements.ts'
+import { useFinance } from '../financeContext.ts'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import { useToast } from '../../../ui/toastContext.ts'
+import { useForecastMovements } from '../useForecastMovements.ts'
 
 function BudgetEditor({ line, onDone }: { line: BudgetLine; onDone: () => void }) {
   const { actions } = useFinance()

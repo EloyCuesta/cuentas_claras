@@ -4,12 +4,12 @@ import { nowISO } from '#shared/common/ids.ts'
 import { centsToInput, parseAmount } from '#shared/common/money.ts'
 import type { Movement } from '#shared/finance/types.ts'
 import { markAsPaid } from '#shared/finance/validation.ts'
-import { useFinance } from '../state/financeContext.ts'
-import { describeStorageError } from '../api/storageErrors.ts'
-import { useToast } from '../ui/toastContext.ts'
-import { focusFirstError } from '../ui/helpers.ts'
-import { Dialog, DialogError } from '../ui/Dialog.tsx'
-import { AmountInput, DateInput, Field } from '../ui/forms.tsx'
+import { useFinance } from '../financeContext.ts'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import { useToast } from '../../../ui/toastContext.ts'
+import { focusFirstError } from '../../../ui/helpers.ts'
+import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { AmountInput, DateInput, Field } from '../../../ui/forms.tsx'
 
 /**
  * Confirma que un pago (o cobro) pendiente se ha realizado. Modifica el mismo

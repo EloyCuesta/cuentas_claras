@@ -2,8 +2,8 @@ import { useRef, useState, type KeyboardEvent } from 'react'
 import type { MonthPoint } from '#shared/finance/annual.ts'
 import { capitalize, MONTH_NAMES, shortMonthName } from '#shared/common/dates.ts'
 import { formatCompactEuros, formatEuros } from '#shared/common/money.ts'
-import { Total } from '../ui/Amount.tsx'
-import { Icon } from '../ui/Icon.tsx'
+import { Total } from '../../../ui/Amount.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 
 /** Paso "redondo" del eje (1, 2, 2,5 o 5 por una potencia de 10) para unas cuatro divisiones. */
 function niceStep(maxCents: number): number {

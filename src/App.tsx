@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon, LogoMark, type IconName } from './ui/Icon.tsx'
-import { MovementDialog } from './components/MovementDialog.tsx'
-import { PaymentDialog } from './components/PaymentDialog.tsx'
+import {
+  MovementDialog,
+  PaymentDialog,
+  BudgetsPage,
+  MovementsPage,
+  RecurringPage,
+  SettingsPage,
+  SummaryPage,
+  YearPage,
+  useFinance,
+} from './features/finance/index.ts'
 import { formatDate, todayISO } from '#shared/common/dates.ts'
 import { EMPTY_FILTERS, type MovementFilters } from '#shared/finance/filters.ts'
 import type { YearMonth } from '#shared/finance/period.ts'
 import { effectiveDate } from '#shared/finance/summary.ts'
 import type { Movement, MovementType } from '#shared/finance/types.ts'
-import { BudgetsPage } from './pages/BudgetsPage.tsx'
 import { DespensaPage } from './pages/DespensaPage.tsx'
-import { MovementsPage } from './pages/MovementsPage.tsx'
-import { RecurringPage } from './pages/RecurringPage.tsx'
-import { SettingsPage } from './pages/SettingsPage.tsx'
-import { SummaryPage } from './pages/SummaryPage.tsx'
-import { YearPage } from './pages/YearPage.tsx'
-import { useFinance } from './state/financeContext.ts'
 import { yearRange } from './ui/helpers.ts'
 import { navigate, useHashRoute, type Route } from './ui/useHashRoute.ts'
 

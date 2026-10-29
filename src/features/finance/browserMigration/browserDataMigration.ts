@@ -1,7 +1,7 @@
 import { hasUserData } from '#shared/finance/backup.ts'
-import { DB_NAME, IndexedDbFinanceRepository } from '../storage/IndexedDbFinanceRepository.ts'
-import { ApiError } from '../api/client.ts'
-import type { ApiFinanceRepository } from './ApiFinanceRepository.ts'
+import { DB_NAME, IndexedDbFinanceRepository } from './IndexedDbFinanceRepository.ts'
+import { ApiError } from '../../../api/client.ts'
+import type { ApiFinanceRepository } from '../ApiFinanceRepository.ts'
 
 /**
  * Paso único de las versiones anteriores (datos en IndexedDB, dentro del

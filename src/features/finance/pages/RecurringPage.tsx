@@ -3,11 +3,11 @@ import { categoryPath, indexCategories } from '#shared/finance/categories.ts'
 import { describeDue, formatDate } from '#shared/common/dates.ts'
 import { FREQUENCY_DESCRIPTIONS, generationHorizon, recurringStatus } from '#shared/finance/recurring.ts'
 import type { RecurringRule } from '#shared/finance/types.ts'
-import { Amount } from '../ui/Amount.tsx'
-import { EmptyState } from '../ui/EmptyState.tsx'
-import { Icon } from '../ui/Icon.tsx'
+import { Amount } from '../../../ui/Amount.tsx'
+import { EmptyState } from '../../../ui/EmptyState.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 import { RecurringDialog } from '../components/RecurringDialog.tsx'
-import { useFinance } from '../state/financeContext.ts'
+import { useFinance } from '../financeContext.ts'
 
 export function RecurringPage() {
   const { data, today } = useFinance()

@@ -3,13 +3,13 @@ import type { MetaKey } from '#shared/finance/meta.ts'
 import type { Category, FinanceData, Movement, RecurringRule, SaveRecurringOptions } from '#shared/finance/types.ts'
 
 /**
- * Contrato del almacenamiento. La interfaz de React solo conoce esta interfaz,
- * nunca IndexedDB directamente.
+ * Contrato del almacenamiento de las finanzas en la web. La interfaz de React
+ * solo conoce esta interfaz: no sabe que hay un servidor ni una base de datos.
  *
- * Para migrar a una base de datos en servidor basta con escribir otra clase
- * que la implemente (por ejemplo, ApiFinanceRepository con fetch a una API
- * REST) y pasarla al <FinanceProvider> en main.tsx. Cada método corresponde a
- * una operación completa y atómica: o se guarda entera o no se guarda nada.
+ * La implementación es ApiFinanceRepository (la API REST del servidor), que
+ * Root.tsx pasa a <FinanceProvider>. La de IndexedDB (browserMigration/) solo
+ * se usa para leer los datos de las versiones antiguas. Cada método es una
+ * operación completa y atómica: o se guarda entera o no se guarda nada.
  */
 export interface FinanceRepository {
   /** Todos los datos (categorías, movimientos y recurrentes). */

@@ -1,6 +1,6 @@
 import { formatEuros } from '#shared/common/money.ts'
 import type { BreakdownSide, CategoryBreakdown } from '#shared/finance/summary.ts'
-import { Total } from '../ui/Amount.tsx'
+import { Total } from '../../../ui/Amount.tsx'
 
 /** Importe de una celda; el cero se escribe como una raya para que destaque lo que tiene importe. */
 function Cell({ cents, pending = false }: { cents: number | null; pending?: boolean }) {

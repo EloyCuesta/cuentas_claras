@@ -1,7 +1,7 @@
 import { periodUnit, type Period } from '#shared/finance/period.ts'
 import type { BudgetLine } from '#shared/finance/summary.ts'
-import { BudgetMeter } from '../ui/BudgetMeter.tsx'
-import { Section } from '../ui/Section.tsx'
+import { BudgetMeter } from '../../../ui/BudgetMeter.tsx'
+import { Section } from '../../../ui/Section.tsx'
 
 /** Consumo de las categorías con presupuesto en un periodo, con enlace a Presupuestos. */
 export function BudgetSummary({ id, title, lines, period }: { id: string; title: string; lines: BudgetLine[]; period: Period }) {

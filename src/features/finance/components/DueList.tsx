@@ -2,8 +2,8 @@ import { categoryPath, type CategoryMap } from '#shared/finance/categories.ts'
 import { describeDue, MONTH_NAMES } from '#shared/common/dates.ts'
 import type { ISODate } from '#shared/common/types.ts'
 import type { Movement } from '#shared/finance/types.ts'
-import { Amount } from '../ui/Amount.tsx'
-import { Icon } from '../ui/Icon.tsx'
+import { Amount } from '../../../ui/Amount.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 
 /** Hoja de calendario con el día y el mes del vencimiento. */
 function DateLeaf({ date }: { date: ISODate }) {

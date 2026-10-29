@@ -2,8 +2,8 @@ import type { ISODate } from '#shared/common/types.ts'
 import type { Category, FinanceData, Movement, RecurringRule } from '#shared/finance/types.ts'
 import type { MetaKey } from '#shared/finance/meta.ts'
 import type { SaveRecurringOptions } from '#shared/finance/types.ts'
-import type { FinanceRepository } from '../storage/FinanceRepository.ts'
-import { apiRequest, segment } from '../api/client.ts'
+import type { FinanceRepository } from './FinanceRepository.ts'
+import { apiRequest, segment } from '../../api/client.ts'
 
 /**
  * FinanceRepository que guarda en la base de datos SQLite del servidor a través

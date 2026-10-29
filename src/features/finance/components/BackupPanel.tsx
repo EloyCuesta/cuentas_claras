@@ -4,12 +4,12 @@ import { movementsToCsv } from '#shared/finance/csv.ts'
 import { formatDateTime } from '#shared/common/dates.ts'
 import { nowISO } from '#shared/common/ids.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
-import { useFinance } from '../state/financeContext.ts'
-import { describeStorageError } from '../api/storageErrors.ts'
-import { useToast } from '../ui/toastContext.ts'
-import { downloadFile } from '../ui/helpers.ts'
-import { ConfirmDialog } from '../ui/Dialog.tsx'
-import { Icon } from '../ui/Icon.tsx'
+import { useFinance } from '../financeContext.ts'
+import { describeStorageError } from '../../../api/storageErrors.ts'
+import { useToast } from '../../../ui/toastContext.ts'
+import { downloadFile } from '../../../ui/helpers.ts'
+import { ConfirmDialog } from '../../../ui/Dialog.tsx'
+import { Icon } from '../../../ui/Icon.tsx'
 
 /** Una copia de Cuentas claras nunca debería acercarse a este tamaño. */
 const MAX_BACKUP_BYTES = 50 * 1024 * 1024
