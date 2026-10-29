@@ -4,6 +4,7 @@ import { createWorker, OEM, PSM, type Line, type Word, type Worker } from 'tesse
 import type { OcrLine, TicketSegment } from '#shared/tickets/types.ts'
 import { endsProducts } from '#shared/tickets/ticketParse.ts'
 import { imageInfo, type ImageInfo } from '../../../../common/imageInfo.ts'
+import type { TicketReader } from '../../application/ports.ts'
 
 /**
  * Lector de tickets: OCR con Tesseract (tesseract.js), en este mismo equipo.
@@ -29,12 +30,6 @@ import { imageInfo, type ImageInfo } from '../../../../common/imageInfo.ts'
  * Un solo «worker» para todas las peticiones, de una en una. Se cierra tras
  * unos minutos sin uso para liberar memoria y se vuelve a abrir al necesitarlo.
  */
-
-export interface TicketReader {
-  /** Una lista de líneas por imagen, en orden. */
-  read(images: readonly Buffer[], segments?: readonly Omit<TicketSegment, 'image'>[]): Promise<OcrLine[][]>
-  close(): Promise<void>
-}
 
 const require = createRequire(import.meta.url)
 const LANG_PATH = join(dirname(require.resolve('@tesseract.js-data/spa/package.json')), '4.0.0_best_int')
@@ -166,7 +161,9 @@ export function createTesseractReader({ idleMs = IDLE_MS }: { idleMs?: number } 
         if (idleTimer) clearTimeout(idleTimer)
         const tesseract = await getWorker()
         const pages: OcrLine[][] = []
-        for (const [i, image] of images.entries()) {
+        for (const [i, bytes] of images.entries()) {
+          // tesseract.js y imageInfo trabajan con Buffer; el puerto recibe Uint8Array (sin copiar nada).
+          const image = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
           const info = imageInfo(image)
           if (!info) throw new Error('Imagen no válida')
           pages.push(await readImage(tesseract, image, info, segments?.[i] ?? { imageIndex: i, segmentIndex: 0, offsetY: 0, fullHeight: info.height }))
