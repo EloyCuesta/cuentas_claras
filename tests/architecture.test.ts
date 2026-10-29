@@ -195,6 +195,57 @@ const SERVER_RULES: Rule[] = [
   (file, imp) => (file.startsWith('src/') && imp.target?.startsWith('server/') ? 'src/ no importa nada de server/' : null),
 ]
 
+/** Feature de un archivo de la web: src/features/<feature>/… */
+const featureOf = (path: string) => /^src\/features\/([^/]+)\//.exec(path)?.[1] ?? null
+
+/** Los únicos archivos que pueden pedir datos al servidor: el cliente y el de cada feature. */
+const API_CLIENTS = /^src\/(api\/client\.ts|features\/[^/]+\/api\.ts|features\/finance\/ApiFinanceRepository\.ts)$/
+
+/** Reglas de la web (docs/frontend.md, «Reglas de la web»). */
+const WEB_RULES: Rule[] = [
+  // api/: el cliente de la API, sin nada de la interfaz.
+  (file, imp) => {
+    if (!file.startsWith('src/api/') || imp.target === null) return null
+    return imp.target.startsWith('src/api/') || imp.target.startsWith('shared/') ? null : 'src/api/ solo importa src/api/ y shared/'
+  },
+  // ui/: componentes genéricos, sin features ni API.
+  (file, imp) => {
+    if (!file.startsWith('src/ui/') || imp.target === null) return null
+    return imp.target.startsWith('src/ui/') || imp.target.startsWith('shared/') ? null : 'src/ui/ solo importa src/ui/ y shared/ (nada de las features ni de la API)'
+  },
+  // Una feature: ui/, api/, shared/, lo suyo y, de otra feature, solo su index.ts.
+  (file, imp) => {
+    const own = featureOf(file)
+    if (!own || imp.target === null) return null
+    const other = featureOf(imp.target)
+    if (other && other !== own) {
+      return imp.target === `src/features/${other}/index.ts` ? null : `de otra feature solo se importa su index.ts (src/features/${other}/index.ts)`
+    }
+    const allowed =
+      imp.target.startsWith(`src/features/${own}/`) ||
+      imp.target.startsWith('src/ui/') ||
+      imp.target.startsWith('src/api/') ||
+      imp.target.startsWith('shared/')
+    return allowed ? null : 'una feature importa src/ui/, src/api/, shared/, lo suyo y el index.ts de otras features'
+  },
+  // La raíz (main, Root, App, GuestApp): features por su index.ts, ui/, api/ y shared/.
+  (file, imp) => {
+    if (!/^src\/[^/]+\.tsx?$/.test(file) || imp.target === null) return null
+    const allowed =
+      /^src\/[^/]+$/.test(imp.target) ||
+      /^src\/features\/[^/]+\/index\.ts$/.test(imp.target) ||
+      imp.target.startsWith('src/ui/') ||
+      imp.target.startsWith('src/api/') ||
+      imp.target.startsWith('shared/')
+    return allowed ? null : 'la raíz de la web importa las features por su index.ts, src/ui/, src/api/ y shared/'
+  },
+  // Solo los clientes de la API hacen peticiones.
+  (file, imp) => {
+    if (imp.target !== 'src/api/client.ts' || !imp.names.includes('apiRequest') || API_CLIENTS.test(file)) return null
+    return 'solo src/api/client.ts y el cliente de cada feature (api.ts o ApiFinanceRepository.ts) hacen peticiones; los componentes usan hooks o providers'
+  },
+]
+
 /** Node y sus globales fuera de shared/, domain/ y application/: van en adaptadores o detrás de un puerto. */
 const NODE_GLOBALS = /\bBuffer\b|\bprocess\./
 
@@ -213,8 +264,21 @@ function violations(files: string[], rules: Rule[]): string[] {
         if (broken) found.push(`${file}: importa '${imp.specifier}'${imp.target ? ` (${imp.target})` : ''}. Regla: ${broken}`)
       }
     }
-    if (pureLayer(file) && NODE_GLOBALS.test(stripComments(readFileSync(`${ROOT}${file}`, 'utf8')))) {
+  }
+  return found
+}
+
+/** Lo que no se ve en los imports: los globales de Node en el código puro y fetch fuera del cliente de la API. */
+function codeViolations(files: string[]): string[] {
+  const found: string[] = []
+  for (const file of files) {
+    if (isExempt(file)) continue
+    const code = stripComments(readFileSync(`${ROOT}${file}`, 'utf8'))
+    if (pureLayer(file) && NODE_GLOBALS.test(code)) {
       found.push(`${file}: usa Buffer o process. Regla: lo de Node va en un adaptador o detrás de un puerto`)
+    }
+    if (file.startsWith('src/') && file !== 'src/api/client.ts' && /\bfetch\s*\(/.test(code)) {
+      found.push(`${file}: usa fetch. Regla: las peticiones salen de src/api/client.ts (apiRequest)`)
     }
   }
   return found
@@ -232,10 +296,23 @@ describe('arquitectura', () => {
     const modules = [...new Set(serverFiles.map((f) => serverModule(f)?.module).filter(Boolean))].sort()
     expect(modules).toEqual(['auth', 'finance', 'health', 'pantry', 'tickets'])
     for (const module of modules) expect(serverFiles, `falta server/modules/${module}/index.ts`).toContain(`server/modules/${module}/index.ts`)
+    const features = [...new Set(webFiles.map(featureOf).filter(Boolean))].sort()
+    expect(features).toEqual(['auth', 'finance', 'pantry', 'tickets'])
+    for (const feature of features) expect(webFiles, `falta src/features/${feature}/index.ts`).toContain(`src/features/${feature}/index.ts`)
   })
 
   it('el servidor y shared/ cumplen las reglas de dependencia', () => {
     const found = violations([...serverFiles, ...sharedFiles, ...webFiles], SERVER_RULES)
+    expect(found, found.join('\n')).toEqual([])
+  })
+
+  it('la web cumple las reglas de dependencia', () => {
+    const found = violations(webFiles, WEB_RULES)
+    expect(found, found.join('\n')).toEqual([])
+  })
+
+  it('Node solo en adaptadores y fetch solo en el cliente de la API', () => {
+    const found = codeViolations([...serverFiles, ...sharedFiles, ...webFiles])
     expect(found, found.join('\n')).toEqual([])
   })
 })
