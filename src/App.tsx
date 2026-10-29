@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Icon, LogoMark, type IconName } from './components/Icon.tsx'
+import { Icon, LogoMark, type IconName } from './ui/Icon.tsx'
 import { MovementDialog } from './components/MovementDialog.tsx'
 import { PaymentDialog } from './components/PaymentDialog.tsx'
 import { formatDate, todayISO } from '#shared/common/dates.ts'

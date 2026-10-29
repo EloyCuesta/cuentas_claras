@@ -15,12 +15,12 @@ import {
   type RecurringDraft,
 } from '#shared/finance/validation.ts'
 import { useFinance } from '../state/financeContext.ts'
-import { describeStorageError } from '../state/storageErrors.ts'
-import { useToast } from '../state/toastContext.ts'
+import { describeStorageError } from '../api/storageErrors.ts'
+import { useToast } from '../ui/toastContext.ts'
 import { focusFirstError } from '../ui/helpers.ts'
-import { ConfirmDialog, Dialog, DialogError } from './Dialog.tsx'
-import { AmountInput, DateInput, Field, Segmented } from './forms.tsx'
-import { Icon } from './Icon.tsx'
+import { ConfirmDialog, Dialog, DialogError } from '../ui/Dialog.tsx'
+import { AmountInput, DateInput, Field, Segmented } from '../ui/forms.tsx'
+import { Icon } from '../ui/Icon.tsx'
 
 const FIELD_IDS: [keyof RecurringDraft, string][] = [
   ['concept', 'rec-concept'],

@@ -3,12 +3,12 @@ import { todayISO } from '#shared/common/dates.ts'
 import { generationHorizon } from '#shared/finance/recurring.ts'
 import type { ISODate } from '#shared/common/types.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
-import { ServerUnavailableError } from '../services/apiClient.ts'
+import { ServerUnavailableError } from '../api/client.ts'
 import type { FinanceRepository } from '../storage/FinanceRepository.ts'
 import { FinanceContext, type FinanceActions, type FinanceContextValue } from './financeContext.ts'
-import { describeStorageError } from './storageErrors.ts'
+import { describeStorageError } from '../api/storageErrors.ts'
 import { notifyOtherTabs, onOtherTabChange } from './tabSync.ts'
-import { useToast, type ToastTone } from './toastContext.ts'
+import { useToast, type ToastTone } from '../ui/toastContext.ts'
 
 type LoadState =
   | { status: 'loading' }

@@ -7,7 +7,7 @@ import { CHECK_LABELS } from '#shared/tickets/ticketParse.ts'
 import { nameKey } from '#shared/tickets/ticketText.ts'
 import type { PantryFrequency, PantryItem, PantryPerson } from '#shared/pantry/types.ts'
 import type { TicketSegment, TicketSource } from '#shared/tickets/types.ts'
-import { DateInput, Field } from '../forms.tsx'
+import { DateInput, Field } from '../../ui/forms.tsx'
 import { TicketLineCheck } from './TicketLineCheck.tsx'
 import { currentCalculation, LINE_STATE_LABELS, lineAmount, lineState, lineToInput, needsLineCheck, readAmount, reviewCheck, reviewLine, type Choice, type ReviewLine, type ReviewState, type SectionId } from './ticketReviewState.ts'
 

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useAuth } from '../state/authContext.ts'
-import { describeStorageError } from '../state/storageErrors.ts'
-import { Icon } from './Icon.tsx'
-import { Section } from './Section.tsx'
+import { describeStorageError } from '../api/storageErrors.ts'
+import { Icon } from '../ui/Icon.tsx'
+import { Section } from '../ui/Section.tsx'
 
 /** Ajustes › Sesión: cerrar la sesión de este navegador y volver a la despensa. */
 export function SessionPanel() {

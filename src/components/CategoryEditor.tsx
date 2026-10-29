@@ -12,11 +12,11 @@ import { newId } from '#shared/common/ids.ts'
 import type { Category, MovementType } from '#shared/finance/types.ts'
 import { MAX_CATEGORY_NAME_LENGTH, validateCategoryName } from '#shared/finance/validation.ts'
 import { useFinance } from '../state/financeContext.ts'
-import { describeStorageError } from '../state/storageErrors.ts'
-import { useToast } from '../state/toastContext.ts'
-import { Dialog, DialogError } from './Dialog.tsx'
-import { Segmented } from './forms.tsx'
-import { Icon } from './Icon.tsx'
+import { describeStorageError } from '../api/storageErrors.ts'
+import { useToast } from '../ui/toastContext.ts'
+import { Dialog, DialogError } from '../ui/Dialog.tsx'
+import { Segmented } from '../ui/forms.tsx'
+import { Icon } from '../ui/Icon.tsx'
 
 type Editing = { mode: 'rename'; category: Category } | { mode: 'add'; parentId: string | null } | null
 

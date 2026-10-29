@@ -10,10 +10,10 @@ import {
   type Rhythms,
 } from '#shared/pantry/pantry.ts'
 import type { PantryFrequency, PantryItem, PantryPerson } from '#shared/pantry/types.ts'
-import { describeStorageError } from '../../state/storageErrors.ts'
+import { describeStorageError } from '../../api/storageErrors.ts'
 import { downloadFile } from '../../ui/helpers.ts'
-import { Dialog, DialogError } from '../Dialog.tsx'
-import { Icon } from '../Icon.tsx'
+import { Dialog, DialogError } from '../../ui/Dialog.tsx'
+import { Icon } from '../../ui/Icon.tsx'
 import { OwnerSelect } from './owner.tsx'
 import { encodeOwner, parseOwner } from './ownerFilter.ts'
 

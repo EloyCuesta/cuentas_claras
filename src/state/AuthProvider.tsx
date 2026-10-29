@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { apiRequest, onUnauthorized } from '../services/apiClient.ts'
+import { apiRequest, onUnauthorized } from '../api/client.ts'
 import { AuthContext, type AuthContextValue, type Role } from './authContext.ts'
-import { describeStorageError } from './storageErrors.ts'
-import { useToast } from './toastContext.ts'
+import { describeStorageError } from '../api/storageErrors.ts'
+import { useToast } from '../ui/toastContext.ts'
 
 type AuthState = { status: 'checking' } | { status: 'error'; message: string } | { status: 'ready'; role: Role }
 

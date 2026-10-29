@@ -1,4 +1,4 @@
-import { ApiError, ServerUnavailableError } from '../services/apiClient.ts'
+import { ApiError, ServerUnavailableError } from './client.ts'
 
 /** Traduce los errores del almacenamiento a mensajes que el usuario entienda. */
 export function describeStorageError(error: unknown): string {

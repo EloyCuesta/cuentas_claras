@@ -1,8 +1,8 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../state/authContext.ts'
-import { describeStorageError } from '../state/storageErrors.ts'
-import { Dialog, DialogError } from './Dialog.tsx'
-import { Field } from './forms.tsx'
+import { describeStorageError } from '../api/storageErrors.ts'
+import { Dialog, DialogError } from '../ui/Dialog.tsx'
+import { Field } from '../ui/forms.tsx'
 
 /**
  * Pide el código de acceso. El código solo vive en este formulario: se envía al

@@ -20,11 +20,11 @@ import type {
   PantryUnit,
 } from '#shared/pantry/types.ts'
 import type { FieldErrors } from '#shared/common/validation.ts'
-import { describeStorageError } from '../../state/storageErrors.ts'
+import { describeStorageError } from '../../api/storageErrors.ts'
 import { focusFirstError } from '../../ui/helpers.ts'
-import { ConfirmDialog, Dialog, DialogError } from '../Dialog.tsx'
-import { Field, Segmented } from '../forms.tsx'
-import { Icon } from '../Icon.tsx'
+import { ConfirmDialog, Dialog, DialogError } from '../../ui/Dialog.tsx'
+import { Field, Segmented } from '../../ui/forms.tsx'
+import { Icon } from '../../ui/Icon.tsx'
 
 const FIELD_IDS: [keyof PantryItemDraft, string][] = [
   ['name', 'pantry-name'],

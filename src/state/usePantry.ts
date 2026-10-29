@@ -15,7 +15,7 @@ import type {
 } from '#shared/pantry/types.ts'
 import type { PantryTicket, PantryTicketSummary, TicketSaveInput, TicketReadInput } from '#shared/tickets/types.ts'
 import { pantryApi } from '../services/pantryApi.ts'
-import { describeStorageError } from './storageErrors.ts'
+import { describeStorageError } from '../api/storageErrors.ts'
 
 export interface PantryData {
   people: PantryPerson[]

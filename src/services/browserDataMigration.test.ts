@@ -3,7 +3,7 @@ import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
 import { IndexedDbFinanceRepository } from '../storage/IndexedDbFinanceRepository.ts'
 import { movement, NOW, rule } from '#shared/testing/factories.ts'
-import { ApiError } from './apiClient.ts'
+import { ApiError } from '../api/client.ts'
 import { describeBrowserMigration, migrateBrowserData } from './browserDataMigration.ts'
 
 /**

@@ -3,9 +3,9 @@ import { capitalize, formatDate, formatMonthYear } from '#shared/common/dates.ts
 import { effectiveDate } from '#shared/finance/summary.ts'
 import type { ISODate } from '#shared/common/types.ts'
 import type { Movement, RecurringRule } from '#shared/finance/types.ts'
-import { Amount } from './Amount.tsx'
+import { Amount } from '../ui/Amount.tsx'
 import { PayButton } from './DueList.tsx'
-import { Icon } from './Icon.tsx'
+import { Icon } from '../ui/Icon.tsx'
 
 function statusText(movement: Movement, today: ISODate): { text: string; late: boolean } {
   if (movement.status === 'realizado') {

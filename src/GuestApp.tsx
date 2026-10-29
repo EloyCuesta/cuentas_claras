@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Icon, LogoMark } from './components/Icon.tsx'
+import { Icon, LogoMark } from './ui/Icon.tsx'
 import { LoginDialog } from './components/LoginDialog.tsx'
 import { DespensaPage } from './pages/DespensaPage.tsx'
 

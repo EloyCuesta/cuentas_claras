@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatEuros } from '#shared/common/money.ts'
 import type { CategoryTotal } from '#shared/finance/summary.ts'
-import { Icon } from './Icon.tsx'
+import { Icon } from '../ui/Icon.tsx'
 
 /**
  * Gastos del periodo por categoría como barras horizontales: lo pagado en sólido y

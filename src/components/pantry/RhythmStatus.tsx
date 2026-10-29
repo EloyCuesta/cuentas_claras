@@ -1,5 +1,5 @@
 import { RHYTHM_LABELS, type ItemRhythm, type RhythmStatus as Status } from '#shared/pantry/pantryRhythm.ts'
-import { Icon } from '../Icon.tsx'
+import { Icon } from '../../ui/Icon.tsx'
 
 const TONES: Record<Status, string> = {
   sin_compras: '',

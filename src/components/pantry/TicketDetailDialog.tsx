@@ -4,11 +4,11 @@ import { formatEuros } from '#shared/common/money.ts'
 import { formatQuantity } from '#shared/pantry/pantry.ts'
 import type { PantryItem } from '#shared/pantry/types.ts'
 import type { PantryTicket } from '#shared/tickets/types.ts'
-import { describeStorageError } from '../../state/storageErrors.ts'
-import { useToast } from '../../state/toastContext.ts'
+import { describeStorageError } from '../../api/storageErrors.ts'
+import { useToast } from '../../ui/toastContext.ts'
 import type { PantryActions } from '../../state/usePantry.ts'
-import { ConfirmDialog, Dialog, DialogError } from '../Dialog.tsx'
-import { Icon } from '../Icon.tsx'
+import { ConfirmDialog, Dialog, DialogError } from '../../ui/Dialog.tsx'
+import { Icon } from '../../ui/Icon.tsx'
 
 /** Un ticket guardado: sus líneas, a qué producto corresponde cada una (se puede cambiar) y borrarlo. */
 export function TicketDetailDialog({
