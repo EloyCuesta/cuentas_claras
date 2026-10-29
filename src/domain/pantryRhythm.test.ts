@@ -78,6 +78,20 @@ describe('itemRhythm', () => {
     expect(itemRhythm(weekly, [buy(0), buy(7), buy(18)], [mark(14, 'queda')], day(19)).expectedDays).toBe(9)
   })
 
+  it('«Queda poco» lo pone en la lista, pero aprende como «Queda»', () => {
+    const rhythm = itemRhythm(weekly, [buy(0)], [mark(5, 'poco')], day(5))
+    expect(rhythm.status).toBe('queda_poco')
+    expect(needsReview(rhythm)).toBe(false)
+    // Se volvió a comprar el día 8: duró 8 días (el día 5 todavía quedaba).
+    expect(itemRhythm(weekly, [buy(0), buy(8)], [mark(5, 'poco')], day(9))).toMatchObject({ status: 'al_dia', expectedDays: 8, learned: true })
+    // Si después se pulsa «Queda», manda lo último.
+    expect(itemRhythm(weekly, [buy(0)], [mark(5, 'poco'), mark(5, 'queda', 21)], day(5)).status).toBe('al_dia')
+    // Y si se acaba, «Se acabó».
+    expect(itemRhythm(weekly, [buy(0)], [mark(5, 'poco'), mark(6, 'se_acabo')], day(6)).status).toBe('se_acabo')
+    // También sin compras apuntadas.
+    expect(itemRhythm(weekly, [], [mark(1, 'poco')], day(1)).status).toBe('queda_poco')
+  })
+
   it('una compra después de «Se acabó» lo deja al día; el mismo día cuenta el orden', () => {
     expect(itemRhythm(weekly, [buy(0), buy(9)], [mark(8, 'se_acabo')], day(9)).status).toBe('al_dia')
     // Se acabó por la mañana y se compró por la tarde: al día.
@@ -171,6 +185,19 @@ describe('la despensa con productos que se siguen por compras', () => {
     // sal 0,40 € cada 30 → 0,40 €; arroz 1 kg a 1,20 €/kg al mes → 1,20 €.
     expect(rhythms.get('leche')?.expectedDays).toBe(3)
     expect(monthlyEstimate(items, rhythms)).toEqual({ cents: 5759 + 3681 + 40 + 120, withoutPrice: 0 })
+  })
+
+  it('lo que «queda poco» va a la lista, con lo que se compró la última vez', () => {
+    const bread: PantryItem[] = [{ ...base, id: 'pan', name: 'Pan', priceCents: 100 }]
+    const breadRhythms = rhythmsFor(
+      bread,
+      { purchases: [buy(0, { itemId: 'pan', amount: 2, measure: 'ud' as const, costCents: 200 })], events: [{ ...mark(2, 'poco'), itemId: 'pan' }] },
+      day(2),
+    )
+    expect(breadRhythms.get('pan')?.status).toBe('queda_poco')
+    expect(listaCompraTexto(bread, [], { date: day(2), owner: 'todo', frequencies: ['semanal'] }, breadRhythms)).toBe(
+      '🛒 Lista de la compra · 03/10/2026\n\n*Compartido*\n• Pan — 2 ud\n\nTotal estimado: 2,00 €',
+    )
   })
 
   it('sin tickets todavía, usa el precio estimado de una unidad (no en g ni ml)', () => {

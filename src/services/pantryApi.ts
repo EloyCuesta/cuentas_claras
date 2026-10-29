@@ -38,6 +38,7 @@ export const pantryApi = {
 
   getSettings: () => apiRequest<PantrySettings>('GET', '/despensa/presupuesto'),
   setBudget: (monthlyBudgetCents: number | null) => apiRequest<PantrySettings>('PUT', '/despensa/presupuesto', { monthlyBudgetCents }),
+  setReviewDate: (date: ISODate) => apiRequest<PantrySettings>('PUT', '/despensa/repaso', { date }),
 
   markPurchased: (ids: readonly string[], date: ISODate) =>
     apiRequest<{ changes: PantryPurchaseChange[]; items: PantryItem[] }>('POST', '/despensa/comprado', { ids, date }),

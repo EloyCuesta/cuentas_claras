@@ -248,6 +248,30 @@ describe('API de tickets', () => {
     expect((await g.call('DELETE', '/despensa/revisiones/no-existe')).status).toBe(404)
   })
 
+  it('«Queda poco» y el día del repaso de la semana, también sin el código', async () => {
+    const api = await startApi({ login: false, ticketReader: fakeReader() })
+    const g = guest(api)
+    const { draft } = await read(api)
+    await g.call('POST', '/despensa/tickets', saveInput(draft))
+    const milk = byName(await items(api), 'Leche semidesnatada')!
+
+    const low = await g.call('POST', `/despensa/productos/${milk.id}/revision`, { kind: 'poco', date: '2026-10-28' })
+    expect(low.status).toBe(201)
+    expect(low.body.data).toMatchObject({ itemId: milk.id, kind: 'poco', date: '2026-10-28' })
+
+    expect((await g.call('GET', '/despensa/presupuesto')).body.data).toEqual({ monthlyBudgetCents: null, lastReviewDate: null })
+    const reviewed = await g.call('PUT', '/despensa/repaso', { date: '2026-10-29' })
+    expect(reviewed.status).toBe(200)
+    expect(reviewed.body.data).toEqual({ monthlyBudgetCents: null, lastReviewDate: '2026-10-29' })
+    expect((await g.call('PUT', '/despensa/repaso', { date: 'ayer' })).status).toBe(400)
+    expect((await g.call('PUT', '/despensa/repaso', {})).status).toBe(400)
+    // El presupuesto y el repaso no se pisan.
+    expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: 25000 })).body.data).toEqual({
+      monthlyBudgetCents: 25000,
+      lastReviewDate: '2026-10-29',
+    })
+  })
+
   it('cambia el producto de una línea guardada (y de sus iguales) y borra tickets sin borrar productos', async () => {
     const api = await startApi({ login: false, ticketReader: fakeReader() })
     const g = guest(api)

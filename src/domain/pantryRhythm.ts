@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from './dates.ts'
-import type { ISODate, PantryActivity, PantryEvent, PantryFrequency, PantryItem, PantryPurchase } from './types.ts'
+import type { ISODate, PantryActivity, PantryEvent, PantryEventKind, PantryFrequency, PantryItem, PantryPurchase } from './types.ts'
 
 /**
  * Ritmo de compra de cada producto: en lugar de contar lo que hay en la
@@ -12,14 +12,19 @@ import type { ISODate, PantryActivity, PantryEvent, PantryFrequency, PantryItem,
  * - Si se conoce cuánto se compró (kilos o unidades) en las mismas medidas, la
  *   duración se escala con la cantidad: si 2 l duran 7 días, 4 l duran 14.
  * - «Queda» dice que el producto duró al menos hasta ese día (y pospone el
- *   aviso); «Se acabó» marca el final del ciclo.
+ *   aviso); «Se acabó» marca el final del ciclo. «Queda poco» lo pone en la
+ *   lista de la compra, pero para aprender cuenta como «Queda»: todavía no se
+ *   había acabado.
  * - Sin compras anteriores se usa la frecuencia del producto: 7, 30 o 121 días
  *   (121 días ≈ 0,25 veces al mes, como en la estimación mensual).
  *
  * Funciones puras: la fecha de hoy se recibe como parámetro.
  */
 
-export type RhythmStatus = 'sin_compras' | 'al_dia' | 'revisar' | 'probablemente_acabado' | 'se_acabo'
+export type RhythmStatus = 'sin_compras' | 'al_dia' | 'revisar' | 'probablemente_acabado' | 'queda_poco' | 'se_acabo'
+
+/** «Queda» y «Queda poco»: el producto seguía ahí ese día. */
+const STILL_THERE: ReadonlySet<PantryEventKind> = new Set(['queda', 'poco'])
 
 export const FALLBACK_DAYS: Record<PantryFrequency, number> = { semanal: 7, mensual: 30, ocasional: 121 }
 
@@ -106,7 +111,7 @@ export function itemRhythm(
   if (buys.length === 0) {
     const latest = marks.at(-1)
     return {
-      status: latest?.kind === 'se_acabo' ? 'se_acabo' : 'sin_compras',
+      status: latest?.kind === 'se_acabo' ? 'se_acabo' : latest?.kind === 'poco' ? 'queda_poco' : 'sin_compras',
       lastPurchase: null,
       lastCostCents,
       expectedDays: fallback,
@@ -122,7 +127,7 @@ export function itemRhythm(
     const next = buys[i + 1]
     const inCycle = marks.filter((m) => after(m, buy) && (!next || !after(m, next)))
     const out = inCycle.find((m) => m.kind === 'se_acabo')
-    const stillThere = inCycle.filter((m) => m.kind === 'queda').at(-1)
+    const stillThere = inCycle.filter((m) => STILL_THERE.has(m.kind)).at(-1)
     let days: number | null = out ? daysBetween(buy.date, out.date) : next ? daysBetween(buy.date, next.date) : null
     if (days === null) return
     if (stillThere) days = Math.max(days, daysBetween(buy.date, stillThere.date))
@@ -137,10 +142,10 @@ export function itemRhythm(
   else if (recent.length > 0) expected = median(recent.map((c) => c.days))
   const expectedDays = Math.min(MAX_DAYS, Math.max(1, Math.round(expected)))
 
-  // Ciclo abierto: el de la última compra.
+  // Ciclo abierto: el de la última compra. Manda la última revisión.
   const sinceLast = marks.filter((m) => after(m, last))
-  const lastOut = sinceLast.filter((m) => m.kind === 'se_acabo').at(-1)
-  const lastStill = sinceLast.filter((m) => m.kind === 'queda').at(-1)
+  const latest = sinceLast.at(-1)
+  const lastStill = sinceLast.filter((m) => STILL_THERE.has(m.kind)).at(-1)
   let dueDate = addDays(last.date, expectedDays)
   if (lastStill) {
     const postponed = addDays(lastStill.date, Math.max(2, Math.ceil(expectedDays * 0.3)))
@@ -148,7 +153,8 @@ export function itemRhythm(
   }
 
   let status: RhythmStatus
-  if (lastOut && !(lastStill && after(lastStill, lastOut))) status = 'se_acabo'
+  if (latest?.kind === 'se_acabo') status = 'se_acabo'
+  else if (latest?.kind === 'poco') status = 'queda_poco'
   else if (today >= dueDate) status = 'probablemente_acabado'
   else if (today >= addDays(dueDate, -Math.max(1, Math.round(expectedDays * 0.15)))) status = 'revisar'
   else status = 'al_dia'
@@ -210,5 +216,6 @@ export const RHYTHM_LABELS: Record<RhythmStatus, string> = {
   al_dia: 'Al día',
   revisar: 'Revisar pronto',
   probablemente_acabado: 'Probablemente se acabó',
+  queda_poco: 'Queda poco',
   se_acabo: 'Se acabó',
 }

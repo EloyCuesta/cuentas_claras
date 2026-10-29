@@ -3024,3 +3024,139 @@ body:has(dialog[open]) {
 .pantry-tracking-hint {
   margin-top: -10px;
 }
+
+/* 8. Repaso de la semana ----------------------------------------------------- */
+
+.week-review {
+  display: grid;
+  gap: 12px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.week-review__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.week-review__head > .icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.week-review__head .section-title {
+  margin: 0;
+}
+
+.week-review .button-row {
+  margin-top: 2px;
+}
+
+.week-review-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--ink-2);
+}
+
+.week-review-strip > .icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.review-step {
+  display: grid;
+  gap: 12px;
+}
+
+.review-step__count {
+  color: var(--ink-2);
+  font-size: var(--step--1);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.review-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--rule);
+}
+
+.review-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 160ms ease-out;
+}
+
+.review-step__name {
+  margin-top: 6px;
+  font-size: var(--step-2);
+  font-weight: 750;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.review-step__name:focus,
+.review-done__title:focus {
+  outline: none;
+}
+
+.review-step__question {
+  margin-top: 6px;
+  font-weight: 700;
+}
+
+.review-step__answers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.review-answer {
+  min-height: 56px;
+  padding-inline: 8px;
+}
+
+.review-answer[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.review-step__stepper {
+  justify-self: start;
+}
+
+.review-done {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  text-align: center;
+}
+
+.review-done > .icon {
+  color: var(--positive);
+}
+
+.review-done__title {
+  font-size: var(--step-1);
+  font-weight: 750;
+}
+
+@media (max-width: 380px) {
+  .review-step__answers {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-progress > span {
+    transition: none;
+  }
+}

@@ -7,9 +7,12 @@ import { encodeOwner, ownerName, parseOwner } from '../components/pantry/ownerFi
 import { PantryBudgetDialog } from '../components/pantry/PantryBudgetDialog.tsx'
 import { PantryItemDialog } from '../components/pantry/PantryItemDialog.tsx'
 import { PeopleDialog } from '../components/pantry/PeopleDialog.tsx'
+import { purchaseText, showsRhythmStatus } from '../components/pantry/rhythmText.ts'
+import { RhythmStatus } from '../components/pantry/RhythmStatus.tsx'
 import { ShoppingListDialog } from '../components/pantry/ShoppingListDialog.tsx'
 import { TicketDetailDialog } from '../components/pantry/TicketDetailDialog.tsx'
 import { TicketScanDialog } from '../components/pantry/TicketScanDialog.tsx'
+import { WeeklyReviewCard, WeeklyReviewDialog } from '../components/pantry/WeeklyReview.tsx'
 import { Section } from '../components/Section.tsx'
 import { formatDate } from '../domain/dates.ts'
 import { formatEuros } from '../domain/money.ts'
@@ -27,7 +30,8 @@ import {
   type OwnerFilter,
   type Rhythms,
 } from '../domain/pantry.ts'
-import { agoText, durationText, needsReview, RHYTHM_LABELS, rhythmsFor, type ItemRhythm } from '../domain/pantryRhythm.ts'
+import { reviewItems, reviewSchedule } from '../domain/pantryReview.ts'
+import { needsReview, rhythmsFor, type ItemRhythm } from '../domain/pantryRhythm.ts'
 import type { PantryEventKind, PantryItem, PantryPerson, PantryTicketSummary } from '../domain/types.ts'
 import { describeStorageError } from '../state/storageErrors.ts'
 import { useToast } from '../state/toastContext.ts'
@@ -40,27 +44,24 @@ type Editing =
   | { kind: 'list' }
   | { kind: 'scan' }
   | { kind: 'ticket'; id: string }
+  | { kind: 'review'; queue: string[] }
   | null
 
 const REVIEW_LIMIT = 8
 const RECENT_LIMIT = 3
+/** «Hoy no» en el aviso del repaso: se recuerda solo en este navegador y solo hoy. */
+const SNOOZE_KEY = 'cuentas-claras:repaso-pospuesto'
+
+function readSnooze(): string | null {
+  try {
+    return localStorage.getItem(SNOOZE_KEY)
+  } catch {
+    return null
+  }
+}
 
 const priceText = (item: PantryItem) =>
   item.priceCents === null ? null : `${formatEuros(item.priceCents)}${priceUnitLabel(item.unit).slice(1)}`
-
-/** «Comprado hace 6 días en Lidl (1,1 kg) · suele durar unos 7 días». */
-function purchaseText(rhythm: ItemRhythm | undefined): string {
-  if (!rhythm?.lastPurchase || rhythm.sinceDays === null) return 'Sin compras apuntadas todavía'
-  const last = rhythm.lastPurchase
-  const amount =
-    last.amount !== null && last.measure === 'kg'
-      ? ` (${describeQuantity(last.amount, 'kg')})`
-      : last.amount !== null && last.amount > 1
-        ? ` (${last.amount} ud)`
-        : ''
-  const when = rhythm.sinceDays === 0 ? 'Comprado hoy' : rhythm.sinceDays === 1 ? 'Comprado ayer' : `Comprado ${agoText(rhythm.sinceDays)}`
-  return `${when}${last.store ? ` en ${last.store}` : ''}${amount}${rhythm.learned ? ` · suele durar ${durationText(rhythm.expectedDays)}` : ''}`
-}
 
 function StockStatus({ item }: { item: PantryItem }) {
   const missing = missingQuantity(item)
@@ -77,19 +78,6 @@ function StockStatus({ item }: { item: PantryItem }) {
     <span className="chip chip--done">
       <Icon name="check" size={14} />
       {excess > 0 ? `Completo, sobra ${describeQuantity(excess, item.unit)}` : 'Completo'}
-    </span>
-  )
-}
-
-function RhythmStatus({ rhythm }: { rhythm: ItemRhythm | undefined }) {
-  const status = rhythm?.status ?? 'sin_compras'
-  const tone =
-    status === 'se_acabo' || status === 'probablemente_acabado' ? 'chip--late' : status === 'revisar' ? 'chip--warn' : status === 'al_dia' ? 'chip--done' : ''
-  const icon = status === 'al_dia' ? 'check' : status === 'sin_compras' ? 'info' : 'alert'
-  return (
-    <span className={`chip ${tone}`.trim()}>
-      <Icon name={icon} size={14} />
-      {RHYTHM_LABELS[status]}
     </span>
   )
 }
@@ -116,9 +104,8 @@ function PantryRow({
   const counted = item.tracking === 'cantidad'
   const step = quantityStep(item.unit)
   const stepText = describeQuantity(step, item.unit)
-  const out = rhythm?.status === 'se_acabo' || rhythm?.status === 'probablemente_acabado'
-  // Por compras, la etiqueta solo sale cuando hay algo que mirar: «Comprado hace 5 días» ya dice que está al día.
-  const flagged = out || rhythm?.status === 'revisar'
+  // En la lista de la compra: el botón pasa a ser «Lo he comprado».
+  const out = rhythm?.status === 'se_acabo' || rhythm?.status === 'queda_poco' || rhythm?.status === 'probablemente_acabado'
   return (
     <li className="pantry-item">
       <div className="pantry-item__main">
@@ -137,7 +124,7 @@ function PantryRow({
           {price && <span>{price}</span>}
           {ownerLabel && <span>{ownerLabel}</span>}
         </span>
-        {counted ? <StockStatus item={item} /> : flagged && <RhythmStatus rhythm={rhythm} />}
+        {counted ? <StockStatus item={item} /> : showsRhythmStatus(rhythm) && <RhythmStatus rhythm={rhythm} />}
         {item.notes && <span className="pantry-item__notes">{item.notes}</span>}
       </div>
       {counted ? (
@@ -195,7 +182,7 @@ function ReviewBlock({
   const shown = showAll ? pending : pending.slice(0, REVIEW_LIMIT)
   return (
     <Section id="pantry-review" title={`Para revisar (${pending.length})`} className="pantry-review">
-      <p className="section-sub">Según cuándo los compraste, puede que se estén acabando. ¿Queda o se acabó?</p>
+      <p className="section-sub">Según cuándo los compraste, puede que se estén acabando. ¿Cuánto queda?</p>
       <ul className="review-list">
         {shown.map((item) => {
           const rhythm = rhythms.get(item.id)
@@ -210,6 +197,9 @@ function ReviewBlock({
               <div className="review-item__actions">
                 <button type="button" className="btn" disabled={busy} onClick={() => onMark(item, 'queda')}>
                   Queda<span className="sr-only"> {item.name}</span>
+                </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => onMark(item, 'poco')}>
+                  Queda poco<span className="sr-only"> de {item.name}</span>
                 </button>
                 <button type="button" className="btn btn--primary" disabled={busy} onClick={() => onMark(item, 'se_acabo')}>
                   Se acabó<span className="sr-only"> {item.name}</span>
@@ -370,6 +360,7 @@ function SummaryBlock({
 
 const MARK_TEXT: Record<PantryEventKind, string> = {
   queda: 'queda. Te avisará más adelante.',
+  poco: 'queda poco. Está en la lista de la compra.',
   se_acabo: 'se acabó. Está en la lista de la compra.',
   comprado: 'comprado hoy.',
 }
@@ -401,6 +392,14 @@ export function DespensaPage() {
   const visible = useMemo(() => items.filter((item) => matchesOwner(item, owner)), [items, owner])
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name])), [people])
   const listCount = useMemo(() => pantrySummary(items, 'todo', rhythms).missingCount, [items, rhythms])
+  const schedule = useMemo(
+    () =>
+      state.status === 'ready'
+        ? reviewSchedule(state.settings.lastReviewDate, state.items, state.activity.purchases, state.today)
+        : { due: false, sinceDays: null },
+    [state],
+  )
+  const [snoozedOn, setSnoozedOn] = useState<string | null>(readSnooze)
 
   /** Una acción cada vez por producto: la siguiente espera a la respuesta del servidor. */
   const withBusy = async (id: string, work: () => Promise<void>) => {
@@ -456,6 +455,19 @@ export function DespensaPage() {
     })
   }
 
+  /** «Hoy no»: el aviso del repaso se queda en una línea hasta mañana (en este navegador). */
+  const snooze = (today: string) => {
+    try {
+      localStorage.setItem(SNOOZE_KEY, today)
+    } catch {
+      // Sin almacenamiento en el navegador vale igual hasta recargar.
+    }
+    setSnoozedOn(today)
+  }
+
+  /** Lo que se repasa se decide al empezar: mientras se responde no cambia de orden. */
+  const startReview = (today: string) => setEditing({ kind: 'review', queue: reviewItems(visible, rhythms, today).map((item) => item.id) })
+
   const defaultOwnerId = typeof owner === 'object' ? owner.personId : null
   const ready = state.status === 'ready'
 
@@ -483,9 +495,18 @@ export function DespensaPage() {
           </button>
         </div>
       )}
-      <p className="lede">
-        Escanea el ticket después de comprar: la app apunta cuándo compraste cada cosa y te avisa de lo que conviene mirar.
-      </p>
+      {state.status === 'ready' && state.items.length > 0 ? (
+        <WeeklyReviewCard
+          schedule={schedule}
+          snoozed={snoozedOn === state.today}
+          onStart={() => startReview(state.today)}
+          onSnooze={() => snooze(state.today)}
+        />
+      ) : (
+        <p className="lede">
+          Escanea el ticket después de comprar: la app apunta cuándo compraste cada cosa y te avisa de lo que conviene mirar.
+        </p>
+      )}
 
       {state.status === 'loading' && (
         <p className="muted" role="status">
@@ -619,6 +640,18 @@ export function DespensaPage() {
               onSaved={(ticket) =>
                 notify(`Ticket guardado: ${ticket.productsCount === 1 ? '1 producto apuntado' : `${ticket.productsCount} productos apuntados`}`)
               }
+              onClose={() => setEditing(null)}
+            />
+          )}
+          {editing?.kind === 'review' && (
+            <WeeklyReviewDialog
+              queue={editing.queue}
+              items={items}
+              rhythms={rhythms}
+              people={people}
+              listCount={listCount}
+              actions={actions}
+              onShowList={() => setEditing({ kind: 'list' })}
               onClose={() => setEditing(null)}
             />
           )}

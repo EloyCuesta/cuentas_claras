@@ -129,12 +129,12 @@ describe('API de la despensa', () => {
   it('consulta, fija y quita el presupuesto, distinguiendo 0 de sin presupuesto', async () => {
     const api = await startApi({ login: false })
     const g = guest(api)
-    expect((await g.call('GET', '/despensa/presupuesto')).body.data).toEqual({ monthlyBudgetCents: null })
-    expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: 0 })).body.data).toEqual({ monthlyBudgetCents: 0 })
-    expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: 25000 })).body.data).toEqual({ monthlyBudgetCents: 25000 })
+    expect((await g.call('GET', '/despensa/presupuesto')).body.data).toEqual({ monthlyBudgetCents: null, lastReviewDate: null })
+    expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: 0 })).body.data).toEqual({ monthlyBudgetCents: 0, lastReviewDate: null })
+    expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: 25000 })).body.data).toEqual({ monthlyBudgetCents: 25000, lastReviewDate: null })
     expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: -1 })).status).toBe(400)
     expect((await g.call('PUT', '/despensa/presupuesto', {})).status).toBe(400)
-    expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: null })).body.data).toEqual({ monthlyBudgetCents: null })
+    expect((await g.call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: null })).body.data).toEqual({ monthlyBudgetCents: null, lastReviewDate: null })
   })
 })
 
@@ -236,7 +236,7 @@ describe('la despensa no se mezcla con las finanzas', () => {
     expect(JSON.stringify(data)).not.toContain('Proteína')
     expect(await items(api)).toEqual([own])
     expect((await guest(api).call('GET', '/despensa/personas')).body.data).toEqual([eloy])
-    expect((await guest(api).call('GET', '/despensa/presupuesto')).body.data).toEqual({ monthlyBudgetCents: 30000 })
+    expect((await guest(api).call('GET', '/despensa/presupuesto')).body.data).toEqual({ monthlyBudgetCents: 30000, lastReviewDate: null })
   })
 
   it('el reinicio de pruebas también vacía la despensa', async () => {
@@ -247,6 +247,6 @@ describe('la despensa no se mezcla con las finanzas', () => {
     expect((await api.call('POST', '/test/reset')).status).toBe(200)
     expect(await items(api)).toEqual([])
     expect((await guest(api).call('GET', '/despensa/personas')).body.data).toEqual([])
-    expect((await guest(api).call('GET', '/despensa/presupuesto')).body.data).toEqual({ monthlyBudgetCents: null })
+    expect((await guest(api).call('GET', '/despensa/presupuesto')).body.data).toEqual({ monthlyBudgetCents: null, lastReviewDate: null })
   })
 })

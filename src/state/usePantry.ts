@@ -43,10 +43,12 @@ export interface PantryActions {
   /** Botones + y −: el servidor suma o resta sobre su valor actual y devuelve el resultado. */
   adjustItem(id: string, delta: number): Promise<void>
   setBudget(cents: number | null): Promise<void>
+  /** Apunta que hoy se ha hecho el repaso de la semana. */
+  finishReview(): Promise<void>
   /** Devuelve lo necesario para deshacer. */
   markPurchased(ids: readonly string[]): Promise<PantryPurchaseChange[]>
   undoPurchase(changes: readonly PantryPurchaseChange[]): Promise<void>
-  /** «Queda», «Se acabó» o «Lo he comprado», con la fecha de hoy. Devuelve la revisión (para deshacerla). */
+  /** «Queda», «Queda poco», «Se acabó» o «Lo he comprado», con la fecha de hoy. Devuelve la revisión (para deshacerla). */
   addEvent(itemId: string, kind: PantryEventKind): Promise<PantryEvent>
   deleteEvent(id: string): Promise<void>
   /** Lee un ticket (imágenes ya preparadas o texto). No guarda nada. */
@@ -153,6 +155,10 @@ export function usePantry(): { state: PantryState; actions: PantryActions } {
       },
       async setBudget(cents) {
         const settings = await pantryApi.setBudget(cents)
+        update(() => ({ settings }))
+      },
+      async finishReview() {
+        const settings = await pantryApi.setReviewDate(todayISO())
         update(() => ({ settings }))
       },
       async markPurchased(ids) {

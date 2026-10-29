@@ -147,3 +147,66 @@ test('días después: qué toca revisar, «Queda», «Se acabó» y la lista de 
   await expect(page.getByRole('button', { name: 'Lista de la compra (1)' })).toBeVisible()
   await expect(item(page, 'Pan de barra')).toContainText('Comprado hace 9 días en Lidl')
 })
+
+test('repaso de la semana: «Hoy no», un producto cada vez, volver atrás y la lista hecha', async ({ page, request }) => {
+  await saveTicket(request, '2026-10-20', [
+    { name: 'LECHE ENTERA', product: 'Leche entera', cents: 200, quantity: 2, frequency: 'semanal' },
+    { name: 'PAN BARRA', product: 'Pan de barra', cents: 96, frequency: 'semanal' },
+    { name: 'DETERGENTE', product: 'Detergente', cents: 499, frequency: 'mensual' },
+  ])
+  const rice = await request.post('/api/despensa/productos', {
+    data: { name: 'Arroz', ownerId: null, unit: 'kg', tracking: 'cantidad', quantity: 1, target: 2, frequency: 'mensual', priceCents: 120, notes: '' },
+  })
+  expect(rice.status()).toBe(201)
+  await page.clock.setFixedTime(new Date('2026-10-29T10:00:00+01:00'))
+  await page.goto('/')
+
+  // Nunca se ha hecho y la primera compra fue hace 9 días: toca. «Hoy no» lo deja en una línea, también al recargar.
+  await expect(page.getByRole('heading', { name: 'Toca el repaso de la semana' })).toBeVisible()
+  await page.getByRole('button', { name: 'Hoy no' }).click()
+  await expect(page.getByRole('heading', { name: 'Toca el repaso de la semana' })).toHaveCount(0)
+  await expect(page.getByText('Repaso de la semana: te avisará cada 7 días.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('Repaso de la semana: te avisará cada 7 días.')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Repasar ahora' }).click()
+  const review = page.getByRole('dialog', { name: 'Repaso de la semana' })
+  // Lo semanal comprado hace 9 días y lo que se cuenta; el detergente (cada mes) todavía no hace falta mirarlo.
+  await expect(review.getByText('1 de 3')).toBeVisible()
+  await expect(review.getByRole('heading', { name: 'Leche entera' })).toBeFocused()
+  await review.getByRole('button', { name: 'Queda poco', exact: true }).click()
+
+  await expect(review.getByRole('heading', { name: 'Pan de barra' })).toBeVisible()
+  await review.getByRole('button', { name: 'Se acabó', exact: true }).click()
+  // Equivocado: atrás, se ve lo que se había contestado, y se cambia por «Queda».
+  await expect(review.getByRole('heading', { name: 'Arroz' })).toBeVisible()
+  await review.getByRole('button', { name: 'Atrás' }).click()
+  await expect(review.getByRole('button', { name: 'Se acabó', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await review.getByRole('button', { name: 'Queda', exact: true }).click()
+
+  // Lo que se cuenta se ajusta con − y + al momento.
+  await review.getByRole('button', { name: 'Añadir 0,5 kg a Arroz' }).click()
+  await expect(review.locator('.stepper__value')).toHaveText('1,5 kg')
+  await review.getByRole('button', { name: 'Terminar' }).click()
+
+  await expect(review.getByRole('heading', { name: 'Repaso hecho' })).toBeVisible()
+  await expect(review).toContainText('Has repasado 3 productos; 1 ha pasado a la lista.')
+  await expect(review).toContainText('La lista de la compra tiene 2 productos.')
+  await review.getByRole('button', { name: 'Ver la lista de la compra' }).click()
+  const list = page.getByRole('dialog', { name: 'Lista de la compra' })
+  await expect(list.getByLabel('Texto de la lista')).toHaveValue(/\*Compartido\*\n• Leche entera — 2 ud\n• Arroz — 0,5 kg\n\nTotal estimado: 2,60 €$/)
+  await list.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
+  await expect(list).toBeHidden()
+
+  // Queda apuntado en el servidor: hasta dentro de una semana no vuelve a avisar.
+  await expect(page.getByText('Último repaso: hoy.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('Último repaso: hoy.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Toca el repaso de la semana' })).toHaveCount(0)
+  await expect(item(page, 'Leche entera').locator('.chip')).toHaveText('Queda poco')
+  // El «Se acabó» del pan se sustituyó por «Queda»: no está en la lista ni cuenta como lo que duró.
+  await expect(item(page, 'Pan de barra').locator('.chip')).toHaveCount(0)
+  await expect(item(page, 'Pan de barra')).toContainText('Comprado hace 9 días en Lidl')
+  await expect(item(page, 'Pan de barra')).not.toContainText('suele durar')
+  await expect(page.getByRole('button', { name: 'Lista de la compra (2)' })).toBeVisible()
+})

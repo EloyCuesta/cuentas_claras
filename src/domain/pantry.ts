@@ -116,12 +116,12 @@ const COUNT_UNITS: ReadonlySet<PantryUnit> = new Set(['ud', 'paquete', 'lata', '
 
 /**
  * ¿Hay que comprarlo? Si se cuenta, cuando hay menos de lo que se quiere tener;
- * si se sigue por compras, cuando se acabó o probablemente se ha acabado.
+ * si se sigue por compras, cuando se acabó, queda poco o probablemente se ha acabado.
  */
 export function needsBuying(item: Pick<PantryItem, 'id' | 'tracking' | 'quantity' | 'target'>, rhythms?: Rhythms): boolean {
   if (item.tracking === 'cantidad') return isMissing(item)
   const status = rhythms?.get(item.id)?.status
-  return status === 'se_acabo' || status === 'probablemente_acabado'
+  return status === 'se_acabo' || status === 'queda_poco' || status === 'probablemente_acabado'
 }
 
 /**

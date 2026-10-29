@@ -2,6 +2,7 @@ import type { Database } from 'better-sqlite3'
 import { initialSchema } from './001-esquema-inicial.ts'
 import { pantrySchema } from './002-despensa.ts'
 import { ticketsSchema } from './003-tickets.ts'
+import { reviewSchema } from './004-repaso.ts'
 
 /**
  * Migraciones versionadas. Cada una se aplica una sola vez, dentro de una
@@ -15,7 +16,7 @@ export interface Migration {
   up(db: Database): void
 }
 
-export const MIGRATIONS: readonly Migration[] = [initialSchema, pantrySchema, ticketsSchema]
+export const MIGRATIONS: readonly Migration[] = [initialSchema, pantrySchema, ticketsSchema, reviewSchema]
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
 

@@ -5,6 +5,7 @@ import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
 import { openDatabase } from './database.ts'
 import { initialSchema } from './migrations/001-esquema-inicial.ts'
 import { pantrySchema } from './migrations/002-despensa.ts'
+import { ticketsSchema } from './migrations/003-tickets.ts'
 import { LATEST_VERSION } from './migrations/index.ts'
 import { removeTempDbs, tempDbPath } from './test-helpers.ts'
 
@@ -116,7 +117,7 @@ describe('openDatabase', () => {
     expect(db.prepare('SELECT concept FROM movements').pluck().all()).toEqual(['Mercadona'])
     expect(db.prepare('SELECT value FROM meta').pluck().get()).toBe('y')
     expect(db.prepare('SELECT COUNT(*) FROM categories').pluck().get()).toBe(DEFAULT_CATEGORIES.length)
-    expect(db.prepare('SELECT version FROM schema_migrations ORDER BY version').pluck().all()).toEqual([1, 2, 3])
+    expect(db.prepare('SELECT version FROM schema_migrations ORDER BY version').pluck().all()).toEqual([1, 2, 3, 4])
 
     // Al volver a abrir no se repite ni se borra nada.
     db.prepare("INSERT INTO pantry_people (id, name, created_at) VALUES ('p1', 'Eloy', 'x')").run()
@@ -150,6 +151,50 @@ describe('openDatabase', () => {
       version: 1,
     })
     expect(() => db.prepare("UPDATE pantry_items SET tracking = 'otro'").run()).toThrow(/CHECK/)
+  })
+
+  it('la versión 4 conserva las revisiones, admite «Queda poco» y guarda el día del repaso', () => {
+    const path = tempDbPath()
+    const old = new Database(path)
+    old.pragma('foreign_keys = ON')
+    old.exec('CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)')
+    initialSchema.up(old)
+    pantrySchema.up(old)
+    ticketsSchema.up(old)
+    old.prepare("INSERT INTO schema_migrations VALUES (1, 'esquema inicial', 'x'), (2, 'despensa', 'x'), (3, 'tickets', 'x')").run()
+    old
+      .prepare(
+        `INSERT INTO pantry_items (id, name, owner_id, unit, tracking, quantity, target, frequency, price_cents, notes, created_at, updated_at)
+         VALUES ('i1', 'Leche', NULL, 'ud', 'compras', 0, 0, 'semanal', NULL, '', 'x', 'x')`,
+      )
+      .run()
+    old.prepare("INSERT INTO pantry_events (id, item_id, kind, event_date, created_at) VALUES ('e1', 'i1', 'se_acabo', '2026-10-25', 'y')").run()
+    old.prepare('INSERT INTO pantry_settings (id, monthly_budget_cents) VALUES (1, 30000)').run()
+    expect(() => old.prepare("INSERT INTO pantry_events (id, item_id, kind, event_date, created_at) VALUES ('e0', 'i1', 'poco', '2026-10-25', 'y')").run()).toThrow(
+      /CHECK/,
+    )
+    old.close()
+
+    const { db } = open(path)
+    expect(db.prepare('SELECT id, item_id, kind, event_date, created_at FROM pantry_events').all()).toEqual([
+      { id: 'e1', item_id: 'i1', kind: 'se_acabo', event_date: '2026-10-25', created_at: 'y' },
+    ])
+    expect(db.prepare('SELECT monthly_budget_cents, last_review_date FROM pantry_settings').get()).toEqual({
+      monthly_budget_cents: 30000,
+      last_review_date: null,
+    })
+    const event = db.prepare("INSERT INTO pantry_events (id, item_id, kind, event_date, created_at) VALUES (?, 'i1', ?, '2026-10-26', 'z')")
+    event.run('e2', 'poco')
+    expect(() => event.run('e3', 'mucho')).toThrow(/CHECK/)
+    expect(() => db.prepare("INSERT INTO pantry_events (id, item_id, kind, event_date, created_at) VALUES ('e4', 'no-existe', 'queda', 'x', 'x')").run()).toThrow(
+      /FOREIGN KEY/,
+    )
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'pantry_events'").pluck().all()).toContain('pantry_events_item')
+    expect(() => db.prepare("UPDATE pantry_settings SET last_review_date = 'ayer'").run()).toThrow(/CHECK/)
+    db.prepare("UPDATE pantry_settings SET last_review_date = '2026-10-29'").run()
+    // Las revisiones se siguen borrando con su producto.
+    db.prepare("DELETE FROM pantry_items WHERE id = 'i1'").run()
+    expect(db.prepare('SELECT COUNT(*) FROM pantry_events').pluck().get()).toBe(0)
   })
 
   it('las restricciones de los tickets protegen los datos', () => {

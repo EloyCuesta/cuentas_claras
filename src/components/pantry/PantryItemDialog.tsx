@@ -41,7 +41,6 @@ const toDraft = (item: PantryItem): PantryItemDraft => ({
   notes: item.notes,
 })
 
-/** Crear o editar un producto de la despensa. Si falla al guardar, el formulario conserva lo escrito. */
 /** Última compra y ritmo, en palabras. */
 function RhythmNotice({ rhythm }: { rhythm: ItemRhythm }) {
   const last = rhythm.lastPurchase
@@ -61,6 +60,7 @@ function RhythmNotice({ rhythm }: { rhythm: ItemRhythm }) {
   )
 }
 
+/** Crear o editar un producto de la despensa. Si falla al guardar, el formulario conserva lo escrito. */
 export function PantryItemDialog({
   item,
   people,

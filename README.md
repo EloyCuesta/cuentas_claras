@@ -82,11 +82,21 @@ Lo que se compra en casa, separado por persona para que lo individual no se mezc
 
 - Cada producto muestra su **última compra**: «Comprado hace 5 días en Lidl (6 ud)».
 - **Cuánto suele durar**: con dos compras o más, la mediana de lo que duró cada una (una compra rara no lo estropea). Si se sabe cuánto se compró, se escala: si 2 l duran 7 días, 4 l duran 14. Mientras no hay compras suficientes se usa la frecuencia del producto: 7 días (cada semana), 30 (cada mes) o 121 (de vez en cuando).
-- **Para revisar**: cuando se acerca o se pasa ese plazo, el producto aparece arriba con dos botones:
+- **Para revisar**: cuando se acerca o se pasa ese plazo, el producto aparece arriba con tres botones:
   - **Queda**: todavía hay. Se vuelve a avisar unos días después (el 30 % de lo que suele durar, al menos 2 días), y cuenta para saber que dura más.
+  - **Queda poco**: pasa a la lista de la compra, pero para aprender cuenta como «Queda» (todavía no se había acabado).
   - **Se acabó**: pasa a la lista de la compra y cuenta como lo que duró.
-- Avisos: «Revisar pronto» (quedan pocos días), «Probablemente se acabó» (ya ha pasado lo que suele durar; entra en la lista) y «Se acabó».
+- Avisos: «Revisar pronto» (quedan pocos días), «Probablemente se acabó» (ya ha pasado lo que suele durar; entra en la lista), «Queda poco» y «Se acabó».
 - **Lo he comprado**: apunta una compra sin ticket. Cada acción se puede deshacer desde el aviso que aparece.
+
+### Repaso de la semana
+
+Una vez a la semana, en un par de minutos, se mira lo que puede acabarse antes de la próxima compra y la lista queda hecha.
+
+- **Cuándo**: a los 7 días del último repaso aparece arriba «Toca el repaso de la semana» (la primera vez, a los 7 días de empezar a usar la Despensa). «Hoy no» lo deja hasta mañana en una línea pequeña, solo en ese navegador. Se puede hacer en cualquier momento con «Repasar ahora».
+- **Qué se repasa**: primero lo que ya conviene mirar, luego lo que puede acabarse en los próximos 7 días, lo que no tiene ninguna compra apuntada y, al final, lo que se cuenta. No se pregunta por lo que ya está en la lista ni por lo comprado hoy o ayer. Respeta la persona elegida arriba.
+- **Cómo**: un producto cada vez, con botones grandes («Queda», «Queda poco», «Se acabó»); en los que se cuentan, − y +. Se puede saltar uno o volver atrás y cambiar la respuesta (la anterior se borra). Cada respuesta se guarda al momento: si se cierra a medias, lo hecho queda hecho.
+- **Al terminar**: un resumen («Has repasado 8 productos; 3 han pasado a la lista») y el botón para abrir la lista de la compra y enviarla por WhatsApp. El día del repaso se guarda en el servidor, así que da igual desde qué móvil se haga.
 
 ### Productos, personas y lista
 
@@ -99,7 +109,7 @@ Lo que se compra en casa, separado por persona para que lo individual no se mezc
 - **Precio**: por unidad (por kilo en `g` y por litro en `ml`). Vacío = no se sabe; 0 = gratis. Cada ticket lo actualiza.
 - **Estimaciones**: lo que cuesta lo que falta y la **estimación mensual de toda la casa**. Por compras: lo que costó la última compra × las veces que se compra al mes (30,31 días ÷ lo que suele durar); sin tickets todavía, el precio estimado de una unidad. Contando: objetivo × precio × 4,33 si es semanal, × 1 si es mensual y × 0,25 si es ocasional. Los productos sin precio no cuentan y el resultado se marca como parcial. Los importes se calculan en céntimos exactos y cada línea se redondea una sola vez.
 - **Presupuesto**: un presupuesto mensual de la despensa para comparar con esa estimación. Es solo una estimación: **no crea gastos, movimientos, presupuestos ni recurrentes** en las cuentas.
-- **Lista de la compra**: lo que se acabó o probablemente se acabó (con la cantidad de la última compra) y lo que falta de lo que se cuenta, agrupado en Compartido y cada persona, con negritas de WhatsApp y el total estimado. Se filtra por persona y frecuencia. Se puede:
+- **Lista de la compra**: lo que se acabó, queda poco o probablemente se acabó (con la cantidad de la última compra) y lo que falta de lo que se cuenta, agrupado en Compartido y cada persona, con negritas de WhatsApp y el total estimado. Se filtra por persona y frecuencia. Se puede:
   - **Enviar por WhatsApp**: abre WhatsApp con el texto escrito (sin enviarlo). Es la opción principal porque funciona aunque la app vaya por HTTP.
   - **Compartir**, si el navegador lo permite (por HTTP en la red de casa normalmente no).
   - **Copiar**: si el navegador no deja copiar solo, selecciona el texto para copiarlo a mano.
@@ -145,8 +155,9 @@ Además se prueban:
 - El código de acceso: arranque sin código, rutas protegidas (`401`), cookie y caducidad de la sesión, cierre de sesión, sesiones que no sobreviven a un reinicio, y el bloqueo por intentos, por dispositivo y sin poder eludirlo con cabeceras inventadas (con un reloj controlado, sin esperar minutos).
 - La despensa: personas, productos, presupuesto, unidades, cálculos sin restos decimales, el texto exacto de la lista, comprar y deshacer (también con cambios de otro dispositivo), la migración desde una base de datos anterior y que las copias e importaciones financieras no la tocan.
 - Los tickets: la lectura con el OCR de verdad de una captura de Lidl **inventada** (`server/fixtures/`, con los datos que debe dar), la interpretación de las líneas (cantidades, pesos, descuentos, devoluciones, cifras y letras del IVA mal leídas), la corrección con el total, varias capturas seguidas, otras tiendas, lo aprendido y los nombres parecidos, guardar sin duplicar, cambiar una línea, borrar, la validación de las imágenes y la migración 003.
-- El ritmo de compra: lo que dura cada producto (mediana, escalado por cantidad, compras del mismo día), «Queda», «Se acabó», «Lo he comprado», los avisos, la lista y la estimación mensual.
-- En el navegador: el invitado solo ve la despensa y no pide datos financieros ni ejecuta la migración del navegador; persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles; entrar con el código, cerrar sesión y sesión caducada; escanear la captura de un ticket, revisarla (cambiar un nombre, no seguir una línea), guardarla, verla en «Últimas compras» y no poder guardarla dos veces; y días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra.
+- El ritmo de compra: lo que dura cada producto (mediana, escalado por cantidad, compras del mismo día), «Queda», «Queda poco», «Se acabó», «Lo he comprado», los avisos, la lista y la estimación mensual.
+- El repaso de la semana: cuándo toca (también la primera vez) y qué se repasa y en qué orden; la migración 004 conserva las revisiones que ya había.
+- En el navegador: el invitado solo ve la despensa y no pide datos financieros ni ejecuta la migración del navegador; persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles; entrar con el código, cerrar sesión y sesión caducada; escanear la captura de un ticket, revisarla (cambiar un nombre, no seguir una línea), guardarla, verla en «Últimas compras» y no poder guardarla dos veces; días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra; y el repaso de la semana («Hoy no», un producto cada vez, volver atrás y cambiar la respuesta, contar con − y +, y la lista hecha al final).
 
 ## Estructura
 
@@ -162,7 +173,7 @@ server/                      Servidor Node.js + Express + SQLite (se ejecuta con
 ├── ocr.ts                   Lectura de las capturas con Tesseract, en este equipo (dos pasadas: texto y cifras)
 ├── imageInfo.ts             Tipo y tamaño de una imagen PNG o JPEG, sin decodificarla
 ├── database.ts              Abre o crea la base de datos (WAL, claves foráneas) y aplica migraciones
-├── migrations/              Migraciones versionadas (001-esquema-inicial.ts, 002-despensa.ts, 003-tickets.ts)
+├── migrations/              Migraciones versionadas (001-esquema-inicial.ts, 002-despensa.ts, 003-tickets.ts, 004-repaso.ts)
 ├── repository.ts            SqliteFinanceRepository: el contrato FinanceRepository con SQL
 ├── http.ts                  Formato de las respuestas, errores centralizados y validación
 ├── routes/                  health, data, movements, categories, recurring, meta, pantry, tickets y testing
@@ -210,7 +221,7 @@ src/
 └── ui/                      Navegación con #, descargas, foco y preparar las fotos de los tickets
 e2e/app.spec.ts              Pruebas en navegador de las funciones financieras (con sesión)
 e2e/despensa.spec.ts         Pruebas en navegador del invitado, la despensa y el acceso
-e2e/tickets.spec.ts          Pruebas en navegador de los tickets y de lo que conviene revisar
+e2e/tickets.spec.ts          Pruebas en navegador de los tickets, de lo que conviene revisar y del repaso de la semana
 ejemplo/                     Copia de seguridad con datos de ejemplo
 ```
 
@@ -227,11 +238,11 @@ Trece tablas, solo con lo que usa la aplicación:
 | `meta` | Datos auxiliares: fecha de la última copia y de la importación desde el navegador. |
 | `pantry_people` | Personas de la despensa. |
 | `pantry_items` | Productos: dueño (`owner_id`, `NULL` = Compartido, borrado restringido), unidad, cantidades, frecuencia, precio en céntimos (`NULL` = desconocido), cómo se sigue (`tracking`: `compras` o `cantidad`) y `version`, que sube en cada escritura para poder deshacer sin pisar cambios. |
-| `pantry_settings` | Una sola fila con el presupuesto mensual de la despensa. |
+| `pantry_settings` | Una sola fila con el presupuesto mensual de la despensa y el día del último repaso de la semana (`last_review_date`, `NULL` = ninguno todavía). |
 | `pantry_tickets` | Tickets guardados: tienda, dirección, fecha, hora, total y una huella única (tienda, fecha, hora y total) para no guardarlos dos veces. Sin imágenes. |
 | `pantry_ticket_lines` | Las líneas de cada ticket tal como venían (nombre, cantidad, importes, descuento, peso, letra del IVA, «para una ocasión») y su producto (`NULL` = no se sigue; si se borra el producto, la línea se queda). |
 | `pantry_aliases` | Lo aprendido: qué producto es cada nombre de ticket en cada tienda, o que no se sigue. Se borra con su producto. |
-| `pantry_events` | «Queda», «Se acabó» y «Lo he comprado» de cada producto, con su fecha. |
+| `pantry_events` | «Queda», «Queda poco», «Se acabó» y «Lo he comprado» de cada producto, con su fecha. |
 | `schema_migrations` | Migraciones aplicadas (versión, nombre y fecha). |
 
 Decisiones sobre el modelo:
@@ -249,7 +260,7 @@ Decisiones sobre el modelo:
   - Cada operación es una transacción: se guarda entera o no se guarda nada.
   - El modo WAL protege la base de datos ante un corte.
   - Todas las consultas usan parámetros, así que el SQL no se puede inyectar.
-- **Migraciones**: cada una se aplica una sola vez, en una transacción, y queda anotada. La `002-despensa` añade las tablas de la despensa sin tocar las demás. La `003-tickets` añade las de los tickets y la columna `tracking`; los productos que ya había siguen contándose (`cantidad`). Los cambios futuros serán migraciones nuevas (`004-…`) que no borran datos. Una base de datos de una versión más nueva no se abre.
+- **Migraciones**: cada una se aplica una sola vez, en una transacción, y queda anotada. La `002-despensa` añade las tablas de la despensa sin tocar las demás. La `003-tickets` añade las de los tickets y la columna `tracking`; los productos que ya había siguen contándose (`cantidad`). La `004-repaso` añade el día del último repaso y la revisión «Queda poco»: como SQLite no deja cambiar una regla `CHECK`, copia `pantry_events` entera a una tabla nueva sin perder ninguna fila. Los cambios futuros serán migraciones nuevas (`005-…`) que no borran datos. Una base de datos de una versión más nueva no se abre.
 
 ## API
 
@@ -271,9 +282,10 @@ Públicas (sin código):
 | `GET` / `POST /api/despensa/productos` | Lista los productos o crea uno (`201`; el servidor pone id, versión y fechas; `tracking` es `cantidad` si no se indica) |
 | `PUT` / `DELETE /api/despensa/productos/:id` | Edita o borra un producto |
 | `POST /api/despensa/productos/:id/ajustar` | `{ delta }`: botones + y − sobre el valor actual |
-| `POST /api/despensa/productos/:id/revision` | `{ kind, date }` con `kind` = `queda`, `se_acabo` o `comprado` (`201`) |
+| `POST /api/despensa/productos/:id/revision` | `{ kind, date }` con `kind` = `queda`, `poco`, `se_acabo` o `comprado` (`201`) |
 | `DELETE /api/despensa/revisiones/:id` | Deshace una revisión |
-| `GET` / `PUT /api/despensa/presupuesto` | `{ monthlyBudgetCents }` (número o `null`) |
+| `GET` / `PUT /api/despensa/presupuesto` | `GET` da `{ monthlyBudgetCents, lastReviewDate }`; `PUT` recibe `{ monthlyBudgetCents }` (número o `null`) |
+| `PUT /api/despensa/repaso` | `{ date }`: apunta el día del repaso de la semana |
 | `POST /api/despensa/comprado` | `{ ids, date }` → completa hasta el objetivo (los que se cuentan) o apunta una compra (los que van por compras); devuelve `{ changes, items }` |
 | `POST /api/despensa/comprado/deshacer` | `{ changes }` → lo deja como estaba, o `409` si algo cambió después |
 | `POST /api/despensa/tickets/leer` | `{ imagenes: [base64…] }` (PNG o JPEG, hasta 6 de 8 MB) o `{ texto }`, y `{ hoy }` → el ticket leído, lo que se propone para cada producto y si ya estaba guardado. No guarda nada |

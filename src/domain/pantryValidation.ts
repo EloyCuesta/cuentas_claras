@@ -152,10 +152,22 @@ export function validatePurchaseInput(raw: unknown): ValidationResult<{ ids: str
 export function validateEventInput(raw: unknown): ValidationResult<{ kind: PantryEventKind; date: ISODate }> {
   return attempt(() => {
     const { kind, date } = readObject(raw)
-    if (kind !== 'queda' && kind !== 'se_acabo' && kind !== 'comprado') fail('El campo «kind» debe ser «queda», «se_acabo» o «comprado».')
+    if (kind !== 'queda' && kind !== 'poco' && kind !== 'se_acabo' && kind !== 'comprado') {
+      fail('El campo «kind» debe ser «queda», «poco», «se_acabo» o «comprado».')
+    }
     const checked = readOptionalDate(date, 'date')
     if (!checked) fail('Falta el campo «date» (AAAA-MM-DD).')
     return { kind, date: checked }
+  })
+}
+
+/** { date }: el día en que se hizo el repaso de la semana. */
+export function validateReviewInput(raw: unknown): ValidationResult<{ date: ISODate }> {
+  return attempt(() => {
+    const { date } = readObject(raw)
+    const checked = readOptionalDate(date, 'date')
+    if (!checked) fail('Falta el campo «date» (AAAA-MM-DD).')
+    return { date: checked }
   })
 }
 

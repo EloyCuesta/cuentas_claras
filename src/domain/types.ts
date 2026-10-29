@@ -139,6 +139,8 @@ export type PantryItemInput = Pick<
 export interface PantrySettings {
   /** Presupuesto mensual estimado del hogar en céntimos. null = sin presupuesto. */
   monthlyBudgetCents: number | null
+  /** Día del último repaso de la semana. null = todavía no se ha hecho ninguno. */
+  lastReviewDate: ISODate | null
 }
 
 /**
@@ -155,8 +157,11 @@ export type PantryPurchaseChange =
     }
   | { id: string; eventId: string }
 
-/** «Queda», «Se acabó» o «Lo he comprado» (sin ticket), con su fecha. */
-export type PantryEventKind = 'queda' | 'se_acabo' | 'comprado'
+/**
+ * «Queda», «Queda poco» (a la lista sin que se haya acabado), «Se acabó» o
+ * «Lo he comprado» (sin ticket), con su fecha.
+ */
+export type PantryEventKind = 'queda' | 'poco' | 'se_acabo' | 'comprado'
 
 export interface PantryEvent {
   id: string

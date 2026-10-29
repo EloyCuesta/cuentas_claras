@@ -6,6 +6,7 @@ import {
   validateItemInput,
   validatePersonInput,
   validatePurchaseInput,
+  validateReviewInput,
   validateUndoInput,
 } from '../../src/domain/pantryValidation.ts'
 import { sendData, valid } from '../http.ts'
@@ -25,12 +26,13 @@ import type { SqlitePantryRepository } from '../pantryRepository.ts'
  * - POST   /api/despensa/productos           PantryItemInput → 201 con el producto (id, versión y fechas del servidor)
  * - PUT    /api/despensa/productos/:id       PantryItemInput → el producto actualizado
  * - POST   /api/despensa/productos/:id/ajustar  { delta } → suma o resta a la cantidad actual (botones + y −)
- * - POST   /api/despensa/productos/:id/revision { kind: 'queda' | 'se_acabo' | 'comprado', date } → 201 con la revisión
+ * - POST   /api/despensa/productos/:id/revision { kind: 'queda' | 'poco' | 'se_acabo' | 'comprado', date } → 201 con la revisión
  * - DELETE /api/despensa/revisiones/:id        deshace una revisión
  * - DELETE /api/despensa/productos/:id
- * Presupuesto
- * - GET    /api/despensa/presupuesto         { monthlyBudgetCents }
+ * Presupuesto y repaso de la semana
+ * - GET    /api/despensa/presupuesto         { monthlyBudgetCents, lastReviewDate }
  * - PUT    /api/despensa/presupuesto         { monthlyBudgetCents: número o null }
+ * - PUT    /api/despensa/repaso              { date } → apunta el día del repaso de la semana
  * Compra
  * - POST   /api/despensa/comprado            { ids, date? } → { changes, items }
  * - POST   /api/despensa/comprado/deshacer   { changes } → items, o 409 si algo cambió después
@@ -94,6 +96,10 @@ export function pantryRoutes(pantry: SqlitePantryRepository): Router {
 
   router.put('/despensa/presupuesto', (req, res) => {
     sendData(res, pantry.setBudget(valid(validateBudgetInput(req.body)).monthlyBudgetCents))
+  })
+
+  router.put('/despensa/repaso', (req, res) => {
+    sendData(res, pantry.setReviewDate(valid(validateReviewInput(req.body)).date))
   })
 
   router.post('/despensa/comprado', (req, res) => {

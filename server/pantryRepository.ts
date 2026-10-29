@@ -134,10 +134,16 @@ export class SqlitePantryRepository {
       ),
       deleteEvent: db.prepare<[string]>('DELETE FROM pantry_events WHERE id = ?'),
       deleteItem: db.prepare<[string]>('DELETE FROM pantry_items WHERE id = ?'),
-      settings: db.prepare<[], { monthly_budget_cents: number | null }>('SELECT monthly_budget_cents FROM pantry_settings WHERE id = 1'),
+      settings: db.prepare<[], { monthly_budget_cents: number | null; last_review_date: string | null }>(
+        'SELECT monthly_budget_cents, last_review_date FROM pantry_settings WHERE id = 1',
+      ),
       setBudget: db.prepare<[number | null]>(
         `INSERT INTO pantry_settings (id, monthly_budget_cents) VALUES (1, ?)
          ON CONFLICT (id) DO UPDATE SET monthly_budget_cents = excluded.monthly_budget_cents`,
+      ),
+      setReviewDate: db.prepare<[string]>(
+        `INSERT INTO pantry_settings (id, last_review_date) VALUES (1, ?)
+         ON CONFLICT (id) DO UPDATE SET last_review_date = excluded.last_review_date`,
       ),
     }
   }
@@ -297,15 +303,24 @@ export class SqlitePantryRepository {
     return this.sql.events.all(date).map(toEvent)
   }
 
-  /* Presupuesto ----------------------------------------------------------- */
+  /* Presupuesto y repaso de la semana ------------------------------------ */
 
   getSettings(): PantrySettings {
-    return { monthlyBudgetCents: this.sql.settings.get()?.monthly_budget_cents ?? null }
+    const row = this.sql.settings.get()
+    return { monthlyBudgetCents: row?.monthly_budget_cents ?? null, lastReviewDate: row?.last_review_date ?? null }
   }
 
   setBudget(monthlyBudgetCents: number | null): PantrySettings {
     return this.transaction(() => {
       this.sql.setBudget.run(monthlyBudgetCents)
+      return this.getSettings()
+    })
+  }
+
+  /** Apunta el día del repaso de la semana (la fecha de hoy del usuario). */
+  setReviewDate(date: ISODate): PantrySettings {
+    return this.transaction(() => {
+      this.sql.setReviewDate.run(date)
       return this.getSettings()
     })
   }
