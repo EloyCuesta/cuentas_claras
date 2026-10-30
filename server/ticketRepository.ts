@@ -1,7 +1,5 @@
-import type Database from 'better-sqlite3'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { addDays, todayISO } from '../src/domain/dates.ts'
-import { nowISO } from '../src/domain/ids.ts'
 import { MAX_PANTRY_CENTS } from '../src/domain/pantry.ts'
 import type { AliasRecord } from '../src/domain/ticketMatch.ts'
 import { nameKey } from '../src/domain/ticketText.ts'
@@ -21,6 +19,7 @@ import type {
   TicketTaxCode,
 } from '../src/domain/types.ts'
 import { AppError } from './errors.ts'
+import type { SqliteContext } from './infra/sqlite.ts'
 import type { SqlitePantryRepository } from './pantryRepository.ts'
 
 /**
@@ -145,17 +144,14 @@ function quantityFromLines(lines: readonly TicketSaveLine[], unit: PantryUnit): 
 }
 
 export class SqliteTicketRepository {
-  private readonly db: Database.Database
+  private readonly ctx: SqliteContext
   private readonly pantry: SqlitePantryRepository
-  private readonly now: () => string
-  private readonly newId: () => string
   private readonly sql
 
-  constructor(db: Database.Database, pantry: SqlitePantryRepository, options: { now?: () => string; newId?: () => string } = {}) {
-    this.db = db
+  constructor(ctx: SqliteContext, pantry: SqlitePantryRepository) {
+    this.ctx = ctx
     this.pantry = pantry
-    this.now = options.now ?? nowISO
-    this.newId = options.newId ?? randomUUID
+    const db = ctx.db
     const summary = `SELECT ${TICKET_COLUMNS.split(', ').map((c) => `t.${c}`).join(', ')},
         COUNT(l.id) AS lines_count, COUNT(DISTINCT CASE WHEN l.review_status = 'verified' AND l.amount_cents >= 0 THEN l.item_id END) AS products_count
       FROM pantry_tickets t LEFT JOIN pantry_ticket_lines l ON l.ticket_id = t.id`
@@ -197,8 +193,16 @@ export class SqliteTicketRepository {
     }
   }
 
+  private now(): string {
+    return this.ctx.now()
+  }
+
+  private newId(): string {
+    return this.ctx.newId()
+  }
+
   private transaction<T>(work: () => T): T {
-    return this.db.transaction(work).immediate()
+    return this.ctx.transaction(work, 'immediate')
   }
 
   aliases(store: TicketStoreKind, storeName: string): AliasRecord[] {

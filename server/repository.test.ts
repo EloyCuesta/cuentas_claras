@@ -8,6 +8,7 @@ import { markAsPaid } from '../src/domain/validation.ts'
 import { movement, NOW, rule } from '../src/test/factories.ts'
 import { openDatabase } from './database.ts'
 import { AppError } from './errors.ts'
+import { SqliteContext } from './infra/sqlite.ts'
 import { SqliteFinanceRepository } from './repository.ts'
 import { removeTempDbs, tempDbPath } from './test-helpers.ts'
 
@@ -20,7 +21,7 @@ import { removeTempDbs, tempDbPath } from './test-helpers.ts'
 const opened: SqliteFinanceRepository[] = []
 
 function openRepository(path = tempDbPath()) {
-  const repository = new SqliteFinanceRepository(openDatabase(path).db, { now: () => NOW })
+  const repository = new SqliteFinanceRepository(new SqliteContext(openDatabase(path).db, { now: () => NOW }))
   opened.push(repository)
   return { repository, path }
 }

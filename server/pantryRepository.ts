@@ -1,7 +1,4 @@
-import type Database from 'better-sqlite3'
-import { randomUUID } from 'node:crypto'
 import { todayISO } from '../src/domain/dates.ts'
-import { nowISO } from '../src/domain/ids.ts'
 import { checkQuantity, sortItems, sortPeople, stepQuantity } from '../src/domain/pantry.ts'
 import type {
   ISODate,
@@ -17,6 +14,7 @@ import type {
   PantryUnit,
 } from '../src/domain/types.ts'
 import { AppError } from './errors.ts'
+import { placeholders, type SqliteContext } from './infra/sqlite.ts'
 
 /**
  * Despensa en SQLite. Va aparte de SqliteFinanceRepository: restaurar una copia
@@ -80,30 +78,19 @@ const toItem = (r: ItemRow): PantryItem => ({
   updatedAt: r.updated_at,
 })
 
-export interface PantryRepositoryOptions {
-  /** Inyectables para los tests. */
-  now?: () => string
-  newId?: () => string
-}
-
 export interface PurchaseResult {
   /** Solo los productos que han cambiado (los que ya tenían su objetivo no se tocan). */
   changes: PantryPurchaseChange[]
   items: PantryItem[]
 }
 
-const placeholders = (count: number) => Array.from({ length: count }, () => '?').join(', ')
-
 export class SqlitePantryRepository {
-  private readonly db: Database.Database
-  private readonly now: () => string
-  private readonly newId: () => string
+  private readonly ctx: SqliteContext
   private readonly sql
 
-  constructor(db: Database.Database, options: PantryRepositoryOptions = {}) {
-    this.db = db
-    this.now = options.now ?? nowISO
-    this.newId = options.newId ?? randomUUID
+  constructor(ctx: SqliteContext) {
+    this.ctx = ctx
+    const db = ctx.db
     this.sql = {
       people: db.prepare<[], PersonRow>('SELECT id, name, created_at FROM pantry_people'),
       person: db.prepare<[string], PersonRow>('SELECT id, name, created_at FROM pantry_people WHERE id = ?'),
@@ -148,8 +135,20 @@ export class SqlitePantryRepository {
     }
   }
 
+  private get db() {
+    return this.ctx.db
+  }
+
+  private now(): string {
+    return this.ctx.now()
+  }
+
+  private newId(): string {
+    return this.ctx.newId()
+  }
+
   private transaction<T>(work: () => T): T {
-    return this.db.transaction(work)()
+    return this.ctx.transaction(work)
   }
 
   private requirePerson(id: string): PersonRow {

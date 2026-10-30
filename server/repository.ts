@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3'
 import { DEFAULT_CATEGORIES, withDescendants } from '../src/domain/categories.ts'
-import { newId as defaultNewId, nowISO } from '../src/domain/ids.ts'
 import { planOccurrences } from '../src/domain/recurring.ts'
 import type {
   Category,
@@ -14,6 +13,7 @@ import type {
 } from '../src/domain/types.ts'
 import type { FinanceRepository, MetaKey, SaveRecurringOptions } from '../src/storage/FinanceRepository.ts'
 import { AppError } from './errors.ts'
+import { placeholders, type SqliteContext } from './infra/sqlite.ts'
 
 /**
  * Implementación de FinanceRepository con SQLite (better-sqlite3).
@@ -171,20 +171,11 @@ const updateAll = (columns: string) =>
     .map((c) => `${c} = excluded.${c}`)
     .join(', ')
 
-/** "?, ?, ?" con tantos parámetros como valores (para IN (...)). */
-const placeholders = (values: readonly unknown[]) => values.map(() => '?').join(', ')
-
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Database.SqliteError && error.code === 'SQLITE_CONSTRAINT_UNIQUE'
 }
 
 const typeLabel = (type: MovementType) => (type === 'gasto' ? 'gastos' : 'ingresos')
-
-export interface SqliteRepositoryOptions {
-  /** Inyectables para los tests. */
-  now?: () => string
-  newId?: () => string
-}
 
 /** Sentencias preparadas una sola vez por conexión. */
 function prepareStatements(db: Database.Database) {
@@ -231,21 +222,26 @@ function prepareStatements(db: Database.Database) {
 }
 
 export class SqliteFinanceRepository implements FinanceRepository {
-  private readonly db: Database.Database
-  private readonly now: () => string
-  private readonly newId: () => string
+  private readonly ctx: SqliteContext
   private readonly sql: ReturnType<typeof prepareStatements>
 
-  constructor(db: Database.Database, options: SqliteRepositoryOptions = {}) {
-    this.db = db
-    this.now = options.now ?? nowISO
-    this.newId = options.newId ?? defaultNewId
-    this.sql = prepareStatements(db)
+  constructor(ctx: SqliteContext) {
+    this.ctx = ctx
+    this.sql = prepareStatements(ctx.db)
   }
 
-  /** Ejecuta `work` en una transacción: o se guarda todo o no se guarda nada. */
+  private get db() {
+    return this.ctx.db
+  }
+
+  private now(): string {
+    return this.ctx.now()
+  }
+
+  private newId = (): string => this.ctx.newId()
+
   private transaction<T>(work: () => T): T {
-    return this.db.transaction(work)()
+    return this.ctx.transaction(work)
   }
 
   private readAll(): FinanceData {
@@ -355,7 +351,7 @@ export class SqliteFinanceRepository implements FinanceRepository {
         throw new AppError('VALIDATION', 'La categoría de destino no es válida.')
       }
 
-      const inList = placeholders(removed)
+      const inList = placeholders(removed.length)
       const count = (table: 'movements' | 'recurring_rules') =>
         (this.db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE category_id IN (${inList})`).get(...removed) as { n: number }).n
       const affected = count('movements') + count('recurring_rules')
@@ -443,6 +439,6 @@ export class SqliteFinanceRepository implements FinanceRepository {
 
   /** Cierra la conexión (en los tests, para simular cerrar la app). */
   close(): void {
-    if (this.db.open) this.db.close()
+    this.ctx.close()
   }
 }

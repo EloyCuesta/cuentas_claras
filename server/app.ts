@@ -3,8 +3,9 @@ import { AccessControl, authRoutes, requireAdmin } from './auth.ts'
 import type { OpenedDatabase } from './database.ts'
 import { errorHandler, notFoundHandler } from './http.ts'
 import { createTesseractReader, type TicketReader } from './ocr.ts'
-import { SqlitePantryRepository, type PantryRepositoryOptions } from './pantryRepository.ts'
-import type { SqliteFinanceRepository } from './repository.ts'
+import { SqliteContext, type SqliteContextOptions } from './infra/sqlite.ts'
+import { SqlitePantryRepository } from './pantryRepository.ts'
+import { SqliteFinanceRepository } from './repository.ts'
 import { categoryRoutes } from './routes/categories.ts'
 import { dataRoutes } from './routes/data.ts'
 import { healthRoutes } from './routes/health.ts'
@@ -18,15 +19,14 @@ import { SqliteTicketRepository } from './ticketRepository.ts'
 
 export interface AppOptions {
   database: OpenedDatabase
-  repository: SqliteFinanceRepository
   /** Código que da acceso a las finanzas (CUENTAS_CODIGO). Obligatorio: sin él no se crea la aplicación. */
   accessCode: string
   /** Activa POST /api/test/reset (solo para las pruebas en navegador). También exige sesión. */
   testMode?: boolean
   /** Reloj en milisegundos para las sesiones y los bloqueos (inyectable en los tests). */
   clock?: () => number
-  /** Inyectables de la despensa para los tests. */
-  pantry?: PantryRepositoryOptions
+  /** Reloj e ids de los repositorios (inyectables en los tests). */
+  sqlite?: SqliteContextOptions
   /** Lector de tickets (OCR). Por defecto, Tesseract en este equipo; los tests pasan uno falso. */
   ticketReader?: TicketReader
 }
@@ -41,17 +41,18 @@ export interface AppOptions {
  */
 export function createApp({
   database,
-  repository,
   accessCode,
   testMode = false,
   clock,
-  pantry: pantryOptions,
+  sqlite,
   ticketReader,
 }: AppOptions): Express {
   // Lanza si falta el código o no es válido: nunca hay una aplicación con el acceso abierto.
   const access = new AccessControl(accessCode, clock)
-  const pantry = new SqlitePantryRepository(database.db, pantryOptions)
-  const tickets = new SqliteTicketRepository(database.db, pantry, pantryOptions)
+  const ctx = new SqliteContext(database.db, sqlite)
+  const repository = new SqliteFinanceRepository(ctx)
+  const pantry = new SqlitePantryRepository(ctx)
+  const tickets = new SqliteTicketRepository(ctx, pantry)
   const reader = ticketReader ?? createTesseractReader()
 
   const app = express()

@@ -6,7 +6,6 @@ import { startApi, stopApis, TEST_CODE } from './api-test-helpers.ts'
 import { createApp } from './app.ts'
 import { ATTEMPT_WINDOW_MS, checkAccessCode, LOCK_MS, SESSION_MS } from './auth.ts'
 import { openDatabase } from './database.ts'
-import { SqliteFinanceRepository } from './repository.ts'
 import { removeTempDbs, tempDbPath } from './test-helpers.ts'
 
 afterEach(async () => {
@@ -58,14 +57,13 @@ describe('checkAccessCode', () => {
 
   it('createApp no se crea sin un código válido: el acceso nunca queda abierto', () => {
     const database = openDatabase(tempDbPath())
-    const repository = new SqliteFinanceRepository(database.db)
     try {
-      expect(() => createApp({ database, repository, accessCode: '' })).toThrow(/código/)
-      expect(() => createApp({ database, repository, accessCode: '   ' })).toThrow(/espacios/)
+      expect(() => createApp({ database, accessCode: '' })).toThrow(/código/)
+      expect(() => createApp({ database, accessCode: '   ' })).toThrow(/espacios/)
       // @ts-expect-error: accessCode es obligatorio
-      expect(() => createApp({ database, repository })).toThrow(/código/)
+      expect(() => createApp({ database })).toThrow(/código/)
     } finally {
-      repository.close()
+      database.db.close()
     }
   })
 })

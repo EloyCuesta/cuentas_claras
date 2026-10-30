@@ -4,8 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { createApp } from './app.ts'
 import { openDatabase } from './database.ts'
 import type { TicketReader } from './ocr.ts'
-import type { PantryRepositoryOptions } from './pantryRepository.ts'
-import { SqliteFinanceRepository } from './repository.ts'
+import type { SqliteContextOptions } from './infra/sqlite.ts'
 import { tempDbPath } from './test-helpers.ts'
 
 /**
@@ -35,7 +34,7 @@ export interface CallResult {
   headers: Headers
 }
 
-const running: { server: Server; repository: SqliteFinanceRepository }[] = []
+const running: { server: Server; close: () => void }[] = []
 
 /** Lector de tickets para las pruebas que no leen imágenes: no arranca Tesseract. */
 const unusedReader: TicketReader = {
@@ -47,22 +46,24 @@ export async function startApi({
   path = tempDbPath(),
   testMode = false,
   clock,
-  pantry,
+  sqlite,
   login = true,
   ticketReader = unusedReader,
 }: {
   path?: string
   testMode?: boolean
   clock?: () => number
-  pantry?: PantryRepositoryOptions
+  sqlite?: SqliteContextOptions
   login?: boolean
   ticketReader?: TicketReader
 } = {}) {
   const database = openDatabase(path)
-  const repository = new SqliteFinanceRepository(database.db)
-  const server = createApp({ database, repository, accessCode: TEST_CODE, testMode, clock, pantry, ticketReader }).listen(0, '127.0.0.1')
+  const server = createApp({ database, accessCode: TEST_CODE, testMode, clock, sqlite, ticketReader }).listen(0, '127.0.0.1')
   await once(server, 'listening')
-  running.push({ server, repository })
+  const close = () => {
+    if (database.db.open) database.db.close()
+  }
+  running.push({ server, close })
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`
   let session: string | null = null
 
@@ -90,7 +91,7 @@ export async function startApi({
   const stop = async () => {
     server.close()
     await once(server, 'close')
-    repository.close()
+    close()
   }
 
   if (login) {
@@ -101,7 +102,6 @@ export async function startApi({
   return {
     base,
     path,
-    repository,
     call,
     signIn,
     stop,
@@ -118,11 +118,11 @@ export type TestApi = Awaited<ReturnType<typeof startApi>>
 
 /** Para afterEach: cierra los servidores que sigan abiertos. */
 export async function stopApis(): Promise<void> {
-  for (const { server, repository } of running.splice(0)) {
+  for (const { server, close } of running.splice(0)) {
     if (server.listening) {
       server.close()
       await once(server, 'close')
     }
-    repository.close()
+    close()
   }
 }

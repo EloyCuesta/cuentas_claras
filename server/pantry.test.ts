@@ -66,7 +66,7 @@ describe('API de la despensa', () => {
 
   it('crea, edita y borra productos; el servidor pone id, versión y fechas', async () => {
     let tick = 0
-    const api = await startApi({ login: false, pantry: { now: () => `2026-10-29T08:00:0${tick++}.000Z` } })
+    const api = await startApi({ login: false, sqlite: { now: () => `2026-10-29T08:00:0${tick++}.000Z` } })
     const created = await createItem(api, { name: ' Leche ', notes: ' entera ' })
     expect(created).toMatchObject({ ...milk, notes: 'entera', version: 1, createdAt: '2026-10-29T08:00:00.000Z' })
     expect(created.createdAt).toBe(created.updatedAt)
