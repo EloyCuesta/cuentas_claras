@@ -2,10 +2,10 @@ import { once } from 'node:events'
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createApp } from './app.ts'
-import { openDatabase } from './database.ts'
-import type { TicketReader } from './ocr.ts'
+import { openDatabase } from './infra/database.ts'
 import type { SqliteContextOptions } from './infra/sqlite.ts'
 import { tempDbPath } from './test-helpers.ts'
+import type { TicketReader } from './tickets/ocr.ts'
 
 /**
  * Servidor de la API real en un puerto libre, con una base de datos temporal,

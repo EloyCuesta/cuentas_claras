@@ -1,8 +1,8 @@
 import App from './App.tsx'
+import { useAuth } from './auth/authContext.ts'
+import { ApiFinanceRepository } from './finance/ApiFinanceRepository.ts'
+import { FinanceProvider } from './finance/FinanceProvider.tsx'
 import { GuestApp } from './GuestApp.tsx'
-import { ApiFinanceRepository } from './services/ApiFinanceRepository.ts'
-import { useAuth } from './state/authContext.ts'
-import { FinanceProvider } from './state/FinanceProvider.tsx'
 
 // Único punto donde se elige el almacenamiento: la base de datos SQLite del
 // servidor (server/), a través de su API REST.

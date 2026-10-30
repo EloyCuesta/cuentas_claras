@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import type { FinanceData } from '../src/domain/types.ts'
+import { readFile } from 'node:fs/promises'
+import type { FinanceData } from '../shared/finance/types.ts'
 import { resetDatabase, signIn } from './auth.ts'
 
 /**

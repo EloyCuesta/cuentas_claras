@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import { newId as defaultNewId, nowISO } from '../../src/domain/ids.ts'
+import { newId as defaultNewId, nowISO } from '../../shared/core/ids.ts'
 
 export interface SqliteContextOptions {
   /** Instante actual en ISO (inyectable en los tests). */

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { FinanceData } from '../src/domain/types.ts'
-import { movement, rule } from '../src/test/factories.ts'
+import type { FinanceData } from '../shared/finance/types.ts'
+import { movement, rule } from '../shared/test/factories.ts'
 import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
-import { LATEST_VERSION } from './migrations/index.ts'
+import { LATEST_VERSION } from './infra/migrations/index.ts'
 import { removeTempDbs } from './test-helpers.ts'
 
 /** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch, con la sesión iniciada. */

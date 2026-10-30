@@ -1,9 +1,9 @@
 import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { createApp } from './app.ts'
-import { checkAccessCode } from './auth.ts'
-import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './database.ts'
-import { createTesseractReader } from './ocr.ts'
+import { checkAccessCode } from './infra/auth.ts'
+import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './infra/database.ts'
+import { createTesseractReader } from './tickets/ocr.ts'
 
 /**
  * Servidor de Cuentas claras: la API REST sobre SQLite.
