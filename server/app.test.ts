@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
 import type { FinanceData } from '../src/domain/types.ts'
 import { movement, rule } from '../src/test/factories.ts'
 import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
@@ -102,16 +101,6 @@ describe('API', () => {
     expect(rejected.status).toBe(400)
     expect(rejected.body.error?.message).toMatch(/categoría que no existe/)
     expect((await dataOf(call)).movements.map((m) => m.concept)).toEqual(['De la copia'])
-  })
-
-  it('importa los datos del navegador una sola vez', async () => {
-    const { call } = await startApi()
-    const browser = { categories: DEFAULT_CATEGORIES, movements: [movement()], recurring: [] }
-    const imported = await call('POST', '/import', { data: browser, lastBackupAt: '2026-10-01T10:00:00.000Z' })
-    expect(imported).toMatchObject({ status: 201, body: { ok: true, data: { categories: DEFAULT_CATEGORIES.length, movements: 1, recurring: 0 } } })
-    expect((await call('POST', '/import', { data: browser, lastBackupAt: null })).status).toBe(409)
-    expect((await dataOf(call)).movements).toHaveLength(1)
-    expect((await call('GET', '/meta/lastBackupAt')).body.data).toEqual({ value: '2026-10-01T10:00:00.000Z' })
   })
 
   it('guarda los datos auxiliares y rechaza claves desconocidas', async () => {

@@ -43,8 +43,6 @@ npm run preview      # en otra: la web en http://localhost:4173 (también envía
 
 **Datos de ejemplo**: la app empieza vacía. Si quieres verla con datos, ve a *Ajustes › Restaurar una copia…* y elige `ejemplo/copia-de-ejemplo.json` (un mes de octubre de 2026 con nómina, alquiler, un préstamo a 48 cuotas, recibos y presupuestos). En *Resumen › Año* se ve el año completo, con noviembre y diciembre previstos a partir de los recurrentes.
 
-**Si venías de la versión anterior** (datos guardados en el navegador): al entrar con el código en ese navegador, los datos que hubiera en ese navegador se pasan solos a la base de datos, siempre que esta todavía no tenga datos tuyos. Después se comprueba que ha llegado todo. La copia del navegador no se borra. Si la base de datos ya tenía datos, no se mezcla nada y la app lo avisa.
-
 ## Código de acceso
 
 Las cuentas solo se ven con un código que pones tú. Sin él, cualquiera de casa puede usar la **Despensa** y nada más.
@@ -122,7 +120,7 @@ Una vez a la semana, en un par de minutos, se mira lo que puede acabarse antes d
   - **Copiar**: si el navegador no deja copiar solo, selecciona el texto para copiarlo a mano.
   - **Descargar .txt**.
   - **Marcar todo como comprado**: en los que se cuentan, completa lo que hay hasta el objetivo; en los que van por compras, apunta una compra de hoy. Durante unos segundos aparece **Deshacer**. Si mientras tanto alguien ha cambiado alguno de esos productos, no se deshace nada (para no pisar su cambio) y la app lo avisa.
-- La Despensa se guarda en la misma base de datos SQLite, en tablas aparte. **Las copias JSON y los CSV no la incluyen**, y restaurar una copia o importar los datos del navegador no la toca.
+- La Despensa se guarda en la misma base de datos SQLite, en tablas aparte. **Las copias JSON y los CSV no la incluyen** y restaurar una copia no la toca.
 
 ## Comprobaciones
 
@@ -156,15 +154,14 @@ Además se prueban:
 - Que no se puede inyectar SQL.
 - Las migraciones: se aplican una sola vez, no borran nada y no se abre una base de datos de una versión más nueva.
 - Las restricciones de la base de datos.
-- La importación de los datos del navegador (una sola vez, sin mezclar y conservando la copia).
 - La regla del día 31, las cuotas que quedan, el formato del CSV y la proyección de recurrentes.
 - Las plantillas mensual y anual.
 - El código de acceso: arranque sin código, rutas protegidas (`401`), cookie y caducidad de la sesión, cierre de sesión, sesiones que no sobreviven a un reinicio, y el bloqueo por intentos, por dispositivo y sin poder eludirlo con cabeceras inventadas (con un reloj controlado, sin esperar minutos).
-- La despensa: personas, productos, presupuesto, unidades, cálculos sin restos decimales, el texto exacto de la lista, comprar y deshacer (también con cambios de otro dispositivo), la migración desde una base de datos anterior y que las copias e importaciones financieras no la tocan.
+- La despensa: personas, productos, presupuesto, unidades, cálculos sin restos decimales, el texto exacto de la lista, comprar y deshacer (también con cambios de otro dispositivo), la migración desde una base de datos anterior y que las copias financieras no la tocan.
 - Los tickets: la lectura con el OCR de verdad de una captura de Lidl **inventada** (`server/fixtures/`, con los datos que debe dar), la interpretación de las líneas (cantidades, pesos, descuentos, devoluciones, cifras y letras del IVA mal leídas), la corrección con el total, varias capturas seguidas, otras tiendas, lo aprendido y los nombres parecidos, guardar sin duplicar, cambiar una línea, borrar, la validación de las imágenes y la migración 003.
 - El ritmo de compra: lo que dura cada producto (mediana, escalado por cantidad, compras del mismo día), «Queda», «Queda poco», «Se acabó», «Lo he comprado», los avisos, la lista y la estimación mensual.
 - El repaso de la semana: cuándo toca (también la primera vez) y qué se repasa y en qué orden; la migración 004 conserva las revisiones que ya había.
-- En el navegador: el invitado solo ve la despensa y no pide datos financieros ni ejecuta la migración del navegador; persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles; entrar con el código, cerrar sesión y sesión caducada; escanear la captura de un ticket, revisarla (cambiar un nombre, no seguir una línea), guardarla, verla en «Últimas compras» y no poder guardarla dos veces; días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra; y el repaso de la semana («Hoy no», un producto cada vez, volver atrás y cambiar la respuesta, contar con − y +, y la lista hecha al final).
+- En el navegador: el invitado solo ve la despensa y no pide datos financieros; persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles; entrar con el código, cerrar sesión y sesión caducada; escanear la captura de un ticket, revisarla (cambiar un nombre, no seguir una línea), guardarla, verla en «Últimas compras» y no poder guardarla dos veces; días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra; y el repaso de la semana («Hoy no», un producto cada vez, volver atrás y cambiar la respuesta, contar con − y +, y la lista hecha al final).
 
 ## Estructura
 
@@ -242,7 +239,7 @@ Trece tablas, solo con lo que usa la aplicación:
 | `movements` | Ingresos y gastos, realizados o pendientes. Incluye los vencimientos de los recurrentes (`recurring_id`, `occurrence_date`) y el número de cuota. |
 | `recurring_rules` | Pagos y cobros recurrentes. Las financiaciones son recurrentes con un número de cuotas (`installments`). |
 | `recurring_excluded_dates` | Vencimientos eliminados que no deben volver a crearse. |
-| `meta` | Datos auxiliares: fecha de la última copia y de la importación desde el navegador. |
+| `meta` | Datos auxiliares: fecha de la última copia. |
 | `pantry_people` | Personas de la despensa. |
 | `pantry_items` | Productos: dueño (`owner_id`, `NULL` = Compartido, borrado restringido), unidad, cantidades, frecuencia, precio en céntimos (`NULL` = desconocido), cómo se sigue (`tracking`: `compras` o `cantidad`) y `version`, que sube en cada escritura para poder deshacer sin pisar cambios. |
 | `pantry_settings` | Una sola fila con el presupuesto mensual de la despensa y el día del último repaso de la semana (`last_review_date`, `NULL` = ninguno todavía). |
@@ -315,7 +312,6 @@ Con sesión (sin ella, `401`):
 | `DELETE /api/recurring/:id` | Elimina un recurrente y sus vencimientos pendientes |
 | `POST /api/occurrences/generate` | Crea los vencimientos que falten hasta `{ horizon }` |
 | `GET` / `PUT /api/meta/:key` | Datos auxiliares (`lastBackupAt`) |
-| `POST /api/import` | Importa los datos del navegador; responde 409 si ya hay datos |
 
 Códigos de error:
 
@@ -324,7 +320,7 @@ Códigos de error:
 | `VALIDATION` | 400 | Datos no válidos, o una imagen de ticket que no se puede leer |
 | `UNAUTHORIZED` | 401 | Ruta financiera sin sesión, o código incorrecto |
 | `NOT_FOUND` | 404 | Ruta o dato que no existe |
-| `CONFLICT` | 409 | Vencimiento duplicado, categoría en uso, importación con datos ya existentes, persona con productos, ticket ya guardado o «Deshacer» tras otro cambio |
+| `CONFLICT` | 409 | Vencimiento duplicado, categoría en uso, persona con productos, ticket ya guardado o «Deshacer» tras otro cambio |
 | `TOO_MANY_ATTEMPTS` | 429 | Demasiados códigos incorrectos desde este dispositivo |
 | `INTERNAL` | 500 | Error inesperado; el detalle sale en la consola |
 

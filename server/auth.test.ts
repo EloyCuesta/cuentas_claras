@@ -34,7 +34,6 @@ const viaProxy = (deviceIp: string, spoofed?: string) => ({
 const FINANCE_ROUTES: [method: string, path: string, body?: unknown][] = [
   ['GET', '/data'],
   ['PUT', '/data', { categories: [], movements: [], recurring: [] }],
-  ['POST', '/import', { data: { categories: [], movements: [], recurring: [] }, lastBackupAt: null }],
   ['PUT', '/movements/m1', movement({ id: 'm1' })],
   ['DELETE', '/movements/m1'],
   ['PUT', '/categories/g-ocio', { id: 'g-ocio', name: 'Ocio', type: 'gasto', parentId: null, order: 1, budgetCents: null }],

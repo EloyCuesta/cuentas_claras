@@ -20,7 +20,5 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'server/**/*.test.ts'],
     environment: 'node',
-    // IndexedDB en memoria para probar el almacenamiento del navegador sin navegador.
-    setupFiles: ['./src/test/setup.ts'],
   },
 })

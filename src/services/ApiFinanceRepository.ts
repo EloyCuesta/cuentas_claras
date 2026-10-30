@@ -61,8 +61,4 @@ export class ApiFinanceRepository implements FinanceRepository {
     await apiRequest('PUT', `/meta/${segment(key)}`, { value })
   }
 
-  /** Pasa al servidor los datos que había en el navegador. Falla (409) si el servidor ya tiene datos. */
-  importBrowserData(data: FinanceData, lastBackupAt: string | null): Promise<{ movements: number; recurring: number }> {
-    return apiRequest('POST', '/import', { data, lastBackupAt })
-  }
 }

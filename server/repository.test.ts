@@ -243,41 +243,15 @@ describe('integridad de los datos', () => {
   })
 })
 
-describe('importación de los datos del navegador', () => {
-  const browserData = () => ({
-    categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
-    movements: [movement({ concept: 'Del navegador' })],
-    recurring: [rule({ startDate: '2026-10-01' })],
-  })
-
-  it('importa si la base de datos no tiene datos del usuario y lo anota', async () => {
-    const { repository } = openRepository()
-    const data = browserData()
-    expect(await repository.importBrowserData(data, '2026-10-01T10:00:00.000Z')).toEqual({
-      categories: DEFAULT_CATEGORIES.length,
-      movements: 1,
-      recurring: 1,
-    })
-    expect((await repository.loadAll()).movements.map((m) => m.concept)).toEqual(['Del navegador'])
-    expect(await repository.getMeta('lastBackupAt')).toBe('2026-10-01T10:00:00.000Z')
-    expect(await repository.getMeta('browserImportAt')).toBe(NOW)
-  })
-
-  it('no importa nada si ya hay datos: nunca mezcla ni duplica', async () => {
-    const { repository } = openRepository()
-    await repository.saveMovement(movement({ concept: 'Ya estaba' }))
-    await expect(repository.importBrowserData(browserData(), null)).rejects.toMatchObject({ code: 'CONFLICT' })
-    expect((await repository.loadAll()).movements.map((m) => m.concept)).toEqual(['Ya estaba'])
-    expect(await repository.getMeta('browserImportAt')).toBeNull()
-  })
-
+describe('reinicio para pruebas', () => {
   it('reset deja la base de datos como nueva', async () => {
     const { repository } = openRepository()
-    await repository.importBrowserData(browserData(), null)
+    await repository.saveMovement(movement({ concept: 'Cualquiera' }))
+    await repository.setMeta('lastBackupAt', NOW)
     await repository.reset()
     const data = await repository.loadAll()
     expect([data.movements, data.recurring]).toEqual([[], []])
     expect(data.categories).toHaveLength(DEFAULT_CATEGORIES.length)
-    expect(await repository.getMeta('browserImportAt')).toBeNull()
+    expect(await repository.getMeta('lastBackupAt')).toBeNull()
   })
 })

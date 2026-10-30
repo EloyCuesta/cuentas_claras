@@ -2,12 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { todayISO } from '../domain/dates.ts'
 import { generationHorizon } from '../domain/recurring.ts'
 import type { FinanceData, ISODate } from '../domain/types.ts'
-import { ServerUnavailableError } from '../services/apiClient.ts'
 import type { FinanceRepository } from '../storage/FinanceRepository.ts'
 import { FinanceContext, type FinanceActions, type FinanceContextValue } from './financeContext.ts'
 import { describeStorageError } from './storageErrors.ts'
 import { notifyOtherTabs, onOtherTabChange } from './tabSync.ts'
-import { useToast, type ToastTone } from './toastContext.ts'
 
 type LoadState =
   | { status: 'loading' }
@@ -27,59 +25,23 @@ async function openApp(repository: FinanceRepository): Promise<LoadState> {
   return readAll(repository, today)
 }
 
-/** Aviso que puede devolver el paso previo a abrir la app (por ejemplo, la importación de datos). */
-export type OpenNotice = { message: string; tone: ToastTone } | null
-
 /**
  * Carga los datos del repositorio, genera los vencimientos al abrir la app y
  * ofrece las acciones a la interfaz. No sabe dónde se guardan los datos: recibe
  * un FinanceRepository cualquiera.
  */
-export function FinanceProvider({
-  repository,
-  beforeOpen,
-  children,
-}: {
-  repository: FinanceRepository
-  /** Se ejecuta una sola vez antes de la primera carga (si falla, la app se abre igualmente). */
-  beforeOpen?: () => Promise<OpenNotice>
-  children: ReactNode
-}) {
-  const { notify } = useToast()
+export function FinanceProvider({ repository, children }: { repository: FinanceRepository; children: ReactNode }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   // Día para el que se generaron los vencimientos por última vez.
   const generatedFor = useRef<ISODate | null>(null)
-  // Promesa del paso previo: compartida para que no se ejecute dos veces a la vez.
-  const prepared = useRef<Promise<void> | null>(null)
-
-  const prepare = useCallback(() => {
-    if (!beforeOpen) return Promise.resolve()
-    prepared.current ??= beforeOpen().then(
-      (notice) => {
-        if (notice) notify(notice.message, notice.tone)
-      },
-      (error: unknown) => {
-        // Sin servidor no se puede abrir nada: se reintenta junto con la carga.
-        if (error instanceof ServerUnavailableError) {
-          prepared.current = null
-          throw error
-        }
-        // Cualquier otro fallo se avisa una vez y la app se abre igualmente (los datos siguen en el navegador).
-        notify(`No se han podido pasar a la base de datos los datos de este navegador: ${describeStorageError(error)}`, 'error')
-      },
-    )
-    return prepared.current
-  }, [beforeOpen, notify])
 
   const start = useCallback(() => {
     generatedFor.current = todayISO()
-    return prepare()
-      .then(() => openApp(repository))
-      .then(setState, (error: unknown) => {
-        generatedFor.current = null
-        setState({ status: 'error', message: describeStorageError(error) })
-      })
-  }, [repository, prepare])
+    return openApp(repository).then(setState, (error: unknown) => {
+      generatedFor.current = null
+      setState({ status: 'error', message: describeStorageError(error) })
+    })
+  }, [repository])
 
   const reload = useCallback(
     () => readAll(repository, todayISO()).then(setState, () => undefined),

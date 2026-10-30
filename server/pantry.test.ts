@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CATEGORIES } from '../src/domain/categories.ts'
-import type { FinanceData, PantryItem, PantryPerson, PantryPurchaseChange } from '../src/domain/types.ts'
+import type { PantryItem, PantryPerson, PantryPurchaseChange } from '../src/domain/types.ts'
 import { movement } from '../src/test/factories.ts'
 import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
 import { removeTempDbs } from './test-helpers.ts'
@@ -217,15 +217,11 @@ describe('marcar como comprado y deshacer', () => {
 })
 
 describe('la despensa no se mezcla con las finanzas', () => {
-  it('restaurar una copia financiera y la importación del navegador conservan la despensa', async () => {
+  it('restaurar una copia financiera conserva la despensa', async () => {
     const api = await startApi()
     const eloy = await createPerson(api, 'Eloy')
     const own = await createItem(api, { ownerId: eloy.id, name: 'Proteína', unit: 'bolsa', quantity: 0, target: 1 })
     await guest(api).call('PUT', '/despensa/presupuesto', { monthlyBudgetCents: 30000 })
-
-    // La importación del navegador funciona con productos en la despensa (no cuenta como «datos del usuario»).
-    const browser: FinanceData = { categories: [...DEFAULT_CATEGORIES], movements: [movement({ concept: 'Del navegador' })], recurring: [] }
-    expect((await api.call('POST', '/import', { data: browser, lastBackupAt: null })).status).toBe(201)
 
     // Restaurar una copia sustituye solo las finanzas.
     const restored = { categories: DEFAULT_CATEGORIES, movements: [movement({ concept: 'De la copia' })], recurring: [] }

@@ -60,5 +60,5 @@ export interface SaveRecurringOptions {
  * Datos auxiliares que no forman parte de la copia de seguridad: la fecha de la
  * última copia descargada y la de la importación de los datos del navegador.
  */
-export const META_KEYS = ['lastBackupAt', 'browserImportAt'] as const
+export const META_KEYS = ['lastBackupAt'] as const
 export type MetaKey = (typeof META_KEYS)[number]

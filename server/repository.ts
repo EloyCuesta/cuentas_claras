@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3'
-import { hasUserData } from '../src/domain/backup.ts'
 import { DEFAULT_CATEGORIES, withDescendants } from '../src/domain/categories.ts'
 import { newId as defaultNewId, nowISO } from '../src/domain/ids.ts'
 import { planOccurrences } from '../src/domain/recurring.ts'
@@ -185,12 +184,6 @@ export interface SqliteRepositoryOptions {
   /** Inyectables para los tests. */
   now?: () => string
   newId?: () => string
-}
-
-export interface ImportSummary {
-  categories: number
-  movements: number
-  recurring: number
 }
 
 /** Sentencias preparadas una sola vez por conexión. */
@@ -438,23 +431,6 @@ export class SqliteFinanceRepository implements FinanceRepository {
 
   async setMeta(key: MetaKey, value: string): Promise<void> {
     this.sql.setMeta.run(key, value)
-  }
-
-  /**
-   * Importa los datos que había en el navegador (IndexedDB), solo si en el
-   * servidor todavía no hay nada del usuario: así nunca se mezclan ni se
-   * duplican. Conserva la fecha de la última copia y anota la importación.
-   */
-  async importBrowserData(data: FinanceData, lastBackupAt: string | null): Promise<ImportSummary> {
-    return this.transaction(() => {
-      if (hasUserData(this.readAll())) {
-        throw new AppError('CONFLICT', 'La base de datos ya tiene datos, así que no se han importado los del navegador.')
-      }
-      this.writeAll(data)
-      if (lastBackupAt && !this.sql.getMeta.get('lastBackupAt')) this.sql.setMeta.run('lastBackupAt', lastBackupAt)
-      this.sql.setMeta.run('browserImportAt', this.now())
-      return { categories: data.categories.length, movements: data.movements.length, recurring: data.recurring.length }
-    })
   }
 
   /** Deja la base de datos como recién creada (solo para las pruebas). */
