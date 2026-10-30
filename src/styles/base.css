@@ -1,0 +1,443 @@
+/*
+ * Cuentas claras — estilos
+ *
+ * Idea: una libreta de cuentas. Lo real va «a tinta» (trazo sólido, tinta
+ * azul-negra) y lo previsto «a lápiz» (grafito, líneas discontinuas). El resumen
+ * del mes se escribe como una cuenta en columna sobre papel cuadriculado.
+ * El rojo se reserva para los números rojos (resultados negativos) y lo vencido.
+ *
+ * Organización (index.css las carga en este orden):
+ *   base.css        tokens, base y estructura
+ *   components.css  botones, formularios, ventanas, avisos…
+ *   pages.css       estructura común de las páginas
+ *   finance.css     páginas de las finanzas
+ *   pantry.css      código de acceso y despensa
+ *   tickets.css     tickets de la compra y ritmo de compra
+ *   weekly-review.css  repaso de la semana
+ *   utilities.css   utilidades (al final para que prevalezcan)
+ */
+
+/* 1. Tokens ---------------------------------------------------------------- */
+
+:root {
+  --font: 'Atkinson Hyperlegible Next Variable', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+
+  /* Escala tipográfica: tercera mayor (×1,25) sobre 16 px */
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.5625rem;
+  --step-3: 1.953rem;
+  --step-4: 2.441rem;
+
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --tabbar-height: 60px;
+
+  /* Papel y tinta (modo claro) */
+  --paper: #f1f3f7;
+  --sheet: #ffffff;
+  --sheet-2: #f7f8fb;
+  --ink: #16213e;
+  --ink-2: #4a5570;
+  --pencil: #5e6880;
+  --rule: #dde2ea;
+  --rule-strong: #848ea3;
+  --grid-line: rgb(39 71 200 / 0.055);
+
+  /* Bolígrafo azul: acciones, enlaces y barras de lo pagado */
+  --accent: #2747c8;
+  --accent-hover: #1e3aa8;
+  --on-accent: #ffffff;
+  --accent-soft: #e8edfc;
+  --bar-paid: #2747c8;
+  --bar-pending: #9fb1ee;
+
+  /* Gráfico del año: ingresos (verde) y gastos (azul), con su tono claro para lo pendiente */
+  --bar-income: #13734a;
+  --bar-income-pending: #96c1af;
+  --bar-expense: #2747c8;
+  --bar-expense-pending: #9fb1ee;
+
+  /* Significado */
+  --positive: #13734a;
+  --negative: #b42318;
+  --on-negative: #ffffff;
+  --negative-soft: #fdecea;
+  --warning-ink: #8a4b00;
+  --warning-soft: #fff4e5;
+
+  --shadow-raised: 0 1px 2px rgb(22 33 62 / 0.08), 0 8px 24px rgb(22 33 62 / 0.08);
+  --shadow-dialog: 0 24px 64px rgb(22 33 62 / 0.24);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0d1220;
+    --sheet: #151c2e;
+    --sheet-2: #1b2338;
+    --ink: #e8ecf5;
+    --ink-2: #aeb7ca;
+    --pencil: #929db3;
+    --rule: #273049;
+    --rule-strong: #66738f;
+    --grid-line: rgb(143 166 255 / 0.05);
+
+    --accent: #8fa6ff;
+    --accent-hover: #a9bbff;
+    --on-accent: #0d1220;
+    --accent-soft: #1e2a52;
+    --bar-paid: #8fa6ff;
+    --bar-pending: #46559a;
+    --bar-income: #34a874;
+    --bar-income-pending: #256251;
+    --bar-expense: #6f88f2;
+    --bar-expense-pending: #425290;
+
+    --positive: #4fcb8d;
+    --negative: #ff8b7e;
+    --on-negative: #1a0f0e;
+    --negative-soft: #3a1714;
+    --warning-ink: #ffc27a;
+    --warning-soft: #3a2a10;
+
+    --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.3);
+    --shadow-dialog: 0 24px 64px rgb(0 0 0 / 0.55);
+
+    color-scheme: dark;
+  }
+}
+
+/* 2. Base ------------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font);
+  font-size: var(--step-0);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+strong {
+  font-weight: 700;
+}
+
+svg {
+  flex: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Títulos y <main> reciben el foco al navegar, pero no son interactivos. */
+h1:focus,
+.shell__main:focus {
+  outline: none;
+}
+
+/* Con una ventana modal abierta, la página de fondo no se desplaza. */
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+.small {
+  font-size: var(--step--1);
+}
+
+.text-negative {
+  color: var(--negative);
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.stack--tight {
+  gap: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 3. Estructura -------------------------------------------------------------
+ * Móvil: barra superior con la marca, contenido y barra de pestañas fija abajo.
+ * Escritorio (≥ 960 px): columna lateral fija con marca, botón y navegación.
+ */
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -100px;
+  z-index: 200;
+  padding: 10px 16px;
+  border-radius: var(--radius-m);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.shell__side {
+  display: contents;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 14px 6px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  color: var(--ink);
+  font-size: var(--step-1);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+/* Mayor especificidad que .btn para que no lo vuelva a mostrar. */
+.shell__side .shell__add,
+.shell__side .shell__note {
+  display: none;
+}
+
+.nav {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 30;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  background: var(--sheet);
+  border-top: 1px solid var(--rule);
+}
+
+.nav__list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.nav__link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: var(--tabbar-height);
+  padding: 6px 2px;
+  color: var(--ink-2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-decoration: none;
+  text-align: center;
+}
+
+.nav__link[aria-current] {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.nav__link[aria-current] .icon {
+  stroke-width: 2.4;
+}
+
+.shell__main {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-block: 8px calc(var(--tabbar-height) + 96px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.fab {
+  position: fixed;
+  z-index: 25;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--tabbar-height) + 16px + env(safe-area-inset-bottom, 0px));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 0 22px 0 18px;
+  border: 0;
+  border-radius: 28px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--step-0);
+  font-weight: 750;
+  box-shadow: var(--shadow-raised);
+  cursor: pointer;
+}
+
+.fab:hover {
+  background: var(--accent-hover);
+}
+
+@media (min-width: 960px) {
+  .shell {
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    min-height: 100dvh;
+    /* La columna lateral se pinta en todo el alto aunque la barra sea "sticky". */
+    background: linear-gradient(to right, var(--sheet) 251px, var(--rule) 251px 252px, transparent 252px);
+  }
+
+  .shell__side {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100dvh;
+    padding: 24px 16px;
+    background: var(--sheet);
+    border-right: 1px solid var(--rule);
+  }
+
+  .brand {
+    padding: 0 8px;
+  }
+
+  .shell__side .shell__add {
+    display: inline-flex;
+  }
+
+  .nav {
+    position: static;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+
+  .nav__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav__link {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: var(--radius-m);
+    font-size: var(--step-0);
+    font-weight: 600;
+  }
+
+  .nav__link:hover {
+    background: var(--sheet-2);
+    color: var(--ink);
+  }
+
+  .nav__link[aria-current] {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+
+  .nav__link[aria-current] .icon {
+    color: var(--accent);
+  }
+
+  .shell__side .shell__note {
+    display: block;
+    margin-top: auto;
+    padding: 12px;
+    border: 1.5px dashed var(--rule);
+    border-radius: var(--radius-m);
+    color: var(--ink-2);
+    font-size: var(--step--1);
+  }
+
+  .shell__main {
+    padding-block: 32px 64px;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  .fab {
+    display: none;
+  }
+}

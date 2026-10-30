@@ -2,13 +2,10 @@ import type { ISODate } from '../core/types.ts'
 import type { Category, FinanceData, Movement, RecurringRule } from './types.ts'
 
 /**
- * Contrato del almacenamiento. La interfaz de React solo conoce esta interfaz,
- * nunca IndexedDB directamente.
- *
- * Para migrar a una base de datos en servidor basta con escribir otra clase
- * que la implemente (por ejemplo, ApiFinanceRepository con fetch a una API
- * REST) y pasarla al <FinanceProvider> en main.tsx. Cada método corresponde a
- * una operación completa y atómica: o se guarda entera o no se guarda nada.
+ * Contrato del almacenamiento de las finanzas. Lo cumplen el servidor
+ * (SqliteFinanceRepository, con SQL) y la web (ApiFinanceRepository, con la
+ * API); FinanceProvider solo conoce este contrato. Cada método es una
+ * operación completa y atómica: o se guarda entera o no se guarda nada.
  */
 export interface FinanceRepository {
   /** Todos los datos (categorías, movimientos y recurrentes). */
@@ -59,7 +56,7 @@ export interface SaveRecurringOptions {
 
 /**
  * Datos auxiliares que no forman parte de la copia de seguridad: la fecha de la
- * última copia descargada y la de la importación de los datos del navegador.
+ * última copia descargada.
  */
 export const META_KEYS = ['lastBackupAt'] as const
 export type MetaKey = (typeof META_KEYS)[number]

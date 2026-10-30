@@ -5,9 +5,8 @@ import { apiRequest, segment } from '../api/apiClient.ts'
 
 /**
  * FinanceRepository que guarda en la base de datos SQLite del servidor a través
- * de la API REST. Es el mismo contrato que usaba la app con IndexedDB: la
- * interfaz no cambia. Cada método es una petición, y el servidor la ejecuta
- * entera en una transacción.
+ * de la API REST. Cada método es una petición, y el servidor la ejecuta entera
+ * en una transacción.
  */
 export class ApiFinanceRepository implements FinanceRepository {
   loadAll(): Promise<FinanceData> {

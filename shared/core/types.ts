@@ -1,6 +1,6 @@
 /**
  * Tipos comunes del dominio. Son objetos planos (sin clases) para poder guardarlos
- * tal cual en IndexedDB, exportarlos a JSON o enviarlos a un servidor.
+ * tal cual, exportarlos a JSON o enviarlos entre la web y el servidor.
  *
  * Reglas generales:
  * - Los importes son SIEMPRE céntimos enteros y positivos (1234 = 12,34 €).

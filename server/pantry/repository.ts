@@ -19,8 +19,8 @@ import { placeholders, type SqliteContext } from '../infra/sqlite.ts'
 
 /**
  * Despensa en SQLite. Va aparte de SqliteFinanceRepository: restaurar una copia
- * financiera, importar los datos del navegador o generar vencimientos no la
- * tocan, y sus datos no aparecen en /api/data.
+ * financiera o generar vencimientos no la tocan, y sus datos no aparecen en
+ * /api/data.
  *
  * Los ids y las marcas de tiempo los pone el servidor (crypto.randomUUID de
  * Node), así funciona igual desde el móvil por HTTP en la red de casa.

@@ -18,8 +18,7 @@ import { placeholders, type SqliteContext } from '../infra/sqlite.ts'
 /**
  * Implementación de FinanceRepository con SQLite (better-sqlite3).
  *
- * Es el mismo contrato que usaba la app con IndexedDB, así que la interfaz no
- * cambia. better-sqlite3 es síncrono: cada método se ejecuta entero dentro de
+ * Cumple el contrato FinanceRepository (shared/finance). better-sqlite3 es síncrono: cada método se ejecuta entero dentro de
  * una transacción y el servidor atiende las peticiones de una en una, de modo
  * que dos pestañas que generan vencimientos a la vez nunca los duplican (y el
  * índice único de la base de datos lo garantiza de todas formas).
