@@ -11,6 +11,7 @@ import {
   PANTRY_UNITS,
   PERSON_NAME_MAX,
 } from './pantry.ts'
+import { isCounted } from './pantryTracking.ts'
 import { isValidISODate } from './dates.ts'
 import type {
   ISODate,
@@ -266,8 +267,8 @@ export function validateItemDraft(
   if (draft.ownerId !== '' && !people.some((p) => p.id === draft.ownerId)) errors.ownerId = 'Elige una persona de la lista.'
 
   // Los que se siguen por compras no usan cantidades: se guardan a 0.
-  const amounts: Partial<Record<'quantity' | 'target', number>> = draft.tracking === 'compras' ? { quantity: 0, target: 0 } : {}
-  for (const key of draft.tracking === 'compras' ? [] : (['quantity', 'target'] as const)) {
+  const amounts: Partial<Record<'quantity' | 'target', number>> = isCounted(draft) ? {} : { quantity: 0, target: 0 }
+  for (const key of isCounted(draft) ? (['quantity', 'target'] as const) : []) {
     const parsed = parseQuantityInput(draft[key])
     if (!parsed.ok) {
       errors[key] = parsed.error

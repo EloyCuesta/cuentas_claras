@@ -1,6 +1,6 @@
 import { formatEuros } from './money.ts'
 import { FALLBACK_DAYS, type ItemRhythm } from './pantryRhythm.ts'
-import type { ISODate, PantryFrequency, PantryItem, PantryPerson, PantryUnit } from './types.ts'
+import type { ISODate, PantryFrequency, PantryItem, PantryPerson, PantryTracking, PantryUnit } from './types.ts'
 
 /**
  * Cálculos de la despensa: lo que falta, lo que cuesta y la lista de la compra.
@@ -115,13 +115,55 @@ export type Rhythms = ReadonlyMap<string, ItemRhythm>
 const COUNT_UNITS: ReadonlySet<PantryUnit> = new Set(['ud', 'paquete', 'lata', 'botella', 'bolsa', 'docena'])
 
 /**
+ * Lo que cambia según cómo se sigue un producto (ver pantryTracking.ts), en un
+ * solo sitio: el resto de la app llama al modo del producto en vez de
+ * preguntar cuál es.
+ */
+export interface TrackingMode {
+  /** ¿Va a la lista de la compra? */
+  needsBuying(item: Pick<PantryItem, 'quantity' | 'target'>, rhythm: ItemRhythm | undefined): boolean
+  /** Cuánto comprar, en la unidad del producto. null = no se sabe. */
+  listQuantity(item: Pick<PantryItem, 'quantity' | 'target' | 'unit'>, rhythm: ItemRhythm | undefined): number | null
+  /** Lo que costará comprarlo. null = sin precio. */
+  listCostCents(item: Pick<PantryItem, 'id' | 'quantity' | 'target' | 'unit' | 'priceCents'>, rhythm: ItemRhythm | undefined): number | null
+  /** Gasto mensual estimado. null = sin precio. */
+  monthlyCostCents(item: Pick<PantryItem, 'id' | 'target' | 'unit' | 'priceCents' | 'frequency'>, rhythm: ItemRhythm | undefined): number | null
+}
+
+const asRhythms = (item: Pick<PantryItem, 'id'>, rhythm: ItemRhythm | undefined): Rhythms => new Map(rhythm ? [[item.id, rhythm]] : [])
+
+export const TRACKING_MODES: Readonly<Record<PantryTracking, TrackingMode>> = {
+  cantidad: {
+    needsBuying: (item) => isMissing(item),
+    listQuantity: (item) => missingQuantity(item),
+    listCostCents: (item) => missingCostCents(item),
+    monthlyCostCents: (item) => monthlyCostCents(item),
+  },
+  compras: {
+    needsBuying: (_item, rhythm) =>
+      rhythm?.status === 'se_acabo' || rhythm?.status === 'queda_poco' || rhythm?.status === 'probablemente_acabado',
+    listQuantity: (item, rhythm) => {
+      const last = rhythm?.lastPurchase
+      if (!last || last.amount === null) return null
+      if (last.measure === 'kg' && item.unit === 'kg') return last.amount
+      if (last.measure === 'kg' && item.unit === 'g') return Math.round(last.amount * 1000)
+      if (last.measure === 'ud' && COUNT_UNITS.has(item.unit)) return last.amount
+      return null
+    },
+    listCostCents: (item, rhythm) => purchaseCostCents(item, asRhythms(item, rhythm)),
+    monthlyCostCents: (item, rhythm) => monthlyCostFromRhythm(item, asRhythms(item, rhythm)),
+  },
+}
+
+/** El modo de seguimiento de un producto. */
+export const trackingOf = (item: Pick<PantryItem, 'tracking'>): TrackingMode => TRACKING_MODES[item.tracking]
+
+/**
  * ¿Hay que comprarlo? Si se cuenta, cuando hay menos de lo que se quiere tener;
  * si se sigue por compras, cuando se acabó, queda poco o probablemente se ha acabado.
  */
 export function needsBuying(item: Pick<PantryItem, 'id' | 'tracking' | 'quantity' | 'target'>, rhythms?: Rhythms): boolean {
-  if (item.tracking === 'cantidad') return isMissing(item)
-  const status = rhythms?.get(item.id)?.status
-  return status === 'se_acabo' || status === 'queda_poco' || status === 'probablemente_acabado'
+  return trackingOf(item).needsBuying(item, rhythms?.get(item.id))
 }
 
 /**
@@ -129,13 +171,7 @@ export function needsBuying(item: Pick<PantryItem, 'id' | 'tracking' | 'quantity
  * última compra en la unidad del producto (si se puede saber).
  */
 export function listQuantity(item: Pick<PantryItem, 'id' | 'tracking' | 'quantity' | 'target' | 'unit'>, rhythms?: Rhythms): number | null {
-  if (item.tracking === 'cantidad') return missingQuantity(item)
-  const last = rhythms?.get(item.id)?.lastPurchase
-  if (!last || last.amount === null) return null
-  if (last.measure === 'kg' && item.unit === 'kg') return last.amount
-  if (last.measure === 'kg' && item.unit === 'g') return Math.round(last.amount * 1000)
-  if (last.measure === 'ud' && COUNT_UNITS.has(item.unit)) return last.amount
-  return null
+  return trackingOf(item).listQuantity(item, rhythms?.get(item.id))
 }
 
 /** Lo que costará comprarlo: lo que falta × precio, o lo que cuesta una compra (ver purchaseCostCents). */
@@ -143,8 +179,7 @@ export function listCostCents(
   item: Pick<PantryItem, 'id' | 'tracking' | 'quantity' | 'target' | 'unit' | 'priceCents'>,
   rhythms?: Rhythms,
 ): number | null {
-  if (item.tracking === 'cantidad') return missingCostCents(item)
-  return purchaseCostCents(item, rhythms)
+  return trackingOf(item).listCostCents(item, rhythms?.get(item.id))
 }
 
 /**
@@ -247,7 +282,7 @@ export function monthlyCostFromRhythm(item: Pick<PantryItem, 'id' | 'unit' | 'pr
 
 /** Gasto mensual estimado de toda la casa (todos los productos). */
 export function monthlyEstimate(items: readonly PantryItem[], rhythms?: Rhythms): KnownTotal {
-  return sumKnown(items.map((item) => (item.tracking === 'cantidad' ? monthlyCostCents(item) : monthlyCostFromRhythm(item, rhythms))))
+  return sumKnown(items.map((item) => trackingOf(item).monthlyCostCents(item, rhythms?.get(item.id))))
 }
 
 const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>

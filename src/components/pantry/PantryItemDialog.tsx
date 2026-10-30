@@ -10,6 +10,7 @@ import {
   priceUnitLabel,
   unitName,
 } from '../../domain/pantry.ts'
+import { isCounted } from '../../domain/pantryTracking.ts'
 import { agoText, durationText, RHYTHM_LABELS, type ItemRhythm } from '../../domain/pantryRhythm.ts'
 import { quantityToInput, validateItemDraft, type PantryItemDraft } from '../../domain/pantryValidation.ts'
 import type { PantryItem, PantryItemInput, PantryPerson, PantryTracking, PantryUnit } from '../../domain/types.ts'
@@ -237,12 +238,12 @@ export function PantryItemDialog({
             ]}
           />
           <p className="field__hint pantry-tracking-hint">
-            {draft.tracking === 'compras'
+            {!isCounted(draft)
               ? 'Recomendado: la app apunta cuándo lo compras (con los tickets) y te avisa cuando probablemente se esté acabando.'
               : 'Tú indicas cuánto hay con los botones − y +, y falta cuando hay menos de lo que quieres tener.'}
           </p>
-          {draft.tracking === 'compras' && rhythm && !isNew && <RhythmNotice rhythm={rhythm} />}
-          {draft.tracking === 'cantidad' && (
+          {!isCounted(draft) && rhythm && !isNew && <RhythmNotice rhythm={rhythm} />}
+          {isCounted(draft) && (
           <div className="field-row">
             <Field id="pantry-quantity" label="Hay ahora" error={errors.quantity} hint={quantityHint}>
               {(control) => (
@@ -283,7 +284,7 @@ export function PantryItemDialog({
           <Field
             id="pantry-frequency"
             label="Cada cuánto se compra"
-            hint={draft.tracking === 'compras' ? 'Solo hasta que haya compras suficientes para saberlo.' : undefined}
+            hint={!isCounted(draft) ? 'Solo hasta que haya compras suficientes para saberlo.' : undefined}
           >
             {(control) => (
               <select

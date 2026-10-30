@@ -23,13 +23,14 @@ import {
   matchesOwner,
   missingQuantity,
   monthlyEstimate,
+  type OwnerFilter,
   PANTRY_FREQUENCIES,
   pantrySummary,
   priceUnitLabel,
   quantityStep,
-  type OwnerFilter,
   type Rhythms,
 } from '../domain/pantry.ts'
+import { isCounted } from '../domain/pantryTracking.ts'
 import { reviewItems, reviewSchedule } from '../domain/pantryReview.ts'
 import { needsReview, rhythmsFor, type ItemRhythm } from '../domain/pantryRhythm.ts'
 import type { PantryEventKind, PantryItem, PantryPerson, PantryTicketSummary } from '../domain/types.ts'
@@ -102,7 +103,7 @@ function PantryRow({
   onMark: (kind: PantryEventKind) => void
 }) {
   const price = priceText(item)
-  const counted = item.tracking === 'cantidad'
+  const counted = isCounted(item)
   const step = quantityStep(item.unit)
   const stepText = describeQuantity(step, item.unit)
   // En la lista de la compra: el botón pasa a ser «Lo he comprado».

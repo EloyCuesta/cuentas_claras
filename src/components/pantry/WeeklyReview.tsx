@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { describeQuantity, missingQuantity, quantityStep, type Rhythms } from '../../domain/pantry.ts'
+import { isCounted } from '../../domain/pantryTracking.ts'
 import type { ReviewSchedule } from '../../domain/pantryReview.ts'
 import { agoText } from '../../domain/pantryRhythm.ts'
 import type { PantryItem, PantryPerson } from '../../domain/types.ts'
@@ -259,7 +260,7 @@ export function WeeklyReviewDialog({
                 {item.name}
               </h3>
               {owner && <p className="muted small">{owner}</p>}
-              {item.tracking === 'compras' ? (
+              {!isCounted(item) ? (
                 <>
                   <p>{purchaseText(rhythm)}</p>
                   {showsRhythmStatus(rhythm) && (
@@ -304,7 +305,7 @@ export function WeeklyReviewDialog({
             Atrás
           </button>
         )}
-        {item?.tracking === 'cantidad' ? (
+        {item && isCounted(item) ? (
           <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void moveOn(item, 'contado')}>
             {index + 1 < queue.length ? 'Siguiente' : 'Terminar'}
           </button>

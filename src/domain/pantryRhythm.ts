@@ -1,4 +1,5 @@
 import { addDays, daysBetween } from './dates.ts'
+import { isCounted } from './pantryTracking.ts'
 import type { ISODate, PantryActivity, PantryEvent, PantryEventKind, PantryFrequency, PantryItem, PantryPurchase } from './types.ts'
 
 /**
@@ -182,7 +183,7 @@ export function rhythmsFor(
   for (const event of activity.events) events.set(event.itemId, [...(events.get(event.itemId) ?? []), event])
   const result = new Map<string, ItemRhythm>()
   for (const item of items) {
-    if (item.tracking !== 'compras') continue
+    if (isCounted(item)) continue
     result.set(item.id, itemRhythm(item, purchases.get(item.id) ?? [], events.get(item.id) ?? [], today))
   }
   return result

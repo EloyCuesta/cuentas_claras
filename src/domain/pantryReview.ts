@@ -1,5 +1,6 @@
 import { addDays, daysBetween } from './dates.ts'
-import { sortItems, type Rhythms } from './pantry.ts'
+import { type Rhythms, sortItems } from './pantry.ts'
+import { isCounted } from './pantryTracking.ts'
 import type { ISODate, PantryItem, PantryPurchase } from './types.ts'
 
 /**
@@ -59,7 +60,7 @@ export function reviewItems(items: readonly PantryItem[], rhythms: Rhythms, toda
   const soon: PantryItem[] = []
   const unknown: PantryItem[] = []
   for (const item of items) {
-    if (item.tracking !== 'compras') continue
+    if (isCounted(item)) continue
     const rhythm = rhythms.get(item.id)
     if (!rhythm || rhythm.status === 'sin_compras') unknown.push(item)
     else if (rhythm.status === 'revisar' || rhythm.status === 'probablemente_acabado') toCheck.push(item)
@@ -67,6 +68,6 @@ export function reviewItems(items: readonly PantryItem[], rhythms: Rhythms, toda
       soon.push(item)
     }
   }
-  const counted = sortItems(items.filter((item) => item.tracking === 'cantidad'))
+  const counted = sortItems(items.filter(isCounted))
   return [...toCheck.sort(byDue), ...soon.sort(byDue), ...unknown.sort((a, b) => a.name.localeCompare(b.name, 'es')), ...counted]
 }

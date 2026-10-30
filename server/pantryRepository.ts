@@ -1,5 +1,6 @@
 import { todayISO } from '../src/domain/dates.ts'
 import { checkQuantity, sortItems, sortPeople, stepQuantity } from '../src/domain/pantry.ts'
+import { isCounted } from '../src/domain/pantryTracking.ts'
 import type {
   ISODate,
   PantryEvent,
@@ -273,7 +274,7 @@ export class SqlitePantryRepository {
     const row = this.requireItem(id)
     const now = this.now()
     if (priceCents !== null && priceCents !== row.price_cents) this.sql.setPrice.run(priceCents, now, id)
-    if (addQuantity !== null && addQuantity > 0 && row.tracking === 'cantidad') {
+    if (addQuantity !== null && addQuantity > 0 && isCounted(row)) {
       const checked = checkQuantity(Math.round((row.quantity + addQuantity) * 1000) / 1000, row.unit)
       if (checked.ok) this.sql.setQuantity.run(checked.value, now, id)
     }
@@ -344,9 +345,9 @@ export class SqlitePantryRepository {
         throw new AppError('NOT_FOUND', 'Algún producto de la lista ya no existe. Vuelve a cargar la despensa; no se ha cambiado nada.')
       }
       const bought: PantryPurchaseChange[] = rows
-        .filter((row) => row.tracking === 'compras')
+        .filter((row) => !isCounted(row))
         .map((row) => ({ id: row.id, eventId: this.addEvent(row.id, 'comprado', date ?? todayISO()).id }))
-      const pending = rows.filter((row) => row.tracking === 'cantidad' && row.quantity < row.target)
+      const pending = rows.filter((row) => isCounted(row) && row.quantity < row.target)
       if (pending.length > 0) {
         // Un solo UPDATE para todos los productos.
         this.db
