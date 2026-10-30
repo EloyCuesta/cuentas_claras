@@ -1,9 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { resetDatabase } from './auth.ts'
 
 /** Lo que dice de verdad el ticket de ejemplo (para resolver las dudas del OCR como lo haría una persona mirando la imagen). */
-const TRUTH = JSON.parse(readFileSync('server/fixtures/ticket-lidl-ejemplo.json', 'utf8')) as { lines: { rawName: string; amountCents: number }[] }
+const TRUTH = JSON.parse(readFileSync('shared/tickets/fixtures/ticket-lidl-ejemplo.json', 'utf8')) as { lines: { rawName: string; amountCents: number }[] }
 const euros = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, '0')}`
 
 /**
@@ -55,7 +55,7 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   await expect(page.getByRole('heading', { name: 'Empieza escaneando un ticket' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Escanear ticket' }).click()
-  await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('server/fixtures/ticket-lidl-ejemplo.png')
+  await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('shared/tickets/fixtures/ticket-lidl-ejemplo.png')
   await page.getByRole('button', { name: 'Leer imágenes', exact: true }).click()
   const review = page.getByRole('dialog', { name: 'Revisar el ticket' })
   await expect(review).toBeVisible({ timeout: 90_000 })
@@ -112,7 +112,7 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
 
   // El mismo ticket no se puede guardar dos veces.
   await page.getByRole('button', { name: 'Escanear ticket' }).click()
-  await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('server/fixtures/ticket-lidl-ejemplo.png')
+  await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('shared/tickets/fixtures/ticket-lidl-ejemplo.png')
   await page.getByRole('button', { name: 'Leer imágenes', exact: true }).click()
   await expect(review.getByText(/Este ticket ya está guardado/)).toBeVisible({ timeout: 90_000 })
   await expect(review.getByRole('heading', { name: /^Ya conocidos \(\d+\)$/ })).toBeVisible()

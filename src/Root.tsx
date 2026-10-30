@@ -1,28 +1,24 @@
 import App from './App.tsx'
+import { useAuth } from './auth/authContext.ts'
+import { ApiFinanceRepository } from './finance/ApiFinanceRepository.ts'
+import { FinanceProvider } from './finance/FinanceProvider.tsx'
 import { GuestApp } from './GuestApp.tsx'
-import { ApiFinanceRepository } from './services/ApiFinanceRepository.ts'
-import { describeBrowserMigration, migrateBrowserData } from './services/browserDataMigration.ts'
-import { useAuth } from './state/authContext.ts'
-import { FinanceProvider } from './state/FinanceProvider.tsx'
 
 // Único punto donde se elige el almacenamiento: la base de datos SQLite del
 // servidor (server/), a través de su API REST.
 const repository = new ApiFinanceRepository()
 
-// Antes de abrir por primera vez: pasar al servidor los datos que hubiera en el navegador.
-const beforeOpen = async () => describeBrowserMigration(await migrateBrowserData(repository))
-
 /**
  * Con el código: la aplicación completa. Sin él: solo la despensa.
- * FinanceProvider (y con él la migración del navegador y la generación de
- * vencimientos) solo se monta como administrador; al cerrar la sesión se
+ * FinanceProvider (y con él la generación de vencimientos) solo se monta como
+ * administrador; al cerrar la sesión se
  * desmonta y su estado se descarta.
  */
 export function Root() {
   const { role } = useAuth()
   if (role !== 'admin') return <GuestApp />
   return (
-    <FinanceProvider repository={repository} beforeOpen={beforeOpen}>
+    <FinanceProvider repository={repository}>
       <App />
     </FinanceProvider>
   )

@@ -1,32 +1,33 @@
 import express, { Router, type Express } from 'express'
-import { AccessControl, authRoutes, requireAdmin } from './auth.ts'
-import type { OpenedDatabase } from './database.ts'
-import { errorHandler, notFoundHandler } from './http.ts'
-import { createTesseractReader, type TicketReader } from './ocr.ts'
-import { SqlitePantryRepository, type PantryRepositoryOptions } from './pantryRepository.ts'
-import type { SqliteFinanceRepository } from './repository.ts'
-import { categoryRoutes } from './routes/categories.ts'
-import { dataRoutes } from './routes/data.ts'
-import { healthRoutes } from './routes/health.ts'
-import { metaRoutes } from './routes/meta.ts'
-import { movementRoutes } from './routes/movements.ts'
-import { pantryRoutes } from './routes/pantry.ts'
-import { recurringRoutes } from './routes/recurring.ts'
-import { testingRoutes } from './routes/testing.ts'
-import { ticketRoutes } from './routes/tickets.ts'
-import { SqliteTicketRepository } from './ticketRepository.ts'
+import { SqliteFinanceRepository } from './finance/repository.ts'
+import { categoryRoutes } from './finance/routes/categories.ts'
+import { dataRoutes } from './finance/routes/data.ts'
+import { metaRoutes } from './finance/routes/meta.ts'
+import { movementRoutes } from './finance/routes/movements.ts'
+import { recurringRoutes } from './finance/routes/recurring.ts'
+import { AccessControl, authRoutes, requireAdmin } from './infra/auth.ts'
+import type { OpenedDatabase } from './infra/database.ts'
+import { healthRoutes } from './infra/health.ts'
+import { errorHandler, notFoundHandler } from './infra/http.ts'
+import { SqliteContext, type SqliteContextOptions } from './infra/sqlite.ts'
+import { testingRoutes } from './infra/testing.ts'
+import { SqlitePantryRepository } from './pantry/repository.ts'
+import { pantryRoutes } from './pantry/routes.ts'
+import { createTesseractReader, type TicketReader } from './tickets/ocr.ts'
+import { SqliteTicketRepository } from './tickets/repository.ts'
+import { ticketRoutes } from './tickets/routes.ts'
+import { TicketService } from './tickets/service.ts'
 
 export interface AppOptions {
   database: OpenedDatabase
-  repository: SqliteFinanceRepository
   /** Código que da acceso a las finanzas (CUENTAS_CODIGO). Obligatorio: sin él no se crea la aplicación. */
   accessCode: string
   /** Activa POST /api/test/reset (solo para las pruebas en navegador). También exige sesión. */
   testMode?: boolean
   /** Reloj en milisegundos para las sesiones y los bloqueos (inyectable en los tests). */
   clock?: () => number
-  /** Inyectables de la despensa para los tests. */
-  pantry?: PantryRepositoryOptions
+  /** Reloj e ids de los repositorios (inyectables en los tests). */
+  sqlite?: SqliteContextOptions
   /** Lector de tickets (OCR). Por defecto, Tesseract en este equipo; los tests pasan uno falso. */
   ticketReader?: TicketReader
 }
@@ -41,17 +42,18 @@ export interface AppOptions {
  */
 export function createApp({
   database,
-  repository,
   accessCode,
   testMode = false,
   clock,
-  pantry: pantryOptions,
+  sqlite,
   ticketReader,
 }: AppOptions): Express {
   // Lanza si falta el código o no es válido: nunca hay una aplicación con el acceso abierto.
   const access = new AccessControl(accessCode, clock)
-  const pantry = new SqlitePantryRepository(database.db, pantryOptions)
-  const tickets = new SqliteTicketRepository(database.db, pantry, pantryOptions)
+  const ctx = new SqliteContext(database.db, sqlite)
+  const repository = new SqliteFinanceRepository(ctx)
+  const pantry = new SqlitePantryRepository(ctx)
+  const tickets = new SqliteTicketRepository(ctx, pantry)
   const reader = ticketReader ?? createTesseractReader()
 
   const app = express()
@@ -72,7 +74,7 @@ export function createApp({
   api.use(healthRoutes(database))
   api.use(authRoutes(access))
   api.use(pantryRoutes(pantry))
-  api.use(ticketRoutes(tickets, pantry, reader))
+  api.use(ticketRoutes(tickets, new TicketService(tickets, pantry, reader)))
 
   api.use(requireAdmin(access))
   api.use(dataRoutes(repository))

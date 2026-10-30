@@ -43,8 +43,6 @@ npm run preview      # en otra: la web en http://localhost:4173 (también envía
 
 **Datos de ejemplo**: la app empieza vacía. Si quieres verla con datos, ve a *Ajustes › Restaurar una copia…* y elige `ejemplo/copia-de-ejemplo.json` (un mes de octubre de 2026 con nómina, alquiler, un préstamo a 48 cuotas, recibos y presupuestos). En *Resumen › Año* se ve el año completo, con noviembre y diciembre previstos a partir de los recurrentes.
 
-**Si venías de la versión anterior** (datos guardados en el navegador): al entrar con el código en ese navegador, los datos que hubiera en ese navegador se pasan solos a la base de datos, siempre que esta todavía no tenga datos tuyos. Después se comprueba que ha llegado todo. La copia del navegador no se borra. Si la base de datos ya tenía datos, no se mezcla nada y la app lo avisa.
-
 ## Código de acceso
 
 Las cuentas solo se ven con un código que pones tú. Sin él, cualquiera de casa puede usar la **Despensa** y nada más.
@@ -122,7 +120,7 @@ Una vez a la semana, en un par de minutos, se mira lo que puede acabarse antes d
   - **Copiar**: si el navegador no deja copiar solo, selecciona el texto para copiarlo a mano.
   - **Descargar .txt**.
   - **Marcar todo como comprado**: en los que se cuentan, completa lo que hay hasta el objetivo; en los que van por compras, apunta una compra de hoy. Durante unos segundos aparece **Deshacer**. Si mientras tanto alguien ha cambiado alguno de esos productos, no se deshace nada (para no pisar su cambio) y la app lo avisa.
-- La Despensa se guarda en la misma base de datos SQLite, en tablas aparte. **Las copias JSON y los CSV no la incluyen**, y restaurar una copia o importar los datos del navegador no la toca.
+- La Despensa se guarda en la misma base de datos SQLite, en tablas aparte. **Las copias JSON y los CSV no la incluyen** y restaurar una copia no la toca.
 
 ## Comprobaciones
 
@@ -156,80 +154,66 @@ Además se prueban:
 - Que no se puede inyectar SQL.
 - Las migraciones: se aplican una sola vez, no borran nada y no se abre una base de datos de una versión más nueva.
 - Las restricciones de la base de datos.
-- La importación de los datos del navegador (una sola vez, sin mezclar y conservando la copia).
 - La regla del día 31, las cuotas que quedan, el formato del CSV y la proyección de recurrentes.
 - Las plantillas mensual y anual.
 - El código de acceso: arranque sin código, rutas protegidas (`401`), cookie y caducidad de la sesión, cierre de sesión, sesiones que no sobreviven a un reinicio, y el bloqueo por intentos, por dispositivo y sin poder eludirlo con cabeceras inventadas (con un reloj controlado, sin esperar minutos).
-- La despensa: personas, productos, presupuesto, unidades, cálculos sin restos decimales, el texto exacto de la lista, comprar y deshacer (también con cambios de otro dispositivo), la migración desde una base de datos anterior y que las copias e importaciones financieras no la tocan.
-- Los tickets: la lectura con el OCR de verdad de una captura de Lidl **inventada** (`server/fixtures/`, con los datos que debe dar), la interpretación de las líneas (cantidades, pesos, descuentos, devoluciones, cifras y letras del IVA mal leídas), la corrección con el total, varias capturas seguidas, otras tiendas, lo aprendido y los nombres parecidos, guardar sin duplicar, cambiar una línea, borrar, la validación de las imágenes y la migración 003.
+- La despensa: personas, productos, presupuesto, unidades, cálculos sin restos decimales, el texto exacto de la lista, comprar y deshacer (también con cambios de otro dispositivo), la migración desde una base de datos anterior y que las copias financieras no la tocan.
+- Los tickets: la lectura con el OCR de verdad de una captura de Lidl **inventada** (`shared/tickets/fixtures/`, con los datos que debe dar), la interpretación de las líneas (cantidades, pesos, descuentos, devoluciones, cifras y letras del IVA mal leídas), la corrección con el total, varias capturas seguidas, otras tiendas, lo aprendido y los nombres parecidos, guardar sin duplicar, cambiar una línea, borrar, la validación de las imágenes y la migración 003.
 - El ritmo de compra: lo que dura cada producto (mediana, escalado por cantidad, compras del mismo día), «Queda», «Queda poco», «Se acabó», «Lo he comprado», los avisos, la lista y la estimación mensual.
 - El repaso de la semana: cuándo toca (también la primera vez) y qué se repasa y en qué orden; la migración 004 conserva las revisiones que ya había.
-- En el navegador: el invitado solo ve la despensa y no pide datos financieros ni ejecuta la migración del navegador; persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles; entrar con el código, cerrar sesión y sesión caducada; escanear la captura de un ticket, revisarla (cambiar un nombre, no seguir una línea), guardarla, verla en «Últimas compras» y no poder guardarla dos veces; días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra; y el repaso de la semana («Hoy no», un producto cada vez, volver atrás y cambiar la respuesta, contar con − y +, y la lista hecha al final).
+- En el navegador: el invitado solo ve la despensa y no pide datos financieros; persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles; entrar con el código, cerrar sesión y sesión caducada; escanear la captura de un ticket, revisarla (cambiar un nombre, no seguir una línea), guardarla, verla en «Últimas compras» y no poder guardarla dos veces; días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra; y el repaso de la semana («Hoy no», un producto cada vez, volver atrás y cambiar la respuesta, contar con − y +, y la lista hecha al final).
 
 ## Estructura
 
-La lógica, el almacenamiento y la interfaz están separados. La interfaz solo conoce el contrato `FinanceRepository`, no sabe que hay un servidor ni una base de datos.
+El código está organizado **por módulo**: finanzas (`finance`), despensa (`pantry`) y tickets de la compra (`tickets`). Cada módulo tiene las mismas piezas en tres sitios:
+
+| Pieza | Dónde | Qué hace |
+| --- | --- | --- |
+| Dominio | `shared/<módulo>/` | Tipos, reglas y cálculos en TypeScript puro (sin React, sin base de datos, sin reloj). Lo usan la web y el servidor. Con pruebas. |
+| Servidor | `server/<módulo>/` | Repositorio SQLite, rutas de la API y, si hace falta, un servicio que orquesta varios pasos. |
+| Web | `src/<módulo>/` | Provider con el estado (escribir → releer), cliente de la API, páginas y componentes. |
+
+Reglas para mantenerlo así:
+
+- **Las reglas van en `shared/`.** Un repositorio solo lee y escribe; si tiene que decidir algo (qué producto crear, qué precio poner…), esa decisión es una función pura en `shared/` que devuelve un plan, y el repositorio lo aplica (ver `shared/tickets/savePlan.ts`).
+- **Las rutas son finas**: comprueban la petición con un validador de `shared/` (o de `server/<módulo>/request.ts`) y llaman al repositorio o al servicio.
+- **El estado de la web sigue un solo patrón**: el Provider de cada módulo guarda en el servidor y vuelve a leer el módulo. Los componentes toman las acciones del contexto (`useFinance`, `usePantry`, `usePantryActions`), no por props.
+- **Un módulo no importa a otro**, salvo `tickets`, que forma parte de la despensa y usa sus tipos. Lo común está en `shared/core`, `src/ui`, `src/api` y `server/infra`.
 
 ```
-server/                      Servidor Node.js + Express + SQLite (se ejecuta con tsx)
-├── index.ts                 Arranque: variables de entorno (código obligatorio), puerto y cierre ordenado
-├── app.ts                   La aplicación Express: rutas /api, orden público → requireAdmin → finanzas
-├── auth.ts                  Código de acceso: sesiones en memoria, cookie, límite de intentos y requireAdmin
-├── pantryRepository.ts      La despensa en SQLite (tablas aparte de las finanzas)
-├── ticketRepository.ts      Tickets guardados, lo aprendido en cada tienda y las compras para el ritmo
-├── ocr.ts                   Lectura de las capturas con Tesseract, en este equipo (dos pasadas: texto y cifras)
-├── imageInfo.ts             Tipo y tamaño de una imagen PNG o JPEG, sin decodificarla
-├── database.ts              Abre o crea la base de datos (WAL, claves foráneas) y aplica migraciones
-├── migrations/              Migraciones versionadas (001-esquema-inicial.ts, 002-despensa.ts, 003-tickets.ts, 004-repaso.ts)
-├── repository.ts            SqliteFinanceRepository: el contrato FinanceRepository con SQL
-├── http.ts                  Formato de las respuestas, errores centralizados y validación
-├── routes/                  health, data, movements, categories, recurring, meta, pantry, tickets y testing
-├── fixtures/                Ticket de Lidl inventado para las pruebas: la imagen, lo que lee el OCR y lo que debe salir
-└── data/                    Aquí se crea cuentas.db (fuera de git: son tus datos)
-src/
-├── main.tsx                 Punto de entrada
-├── Root.tsx                 Con el código, la app completa (aquí se elige el almacenamiento); sin él, GuestApp
-├── GuestApp.tsx             Vista de invitado: solo la Despensa y «Tengo el código»
-├── App.tsx                  Estructura, navegación y ventanas de edición
-├── styles.css               Estilos: colores y tipografía como variables, modo oscuro
-├── domain/                  Lógica pura en TypeScript, sin React ni base de datos (con tests).
-│   │                        La usan la interfaz y el servidor.
-│   ├── types.ts             Movimiento, Categoría, Recurrente…
-│   ├── money.ts             Importes en céntimos: leer lo que escribe el usuario y formatear
-│   ├── dates.ts             Fechas "AAAA-MM-DD" y la regla del día 31
-│   ├── period.ts            Periodos (un mes o un año): límites, textos y meses que abarcan
-│   ├── categories.ts        Categorías iniciales
-│   ├── recurring.ts         Calendario de vencimientos, cuotas que quedan y proyección
-│   ├── summary.ts           Resumen de un periodo, desglose por categoría y presupuestos
-│   ├── annual.ts            El año mes a mes: serie mensual y categorías × meses
-│   ├── filters.ts           Búsqueda y filtros
-│   ├── validation.ts        Validación de formularios
-│   ├── suggestions.ts       Conceptos ya usados y su categoría
-│   ├── pantry.ts            Despensa: faltantes, importes, estimaciones y texto de la lista de la compra
-│   ├── pantryRhythm.ts      Ritmo de compra: cuánto dura cada producto y qué conviene revisar
-│   ├── pantryValidation.ts  Validación de la despensa (formularios y API)
-│   ├── ticketParse.ts       Del texto de un ticket a tienda, fecha, total y productos, cuadrando con el total
-│   ├── ticketMatch.ts       Emparejar cada línea con su producto (lo aprendido y nombres parecidos)
-│   ├── ticketText.ts        Nombres de los tickets: normalizar, parecido y nombre para un producto nuevo
-│   ├── ticketValidation.ts  Validación de un ticket revisado (API)
-│   ├── backup.ts            Copia de seguridad JSON y validación de datos (también la usa la API)
-│   └── csv.ts               Exportación a CSV: movimientos y plantillas mensual y anual
-├── services/
-│   ├── apiClient.ts                Peticiones a /api y errores del servidor
-│   ├── ApiFinanceRepository.ts     El contrato FinanceRepository sobre la API
-│   ├── pantryApi.ts                Cliente de la API de la despensa
-│   └── browserDataMigration.ts     Paso único de los datos del navegador (IndexedDB) a SQLite
-├── storage/
-│   ├── FinanceRepository.ts            El contrato del almacenamiento (interfaz)
-│   └── IndexedDbFinanceRepository.ts   Implementación anterior (navegador): se usa para leer los datos al migrarlos
-├── state/                   Sesión (AuthProvider), finanzas, despensa (usePantry), avisos, pestañas y previsión
-├── components/              Formularios, ventanas, gráfico, listas…
-├── pages/                   Resumen (mes), Año, Movimientos, Recurrentes, Presupuestos, Despensa y Ajustes
-└── ui/                      Navegación con #, descargas, foco y preparar las fotos de los tickets
-e2e/app.spec.ts              Pruebas en navegador de las funciones financieras (con sesión)
-e2e/despensa.spec.ts         Pruebas en navegador del invitado, la despensa y el acceso
-e2e/tickets.spec.ts          Pruebas en navegador de los tickets, de lo que conviene revisar y del repaso de la semana
-ejemplo/                     Copia de seguridad con datos de ejemplo
+shared/                       Dominio puro (lo usan la web y el servidor), con sus pruebas
+├── core/                     Fechas «AAAA-MM-DD», importes en céntimos, periodos, ids y ValidationResult
+├── finance/                  Categorías, movimientos, recurrentes, resumen, año, copias, CSV, validación
+│   └── FinanceRepository.ts  El contrato del almacenamiento de las finanzas (lo cumplen el servidor y el cliente de la API)
+├── pantry/                   Despensa: cantidades, lista y estimaciones (pantry.ts), modo de seguimiento
+│                             (tracking.ts), ritmo de compra (rhythm.ts), repaso de la semana (review.ts), validación
+├── tickets/                  Tickets: leerlos (parse.ts y parse/ paso a paso), emparejar productos (match.ts),
+│   │                         comprobar cifras (arithmetic.ts, evidence.ts), validar y planear el guardado (savePlan.ts)
+│   └── fixtures/             Tickets INVENTADOS para las pruebas: imágenes, lo que lee el OCR y lo que debe salir
+└── test/factories.ts         Datos de prueba
+server/                       Node.js + Express + SQLite (se ejecuta con tsx)
+├── index.ts                  Arranque: variables de entorno (código obligatorio), puerto y cierre ordenado
+├── app.ts                    La aplicación Express: crea el SqliteContext y los repositorios y monta las rutas
+│                             (públicas → requireAdmin → finanzas)
+├── infra/                    SqliteContext (conexión, reloj, ids, transacciones), base de datos y migraciones,
+│                             formato HTTP y errores, código de acceso, /health y el reinicio de pruebas
+├── finance/                  SqliteFinanceRepository y rutas /data, /movements, /categories, /recurring, /meta
+├── pantry/                   SqlitePantryRepository y rutas /despensa (personas, productos, revisiones, compra)
+├── tickets/                  Repositorio de tickets, TicketService (leer: OCR → ticket → sugerencias),
+│                             comprobación de la petición, OCR con Tesseract y rutas /despensa/tickets
+└── data/                     Aquí se crea cuentas.db (fuera de git: son tus datos)
+src/                          La web (React)
+├── main.tsx · Root.tsx       Entrada; con el código, la app completa; sin él, GuestApp (solo la despensa)
+├── App.tsx · GuestApp.tsx    Estructura, navegación y ventanas de edición
+├── ui/                       Componentes comunes (Dialog, forms, Icon, Section, avisos…) y utilidades
+├── api/                      Cliente de /api y textos de error
+├── auth/                     Sesión: AuthProvider, «Tengo el código» y cerrar sesión
+├── finance/                  FinanceProvider, cliente de la API, páginas (Resumen, Año, Movimientos,
+│                             Recurrentes, Presupuestos, Ajustes) y componentes
+├── pantry/                   PantryProvider, cliente de la API, DespensaPage, componentes y preparar las fotos de los tickets
+└── styles/                   Estilos por módulo; index.css los carga en orden
+e2e/                          Pruebas en navegador: finanzas (app), despensa y acceso, tickets y repaso
+ejemplo/                      Copia de seguridad con datos de ejemplo
 ```
 
 ## Base de datos
@@ -242,7 +226,7 @@ Trece tablas, solo con lo que usa la aplicación:
 | `movements` | Ingresos y gastos, realizados o pendientes. Incluye los vencimientos de los recurrentes (`recurring_id`, `occurrence_date`) y el número de cuota. |
 | `recurring_rules` | Pagos y cobros recurrentes. Las financiaciones son recurrentes con un número de cuotas (`installments`). |
 | `recurring_excluded_dates` | Vencimientos eliminados que no deben volver a crearse. |
-| `meta` | Datos auxiliares: fecha de la última copia y de la importación desde el navegador. |
+| `meta` | Datos auxiliares: fecha de la última copia. |
 | `pantry_people` | Personas de la despensa. |
 | `pantry_items` | Productos: dueño (`owner_id`, `NULL` = Compartido, borrado restringido), unidad, cantidades, frecuencia, precio en céntimos (`NULL` = desconocido), cómo se sigue (`tracking`: `compras` o `cantidad`) y `version`, que sube en cada escritura para poder deshacer sin pisar cambios. |
 | `pantry_settings` | Una sola fila con el presupuesto mensual de la despensa y el día del último repaso de la semana (`last_review_date`, `NULL` = ninguno todavía). |
@@ -315,7 +299,6 @@ Con sesión (sin ella, `401`):
 | `DELETE /api/recurring/:id` | Elimina un recurrente y sus vencimientos pendientes |
 | `POST /api/occurrences/generate` | Crea los vencimientos que falten hasta `{ horizon }` |
 | `GET` / `PUT /api/meta/:key` | Datos auxiliares (`lastBackupAt`) |
-| `POST /api/import` | Importa los datos del navegador; responde 409 si ya hay datos |
 
 Códigos de error:
 
@@ -324,7 +307,7 @@ Códigos de error:
 | `VALIDATION` | 400 | Datos no válidos, o una imagen de ticket que no se puede leer |
 | `UNAUTHORIZED` | 401 | Ruta financiera sin sesión, o código incorrecto |
 | `NOT_FOUND` | 404 | Ruta o dato que no existe |
-| `CONFLICT` | 409 | Vencimiento duplicado, categoría en uso, importación con datos ya existentes, persona con productos, ticket ya guardado o «Deshacer» tras otro cambio |
+| `CONFLICT` | 409 | Vencimiento duplicado, categoría en uso, persona con productos, ticket ya guardado o «Deshacer» tras otro cambio |
 | `TOO_MANY_ATTEMPTS` | 429 | Demasiados códigos incorrectos desde este dispositivo |
 | `INTERNAL` | 500 | Error inesperado; el detalle sale en la consola |
 
@@ -346,7 +329,7 @@ La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber ad
 - **Fechas sin hora.** Se guardan como `"2026-10-28"` para que el cambio de zona horaria no mueva un gasto de día. La fecha de «hoy» la pone el navegador, no el servidor.
 - **Real y previsto.** Un movimiento pagado cuenta en el mes de su fecha de pago; uno pendiente, en el mes de su fecha prevista. El resultado previsto es lo cobrado más lo pendiente de cobrar, menos lo pagado y lo pendiente de pagar en ese mes. Lo real se muestra en trazo sólido y lo previsto «a lápiz» (gris y líneas discontinuas), siempre con su etiqueta.
 - **Recurrentes.** Al abrir la app se crean los vencimientos que falten hasta el final del mes siguiente, como pendientes. Cada vencimiento se identifica por *recurrente + fecha programada* con un índice único en la base de datos, así que no puede existir dos veces aunque se abran varias pestañas a la vez. Si borras un vencimiento, se anota para no volver a crearlo. Si un vencimiento cae en un día 31 y el mes no lo tiene, se usa el último día del mes.
-- **Plantillas mensual y anual.** *Resumen* tiene dos vistas, Mes y Año, que comparten los mismos cálculos: reciben un periodo (`src/domain/period.ts`) en lugar de un año y un mes, así que una columna del año coincide siempre con ese mes. El mes añade un detalle por categoría y subcategoría (presupuesto, real, pendiente, total y lo que queda); el año, la evolución mes a mes, una tabla de categorías × meses y el presupuesto anual (el mensual × 12). Las dos se descargan como hoja de cálculo con el mismo formato que el CSV de movimientos.
+- **Plantillas mensual y anual.** *Resumen* tiene dos vistas, Mes y Año, que comparten los mismos cálculos: reciben un periodo (`shared/core/period.ts`) en lugar de un año y un mes, así que una columna del año coincide siempre con ese mes. El mes añade un detalle por categoría y subcategoría (presupuesto, real, pendiente, total y lo que queda); el año, la evolución mes a mes, una tabla de categorías × meses y el presupuesto anual (el mensual × 12). Las dos se descargan como hoja de cálculo con el mismo formato que el CSV de movimientos.
 - **Proyección de recurrentes.** Para los meses posteriores al horizonte de generación, los vencimientos de los recurrentes se calculan al vuelo y cuentan en la previsión como pendientes, marcados como «proyectados». No se guardan, así que no aparecen en Movimientos ni se pueden pagar hasta que la aplicación los cree. Respetan las cuotas, la fecha de fin y los vencimientos eliminados.
 - **Marcar como pagado** modifica el mismo movimiento (estado y fecha de pago), no crea otro. Se puede ajustar el importe final, por ejemplo en una factura de luz.
 - **Categorías** con un nivel de subcategorías (Vivienda › Luz). El gráfico y los presupuestos usan la categoría principal. La de ingresos se llama «Otros ingresos» para no confundirla con «Otros».

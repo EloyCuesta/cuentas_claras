@@ -1,10 +1,9 @@
 import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 import { createApp } from './app.ts'
-import { checkAccessCode } from './auth.ts'
-import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './database.ts'
-import { createTesseractReader } from './ocr.ts'
-import { SqliteFinanceRepository } from './repository.ts'
+import { checkAccessCode } from './infra/auth.ts'
+import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './infra/database.ts'
+import { createTesseractReader } from './tickets/ocr.ts'
 
 /**
  * Servidor de Cuentas claras: la API REST sobre SQLite.
@@ -43,9 +42,8 @@ try {
   process.exit(1)
 }
 
-const repository = new SqliteFinanceRepository(database.db)
 const ticketReader = createTesseractReader()
-const server = createServer(createApp({ database, repository, accessCode: accessCode.code, testMode, ticketReader }))
+const server = createServer(createApp({ database, accessCode: accessCode.code, testMode, ticketReader }))
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {

@@ -58,25 +58,9 @@ async function addProduct(
 
 const item = (page: Page, name: string) => page.locator('.pantry-item', { has: page.getByRole('button', { name: `Editar ${name}` }) })
 
-test('el invitado solo ve la despensa y no pide datos financieros ni migra el navegador', async ({ page }) => {
+test('el invitado solo ve la despensa y no pide datos financieros', async ({ page }) => {
   const requests = recordApiRequests(page)
   await page.goto('/')
-  // Datos de una versión anterior guardados en este navegador: como invitado no se tocan.
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve, reject) => {
-        const open = indexedDB.open('cuentas-claras', 1)
-        open.onupgradeneeded = () => {
-          for (const store of ['categories', 'movements', 'recurring', 'meta']) open.result.createObjectStore(store, { keyPath: store === 'meta' ? 'key' : 'id' })
-        }
-        open.onsuccess = () => {
-          open.result.close()
-          resolve()
-        }
-        open.onerror = () => reject(open.error)
-      }),
-  )
-  await page.reload()
 
   await expect(page.getByRole('heading', { name: 'Despensa', level: 1 })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Tengo el código' })).toBeVisible()
@@ -94,7 +78,6 @@ test('el invitado solo ve la despensa y no pide datos financieros ni migra el na
 
   expect(requests.filter((r) => FINANCE_REQUEST.test(r))).toEqual([])
   expect(requests).toContain('GET /api/auth/me')
-  expect(await page.evaluate(() => localStorage.getItem('cuentas-claras:datos-del-navegador'))).toBeNull()
   // Y aunque se intente a mano, el servidor no da los datos.
   expect((await page.request.get('/api/data')).status()).toBe(401)
 })

@@ -1,0 +1,1171 @@
+/* Finanzas: resumen, año, movimientos, recurrentes, presupuestos y ajustes - */
+
+.month-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-header__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+/* Mes | Año: mismo aspecto que el interruptor de opciones, pero son enlaces. */
+.period-switch {
+  display: inline-grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1.5px solid var(--rule);
+  border-radius: calc(var(--radius-m) + 2px);
+  background: var(--sheet-2);
+}
+
+.period-switch__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.5rem;
+  min-height: 36px;
+  padding: 4px 14px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.period-switch__link:hover {
+  color: var(--ink);
+}
+
+.period-switch__link[aria-current='page'] {
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+/* Resumen ---------------------------------------------------------------- */
+
+/* Móvil: una sola columna. Escritorio: la cuenta y el gráfico a la izquierda;
+ * pendientes y presupuestos a la derecha. Cada columna se apila por su cuenta. */
+.summary-grid,
+.summary-col {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .summary-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+}
+
+/* Detalle por categoría: las principales en negrita y sus subcategorías sangradas
+ * debajo. La columna de la categoría se queda fija al desplazar la tabla. */
+.category-table tr > th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--sheet);
+  box-shadow: inset -1px 0 0 var(--rule);
+}
+
+/* Los títulos de apartado ocupan toda la fila: lo que se queda fijo es su texto. */
+.category-table .category-table__heading th {
+  position: static;
+  box-shadow: none;
+}
+
+.category-table__heading span {
+  position: sticky;
+  left: 10px;
+}
+
+.category-table .category-table__heading th {
+  padding-top: 20px;
+  border-bottom: 2px solid var(--ink);
+  color: var(--ink);
+  font-size: var(--step--1);
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.category-table tbody:first-of-type .category-table__heading th {
+  padding-top: 8px;
+}
+
+.category-table .category-table__child th {
+  padding-left: 28px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.category-table__child td {
+  color: var(--ink-2);
+}
+
+.category-table__total th,
+.category-table__total td {
+  border-top: 1.5px solid var(--rule-strong);
+  font-weight: 750;
+}
+
+.category-table__result th,
+.category-table__result td {
+  padding-top: 12px;
+  border-top: 2px solid var(--ink);
+  border-bottom: 0;
+  font-weight: 800;
+}
+
+/* Evolución del año: columnas agrupadas de ingresos y gastos que crecen desde
+ * la línea de base, con 2 px de separación entre lo pagado y lo pendiente y el
+ * extremo superior redondeado. Rejilla en línea fina y recesiva. */
+.trend {
+  --trend-height: 180px;
+  --trend-axis: 3.25rem;
+}
+
+.trend__plot {
+  position: relative;
+  padding-left: var(--trend-axis);
+}
+
+.trend__grid {
+  position: absolute;
+  top: 0;
+  left: var(--trend-axis);
+  right: 0;
+  height: var(--trend-height);
+  pointer-events: none;
+}
+
+.trend__gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.trend__gridline:first-child {
+  border-top-color: var(--rule-strong);
+}
+
+.trend__tick {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+  color: var(--ink-2);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.trend__months {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.trend__month {
+  display: grid;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  cursor: pointer;
+}
+
+.trend__month[aria-pressed='true'] {
+  background: var(--sheet-2);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+
+.trend__month:focus-visible {
+  outline-offset: 1px;
+}
+
+.trend__cols {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: var(--trend-height);
+}
+
+.trend__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: clamp(4px, 34%, 14px);
+}
+
+.trend__seg {
+  flex: 1 1 0;
+  min-height: 2px;
+}
+
+.trend__seg:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.trend__col--income .trend__seg--paid {
+  background: var(--bar-income);
+}
+
+.trend__col--income .trend__seg--pending {
+  background: var(--bar-income-pending);
+}
+
+.trend__col--expense .trend__seg--paid {
+  background: var(--bar-expense);
+}
+
+.trend__col--expense .trend__seg--pending {
+  background: var(--bar-expense-pending);
+}
+
+.trend__label {
+  padding: 6px 0 4px;
+  color: var(--ink-2);
+  font-size: 0.6875rem;
+  text-align: center;
+}
+
+.trend__month--current .trend__label {
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.trend__readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+@media (min-width: 600px) {
+  .trend {
+    --trend-height: 200px;
+    --trend-axis: 3.75rem;
+  }
+
+  .trend__tick,
+  .trend__label {
+    font-size: 0.75rem;
+  }
+}
+
+/* Mes a mes por categoría: una tabla de hoja de cálculo (con los apartados del
+ * detalle por categoría) y la primera columna fija al desplazarla. */
+/* Catorce columnas: un punto menos de letra para que quepa en un escritorio normal. */
+.grid-table {
+  font-size: 0.75rem;
+}
+
+.grid-table th,
+.grid-table td {
+  padding: 7px 5px;
+}
+
+.grid-table tr > :first-child {
+  padding-left: 8px;
+}
+
+.grid-table tr > :last-child {
+  padding-right: 8px;
+}
+
+.grid-table tr > th:first-child {
+  min-width: 8.5rem;
+}
+
+.grid-table tr:not(.category-table__heading) > :last-child {
+  border-left: 1px solid var(--rule);
+  font-weight: 700;
+}
+
+/* La cuenta del mes: papel cuadriculado, operadores en el margen y una raya
+ * sobre cada resultado (sólida para lo real, discontinua para lo previsto). */
+.ledger {
+  padding: 24px;
+  background-color: var(--sheet);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+
+.ledger__group + .ledger__group {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1.5px dashed var(--rule-strong);
+}
+
+.ledger__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.ledger__rows {
+  display: grid;
+  gap: 2px;
+}
+
+.ledger__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 5px 0;
+}
+
+.ledger__row dt {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ledger__op {
+  flex: none;
+  width: 1.1em;
+  color: var(--pencil);
+  font-size: var(--step-1);
+  font-weight: 500;
+  text-align: center;
+}
+
+.ledger__label {
+  color: var(--ink-2);
+}
+
+.ledger__count {
+  display: block;
+  color: var(--pencil);
+  font-size: var(--step--1);
+}
+
+.ledger__value {
+  font-size: var(--step-1);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ledger__row--total {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 2px solid var(--ink);
+}
+
+.ledger__row--total .ledger__label {
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.ledger__row--total .ledger__op {
+  color: var(--ink);
+}
+
+.ledger__row--total .ledger__value {
+  font-size: var(--step-2);
+  font-weight: 800;
+}
+
+/* Previsión: los importes pendientes van a lápiz y la raya del resultado es discontinua. */
+.ledger__group--forecast .ledger__value {
+  color: var(--pencil);
+}
+
+.ledger__group--forecast .ledger__row--total {
+  border-top-style: dashed;
+}
+
+.ledger__group--forecast .ledger__row--total .ledger__value {
+  color: var(--ink);
+}
+
+.ledger .ledger__value .is-negative,
+.ledger__group--forecast .ledger__row--total .ledger__value .is-negative {
+  color: var(--negative);
+}
+
+.ledger__note {
+  max-width: 60ch;
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+@media (min-width: 600px) {
+  .ledger {
+    padding: 28px 32px;
+  }
+
+  .ledger__op {
+    font-size: var(--step-2);
+  }
+
+  .ledger__value {
+    font-size: var(--step-2);
+  }
+
+  .ledger__row--total .ledger__value {
+    font-size: var(--step-3);
+  }
+}
+
+/* Vencimientos */
+.due-list {
+  display: grid;
+}
+
+.due {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'leaf main amount'
+    'leaf action action';
+  align-items: start;
+  gap: 8px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.due > .leaf {
+  grid-area: leaf;
+}
+
+.due__amount {
+  grid-area: amount;
+  justify-self: end;
+}
+
+.due__action {
+  grid-area: action;
+  justify-self: start;
+}
+
+@media (min-width: 600px) {
+  .due {
+    grid-template-areas:
+      'leaf main amount'
+      'leaf main action';
+  }
+
+  .due__action {
+    justify-self: end;
+  }
+}
+
+.due:first-child {
+  border-top: 0;
+}
+
+.leaf {
+  display: grid;
+  justify-items: center;
+  width: 48px;
+  padding: 4px 0 5px;
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--accent);
+  border-radius: var(--radius-s);
+  background: var(--sheet-2);
+  line-height: 1.1;
+}
+
+.due--late .leaf {
+  border-top-color: var(--negative);
+}
+
+.leaf__day {
+  font-size: var(--step-1);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaf__month {
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.due__main {
+  grid-area: main;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px;
+  margin: -4px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.due__main:hover .due__concept {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.due__concept {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.due__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.due__when {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 650;
+}
+
+.due__when--late {
+  color: var(--negative);
+}
+
+
+/* Gráfico de gastos por categoría */
+.chart {
+  display: grid;
+  gap: 16px;
+}
+
+.chart__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend__swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 0 3px 3px 0;
+}
+
+.legend__swatch--paid {
+  background: var(--bar-paid);
+}
+
+.legend__swatch--pending {
+  background: var(--bar-pending);
+}
+
+.legend__swatch--income,
+.legend__swatch--expense {
+  width: 10px;
+  height: 14px;
+  border-radius: 3px 3px 0 0;
+}
+
+.legend__swatch--income {
+  background: var(--bar-income);
+}
+
+.legend__swatch--expense {
+  background: var(--bar-expense);
+}
+
+.bars {
+  display: grid;
+  gap: 16px;
+}
+
+.bars__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bars__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.bars__value {
+  display: grid;
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bars__pending {
+  color: var(--pencil);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+/* Barras finas que crecen desde la izquierda; 2 px de separación entre
+ * lo pagado y lo pendiente, y el extremo final redondeado. */
+.bars__track {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  margin-top: 6px;
+}
+
+.bars__seg {
+  min-width: 2px;
+  height: 100%;
+}
+
+.bars__seg:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.bars__seg--paid {
+  background: var(--bar-paid);
+}
+
+.bars__seg--pending {
+  background: var(--bar-pending);
+}
+
+/* Posicionado para que los textos .sr-only de las celdas (absolutos) queden dentro
+ * del desplazamiento y no ensanchen la página en el móvil. */
+.table-wrap {
+  position: relative;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+
+.table thead th {
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.table tbody th {
+  font-weight: 650;
+}
+
+.table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table .is-pending {
+  color: var(--pencil);
+}
+
+.table .is-current {
+  background: var(--sheet-2);
+}
+
+.table thead .is-current {
+  color: var(--ink);
+}
+
+.table abbr {
+  text-decoration: none;
+}
+
+/* Presupuestos */
+.budget {
+  display: grid;
+  gap: 8px;
+}
+
+.budget__numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-2);
+  font-weight: 650;
+}
+
+.budget__status--over {
+  color: var(--negative);
+}
+
+.budget__pending {
+  color: var(--pencil);
+  font-size: var(--step--1);
+}
+
+.meter {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.meter--thin {
+  height: 8px;
+}
+
+.meter__paid {
+  background: var(--bar-paid);
+}
+
+.meter__pending {
+  background: var(--bar-pending);
+}
+
+.meter--over .meter__paid {
+  background: var(--negative);
+}
+
+.budget-mini {
+  display: grid;
+  gap: 18px;
+}
+
+.budget-mini__name {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.budget-list {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 760px) {
+  .budget-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.budget-item {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.budget-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.budget-item__name {
+  font-size: var(--step-1);
+  font-weight: 750;
+}
+
+.budget-total {
+  display: grid;
+  gap: 6px;
+}
+
+/* Formularios en línea (presupuestos y categorías) */
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 8px 0 12px;
+}
+
+.inline-form .field {
+  flex: 1 1 14rem;
+}
+
+.inline-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Movimientos ------------------------------------------------------------ */
+
+.filters {
+  display: grid;
+  gap: 12px;
+}
+
+.filters__top {
+  display: flex;
+  gap: 8px;
+}
+
+.search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.search .icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.search .input {
+  padding-left: 44px;
+}
+
+.filters__panel {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-l);
+  background: var(--sheet);
+}
+
+.filters--open .filters__panel {
+  display: grid;
+}
+
+.filters__clear {
+  align-self: end;
+  justify-self: start;
+}
+
+@media (min-width: 960px) {
+  .filters__toggle {
+    display: none;
+  }
+
+  .filters__panel {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+    align-items: end;
+  }
+}
+
+.results-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 20px;
+  color: var(--ink-2);
+}
+
+.results-bar strong {
+  color: var(--ink);
+}
+
+.results-bar .amount--ingreso {
+  color: var(--positive);
+}
+
+.results-bar__export {
+  margin-left: auto;
+}
+
+.move-group__title {
+  padding: 16px 8px 6px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+  font-weight: 750;
+}
+
+.move {
+  border-top: 1px solid var(--rule);
+}
+
+.move__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 16px;
+  width: 100%;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.move__main:hover {
+  background: var(--sheet-2);
+}
+
+.move__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.move__concept {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.move__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.move__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.move__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 8px 12px;
+}
+
+.list-more {
+  display: flex;
+  justify-content: center;
+  padding: 16px 8px 8px;
+}
+
+/* Recurrentes ------------------------------------------------------------ */
+
+.rule-list {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  .rule-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rule {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 8px 8px 16px;
+}
+
+.rule--finished {
+  border-style: dashed;
+}
+
+.rule__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 16px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rule__main:hover {
+  background: var(--sheet-2);
+}
+
+.rule__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rule__concept {
+  overflow-wrap: anywhere;
+  font-size: var(--step-1);
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.rule__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+.rule__main .amount {
+  font-size: var(--step-1);
+}
+
+.rule__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 0 12px;
+  font-weight: 650;
+}
+
+.rule__progress {
+  display: grid;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: var(--step--1);
+}
+
+.preview {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--pencil);
+  border-radius: var(--radius-m);
+}
+
+.preview__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 750;
+}
+
+.preview__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.preview__note {
+  color: var(--ink-2);
+  font-size: var(--step--1);
+}
+
+/* Ajustes ---------------------------------------------------------------- */
+
+.settings-grid {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.cat-list {
+  display: grid;
+}
+
+.cat-item {
+  border-top: 1px solid var(--rule);
+}
+
+.cat-item:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.cat-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+}
+
+.cat-line__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.cat-line--child {
+  min-height: 46px;
+  padding-left: 20px;
+}
+
+.cat-line--child .cat-line__name {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.cat-line--child .cat-line__name::before {
+  content: '› ';
+  color: var(--pencil);
+}
+
+.cat-line__actions {
+  display: flex;
+  flex: none;
+}
+
+.cat-list--children {
+  padding-bottom: 8px;
+}
+
+.cat-list--children .inline-form {
+  padding-left: 20px;
+}
