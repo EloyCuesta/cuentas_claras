@@ -5,7 +5,7 @@ import { formatQuantity } from '../../domain/pantry.ts'
 import type { PantryItem, PantryTicket } from '../../domain/types.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
 import { useToast } from '../../state/toastContext.ts'
-import type { PantryActions } from '../../state/usePantry.ts'
+import { usePantryActions } from '../../state/pantryContext.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../Dialog.tsx'
 import { Icon } from '../Icon.tsx'
 
@@ -13,14 +13,13 @@ import { Icon } from '../Icon.tsx'
 export function TicketDetailDialog({
   ticketId,
   items,
-  actions,
   onClose,
 }: {
   ticketId: string
   items: readonly PantryItem[]
-  actions: PantryActions
   onClose: () => void
 }) {
+  const actions = usePantryActions()
   const { notify } = useToast()
   const [ticket, setTicket] = useState<PantryTicket | null>(null)
   const [error, setError] = useState<string | null>(null)

@@ -5,7 +5,7 @@ import { agoText } from '../../domain/pantryRhythm.ts'
 import type { PantryItem, PantryPerson } from '../../domain/types.ts'
 import { ApiError } from '../../services/apiClient.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
-import type { PantryActions } from '../../state/usePantry.ts'
+import { usePantryActions } from '../../state/pantryContext.ts'
 import { Dialog, DialogError } from '../Dialog.tsx'
 import { Icon } from '../Icon.tsx'
 import { purchaseText, showsRhythmStatus } from './rhythmText.ts'
@@ -79,7 +79,6 @@ export function WeeklyReviewDialog({
   rhythms,
   people,
   listCount,
-  actions,
   onShowList,
   onClose,
 }: {
@@ -91,10 +90,10 @@ export function WeeklyReviewDialog({
   people: readonly PantryPerson[]
   /** Productos en la lista de la compra ahora mismo. */
   listCount: number
-  actions: PantryActions
   onShowList: () => void
   onClose: () => void
 }) {
+  const actions = usePantryActions()
   const byId = useMemo(() => new Map(items.map((item) => [item.id, item])), [items])
   const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person.name])), [people])
   const [index, setIndex] = useState(0)

@@ -3,7 +3,7 @@ import { todayISO } from '../../domain/dates.ts'
 import type { TicketDraft } from '../../domain/ticketMatch.ts'
 import type { PantryItem, PantryPerson, PantryTicket, TicketSegment } from '../../domain/types.ts'
 import { describeStorageError } from '../../state/storageErrors.ts'
-import type { PantryActions } from '../../state/usePantry.ts'
+import { usePantryActions } from '../../state/pantryContext.ts'
 import { defaultImageOptions, MAX_SEGMENTS, MAX_TOTAL_BYTES, prepareTicketImage, TicketImageError, type TicketImageOptions } from '../../ui/ticketImages.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../Dialog.tsx'
 import { Icon } from '../Icon.tsx'
@@ -22,7 +22,6 @@ export function TicketScanDialog({
   items,
   people,
   defaultOwnerId,
-  actions,
   onSaved,
   onClose,
 }: {
@@ -30,10 +29,10 @@ export function TicketScanDialog({
   people: readonly PantryPerson[]
   /** Persona elegida arriba en la despensa ('' = Compartido): dueña de los productos nuevos. */
   defaultOwnerId: string
-  actions: PantryActions
   onSaved: (ticket: PantryTicket) => void
   onClose: () => void
 }) {
+  const actions = usePantryActions()
   const [step, setStep] = useState<Step>({ kind: 'elegir' })
   const [review, setReview] = useState<ReviewState | null>(null)
   const [pasting, setPasting] = useState(false)

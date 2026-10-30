@@ -35,7 +35,8 @@ import { needsReview, rhythmsFor, type ItemRhythm } from '../domain/pantryRhythm
 import type { PantryEventKind, PantryItem, PantryPerson, PantryTicketSummary } from '../domain/types.ts'
 import { describeStorageError } from '../state/storageErrors.ts'
 import { useToast } from '../state/toastContext.ts'
-import { usePantry, type PantryActions } from '../state/usePantry.ts'
+import { usePantry, usePantryActions } from '../state/pantryContext.ts'
+import { PantryProvider } from '../state/PantryProvider.tsx'
 
 type Editing =
   | { kind: 'item'; item: PantryItem | null }
@@ -256,15 +257,14 @@ function BudgetBlock({
   items,
   rhythms,
   budgetCents,
-  actions,
   onEdit,
 }: {
   items: readonly PantryItem[]
   rhythms: Rhythms
   budgetCents: number | null
-  actions: PantryActions
   onEdit: () => void
 }) {
+  const actions = usePantryActions()
   const { notify } = useToast()
   const estimate = monthlyEstimate(items, rhythms)
   const [busy, setBusy] = useState(false)
@@ -370,7 +370,16 @@ const MARK_TEXT: Record<PantryEventKind, string> = {
  * lista de la compra y todos los productos. Es la misma página para invitados
  * y para quien ha escrito el código, y no depende de los datos financieros.
  */
+/** La despensa con su propio estado: la usan igual el invitado y la app completa. */
 export function DespensaPage() {
+  return (
+    <PantryProvider>
+      <DespensaView />
+    </PantryProvider>
+  )
+}
+
+function DespensaView() {
   const { state, actions } = usePantry()
   const { notify } = useToast()
   const [ownerValue, setOwnerValue] = useState('todo')
@@ -582,7 +591,6 @@ export function DespensaPage() {
                   items={items}
                   rhythms={rhythms}
                   budgetCents={state.settings.monthlyBudgetCents}
-                  actions={actions}
                   onEdit={() => setEditing({ kind: 'budget' })}
                 />
               </section>
@@ -636,7 +644,6 @@ export function DespensaPage() {
               items={items}
               people={people}
               defaultOwnerId={defaultOwnerId ?? ''}
-              actions={actions}
               onSaved={(ticket) =>
                 notify(`Ticket guardado: ${ticket.productsCount === 1 ? '1 producto apuntado' : `${ticket.productsCount} productos apuntados`}`)
               }
@@ -650,13 +657,12 @@ export function DespensaPage() {
               rhythms={rhythms}
               people={people}
               listCount={listCount}
-              actions={actions}
               onShowList={() => setEditing({ kind: 'list' })}
               onClose={() => setEditing(null)}
             />
           )}
           {editing?.kind === 'ticket' && (
-            <TicketDetailDialog ticketId={editing.id} items={items} actions={actions} onClose={() => setEditing(null)} />
+            <TicketDetailDialog ticketId={editing.id} items={items} onClose={() => setEditing(null)} />
           )}
           {editing?.kind === 'item' && (
             <PantryItemDialog
