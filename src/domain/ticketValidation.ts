@@ -4,7 +4,7 @@ import { isPantryFrequency, MAX_PANTRY_CENTS, PANTRY_NAME_MAX } from './pantry.t
 import { nameKey } from './ticketText.ts'
 import { lineProblems } from './ticketArithmetic.ts'
 import { checkTicket } from './ticketParse.ts'
-import type { TicketAdjustment, TicketAmountOption, TicketDecision, TicketDiscrepancy, TicketEvidence, TicketSaveInput, TicketSaveLine } from './types.ts'
+import type { TicketAdjustment, TicketAmountOption, TicketDecision, TicketDiscrepancy, TicketEvidence, TicketSaveInput, TicketSaveLine, TicketSegment } from './types.ts'
 
 /** Validación de lo que llega a la API al guardar un ticket revisado. */
 
@@ -177,4 +177,49 @@ export function validateLineUpdate(raw: unknown): ValidationResult<{ itemId: str
   const { itemId } = raw
   if (itemId !== null && (typeof itemId !== 'string' || itemId === '')) return { ok: false, error: 'El campo «itemId» debe ser un id o null.' }
   return { ok: true, value: { itemId } }
+}
+
+/* Franjas de una captura larga --------------------------------------------- */
+
+export type SegmentPosition = Omit<TicketSegment, 'image'>
+
+const MAX_SOURCE_IMAGES = 6
+const MAX_SEGMENTS_PER_IMAGE = 24
+const MAX_SEGMENT_HEIGHT = 4096
+const MAX_FULL_HEIGHT = 160_000
+
+/**
+ * Comprueba la posición de cada franja: que sean números válidos, que cada
+ * imagen empiece en la franja 0 y en la altura 0, y que las siguientes vayan
+ * en orden, más abajo, con el mismo ancho y dentro de la altura total.
+ * `sizes` es el tamaño real de cada franja (lo lee el servidor de la imagen).
+ */
+export function validateSegmentLayout(
+  raw: readonly unknown[],
+  sizes: readonly { width: number; height: number }[],
+): ValidationResult<SegmentPosition[]> {
+  const invalid = { ok: false as const, error: 'Las coordenadas de las franjas no son válidas.' }
+  const unordered = { ok: false as const, error: 'Las franjas deben estar ordenadas y pertenecer a la misma imagen.' }
+  const previous = new Map<number, { segment: number; offset: number; width: number; fullHeight: number }>()
+  const positions: SegmentPosition[] = []
+  for (const [i, entry] of raw.entries()) {
+    if (!isObject(entry)) return invalid
+    const { imageIndex, segmentIndex, offsetY, fullHeight } = entry
+    const values = [imageIndex, segmentIndex, offsetY, fullHeight]
+    if (!values.every((v): v is number => Number.isSafeInteger(v))) return invalid
+    const [image, segment, offset, full] = values as number[]
+    if (image < 0 || image >= MAX_SOURCE_IMAGES || segment < 0 || segment >= MAX_SEGMENTS_PER_IMAGE || offset < 0 || full < 1 || full > MAX_FULL_HEIGHT) {
+      return invalid
+    }
+    const size = sizes[i]
+    if (!size) return invalid
+    const prev = previous.get(image)
+    const inOrder = prev
+      ? segment === prev.segment + 1 && offset > prev.offset && size.width === prev.width && full === prev.fullHeight
+      : segment === 0 && offset === 0
+    if (size.height > MAX_SEGMENT_HEIGHT || offset + size.height > full || !inOrder) return unordered
+    previous.set(image, { segment, offset, width: size.width, fullHeight: full })
+    positions.push({ imageIndex: image, segmentIndex: segment, offsetY: offset, fullHeight: full })
+  }
+  return { ok: true, value: positions }
 }

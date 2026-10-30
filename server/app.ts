@@ -16,6 +16,7 @@ import { recurringRoutes } from './routes/recurring.ts'
 import { testingRoutes } from './routes/testing.ts'
 import { ticketRoutes } from './routes/tickets.ts'
 import { SqliteTicketRepository } from './ticketRepository.ts'
+import { TicketService } from './ticketService.ts'
 
 export interface AppOptions {
   database: OpenedDatabase
@@ -73,7 +74,7 @@ export function createApp({
   api.use(healthRoutes(database))
   api.use(authRoutes(access))
   api.use(pantryRoutes(pantry))
-  api.use(ticketRoutes(tickets, pantry, reader))
+  api.use(ticketRoutes(tickets, new TicketService(tickets, pantry, reader)))
 
   api.use(requireAdmin(access))
   api.use(dataRoutes(repository))
