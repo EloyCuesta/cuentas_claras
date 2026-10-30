@@ -1,27 +1,16 @@
 import { useMemo, useState } from 'react'
-import { formatDate } from '../../shared/core/dates.ts'
-import { formatEuros } from '../../shared/core/money.ts'
 import {
-  describeQuantity,
-  excessQuantity,
   FREQUENCY_TITLES,
   matchesOwner,
-  missingQuantity,
-  monthlyEstimate,
   type OwnerFilter,
   PANTRY_FREQUENCIES,
   pantrySummary,
-  priceUnitLabel,
-  quantityStep,
   type Rhythms,
 } from '../../shared/pantry/pantry.ts'
 import { reviewItems, reviewSchedule } from '../../shared/pantry/review.ts'
-import { needsReview, rhythmsFor, type ItemRhythm } from '../../shared/pantry/rhythm.ts'
-import { isCounted } from '../../shared/pantry/tracking.ts'
-import type { PantryEventKind, PantryItem, PantryPerson } from '../../shared/pantry/types.ts'
-import type { PantryTicketSummary } from '../../shared/tickets/types.ts'
+import { rhythmsFor } from '../../shared/pantry/rhythm.ts'
+import type { PantryEventKind, PantryItem } from '../../shared/pantry/types.ts'
 import { describeStorageError } from '../api/storageErrors.ts'
-import { BudgetMeter } from '../ui/BudgetMeter.tsx'
 import { EmptyState } from '../ui/EmptyState.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { Section } from '../ui/Section.tsx'
@@ -30,14 +19,16 @@ import { OwnerTabs } from './components/owner.tsx'
 import { encodeOwner, ownerName, parseOwner } from './components/ownerFilter.ts'
 import { PantryBudgetDialog } from './components/PantryBudgetDialog.tsx'
 import { PantryItemDialog } from './components/PantryItemDialog.tsx'
+import { PantryRow } from './components/PantryRow.tsx'
+import { BudgetBlock, SummaryBlock } from './components/PantrySummary.tsx'
 import { PeopleDialog } from './components/PeopleDialog.tsx'
-import { RhythmStatus } from './components/RhythmStatus.tsx'
-import { purchaseText, showsRhythmStatus } from './components/rhythmText.ts'
+import { RecentTickets } from './components/RecentTickets.tsx'
+import { ReviewBlock } from './components/ReviewBlock.tsx'
 import { ShoppingListDialog } from './components/ShoppingListDialog.tsx'
 import { TicketDetailDialog } from './components/TicketDetailDialog.tsx'
 import { TicketScanDialog } from './components/TicketScanDialog.tsx'
 import { WeeklyReviewCard, WeeklyReviewDialog } from './components/WeeklyReview.tsx'
-import { usePantry, usePantryActions } from './pantryContext.ts'
+import { usePantry } from './pantryContext.ts'
 import { PantryProvider } from './PantryProvider.tsx'
 
 type Editing =
@@ -50,8 +41,6 @@ type Editing =
   | { kind: 'review'; queue: string[] }
   | null
 
-const REVIEW_LIMIT = 8
-const RECENT_LIMIT = 3
 /** «Hoy no» en el aviso del repaso: se recuerda solo en este navegador y solo hoy. */
 const SNOOZE_KEY = 'cuentas-claras:repaso-pospuesto'
 
@@ -61,303 +50,6 @@ function readSnooze(): string | null {
   } catch {
     return null
   }
-}
-
-const priceText = (item: PantryItem) =>
-  item.priceCents === null ? null : `${formatEuros(item.priceCents)}${priceUnitLabel(item.unit).slice(1)}`
-
-function StockStatus({ item }: { item: PantryItem }) {
-  const missing = missingQuantity(item)
-  if (missing > 0) {
-    return (
-      <span className="chip chip--late">
-        <Icon name="alert" size={14} />
-        Falta {describeQuantity(missing, item.unit)}
-      </span>
-    )
-  }
-  const excess = excessQuantity(item)
-  return (
-    <span className="chip chip--done">
-      <Icon name="check" size={14} />
-      {excess > 0 ? `Completo, sobra ${describeQuantity(excess, item.unit)}` : 'Completo'}
-    </span>
-  )
-}
-
-function PantryRow({
-  item,
-  rhythm,
-  ownerLabel,
-  busy,
-  onEdit,
-  onStep,
-  onMark,
-}: {
-  item: PantryItem
-  rhythm: ItemRhythm | undefined
-  /** Dueño, solo en la vista «Todo». */
-  ownerLabel: string | null
-  busy: boolean
-  onEdit: () => void
-  onStep: (delta: number) => void
-  onMark: (kind: PantryEventKind) => void
-}) {
-  const price = priceText(item)
-  const counted = isCounted(item)
-  const step = quantityStep(item.unit)
-  const stepText = describeQuantity(step, item.unit)
-  // En la lista de la compra: el botón pasa a ser «Lo he comprado».
-  const out = rhythm?.status === 'se_acabo' || rhythm?.status === 'queda_poco' || rhythm?.status === 'probablemente_acabado'
-  return (
-    <li className="pantry-item">
-      <div className="pantry-item__main">
-        <button type="button" className="pantry-item__name" onClick={onEdit}>
-          <span className="sr-only">Editar </span>
-          {item.name}
-        </button>
-        <span className="pantry-item__meta">
-          {counted ? (
-            <span>
-              Hay {describeQuantity(item.quantity, item.unit)} de {describeQuantity(item.target, item.unit)}
-            </span>
-          ) : (
-            <span>{purchaseText(rhythm)}</span>
-          )}
-          {price && <span>{price}</span>}
-          {ownerLabel && <span>{ownerLabel}</span>}
-        </span>
-        {counted ? <StockStatus item={item} /> : showsRhythmStatus(rhythm) && <RhythmStatus rhythm={rhythm} />}
-        {item.notes && <span className="pantry-item__notes">{item.notes}</span>}
-      </div>
-      {counted ? (
-        <div className="stepper" role="group" aria-label={`Cantidad de ${item.name}`} aria-busy={busy || undefined}>
-          <button
-            type="button"
-            className="stepper__btn"
-            aria-label={`Quitar ${stepText} de ${item.name}`}
-            disabled={busy || item.quantity === 0}
-            onClick={() => onStep(-step)}
-          >
-            <Icon name="minus" />
-          </button>
-          <span className="stepper__value" aria-live="polite">
-            {describeQuantity(item.quantity, item.unit)}
-          </span>
-          <button type="button" className="stepper__btn" aria-label={`Añadir ${stepText} a ${item.name}`} disabled={busy} onClick={() => onStep(step)}>
-            <Icon name="plus" />
-          </button>
-        </div>
-      ) : (
-        <div className="pantry-item__actions">
-          {out ? (
-            <button type="button" className="btn btn--small" disabled={busy} onClick={() => onMark('comprado')}>
-              <Icon name="check" size={16} />
-              Lo he comprado<span className="sr-only"> {item.name}</span>
-            </button>
-          ) : (
-            <button type="button" className="btn btn--small" disabled={busy} onClick={() => onMark('se_acabo')}>
-              Se acabó<span className="sr-only"> {item.name}</span>
-            </button>
-          )}
-        </div>
-      )}
-    </li>
-  )
-}
-
-function ReviewBlock({
-  items,
-  rhythms,
-  busyIds,
-  onMark,
-}: {
-  items: readonly PantryItem[]
-  rhythms: Rhythms
-  busyIds: ReadonlySet<string>
-  onMark: (item: PantryItem, kind: PantryEventKind) => void
-}) {
-  const [showAll, setShowAll] = useState(false)
-  const pending = items
-    .filter((item) => needsReview(rhythms.get(item.id)))
-    .sort((a, b) => (rhythms.get(a.id)?.dueDate ?? '').localeCompare(rhythms.get(b.id)?.dueDate ?? '') || a.name.localeCompare(b.name, 'es'))
-  if (pending.length === 0) return null
-  const shown = showAll ? pending : pending.slice(0, REVIEW_LIMIT)
-  return (
-    <Section id="pantry-review" title={`Para revisar (${pending.length})`} className="pantry-review">
-      <p className="section-sub">Según cuándo los compraste, puede que se estén acabando. ¿Cuánto queda?</p>
-      <ul className="review-list">
-        {shown.map((item) => {
-          const rhythm = rhythms.get(item.id)
-          const busy = busyIds.has(item.id)
-          return (
-            <li key={item.id} className="review-item">
-              <div className="review-item__text">
-                <span className="review-item__name">{item.name}</span>
-                <span className="muted small">{purchaseText(rhythm)}</span>
-                <RhythmStatus rhythm={rhythm} />
-              </div>
-              <div className="review-item__actions">
-                <button type="button" className="btn" disabled={busy} onClick={() => onMark(item, 'queda')}>
-                  Queda<span className="sr-only"> {item.name}</span>
-                </button>
-                <button type="button" className="btn" disabled={busy} onClick={() => onMark(item, 'poco')}>
-                  Queda poco<span className="sr-only"> de {item.name}</span>
-                </button>
-                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => onMark(item, 'se_acabo')}>
-                  Se acabó<span className="sr-only"> {item.name}</span>
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-      {pending.length > REVIEW_LIMIT && (
-        <button type="button" className="link-btn section-more" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? 'Ver menos' : `Ver las ${pending.length}`}
-        </button>
-      )}
-    </Section>
-  )
-}
-
-function RecentTickets({ tickets, onOpen }: { tickets: readonly PantryTicketSummary[]; onOpen: (id: string) => void }) {
-  const [showAll, setShowAll] = useState(false)
-  if (tickets.length === 0) return null
-  const shown = showAll ? tickets : tickets.slice(0, RECENT_LIMIT)
-  return (
-    <Section id="pantry-tickets" title="Últimas compras">
-      <ul className="recent-tickets">
-        {shown.map((ticket) => (
-          <li key={ticket.id}>
-            <button type="button" className="recent-ticket" onClick={() => onOpen(ticket.id)}>
-              <Icon name="list" />
-              <span className="recent-ticket__text">
-                <span className="recent-ticket__title">
-                  {ticket.storeName} · {formatDate(ticket.date)}
-                </span>
-                <span className="muted small">
-                  {ticket.productsCount === 1 ? '1 producto' : `${ticket.productsCount} productos`}
-                  {ticket.time ? ` · ${ticket.time}` : ''}
-                </span>
-              </span>
-              {ticket.totalCents !== null && <span className="recent-ticket__amount">{formatEuros(ticket.totalCents)}</span>}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {tickets.length > RECENT_LIMIT && (
-        <button type="button" className="link-btn section-more" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? 'Ver menos' : `Ver los ${tickets.length} tickets`}
-        </button>
-      )}
-    </Section>
-  )
-}
-
-function BudgetBlock({
-  items,
-  rhythms,
-  budgetCents,
-  onEdit,
-}: {
-  items: readonly PantryItem[]
-  rhythms: Rhythms
-  budgetCents: number | null
-  onEdit: () => void
-}) {
-  const actions = usePantryActions()
-  const { notify } = useToast()
-  const estimate = monthlyEstimate(items, rhythms)
-  const [busy, setBusy] = useState(false)
-  const removeBudget = async () => {
-    setBusy(true)
-    try {
-      await actions.setBudget(null)
-      notify('Presupuesto de la despensa quitado')
-    } catch (error) {
-      notify(describeStorageError(error), 'error')
-    } finally {
-      setBusy(false)
-    }
-  }
-  const partial =
-    estimate.withoutPrice > 0
-      ? `${estimate.withoutPrice === 1 ? 'Un producto no tiene' : `${estimate.withoutPrice} productos no tienen`} precio y no ${estimate.withoutPrice === 1 ? 'cuenta' : 'cuentan'} en la estimación.`
-      : null
-
-  return (
-    <div className="pantry-budget">
-      <h3 className="subsection-title">Estimación mensual de toda la casa</h3>
-      <p className="muted small">
-        Lo que se gasta al mes en la despensa (todas las personas y lo compartido), calculado con lo que costó cada producto la última
-        vez y cada cuánto se compra. Es una estimación: no aparece en tus cuentas.
-      </p>
-      {budgetCents === null ? (
-        <p>
-          <strong>{formatEuros(estimate.cents)}</strong> al mes{partial ? ' (parcial)' : ''}.
-        </p>
-      ) : (
-        <BudgetMeter kind="estimate" line={{ budgetCents, spentCents: estimate.cents, pendingCents: 0, leftCents: budgetCents - estimate.cents }} />
-      )}
-      {partial && <p className="muted small">{partial}</p>}
-      <div className="button-row">
-        <button type="button" className="btn btn--small" onClick={onEdit}>
-          {budgetCents === null ? 'Fijar presupuesto' : 'Cambiar presupuesto'}
-        </button>
-        {budgetCents !== null && (
-          <button type="button" className="btn btn--small btn--ghost" onClick={() => void removeBudget()} disabled={busy}>
-            Quitar presupuesto
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function SummaryBlock({
-  items,
-  rhythms,
-  owner,
-  people,
-}: {
-  items: readonly PantryItem[]
-  rhythms: Rhythms
-  owner: OwnerFilter
-  people: readonly PantryPerson[]
-}) {
-  const summary = pantrySummary(items, owner, rhythms)
-  const scope = owner === 'todo' ? 'en toda la casa' : owner === 'compartido' ? 'en lo compartido' : `de ${ownerName(owner, people)}`
-  const { pendingCost } = summary
-  return (
-    <div className="pantry-summary__numbers">
-      <p className="pantry-summary__big">
-        {summary.missingCount === 0 ? (
-          <>
-            <Icon name="check" /> No falta nada {scope}.
-          </>
-        ) : (
-          <>
-            <Icon name="alert" /> {summary.missingCount === 1 ? 'Falta 1 producto' : `Faltan ${summary.missingCount} productos`} {scope}.
-          </>
-        )}
-      </p>
-      {summary.missingCount > 0 && (
-        <p>
-          {pendingCost.withoutPrice === summary.missingCount ? (
-            'Sin precios, no se puede estimar lo que costará.'
-          ) : (
-            <>
-              Compra pendiente estimada: <strong>{formatEuros(pendingCost.cents)}</strong>
-              {pendingCost.withoutPrice > 0 &&
-                ` (parcial: ${pendingCost.withoutPrice === 1 ? '1 producto sin precio' : `${pendingCost.withoutPrice} productos sin precio`})`}
-              .
-            </>
-          )}
-        </p>
-      )}
-    </div>
-  )
 }
 
 const MARK_TEXT: Record<PantryEventKind, string> = {
@@ -370,9 +62,9 @@ const MARK_TEXT: Record<PantryEventKind, string> = {
 /**
  * Despensa: escanear los tickets de la compra, lo que conviene revisar, la
  * lista de la compra y todos los productos. Es la misma página para invitados
- * y para quien ha escrito el código, y no depende de los datos financieros.
+ * y para quien ha escrito el código, y no depende de los datos financieros:
+ * tiene su propio estado (PantryProvider).
  */
-/** La despensa con su propio estado: la usan igual el invitado y la app completa. */
 export function DespensaPage() {
   return (
     <PantryProvider>

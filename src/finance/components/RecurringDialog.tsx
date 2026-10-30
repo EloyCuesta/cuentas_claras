@@ -3,7 +3,7 @@ import { addMonthsClamped, formatDate, isValidISODate } from '../../../shared/co
 import { newId, nowISO } from '../../../shared/core/ids.ts'
 import { centsToInput } from '../../../shared/core/money.ts'
 import type { ISODate } from '../../../shared/core/types.ts'
-import { type FieldErrors } from '../../../shared/core/validation.ts'
+import type { FieldErrors } from '../../../shared/core/validation.ts'
 import { categoryOptions } from '../../../shared/finance/categories.ts'
 import { FREQUENCY_LABELS, generationHorizon, pastDates, scheduleDates } from '../../../shared/finance/recurring.ts'
 import type { Frequency, MovementType, RecurringRule } from '../../../shared/finance/types.ts'
