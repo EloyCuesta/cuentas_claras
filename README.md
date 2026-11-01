@@ -10,6 +10,10 @@ Aplicación web para apuntar ingresos, gastos y próximos pagos, y responder de 
 
 Hecha con React y TypeScript. Los datos se guardan en una base de datos **SQLite** de tu equipo (`server/data/cuentas.db`), a través de un pequeño servidor Node.js + Express. No hace falta instalar MySQL, PostgreSQL ni Docker, ni registrarse.
 
+## Migración a .NET, React y MySQL
+
+La versión ejecutable descrita abajo sigue usando Express y SQLite. La migración objetivo está documentada en [docs/migration/README.md](docs/migration/README.md): arquitectura hexagonal modular, datos, funcionalidades, tareas y prompts para Codex. Consulta [AGENTS.md](AGENTS.md) antes de implementar y [el estado de las tareas](docs/migration/STATUS.md) para continuar el trabajo sin confundir lo previsto con lo terminado.
+
 ## Cómo ejecutarla
 
 Necesitas Node.js 22.12 o superior.
