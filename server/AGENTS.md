@@ -35,6 +35,7 @@ Node.js con Express 5 y better-sqlite3, ejecutado con tsx (sin compilar). Es la 
 - `npx vitest run server`: todo el servidor.
 - `npx vitest run server/modules/<módulo>`: un módulo.
 - `server/app.test.ts`: la API compuesta (health, finanzas por HTTP y reset de pruebas).
+- `server/migrationContracts.test.ts` y `server/common/http/response.test.ts`: contratos reproducibles y errores del host para la migración (formato y comandos en `docs/pruebas.md`).
 
 Los ayudantes están en `server/common/testing/` (base de datos temporal y `startApi`): ver `docs/pruebas.md`. Para arrancarlo a mano sin tocar tus datos: `CUENTAS_CODIGO=prueba CUENTAS_DB_PATH=<carpeta temporal>/cuentas.db CUENTAS_PORT=3201 npm run server`.
 

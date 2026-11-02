@@ -20,6 +20,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "build:dotnet": "dotnet build backend/CuentasClaras.slnx --no-restore",
+    "test:dotnet": "dotnet test backend/CuentasClaras.slnx --no-build --no-restore",
+    "test:e2e:dotnet": "playwright test --config playwright.dotnet.config.ts",
     "typecheck": "tsc -b",
     "lint": "oxlint",
     "check": "npm run typecheck && npm run lint && npm test"

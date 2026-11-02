@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 /**
- * Vigila que la documentación para agentes (AGENTS.md, docs/ y .claude/rules/)
- * esté completa y al día. Si algo falla, el mensaje dice qué archivo y qué falta.
+ * Vigila la documentación para agentes, sus enlaces y el orden de la migración.
+ * Recorre también los subdirectorios de docs/. Si falla, indica el archivo y el problema.
  */
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).split('\\').join('/')
@@ -21,7 +21,7 @@ const MODULES = subfolders('server/modules')
 const FEATURES = subfolders('src/features')
 
 /** Zonas con su propio AGENTS.md: la raíz, las carpetas principales, cada módulo y cada feature. */
-const ZONES = ['', 'server/', 'server/migrations/', 'shared/', 'src/', 'e2e/', ...MODULES.map((m) => `server/modules/${m}/`), ...FEATURES.map((f) => `src/features/${f}/`)]
+const ZONES = ['', 'backend/', 'server/', 'server/migrations/', 'shared/', 'src/', 'e2e/', ...MODULES.map((m) => `server/modules/${m}/`), ...FEATURES.map((f) => `src/features/${f}/`)]
 
 const MODULE_SECTIONS = [
   'Qué hace',
@@ -54,14 +54,28 @@ function section(markdown: string, title: string): string | null {
 /** Archivos de documentación cuyas rutas citadas se comprueban. */
 function documentationFiles(): string[] {
   const agents = ZONES.map((zone) => `${zone}AGENTS.md`).filter(exists)
-  const docs = readdirSync(`${ROOT}docs`).filter((name) => name.endsWith('.md')).map((name) => `docs/${name}`)
-  const rules = exists('.claude/rules') ? readdirSync(`${ROOT}.claude/rules`).filter((name) => name.endsWith('.md')).map((name) => `.claude/rules/${name}`) : []
+  const docs = markdownFiles('docs')
+  const rules = exists('.claude/rules') ? markdownFiles('.claude/rules') : []
   return [...agents, ...docs, ...rules]
+}
+
+/** Markdown de una carpeta y sus subcarpetas, sin depender de que exista un índice. */
+function markdownFiles(folder: string): string[] {
+  return readdirSync(`${ROOT}${folder}`, { withFileTypes: true }).flatMap((entry) => {
+    const path = `${folder}/${entry.name}`
+    if (entry.isDirectory()) return markdownFiles(path)
+    return entry.name.endsWith('.md') ? [path] : []
+  }).sort()
+}
+
+/** No trata los ejemplos de código como enlaces ni rutas de la documentación. */
+function withoutCodeBlocks(markdown: string): string {
+  return markdown.replace(/^\s*(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\s*\1\s*$/gm, '')
 }
 
 /** Rutas citadas entre comillas invertidas (fuera de los bloques de código) que no existen. */
 function missingPaths(file: string): string[] {
-  const text = read(file).replace(/```[\s\S]*?```/g, '')
+  const text = withoutCodeBlocks(read(file))
   const missing: string[] = []
   for (const [, span] of text.matchAll(/`([^`\n]+)`/g)) {
     // Una ruta: sin espacios ni comodines, con «/», que empieza por una letra (no ./, ../, /api, #shared, @paquete…).
@@ -72,6 +86,85 @@ function missingPaths(file: string): string[] {
     missing.push(`${file}: «${span}» no existe`)
   }
   return missing
+}
+
+/** Destinos de enlaces e imágenes, incluidos los definidos al pie por referencia. */
+function linkTargets(markdown: string): string[] {
+  const text = withoutCodeBlocks(markdown).replace(/`[^`\n]*`/g, '')
+  const inline = /!?\[[^\]\n]*\]\(\s*(?:<([^>\n]+)>|([^\s)]+))(?:\s+["'][^"'\n]*["'])?\s*\)/g
+  const references = /^\s*\[[^\]\n]+\]:\s*(?:<([^>\n]+)>|(\S+))/gm
+  return [...text.matchAll(inline), ...text.matchAll(references)].map((match) => match[1] ?? match[2])
+}
+
+/** Enlaces relativos a archivos o carpetas; las URLs y los fragmentos no son rutas locales. */
+function missingLinks(file: string): string[] {
+  const problems: string[] = []
+  for (const target of linkTargets(read(file))) {
+    if (/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(target)) continue
+    let path: string
+    try {
+      path = decodeURIComponent(target.split(/[?#]/)[0])
+    } catch {
+      problems.push(`${file}: enlace «${target}» con escape no válido`)
+      continue
+    }
+    if (!path) continue
+    const resolved = posix.normalize(posix.join(posix.dirname(file), path))
+    if (resolved === '..' || resolved.startsWith('../') || !exists(resolved)) {
+      problems.push(`${file}: enlace «${target}» no existe dentro del repositorio`)
+    }
+  }
+  return problems
+}
+
+interface MigrationTask {
+  id: string
+  dependencies: string[]
+  state: string
+}
+
+const TASK_STATES = ['pendiente', 'en_curso', 'implementado', 'verificado', 'bloqueado']
+
+/** Solo las filas del plan: los IDs repetidos en el registro histórico no son tareas nuevas. */
+function migrationTasks(markdown: string): MigrationTask[] {
+  const table = section(markdown, 'Plan por módulos y funcionalidades') ?? ''
+  return table.split('\n').filter((line) => /^\|\s*[A-Z]+-\d+\s*\|/.test(line)).map((line) => {
+    const [id, , dependencies, state] = line.split('|').slice(1, -1).map((cell) => cell.trim())
+    return { id, dependencies: dependencies === '—' ? [] : dependencies.split(',').map((value) => value.trim()), state }
+  })
+}
+
+/** Cada dependencia debe apuntar a otra tarea y el grafo debe permitir avanzar. */
+function taskProblems(tasks: MigrationTask[]): string[] {
+  const problems: string[] = []
+  const byId = new Map<string, MigrationTask>()
+  for (const task of tasks) {
+    if (byId.has(task.id)) problems.push(`${task.id}: ID repetido`)
+    byId.set(task.id, task)
+    if (!TASK_STATES.includes(task.state)) problems.push(`${task.id}: estado no válido «${task.state}»`)
+  }
+  const visited = new Set<string>()
+  function visit(task: MigrationTask, chain: string[]): void {
+    if (chain.includes(task.id)) {
+      problems.push(`dependencias cíclicas: ${[...chain, task.id].join(' → ')}`)
+      return
+    }
+    if (visited.has(task.id)) return
+    for (const id of task.dependencies) {
+      const dependency = byId.get(id)
+      if (!dependency) {
+        problems.push(`${task.id}: dependencia desconocida «${id}»`)
+        continue
+      }
+      if (task.state === 'verificado' && dependency.state !== 'verificado') {
+        problems.push(`${task.id}: verificada con dependencia ${id} sin verificar`)
+      }
+      visit(dependency, [...chain, task.id])
+    }
+    visited.add(task.id)
+  }
+  for (const task of tasks) visit(task, [])
+  return problems
 }
 
 describe('documentación para agentes', () => {
@@ -105,6 +198,51 @@ describe('documentación para agentes', () => {
     expect(files.length).toBeGreaterThan(20)
     const problems = files.flatMap(missingPaths)
     expect(problems, problems.join('\n')).toEqual([])
+  })
+
+  it('los enlaces relativos existen, también en los documentos de migración y el README', () => {
+    const files = ['README.md', ...documentationFiles()]
+    expect(files).toContain('docs/migration/STATUS.md')
+    expect(files).toContain('docs/migration/MODULES.md')
+    const problems = files.flatMap(missingLinks)
+    expect(problems, problems.join('\n')).toEqual([])
+  })
+
+  it('el plan de migración tiene IDs únicos, estados conocidos y dependencias sin ciclos', () => {
+    const tasks = migrationTasks(read('docs/migration/STATUS.md'))
+    expect(tasks.length).toBeGreaterThanOrEqual(18)
+    expect(tasks.map((task) => task.id)).toEqual(expect.arrayContaining(['DOC-01', 'BASE-01', 'CUT-01']))
+    const problems = taskProblems(tasks)
+    expect(problems, problems.join('\n')).toEqual([])
+  })
+
+  it('reconoce enlaces con título o por referencia sin interpretar ejemplos de código', () => {
+    const markdown = [
+      '[Guía](../README.md "Inicio")',
+      '![Imagen](<imagen de prueba.png>)',
+      '[Referencia][datos]',
+      '[datos]: DATA.md#inventario',
+      '`[Ejemplo](no-existe.md)`',
+      '```md',
+      '[Ejemplo en bloque](tampoco-existe.md)',
+      '```',
+    ].join('\n')
+    expect(linkTargets(markdown)).toEqual(['../README.md', 'imagen de prueba.png', 'DATA.md#inventario'])
+  })
+
+  it('detecta registros de tareas duplicados, estados desconocidos y dependencias imposibles', () => {
+    const problems = taskProblems([
+      { id: 'BASE-01', state: 'pendiente', dependencies: ['BASE-02'] },
+      { id: 'BASE-02', state: 'verificado', dependencies: ['BASE-01', 'NO-01'] },
+      { id: 'BASE-01', state: 'terminado', dependencies: ['BASE-02'] },
+    ])
+    expect(problems).toEqual(expect.arrayContaining([
+      'BASE-01: ID repetido',
+      'BASE-01: estado no válido «terminado»',
+      'BASE-02: dependencia desconocida «NO-01»',
+      'BASE-02: verificada con dependencia BASE-01 sin verificar',
+      'dependencias cíclicas: BASE-01 → BASE-02 → BASE-01',
+    ]))
   })
 
   it('cada caso de uso aparece en la tabla «Casos de uso y rutas» de su módulo', () => {

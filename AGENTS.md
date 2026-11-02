@@ -10,6 +10,9 @@ Una app web para una sola persona: ingresos, gastos y próximos pagos, y la desp
 4. Sus tests.
 5. `npm run check`, para saber de qué estado partes.
 
+## Migración a ASP.NET Core y MySQL
+El backend actual sigue siendo Express/SQLite. Para migrarlo conservando React, lee [la entrada de migración](docs/migration/README.md) y [STATUS.md](docs/migration/STATUS.md), y después arquitectura, datos y módulos según la tarea. Elige la primera tarea pendiente con dependencias verificadas y contrasta siempre el diseño con el código de esta rama. Registra resultados reales y validaciones pendientes; no confundas el destino propuesto con una implementación disponible. Las reglas actuales de este archivo siguen vigentes.
+
 ## Mapa del repositorio
 ```
 server/        el servidor: Express + SQLite (server/AGENTS.md)
@@ -22,7 +25,7 @@ src/           la web: React por funcionalidades (src/AGENTS.md)
   features/    auth · finance · pantry · tickets, cada una con su AGENTS.md
 e2e/           pruebas en el navegador (e2e/AGENTS.md)
 tests/         tests de arquitectura y de documentación
-fixtures/      tickets de prueba (inventados o sintéticos)
+fixtures/      tickets de prueba y contratos de migración con datos de ensayo
 docs/          lo transversal: convenciones, arquitectura, api, base de datos, pruebas, frontend, glosario y decisiones
 .claude/       permisos de los agentes y reglas por tipo de archivo
 ```
@@ -30,6 +33,7 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
 ## Si vas a tocar… lee…
 | Si vas a tocar… | Lee |
 | --- | --- |
+| `backend/` | su AGENTS.md, `docs/migration/STATUS.md` y `docs/migration/ARCHITECTURE.md`; los módulos Express equivalentes para conservar contratos |
 | `server/modules/auth/` | su AGENTS.md, `src/features/auth/AGENTS.md` y `docs/api.md` (acceso) |
 | `server/modules/finance/` | su AGENTS.md, `shared/AGENTS.md` y `docs/base-de-datos.md` |
 | `server/modules/pantry/` | su AGENTS.md y el de `server/modules/tickets/` (lo usa a través de PantryGateway) |

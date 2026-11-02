@@ -4,7 +4,7 @@
     "target": "es2023",
     /* DOM: lo que va dentro de page.evaluate(...) se ejecuta en el navegador */
     "lib": ["ES2023", "DOM"],
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "skipLibCheck": true,
 
     /* Las pruebas en navegador las transforma Playwright; aquí solo se comprueban los tipos */
@@ -13,6 +13,7 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "jsx": "react-jsx",
 
     /* Linting */
     "strict": true,
@@ -21,5 +22,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["e2e", "playwright.config.ts"]
+  "include": ["e2e", "playwright.config.ts", "playwright.dotnet.config.ts"]
 }

@@ -9,7 +9,7 @@ Todas las respuestas tienen el mismo formato (`server/common/http/response.ts`):
 - Si todo va bien: `{ "ok": true, "data": … }`.
 - Si hay un error: `{ "ok": false, "error": { "code": "…", "message": "…" } }`, con el mensaje en español, listo para enseñarlo a la persona.
 
-Todas llevan `Cache-Control: no-store`: ni la sesión ni los datos se quedan en una caché.
+Las respuestas que atraviesan el router de la API llevan `Cache-Control: no-store`. Los errores 400/413 del lector JSON se producen antes de ese router y actualmente carecen de la cabecera; la caracterización lo comprueba y [BASE-02](migration/STATUS.md) tiene pendiente completar esa garantía al sustituir el host.
 
 ## Códigos de error
 

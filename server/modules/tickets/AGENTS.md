@@ -59,6 +59,8 @@ Vienen de las migraciones 003 y 005: ver `docs/base-de-datos.md`.
 - la API con un lector falso: leer, guardar, duplicados, decisiones, pendientes, cambiar una línea, borrar y actividad;
 - las huellas golden.
 
+`ticketAtomicity.test.ts` provoca un fallo SQLite en la segunda línea y compara todas las filas antes y después: rollback completo, reintento sin duplicados y restauración financiera sin alterar tickets ni despensa.
+
 La lectura de las líneas se prueba en `shared/tickets/`. Solo estas: `npx vitest run server/modules/tickets`; sin OCR real, añade `-t "API de tickets"`.
 
 ## Trampas y decisiones

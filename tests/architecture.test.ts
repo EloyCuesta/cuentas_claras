@@ -9,6 +9,8 @@ import { describe, expect, it } from 'vitest'
  * dice qué archivo, qué import y qué regla se rompe.
  *
  * Los tests, server/common/testing/ y shared/testing/ quedan fuera de las reglas.
+ * La API .NET se vigila al compilar y con backend/tests/CuentasClaras.Tests/ArchitectureTests.cs:
+ * referencias de ensamblados, firmas y cuerpos IL; Vitest conserva las reglas de TypeScript.
  */
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).split('\\').join('/')

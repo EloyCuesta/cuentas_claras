@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "cuentasclaras.application": {
+        "type": "Project",
+        "dependencies": {
+          "CuentasClaras.Domain": "[1.0.0, )"
+        }
+      },
+      "cuentasclaras.domain": {
+        "type": "Project"
+      }
+    }
+  }
+}

@@ -25,6 +25,11 @@ server/data/*.db-journal
 test-results
 playwright-report
 
+# Compilación de la API .NET (la solución y los paquetes fijados sí se conservan)
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

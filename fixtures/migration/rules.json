@@ -1,0 +1,316 @@
+{
+  "format": "cuentas-claras-rules-v1",
+  "provenance": "Casos inventados para BASE-01. No contienen datos de la instalación ni dependen del reloj del equipo.",
+  "cases": [
+    {
+      "id": "money-one-cent",
+      "description": "un céntimo sigue siendo un entero",
+      "operation": "parseAmount",
+      "input": { "text": "0,01" },
+      "expected": { "ok": true, "cents": 1 }
+    },
+    {
+      "id": "money-grouped",
+      "description": "separadores españoles y símbolo de euro",
+      "operation": "parseAmount",
+      "input": { "text": " 1.234,56 € " },
+      "expected": { "ok": true, "cents": 123456 }
+    },
+    {
+      "id": "money-maximum",
+      "description": "máximo financiero exacto",
+      "operation": "parseAmount",
+      "input": { "text": "999.999.999,99" },
+      "expected": { "ok": true, "cents": 99999999999 }
+    },
+    {
+      "id": "money-over-maximum",
+      "description": "un céntimo por encima del máximo financiero",
+      "operation": "parseAmount",
+      "input": { "text": "1.000.000.000,00" },
+      "expected": { "ok": false, "error": "El importe es demasiado grande." }
+    },
+    {
+      "id": "money-zero",
+      "description": "los movimientos financieros requieren importe positivo",
+      "operation": "parseAmount",
+      "input": { "text": "0,00" },
+      "expected": { "ok": false, "error": "El importe tiene que ser mayor que 0." }
+    },
+    {
+      "id": "money-negative",
+      "description": "el signo financiero lo expresa el tipo de movimiento",
+      "operation": "parseAmount",
+      "input": { "text": "-1,00" },
+      "expected": { "ok": false, "error": "Escribe el importe sin signo. El tipo indica si es gasto o ingreso." }
+    },
+    {
+      "id": "money-three-decimals",
+      "description": "no redondea silenciosamente una fracción de céntimo",
+      "operation": "parseAmount",
+      "input": { "text": "1,001" },
+      "expected": { "ok": false, "error": "Usa como máximo dos decimales." }
+    },
+    {
+      "id": "pantry-price-unknown",
+      "description": "un precio vacío es desconocido",
+      "operation": "parsePantryCentsInput",
+      "input": { "text": " " },
+      "expected": { "ok": true, "value": null }
+    },
+    {
+      "id": "pantry-price-free",
+      "description": "cero es un precio conocido y distinto de null",
+      "operation": "parsePantryCentsInput",
+      "input": { "text": "0,00 €" },
+      "expected": { "ok": true, "value": 0 }
+    },
+    {
+      "id": "pantry-price-maximum",
+      "description": "máximo de precio y presupuesto doméstico",
+      "operation": "parsePantryCentsInput",
+      "input": { "text": "100.000,00" },
+      "expected": { "ok": true, "value": 10000000 }
+    },
+    {
+      "id": "pantry-price-over-maximum",
+      "description": "la despensa tiene un límite inferior al financiero",
+      "operation": "parsePantryCentsInput",
+      "input": { "text": "100.000,01" },
+      "expected": { "ok": false, "error": "El importe es demasiado grande." }
+    },
+    {
+      "id": "pantry-price-negative",
+      "description": "una devolución de ticket no habilita precios domésticos negativos",
+      "operation": "parsePantryCentsInput",
+      "input": { "text": "-0,01" },
+      "expected": { "ok": false, "error": "Escribe el importe sin signo. El tipo indica si es gasto o ingreso." }
+    },
+    {
+      "id": "quantity-milli",
+      "description": "se conserva una milésima de kilo",
+      "operation": "checkQuantity",
+      "input": { "value": 0.001, "unit": "kg" },
+      "expected": { "ok": true, "value": 0.001 }
+    },
+    {
+      "id": "quantity-binary-remainder",
+      "description": "normaliza el resto binario de 0,1 más 0,2",
+      "operation": "checkQuantity",
+      "input": { "value": 0.30000000000000004, "unit": "l" },
+      "expected": { "ok": true, "value": 0.3 }
+    },
+    {
+      "id": "quantity-maximum",
+      "description": "admite la cantidad máxima actual",
+      "operation": "checkQuantity",
+      "input": { "value": 1000000, "unit": "g" },
+      "expected": { "ok": true, "value": 1000000 }
+    },
+    {
+      "id": "quantity-over-maximum",
+      "description": "rechaza una milésima por encima del máximo",
+      "operation": "checkQuantity",
+      "input": { "value": 1000000.001, "unit": "ml" },
+      "expected": { "ok": false, "error": "La cantidad es demasiado grande." }
+    },
+    {
+      "id": "quantity-four-decimals",
+      "description": "un cuarto decimal real no se redondea a escondidas",
+      "operation": "checkQuantity",
+      "input": { "value": 0.1234, "unit": "kg" },
+      "expected": { "ok": false, "error": "Usa como máximo 3 decimales." }
+    },
+    {
+      "id": "quantity-integer-unit",
+      "description": "las unidades contables no admiten fracciones",
+      "operation": "checkQuantity",
+      "input": { "value": 1.5, "unit": "ud" },
+      "expected": { "ok": false, "error": "En «ud» la cantidad tiene que ser un número entero." }
+    },
+    {
+      "id": "quantity-negative",
+      "description": "las existencias no pueden ser negativas",
+      "operation": "checkQuantity",
+      "input": { "value": -0.001, "unit": "kg" },
+      "expected": { "ok": false, "error": "La cantidad no puede ser negativa." }
+    },
+    {
+      "id": "adjust-exact-addition",
+      "description": "sumar cantidades no deja un resto binario",
+      "operation": "stepQuantity",
+      "input": { "quantity": 0.1, "delta": 0.2 },
+      "expected": 0.3
+    },
+    {
+      "id": "adjust-floor-zero",
+      "description": "restar más de lo disponible deja cero",
+      "operation": "stepQuantity",
+      "input": { "quantity": 0.3, "delta": -0.5 },
+      "expected": 0
+    },
+    {
+      "id": "adjust-one-milli",
+      "description": "el ajuste conserva milésimas al restar",
+      "operation": "stepQuantity",
+      "input": { "quantity": 0.124, "delta": -0.001 },
+      "expected": 0.123
+    },
+    {
+      "id": "date-leap-year",
+      "description": "el 29 de febrero de un año bisiesto existe",
+      "operation": "parseISODate",
+      "input": { "date": "2028-02-29" },
+      "expected": { "year": 2028, "month": 2, "day": 29 }
+    },
+    {
+      "id": "date-invalid-leap-day",
+      "description": "no normaliza una fecha de calendario imposible",
+      "operation": "parseISODate",
+      "input": { "date": "2026-02-29" },
+      "expected": null
+    },
+    {
+      "id": "date-not-instant",
+      "description": "un instante con zona no sustituye a una fecha de calendario",
+      "operation": "parseISODate",
+      "input": { "date": "2026-11-01T00:00:00Z" },
+      "expected": null
+    },
+    {
+      "id": "month-clamp-february",
+      "description": "el vencimiento del 31 se ajusta a febrero",
+      "operation": "addMonthsClamped",
+      "input": { "date": "2026-01-31", "months": 1 },
+      "expected": "2026-02-28"
+    },
+    {
+      "id": "month-restores-original-day",
+      "description": "marzo recupera el día 31 desde la fecha original",
+      "operation": "addMonthsClamped",
+      "input": { "date": "2026-01-31", "months": 2 },
+      "expected": "2026-03-31"
+    },
+    {
+      "id": "month-clamp-leap-year",
+      "description": "febrero bisiesto permite un día más",
+      "operation": "addMonthsClamped",
+      "input": { "date": "2028-01-31", "months": 1 },
+      "expected": "2028-02-29"
+    },
+    {
+      "id": "days-spring-clock-change",
+      "description": "el cambio horario de primavera no resta un día",
+      "operation": "daysBetween",
+      "input": { "from": "2026-03-28", "to": "2026-03-30" },
+      "expected": 2
+    },
+    {
+      "id": "days-autumn-clock-change",
+      "description": "el cambio horario de otoño no añade un día",
+      "operation": "daysBetween",
+      "input": { "from": "2026-10-24", "to": "2026-10-26" },
+      "expected": 2
+    },
+    {
+      "id": "due-browser-today",
+      "description": "hoy es una entrada explícita del navegador",
+      "operation": "describeDue",
+      "input": { "dueDate": "2026-11-01", "today": "2026-11-01" },
+      "expected": "Vence hoy"
+    },
+    {
+      "id": "due-browser-overdue",
+      "description": "la misma fecha cambia de estado con el hoy recibido",
+      "operation": "describeDue",
+      "input": { "dueDate": "2026-11-01", "today": "2026-11-04" },
+      "expected": "Venció hace 3 días"
+    },
+    {
+      "id": "round-positive-half",
+      "description": "la mitad positiva se redondea alejándose de cero",
+      "operation": "roundRatio",
+      "input": { "numerator": 495, "denominator": 10 },
+      "expected": 50
+    },
+    {
+      "id": "round-negative-half",
+      "description": "la mitad negativa también se aleja de cero",
+      "operation": "roundRatio",
+      "input": { "numerator": -495, "denominator": 10 },
+      "expected": -50
+    },
+    {
+      "id": "round-positive-below-half",
+      "description": "una fracción menor que media unidad no sube",
+      "operation": "roundRatio",
+      "input": { "numerator": 494, "denominator": 10 },
+      "expected": 49
+    },
+    {
+      "id": "round-negative-below-half",
+      "description": "el redondeo de devoluciones es simétrico",
+      "operation": "roundRatio",
+      "input": { "numerator": -494, "denominator": 10 },
+      "expected": -49
+    },
+    {
+      "id": "ticket-weight-half-cent",
+      "description": "medio kilo a 99 céntimos se calcula sin decimales monetarios",
+      "operation": "calculatedAmount",
+      "input": { "weightKg": 0.5, "pricePerKgCents": 99, "quantity": 1, "unitPriceCents": null, "amountCents": 50 },
+      "expected": 50
+    },
+    {
+      "id": "ticket-weight-return",
+      "description": "una devolución conserva el importe negativo y su redondeo",
+      "operation": "calculatedAmount",
+      "input": { "weightKg": 0.5, "pricePerKgCents": 99, "quantity": 1, "unitPriceCents": null, "amountCents": -50 },
+      "expected": -50
+    },
+    {
+      "id": "ticket-reliable-line",
+      "description": "una línea coherente puede afectar a la despensa",
+      "operation": "canApplyLine",
+      "input": {
+        "rawName": "PAN DE ENSAYO", "quantity": 2, "unitPriceCents": 495, "amountCents": 990,
+        "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": null,
+        "occasional": false, "reviewStatus": "verified", "confirmed": true
+      },
+      "expected": true
+    },
+    {
+      "id": "ticket-pending-line",
+      "description": "una línea pendiente no aplica efectos aunque cuadre",
+      "operation": "canApplyLine",
+      "input": {
+        "rawName": "PAN DE ENSAYO", "quantity": 2, "unitPriceCents": 495, "amountCents": 990,
+        "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": null,
+        "occasional": false, "reviewStatus": "pending", "confirmed": true
+      },
+      "expected": false
+    },
+    {
+      "id": "ticket-inconsistent-confirmed-line",
+      "description": "confirmar 92,90 no vence la evidencia de 4,95 por dos",
+      "operation": "canApplyLine",
+      "input": {
+        "rawName": "PAN DE ENSAYO", "quantity": 2, "unitPriceCents": 495, "amountCents": 9290,
+        "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": null,
+        "occasional": false, "reviewStatus": "verified", "confirmed": true
+      },
+      "expected": false
+    },
+    {
+      "id": "ticket-return-no-stock-effect",
+      "description": "archivar una devolución no aplica una compra al inventario",
+      "operation": "canApplyLine",
+      "input": {
+        "rawName": "DEVOLUCION DE ENSAYO", "quantity": 1, "unitPriceCents": 100, "amountCents": -100,
+        "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": null,
+        "occasional": false, "reviewStatus": "verified", "confirmed": true
+      },
+      "expected": false
+    }
+  ]
+}

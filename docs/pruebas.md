@@ -55,7 +55,57 @@ Nunca se usan los datos de `server/data/`. Los tickets de prueba están en `fixt
 
 Cada fixture lleva un campo `provenance` que dice de dónde sale. Si añades una, que sea inventada o sintética, y dilo en ese campo.
 
+## Caracterización para la migración
+
+Los contratos de BASE-01 están en `fixtures/migration/`: JSON con datos inventados, preparación y peticiones/respuestas completas, separados por módulo y con su procedencia. `server/migrationContracts.test.ts` los ejecuta sobre la API Express real y una SQLite temporal, con reloj e IDs controlados. Las expectativas se revisan y se guardan en el repositorio; ejecutar las pruebas no las regenera. Así podrán reutilizarse desde C# al sustituir el backend. Los tokens de sesión siguen siendo aleatorios: se comprueban sus atributos y funcionamiento, no un valor fijo.
+
+Los seis archivos http-* usan `format: cuentas-claras-http-v1`, `provenance` y `scenarios`. Cada escenario empieza en una base recién migrada, con `setup` (`accessCode`, `now`, `today`, `login`, `testMode`, `ids`) y una secuencia de `steps`. Cada paso tiene nombre, `request` (método, ruta completa con /api, cuerpo opcional y `guest`) y `expected` (estado, cuerpo completo y cabeceras). `advanceMs` adelanta el reloj antes de la petición; `today` sigue siendo la fecha de calendario explícita del escenario. Los IDs se consumen en orden y se comprueba que no sobren ni falten. `login` abre una sesión inicial; después, las cookies recibidas se usan en los siguientes pasos salvo `guest`. Solo se normaliza el token como `<token>` al comparar Set-Cookie, conservando y utilizando su valor real para enviar peticiones. Las cuatro cabeceras comparadas son Cache-Control, Content-Type, Set-Cookie y Retry-After; Date y otras cabeceras del transporte no forman parte del corpus.
+
+`fixtures/migration/rules.json` contiene entradas y salidas de reglas puras, ejecutadas por `tests/migrationRules.test.ts`. Su formato es `cuentas-claras-rules-v1`, con `provenance` y `cases`: cada caso tiene `id`, `description`, `operation`, `input` y `expected`. El ejecutor selecciona la regla indicada y compara el resultado completo, sin completar entradas ni recalcular expectativas. Cubre céntimos y límites, precio desconocido o cero, milésimas, fechas de calendario y redondeo de tickets, incluidas devoluciones y líneas pendientes.
+
+`server/common/http/response.test.ts` caracteriza los errores HTTP, incluidos JSON mal formado, los límites de tamaño y fallos internos. Estas pruebas describen lo observado; las discrepancias y garantías aún pendientes se registran en [STATUS.md](migration/STATUS.md). Un resultado verde en SQLite no demuestra concurrencia ni compatibilidad de tipos en MySQL.
+
+`server/modules/tickets/ticketAtomicity.test.ts` fuerza un error de SQLite en la segunda línea de un ticket, después de crear productos y equivalencias y cambiar precios/cantidades. Compara las filas completas de todas las tablas con su estado anterior, vuelve a guardar con éxito al retirar el fallo y rechaza un duplicado sin repetir efectos. También comprueba que una restauración financiera conserva todas las tablas de despensa y tickets.
+
+```bash
+npx vitest run server/migrationContracts.test.ts server/common/http/response.test.ts
+npx vitest run server/modules/tickets/ticketAtomicity.test.ts
+npx vitest run tests/migrationRules.test.ts
+npx vitest run tests/docs.test.ts
+```
+
+La comprobación documental recorre también las subcarpetas de `docs/`, verifica rutas citadas y enlaces relativos (también los del README) y valida los IDs, estados y dependencias sin ciclos de la tabla de migración. Las rutas de proyectos todavía previstos se escriben como texto, sin presentarlas como archivos existentes. Los resultados reales de cada entrega y las comprobaciones pendientes se mantienen en [el registro de migración](migration/STATUS.md).
+
 ## Qué se comprueba
+
+### Ensayo .NET de BASE-02
+
+La solución `backend/CuentasClaras.slnx` usa el SDK 10.0.102 instalado, fijado sin previews ni roll-forward en `global.json` (versión publicada en [las notas oficiales de .NET](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.2/10.0.2.md)). Esta selección reproduce el entorno comprobado; no afirma que sea el último parche disponible. Los proyectos de ejecución usan solo el framework. Las referencias NuGet de pruebas ya estaban en el trabajo retomado: xunit.v3 3.2.2, xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.0.1 y Microsoft.AspNetCore.Mvc.Testing 10.0.2, con versiones exactas y locks. No se añade un proveedor MySQL en BASE-02.
+
+```powershell
+dotnet restore backend/CuentasClaras.slnx --locked-mode
+npm run build:dotnet
+npm run test:dotnet
+$env:CUENTAS_E2E_CHANNEL = 'chrome'
+npm run test:e2e:dotnet
+```
+
+Las pruebas .NET arrancan Kestrel en puertos libres y prueban por HTTP los 22 pasos de los tres escenarios de `fixtures/migration/http-auth.json`, sin modificar sus expectativas. También cubren arranque rechazado en proceso real, caducidad/reinicio/renovación de sesión, limitación por IP, proxy fiable, protección de rutas, límites de 20/30 MiB (incluido gzip), JSON erróneo y fallos sin detalles internos. AuthTests cubre las reglas Unicode y los límites temporales con reloj falso, y concurrencia de intentos. ArchitectureTests comprueba proyectos, ensamblados y dependencias compiladas (firmas e IL), incluidos módulos y composición; sus casos negativos verifican que detecta infracciones. No hay base de datos ni lectura de datos personales.
+
+`playwright.dotnet.config.ts` usa API en 3202 y Vite en 4175, sin reutilizar procesos. La página de `e2e/dotnet/` monta AuthProvider, LoginDialog y SessionPanel existentes y llama a .NET mediante el proxy del mismo origen. Cuatro recorridos combinan escritorio/móvil y claro/oscuro. No prueban todavía el resto de la aplicación contra .NET; los 46 E2E habituales siguen ejecutándose contra Express/SQLite temporal.
+
+Para arrancar solo la API de ensayo después de compilar, usa una terminal propia:
+
+```powershell
+$env:CUENTAS_CODIGO = 'codigo-local-de-ensayo'
+$env:CUENTAS_HOST = '127.0.0.1'
+$env:CUENTAS_PORT = '3201'
+dotnet run --no-build --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj
+```
+
+No lee .env automáticamente. Usa `/api/auth/me` para comprobar disponibilidad. Salud consulta IStorageHealth y devuelve 500 mientras no exista almacenamiento configurado; el 200 de sus pruebas usa un adaptador sintético y no prueba MySQL. Las rutas pendientes no devuelven datos simulados. Express sigue siendo el servidor de uso diario. Antes de sustituirlo, sigue las dependencias y validaciones de [STATUS](migration/STATUS.md).
+
+### Cobertura de la aplicación actual
 
 | Comprobación | Base de datos (`npm test`) | API HTTP (`npm test`) | Navegador (`npm run test:e2e`) |
 | --- | --- | --- | --- |

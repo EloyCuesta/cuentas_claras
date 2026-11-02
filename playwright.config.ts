@@ -21,6 +21,8 @@ const TEST_DB = join(tmpdir(), 'cuentas-claras-e2e', 'cuentas.db')
 
 export default defineConfig({
   testDir: './e2e',
+  // La sustitución parcial .NET se prueba con su propio host y página de acceso.
+  testIgnore: '**/dotnet/**',
   timeout: 30_000,
   // Todas comparten la base de datos de pruebas: van de una en una y cada una la vacía al empezar.
   fullyParallel: false,

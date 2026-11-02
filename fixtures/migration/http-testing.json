@@ -1,0 +1,457 @@
+{
+  "format": "cuentas-claras-http-v1",
+  "provenance": "Datos inventados para BASE-01; respuestas de Express/SQLite de la rama hexagonal, sin datos personales.",
+  "scenarios": [
+    {
+      "name": "reset exclusivo de pruebas y protegido por sesión",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": true,
+        "testMode": true,
+        "ids": [
+          "00000000-0000-4000-8000-000000000001"
+        ],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "preparar finanzas pequeñas",
+          "request": {
+            "method": "PUT",
+            "path": "/api/data",
+            "body": {
+              "categories": [
+                {
+                  "id": "g-ensayo",
+                  "name": "Categoría de ensayo",
+                  "type": "gasto",
+                  "parentId": null,
+                  "order": 1.5,
+                  "budgetCents": 12345
+                }
+              ],
+              "movements": [
+                {
+                  "id": "mov-ensayo",
+                  "concept": "Compra de ensayo",
+                  "amountCents": 1234,
+                  "type": "gasto",
+                  "categoryId": "g-ensayo",
+                  "status": "pendiente",
+                  "paidDate": null,
+                  "dueDate": "2026-11-03",
+                  "notes": "",
+                  "recurringId": null,
+                  "occurrenceDate": null,
+                  "installmentNumber": null,
+                  "createdAt": "2026-11-01T08:00:00.000Z",
+                  "updatedAt": "2026-11-01T08:00:00.000Z"
+                }
+              ],
+              "recurring": []
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "crear producto para comprobar reset",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos",
+            "body": {
+              "name": "Leche de ensayo",
+              "ownerId": null,
+              "unit": "l",
+              "quantity": 0.125,
+              "target": 2,
+              "frequency": "semanal",
+              "priceCents": null,
+              "notes": ""
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "name": "Leche de ensayo",
+                "ownerId": null,
+                "unit": "l",
+                "tracking": "cantidad",
+                "quantity": 0.125,
+                "target": 2,
+                "frequency": "semanal",
+                "priceCents": null,
+                "notes": "",
+                "version": 1,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "updatedAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "invitado no puede reiniciar",
+          "request": {
+            "method": "POST",
+            "path": "/api/test/reset",
+            "guest": true
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Hace falta el código de acceso para ver esta sección."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "administrador reinicia datos de ensayo",
+          "request": {
+            "method": "POST",
+            "path": "/api/test/reset"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "despensa queda vacía",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/productos"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": []
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "finanzas vuelven a categorías iniciales",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-alimentacion",
+                    "name": "Alimentación",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 2,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-alimentacion-comidas-fuera",
+                    "name": "Comidas fuera",
+                    "type": "gasto",
+                    "parentId": "g-alimentacion",
+                    "order": 1,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-alimentacion-supermercado",
+                    "name": "Supermercado",
+                    "type": "gasto",
+                    "parentId": "g-alimentacion",
+                    "order": 0,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-coche",
+                    "name": "Coche",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-coche-aparcamiento",
+                    "name": "Aparcamiento",
+                    "type": "gasto",
+                    "parentId": "g-coche",
+                    "order": 2,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-coche-combustible",
+                    "name": "Combustible",
+                    "type": "gasto",
+                    "parentId": "g-coche",
+                    "order": 0,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-coche-impuestos",
+                    "name": "Impuestos",
+                    "type": "gasto",
+                    "parentId": "g-coche",
+                    "order": 3,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-coche-mantenimiento",
+                    "name": "Mantenimiento",
+                    "type": "gasto",
+                    "parentId": "g-coche",
+                    "order": 1,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-ocio",
+                    "name": "Ocio",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 7,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-otros",
+                    "name": "Otros",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 8,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-prestamos",
+                    "name": "Préstamos y letras",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 4,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-salud",
+                    "name": "Salud",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 6,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-seguros",
+                    "name": "Seguros",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 3,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-seguros-coche",
+                    "name": "Coche",
+                    "type": "gasto",
+                    "parentId": "g-seguros",
+                    "order": 0,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-seguros-hogar",
+                    "name": "Hogar",
+                    "type": "gasto",
+                    "parentId": "g-seguros",
+                    "order": 1,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-seguros-otros",
+                    "name": "Otros",
+                    "type": "gasto",
+                    "parentId": "g-seguros",
+                    "order": 3,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-seguros-salud",
+                    "name": "Salud",
+                    "type": "gasto",
+                    "parentId": "g-seguros",
+                    "order": 2,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-suscripciones",
+                    "name": "Suscripciones",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 5,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-vivienda",
+                    "name": "Vivienda",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 0,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-vivienda-agua",
+                    "name": "Agua",
+                    "type": "gasto",
+                    "parentId": "g-vivienda",
+                    "order": 2,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-vivienda-alquiler",
+                    "name": "Alquiler o hipoteca",
+                    "type": "gasto",
+                    "parentId": "g-vivienda",
+                    "order": 0,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-vivienda-gas",
+                    "name": "Gas",
+                    "type": "gasto",
+                    "parentId": "g-vivienda",
+                    "order": 3,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-vivienda-internet",
+                    "name": "Internet",
+                    "type": "gasto",
+                    "parentId": "g-vivienda",
+                    "order": 4,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "g-vivienda-luz",
+                    "name": "Luz",
+                    "type": "gasto",
+                    "parentId": "g-vivienda",
+                    "order": 1,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "i-extra",
+                    "name": "Ingresos extra",
+                    "type": "ingreso",
+                    "parentId": null,
+                    "order": 1,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "i-nomina",
+                    "name": "Nómina",
+                    "type": "ingreso",
+                    "parentId": null,
+                    "order": 0,
+                    "budgetCents": null
+                  },
+                  {
+                    "id": "i-otros",
+                    "name": "Otros ingresos",
+                    "type": "ingreso",
+                    "parentId": null,
+                    "order": 2,
+                    "budgetCents": null
+                  }
+                ],
+                "movements": [],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "reset no existe fuera del modo de pruebas",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": true,
+        "testMode": false,
+        "ids": [],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "sin modo de prueba no hay reset",
+          "request": {
+            "method": "POST",
+            "path": "/api/test/reset"
+          },
+          "expected": {
+            "status": 404,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "No existe POST /api/test/reset."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
