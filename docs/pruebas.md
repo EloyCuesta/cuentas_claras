@@ -80,7 +80,7 @@ La comprobación documental recorre también las subcarpetas de `docs/`, verific
 
 ### Ensayo .NET de BASE-02
 
-La solución `backend/CuentasClaras.slnx` usa el SDK 10.0.102 instalado, fijado sin previews ni roll-forward en `global.json` (versión publicada en [las notas oficiales de .NET](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.2/10.0.2.md)). Esta selección reproduce el entorno comprobado; no afirma que sea el último parche disponible. Los proyectos de ejecución usan solo el framework. Las referencias NuGet de pruebas ya estaban en el trabajo retomado: xunit.v3 3.2.2, xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.0.1 y Microsoft.AspNetCore.Mvc.Testing 10.0.2, con versiones exactas y locks. No se añade un proveedor MySQL en BASE-02.
+La solución `backend/CuentasClaras.slnx` pide el SDK 10.0.102 en `global.json` (versión publicada en [las notas oficiales de .NET](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.2/10.0.2.md)), sin previews y con `rollForward: latestFeature`: vale esa versión o una banda o parche posterior de 10.0, así que actualizar el SDK no rompe `dotnet build`. No afirma que sea el último parche disponible. Los proyectos de ejecución usan solo el framework. Las referencias NuGet de pruebas ya estaban en el trabajo retomado: xunit.v3 3.2.2, xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.0.1 y Microsoft.AspNetCore.Mvc.Testing 10.0.2, con versiones exactas y locks. No se añade un proveedor MySQL en BASE-02.
 
 ```powershell
 dotnet restore backend/CuentasClaras.slnx --locked-mode

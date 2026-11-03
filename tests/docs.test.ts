@@ -21,7 +21,7 @@ const MODULES = subfolders('server/modules')
 const FEATURES = subfolders('src/features')
 
 /** Zonas con su propio AGENTS.md: la raíz, las carpetas principales, cada módulo y cada feature. */
-const ZONES = ['', 'backend/', 'server/', 'server/migrations/', 'shared/', 'src/', 'e2e/', ...MODULES.map((m) => `server/modules/${m}/`), ...FEATURES.map((f) => `src/features/${f}/`)]
+const ZONES = ['', 'backend/', 'database/mysql/', 'server/', 'server/migrations/', 'shared/', 'src/', 'e2e/', ...MODULES.map((m) => `server/modules/${m}/`), ...FEATURES.map((f) => `src/features/${f}/`)]
 
 const MODULE_SECTIONS = [
   'Qué hace',
@@ -37,8 +37,8 @@ const MODULE_SECTIONS = [
 ]
 const FEATURE_SECTIONS = ['Qué ve la persona', 'Componentes', 'Estado y datos', 'Textos y accesibilidad', 'Pruebas', 'Trampas', 'Si cambias esta pantalla']
 
-/** Rutas que solo existen al usar la app (están en .gitignore): se pueden citar aunque no estén en un clon nuevo. */
-const RUNTIME_PATHS = ['server/data/cuentas.db']
+/** Rutas que solo existen al usar o compilar la app (están en .gitignore): se pueden citar aunque no estén en un clon nuevo. */
+const RUNTIME_PATHS = ['server/data/cuentas.db', 'dist/']
 /** Texto entre comillas invertidas con «/» que no es una ruta del repositorio. */
 const NOT_PATHS = ['react/only-export-components']
 

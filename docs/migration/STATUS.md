@@ -1,21 +1,21 @@
 # Estado y tareas de la migración
 
-Última actualización: 1 de noviembre de 2026. Este archivo es el registro de continuidad de Codex; actualízalo al terminar cada tarea.
+Última actualización: 3 de noviembre de 2026. Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
 
 ## Estado comprobado
 
 | Aspecto | Estado y evidencia |
 | --- | --- |
-| Referencia actual | `7eebed2`, rama refactor/arquitectura-hexagonal; documentos recuperados de `9d1df17` |
+| Referencia actual | Rama feat/mysql, creada desde refactor/arquitectura-hexagonal (`700d750`); documentos recuperados de `9d1df17` |
 | Referencia documental histórica | `91832a52b987b8e89f270ee86b4a95b8a4ddad15`, main del 30 de octubre de 2026 |
-| Backend ejecutable | Node.js + Express, en `server/`; SQLite con cinco migraciones |
+| Backend ejecutable | Node.js + Express, en `server/`; SQLite con cinco migraciones hasta que MYSQL-02 cambie los adaptadores |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |
-| Backend .NET | No existe en la referencia inspeccionada; ningún `.cs`, `.csproj`, `.sln` ni `.slnx` |
-| Persistencia MySQL e importación | Sin implementación ni ejecución comprobada |
+| Backend .NET | Host de acceso en `backend/` (BASE-02, implementado): compila con el SDK 10.0.114; sus pruebas no se han podido restaurar en el entorno del agente (registro BASE-02) |
+| Persistencia MySQL e importación | MYSQL-01: conexión, transacciones, bloqueos y esquema MySQL en `database/mysql/`, probados contra MySQL 8.4.8. Los módulos y el importador llegan en MYSQL-02 y MYSQL-03 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación y el historial SQLite |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | BASE-01 verificada: documentación reconciliada, contratos reproducibles y reglas con datos de ensayo; runtime conservado |
-| Pruebas de aplicación de esta entrega | `npm run check`: 443 pruebas en 37 archivos, tipos y lint correctos; build correcto; 46 E2E aprobados con Chrome. Evidencia en el registro BASE-01 |
+| Resultado de esta entrega | MYSQL-01 verificada: base MySQL lista y probada; runtime todavía sobre SQLite |
+| Pruebas de aplicación de esta entrega | Ver el registro MYSQL-01 |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
 
@@ -37,8 +37,12 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | --- | --- | --- | --- |
 | DOC-01 | Contexto para Codex, arquitectura, datos, módulos, tareas y prompts | — | verificado |
 | BASE-01 | Caracterización de contratos/fixtures, inventario confirmado y línea base ejecutada con resultados registrados | DOC-01 | verificado |
-| BASE-02 | Solución .NET, composición, host/configuración, acceso, envoltorios HTTP y pruebas de arquitectura | BASE-01 | pendiente |
-| DATA-01 | Modelo MySQL completo, migración inicial y pruebas de tipos/índices/JSON con proveedor estable | BASE-02 | pendiente |
+| BASE-02 | Solución .NET, composición, host/configuración, acceso, envoltorios HTTP y pruebas de arquitectura | BASE-01 | implementado |
+| MYSQL-01 | Base: configuración, conexión, UnitOfWork asíncrono, esquema MySQL y ayudantes de prueba | BASE-01 | verificado |
+| MYSQL-02 | Finanzas, despensa y tickets sobre MySQL, con bloqueos. La API completa funciona y pasan los contratos de BASE-01 | MYSQL-01 | pendiente |
+| MYSQL-03 | Importador SQLite→MySQL con informe | MYSQL-02 | pendiente |
+| MYSQL-04 | E2E sobre MySQL, documentación, better-sqlite3 fuera del runtime y pasos del corte | MYSQL-02, MYSQL-03 | pendiente |
+| DATA-01 | Acceso de .NET al MySQL ya migrado: conexión, transacciones y bloqueos sobre `database/mysql/`, sin esquema propio, con pruebas de tipos/índices/JSON desde C# | BASE-02, MYSQL-04 | pendiente |
 | FIN-01 | Lectura de finanzas, categorías, presupuestos de categoría y metadatos; primer recorrido React | DATA-01 | pendiente |
 | FIN-02 | Movimientos, pagos, eliminación e IDs estables ante reintentos | FIN-01 | pendiente |
 | FIN-03 | Recurrentes, exclusiones, cuotas y generación sin duplicados concurrentes | FIN-02 | pendiente |
@@ -51,16 +55,18 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | TIC-02 | Lectura OCR/texto/franjas mediante puerto local e integración de la revisión | TIC-01, PAN-01 | pendiente |
 | TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | pendiente |
 | TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | pendiente |
-| DATA-02 | Importador SQLite→MySQL, comparación íntegra y ensayos sintéticos; validación real registrada aparte | DATA-01 | pendiente |
-| CUT-01 | E2E completos, backup/restauración, ensayo final, corte y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | pendiente |
+| DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03, revisa el informe y se registra el resultado | MYSQL-03 | pendiente |
+| CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | pendiente |
 
-`DATA-02` puede quedar verificada como herramienta con ensayos sintéticos, dejando visible la validación real aún pendiente en la sección siguiente. Eso no autoriza a cerrar `CUT-01`: el corte exige validar también los datos de la instalación.
+La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MySQL con la misma API, y el esquema (`database/mysql/`) y el importador salen de ella. Por eso DATA-01 ya no crea el esquema, DATA-02 queda como la validación con los datos de la instalación y CUT-01 cambia el backend, no el motor. Ese corte de datos lo hace la persona, no un agente: `DATA-02` no se cierra con ensayos sintéticos, y `CUT-01` no se cierra sin él.
 
 ## Decisiones y verificaciones pendientes
 
 | Elemento | Estado | Evidencia necesaria |
 | --- | --- | --- |
-| SDK y proveedor EF Core/MySQL | Pendiente de seleccionar y probar | Versión estable exacta, fuente oficial, restore/build y pruebas MySQL |
+| SDK .NET | `global.json` pide 10.0.102 con `rollForward: latestFeature`: vale 10.0.102 o una banda/parche posterior de 10.0 (comprobado con 10.0.114) | Restore y tests de `backend/` en un equipo con acceso a nuget.org |
+| Proveedor .NET para MySQL | Propuesta, sin autorizar: MySqlConnector con SQL explícito sobre `database/mysql/`. Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10 y AGENTS.md prohíbe los ORM | Autorización de la dependencia, versión estable exacta, restore/build y pruebas contra MySQL (DATA-01) |
+| MySQL de la instalación | Las pruebas del agente usan MySQL Server 8.4.8 (build oficial de Ubuntu 26.04) en Linux | `npm run check` y `npm run test:e2e` en Windows con el MySQL Server 8.4 de la persona |
 | Cabecera de caché en errores del host | Diferencia actual registrada; corrección prevista en BASE-02 | Los errores 400/413 del lector JSON actual carecen de `Cache-Control: no-store`; probarla también en los errores de ASP.NET Core |
 | OCR definitivo | Pendiente de ensayo | Mismos fixtures, reconocimiento real, arranque y dependencia Node si la hay |
 | Copia SQLite real | No disponible | Copia consistente, integridad y versión comprobadas |
@@ -113,6 +119,29 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 - Validación final ejecutada: `npm run check` aprobado (443 pruebas, 37 archivos, tipos y oxlint correctos); `npm run build` aprobado; en PowerShell, `$env:CUENTAS_E2E_CHANNEL = 'chrome'; npm run test:e2e` aprobado (46/46, escritorio y móvil, 58,5 s, incluido OCR local). Las pruebas documentales (10/10) y las de arquitectura existentes están incluidas en check. `git diff --check` sin errores de espacios; Git avisa de normalización LF/CRLF.
 - Límites: solo SQLite temporal y datos de ensayo; no se lee server/data ni se cambia el backend utilizado a diario. No se añaden dependencias ni se modifican contratos, React, reglas de negocio o migraciones publicadas. No se ha probado .NET/MySQL, concurrencia MySQL, importación real ni recuperación de MySQL; esas validaciones siguen pendientes en sus tareas.
 - Siguiente tarea elegible: **BASE-02**. BASE-01 queda verificada por sus contratos, inventario, reglas y comprobaciones actuales; no equivale a una migración del backend.
+
+### BASE-02 — revisión del 3 de noviembre de 2026 (implementado)
+
+- La fila decía «pendiente», pero el host .NET existe: `backend/CuentasClaras.slnx` con cuatro proyectos de ejecución y uno de pruebas. No se ha modificado `backend/`.
+- `global.json` pasa de `rollForward: disable` a `latestFeature`, para que una actualización del SDK no rompa `dotnet build`. Comprobado: con `disable` y solo el SDK 10.0.114 instalado, `dotnet --version` no encuentra un SDK compatible; con `latestFeature` usa 10.0.114.
+- Entorno del agente: SDK 10.0.114 de Ubuntu 24.04 (paquete dotnet-sdk-10.0) y sin acceso a api.nuget.org.
+- `dotnet restore backend/CuentasClaras.slnx --locked-mode`: restaura los cuatro proyectos de ejecución y falla en CuentasClaras.Tests con NU1301 (no carga el índice de nuget.org: el proxy del entorno rechaza la conexión).
+- `dotnet build backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj --no-restore`: correcto, 0 avisos y 0 errores (compila Domain, Application, Infrastructure y Api).
+- `npm run build:dotnet`, `npm run test:dotnet` y `npm run test:e2e:dotnet`: no ejecutados, porque sin restaurar las pruebas no compila la solución entera.
+- Queda en «implementado». Para verificarla, en un equipo con nuget.org: `dotnet restore backend/CuentasClaras.slnx --locked-mode`, `npm run build:dotnet`, `npm run test:dotnet` y `npm run test:e2e:dotnet`.
+
+### MYSQL-01 — 3 de noviembre de 2026 (verificada)
+
+- Base: refactor/arquitectura-hexagonal `700d750`, sin cambios locales en el clon del agente; rama feat/mysql. Entorno: MySQL Server 8.4.8 (build oficial de Ubuntu 26.04, en Linux) con un usuario limitado a `cuentas_claras`, `cuentas_claras_e2e` y `cuentas\_test\_%`; Node 22.23.4; Chrome for Testing 153.
+- Línea base antes de editar: en un clon nuevo, `npm run check` dio 442/443 porque `src/AGENTS.md` cita `dist/`, que solo existe después de compilar; tras `npm run build`, 443/443 en 37 archivos. `npm run build` correcto y `CUENTAS_E2E_CHANNEL=chrome npm run test:e2e` 46/46. Corregido: `tests/docs.test.ts` trata `dist/` como ruta que se crea al compilar.
+- Dependencia: mysql2 3.24.6, versión exacta (autorizada). better-sqlite3 sigue como dependencia mientras el runtime use SQLite.
+- Esquema: `database/mysql/schema_migrations.sql` y `database/mysql/migrations/005-esquema-inicial.sql`, equivalente al final de SQLite 001–005 con las columnas en el mismo orden, más `app_locks` (filas `finance` y `tickets`). Tipos y tamaños en [DATA.md](DATA.md). Hallazgos: la primera versión de los tickets guardó huellas en claro («tienda|fecha|hora|total», hasta unos 215 caracteres), así que `fingerprint` es VARCHAR(255); `name_key` admite 240 porque las mayúsculas pueden triplicar una ligadura; `meta.value` es MEDIUMTEXT porque `POST /api/import` no limita `lastBackupAt`.
+- Código: `server/common/mysql/` (configuración `CUENTAS_DB_*` con mensajes en español, pool de mysql2 con sesión fija, errores, migraciones y `MysqlUnitOfWork`) y `server/common/testing/testDatabase.ts` (bases `cuentas_test_<aleatorio>` que se borran al terminar y fallan con un mensaje claro si falta MySQL). `vite.config.ts` pasa a Vitest las `CUENTAS_DB_*` del entorno o de .env, y `.env.example` las documenta sin valores.
+- Decisiones: cada conexión fija `utf8mb4_0900_bin`, el modo estricto y REPEATABLE READ (y quita IGNORE_SPACE); las llamadas anidadas usan la misma conexión con un savepoint, como hacía better-sqlite3, así que un fallo capturado dentro solo deshace lo de dentro; un interbloqueo (1213) repite la operación completa una vez; el bloqueo con nombre es la primera sentencia; una migración se anota sin `applied_at` antes de su DDL y GET_LOCK evita que dos procesos migren a la vez; las categorías iniciales solo se siembran en una base nueva; además de 1062, 1451, 1452 y 3819, se traduce 1048 (NOT NULL), que era SQLITE_CONSTRAINT_NOTNULL.
+- Comprobado a mano en 8.4.8, además de las pruebas: un CHECK sobre una columna con `ON DELETE CASCADE` se admite y con `ON DELETE SET NULL` no (3823); un DECIMAL con decimales de más se redondea sin error; mysql2 cuenta en `affectedRows` las filas encontradas aunque no cambien; `LIMIT ?` admite un número.
+- Pruebas nuevas, todas contra MySQL: `server/common/mysql/config.test.ts` (11), `MysqlDatabase.test.ts` (6: sesión, parámetros, una sentencia por llamada, MySQL caído, usuario rechazado y base inexistente), `migrations.test.ts` (9: base nueva, reapertura, sin sembrar, dos procesos a la vez, versión más nueva, migración a medias, tablas ajenas y huellas de los .sql), `schema.test.ts` (10: InnoDB y colación en todo, columnas de SQLite en orden, restricciones de finanzas, despensa y tickets con sus acciones, NULL únicos, colaciones, precisión de céntimos y milésimas, DATE y textos exactos) y `MysqlUnitOfWork.test.ts` (8, con dos conexiones para el bloqueo y el interbloqueo).
+- Validación final: `npm run check` aprobado (487 pruebas en 42 archivos: las 443 de antes y 44 nuevas; tipos y oxlint correctos, también sin `dist/`); `npm run build` aprobado; `CUENTAS_E2E_CHANNEL=chrome npm run test:e2e` aprobado (46/46, 1,8 min). Las E2E y las pruebas de los módulos siguen sobre SQLite: MYSQL-01 no cambia el runtime.
+- Siguiente tarea: **MYSQL-02**.
 
 ### Plantilla para la siguiente tarea
 

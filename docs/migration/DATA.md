@@ -1,6 +1,6 @@
 # Datos: SQLite a MySQL local
 
-Estado: procedimiento y diseño pendientes de ejecución. La base SQLite de la instalación del usuario queda fuera del trabajo de agentes. No se ha leído ni importado ninguna fila real a MySQL; BASE-01 usa bases temporales y datos de ensayo.
+Estado: el esquema MySQL existe y está probado (MYSQL-01, `database/mysql/`); el importador llega en MYSQL-03. La base SQLite de la instalación del usuario queda fuera del trabajo de agentes: no se ha leído ni importado ninguna fila real a MySQL, y las pruebas usan bases temporales y datos de ensayo.
 
 ## Fuente y alcance
 
@@ -24,36 +24,39 @@ La copia JSON v1 de la aplicación contiene categorías, movimientos y recurrent
 | `pantry_ticket_lines` | Tickets | Posición, nombres, cantidades, pesos, descuentos, IVA, asociaciones, revisión y evidencia |
 | `pantry_aliases` | Tickets | Equivalencias por tienda/nombre normalizado y decisiones de ignorar |
 | `meta` | Común | Metadatos, incluida fecha de copia financiera |
-| `schema_migrations` | Archivo de procedencia | Guardar en el informe/exportación del origen; no reutilizar como historial EF |
+| `schema_migrations` | Archivo de procedencia | Se comprueba que el origen está en la versión 5; no se copia: MySQL tiene su propio historial |
 
-Son 12 tablas de aplicación más el control de migraciones SQLite. El historial de EF se inicia por separado. Las sesiones actuales están en memoria y no se importan; el usuario vuelve a iniciar sesión al cambiar de servidor.
+Son 12 tablas de aplicación más el control de migraciones SQLite. MySQL tiene su propio `schema_migrations` (desde la versión 5) y la tabla técnica `app_locks`, que no son datos de la persona. Las sesiones actuales están en memoria y no se importan; el usuario vuelve a iniciar sesión al cambiar de servidor.
 
 El inventario se contrasta con [las migraciones actuales](../../server/migrations/AGENTS.md) y con [la comprobación de las tablas de una base nueva](../../server/common/sqlite/openDatabase.test.ts). La importación actual `POST /api/import` pasa únicamente finanzas desde IndexedDB a SQLite; no es el importador completo SQLite→MySQL previsto en DATA-02.
 
 ## Mapeo de tipos
 
-| Dato | Destino propuesto | Comprobación obligatoria |
+Decidido y probado en MYSQL-01: el esquema está en [la migración 5](../../database/mysql/migrations/005-esquema-inicial.sql) y sus pruebas en [schema.test.ts](../../server/common/mysql/schema.test.ts).
+
+| Dato | MySQL | Por qué |
 | --- | --- | --- |
-| Importes en céntimos | `BIGINT` firmado / `long` | Mismos límites de cada dominio; negativos en devoluciones, positivos en movimientos financieros |
-| Quantity y target | `DECIMAL(10,3)` | Exactitud en milésimas, unidades admitidas y máximo actual de 1.000.000 |
-| Peso en kg | `DECIMAL(10,3)` | Precisión y límites del analizador, sin volver a interpretar la compra |
-| Orden de categoría | Tipo que conserve el `REAL` actual; inicialmente evaluar `DOUBLE` | No truncar a entero ni fijar una escala decimal arbitraria |
-| Fechas de calendario | `DATE` / `DateOnly` | El mismo día; no aplicar UTC a una fecha sin hora |
-| Hora de compra | Campo que conserve el formato actual | No inventar una zona horaria para una hora local del ticket |
-| Instantes de creación/cambio | `DATETIME(3)` UTC | Normalización y salida ISO equivalentes a las actuales |
-| IDs | `VARCHAR` dimensionado tras perfilar datos y validadores | Conservar valores existentes; no exigir que todos sean Guid |
-| Booleanos | Mapeo explícito del proveedor | Conservar false/true y nulabilidad cuando proceda |
-| Ajustes, incidencias y evidencia | JSON o texto JSON validado tras ensayo del proveedor | Distinguir SQL NULL, JSON null y listas vacías; comparar contenido normalizado |
-| Versión de producto | Entero con token de concurrencia | Conservar el número importado; incrementos y comparación en cada escritura pertinente |
+| Importes en céntimos | `BIGINT` | Hasta `MAX_CENTS` sin perder nada; negativos en devoluciones, positivos en movimientos financieros (CHECK) |
+| Quantity y target | `DECIMAL(10,3)` | Milésimas exactas hasta 1.000.000; mysql2 las devuelve como número (`decimalNumbers`) |
+| Peso en kg | `DECIMAL(7,3)` | Hasta 1000 kg en milésimas, como redondea el analizador |
+| Orden de categoría | `DOUBLE` | Conserva el `REAL` de SQLite tal cual, sin escala arbitraria |
+| Fechas de calendario | `DATE` | El mismo día, sin hora ni zona; viajan como texto `AAAA-MM-DD` (`dateStrings`) y una fecha imposible se rechaza |
+| Hora de compra | `VARCHAR(5)` | «HH:MM» tal cual; `TIME` devolvería «HH:MM:SS» |
+| Instantes de creación/cambio | `VARCHAR(40)` | La copia financiera admite cualquier texto de hasta 40 caracteres y se restaura idéntica; `DATETIME` rechazaría «…T…Z» |
+| IDs | `VARCHAR(100)` | Lo que admiten los validadores; no se exige que sean UUID |
+| Huella del ticket | `VARCHAR(255)` | SHA-256 en los nuevos; los de la primera versión guardaron «tienda\|fecha\|hora\|total» y se conservan |
+| Booleanos | `TINYINT` 0/1 con CHECK | Como los `INTEGER` 0/1 de SQLite |
+| Ajustes, incidencias y evidencia | `MEDIUMTEXT` | Texto exacto y `JSON.parse` como hoy; el tipo JSON devolvería objetos y normalizaría el texto |
+| Versión de producto | `INT` | Se conserva el número importado y sube en cada escritura |
 
-El motor y el ORM deben devolver números JSON compatibles con los consumidores actuales. Usar `long` en C# no autoriza ampliar los límites por encima de lo admitido por JavaScript o por las reglas del dominio.
+mysql2 devuelve números JSON compatibles con los consumidores actuales. Usar `long` en C# no autoriza ampliar los límites por encima de lo admitido por JavaScript o por las reglas del dominio.
 
-Usa utf8mb4 con collations explícitas para IDs, huellas y claves normalizadas. Prueba mayúsculas/minúsculas, tildes y espacios finales frente a SQLite antes de elegir la collation. Una comparación más permisiva puede unir equivalencias antes distintas o impedir importar dos claves válidas.
+Todas las tablas y columnas usan utf8mb4 con `utf8mb4_0900_bin`, que compara como SQLite: «pina», «piña» y «PINA» son claves distintas y «abc» no es «abc ». La colación por defecto (`utf8mb4_0900_ai_ci`) uniría equivalencias de tickets distintas y `utf8mb4_bin` iguala los espacios finales. Cada conexión fija también esa colación para los textos sueltos, el modo estricto y REPEATABLE READ.
 
 ## Restricciones e integridad
 
 - Conserva la unicidad de `fingerprint`, las parejas `(recurring_id, occurrence_date)` y `(ticket_id, position)` y la clave de equivalencias `(store, name_key)`.
-- `import_id` y `source_fingerprint` son nullable y únicos cuando tienen valor. En MySQL prueba múltiples nulos y el rechazo de valores no nulos repetidos; no copies la sintaxis de índices parciales de SQLite.
+- `import_id` y `source_fingerprint` son nullable y únicos cuando tienen valor: en MySQL son índices únicos normales, que admiten varios NULL y rechazan un valor repetido (probado).
 - Conserva checks, límites, nulabilidad y acciones de claves foráneas del esquema final. Prueba su aplicación con el proveedor real.
 - `movements.recurring_id` carece deliberadamente de FK: al borrar una regla se conservan vencimientos realizados con su vínculo histórico. No añadas esa FK por convención de EF.
 - Una persona con productos no se borra. Al borrar un producto, las líneas de tickets se conservan con la asociación anulada y sus equivalencias/eventos siguen las acciones previstas por el esquema.

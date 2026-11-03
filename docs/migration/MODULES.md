@@ -91,8 +91,10 @@ Casos y pruebas: [ticketCases.test.ts](../../shared/tickets/ticketCases.test.ts)
 
 ## Datos, integración y cambio final
 
-`DATA-01` crea el esquema completo, sus restricciones y pruebas del proveedor según [DATA.md](DATA.md). No introduce una API paralela de importación ni ejecuta una carga al arrancar.
+La fase MYSQL (MYSQL-01 a MYSQL-04, en [STATUS.md](STATUS.md)) cambia primero el motor: Express pasa de SQLite a MySQL con la misma API, y deja el esquema en `database/mysql/` y el importador SQLite→MySQL.
 
-`DATA-02` construye la utilidad de importación y comparación, la demuestra con datos sintéticos y registra por separado la validación con el archivo real cuando esté disponible.
+`DATA-01` conecta .NET con ese MySQL: conexión, transacciones y bloqueos sobre las migraciones de `database/mysql/`, sin esquema propio, con pruebas del proveedor según [DATA.md](DATA.md). No introduce una API paralela de importación ni ejecuta una carga al arrancar.
 
-`CUT-01` integra los módulos, ejecuta recorridos de escritorio/móvil contra .NET/MySQL, ensaya backup/recuperación y realiza el corte de escrituras solo cuando se cumplen sus condiciones. La conservación temporal del worker OCR o de cálculos React debe quedar visible; no se declara retirada completa del backend anterior mientras aún tenga dependencias de ejecución necesarias.
+`DATA-02` es la validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03, revisa el informe y se registra el resultado.
+
+`CUT-01` integra los módulos, ejecuta recorridos de escritorio/móvil contra .NET sobre la misma base MySQL, ensaya backup/recuperación y cambia el backend, no el motor, solo cuando se cumplen sus condiciones. La conservación temporal del worker OCR o de cálculos React debe quedar visible; no se declara retirada completa del backend anterior mientras aún tenga dependencias de ejecución necesarias.

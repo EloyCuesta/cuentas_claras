@@ -2,7 +2,7 @@
 
 Estado: diseño por implementar. Consulta [STATUS.md](STATUS.md) para saber qué existe.
 
-La organización actual de Express ya es hexagonal modular y está descrita en [arquitectura actual](../arquitectura.md). Las capas, proyectos y tipos C# de este documento son destino; BASE-01 conserva los puertos y adaptadores TypeScript. EF Core es una propuesta pendiente de seleccionar y validar en su tarea, no una dependencia incorporada ni una excepción implícita a las reglas de la raíz.
+La organización actual de Express ya es hexagonal modular y está descrita en [arquitectura actual](../arquitectura.md). Las capas, proyectos y tipos C# de este documento son destino; BASE-01 conserva los puertos y adaptadores TypeScript. El acceso a MySQL desde .NET es una propuesta pendiente de autorizar y validar en DATA-01: MySqlConnector con SQL explícito, como hace Express desde la fase MYSQL, porque AGENTS.md prohíbe los ORM y Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10.
 
 ## Producto y límites
 
@@ -16,13 +16,13 @@ Finanzas y despensa son ámbitos separados. Los tickets pertenecen al flujo de c
 | --- | --- | --- |
 | API | ASP.NET Core 10 | SDK estable y configuración de arranque en el equipo |
 | Negocio y aplicación | C# | Equivalencia con reglas y fixtures TypeScript |
-| Persistencia | EF Core 10 con proveedor MySQL estable compatible | Fijar versiones tras restore y prueba real del proveedor |
+| Persistencia | SQL explícito con MySqlConnector (propuesta) sobre el esquema y las migraciones de `database/mysql/` | Autorizar la dependencia, fijar versión tras restore y prueba real contra MySQL |
 | Base de datos | MySQL Server 8.4, InnoDB, utf8mb4 | JSON, precisión, collations, restricciones y concurrencia |
 | Administración | MySQL Workbench | Conexión al servidor local; no sustituye al servidor |
 | Interfaz | React + TypeScript + Vite existentes | Ajustar consumidores y conservar experiencia de escritorio/móvil |
 | OCR | Adaptador local detrás de `ITicketReader` | Ensayo con fixtures antes de elegir implementación definitiva |
 
-No se fija aquí una versión concreta de un paquete MySQL ni se presupone que cualquier proveedor soporte EF Core 10. Comprueba documentación oficial y paquetes estables al ejecutar `BASE-02`/`DATA-01`, registra la combinación elegida y no uses previews por defecto.
+No se fija aquí una versión concreta de un paquete MySQL. Comprueba documentación oficial y paquetes estables al ejecutar `DATA-01`, registra la combinación elegida y no uses previews por defecto. El esquema ya existe: .NET aplica las mismas migraciones .sql y el mismo `schema_migrations`.
 
 ## Organización propuesta
 
@@ -54,7 +54,7 @@ Pantry no importa el dominio de Tickets. Su historial se obtiene mediante un pue
 
 ## Transacciones y concurrencia
 
-Inicialmente habrá un `AppDbContext` por ámbito de petición y una unidad de trabajo común, con configuraciones agrupadas por módulo. Los repositorios no confirman independientemente una operación coordinada. El caso exterior decide cuándo guardar y confirmar.
+Habrá una unidad de trabajo común con una conexión MySQL por operación, como la de Express (`server/common/mysql/MysqlUnitOfWork.ts`): las llamadas anidadas se unen a la transacción exterior y los bloqueos (`app_locks` y `SELECT … FOR UPDATE` de productos en orden de id) se toman antes de leer. Los repositorios no confirman independientemente una operación coordinada. El caso exterior decide cuándo guardar y confirmar.
 
 `GuardarTicketRevisado` debe comprobar duplicados, consultar el catálogo vigente, calcular el plan, crear productos, guardar equivalencias, aplicar precios/cantidades e insertar cabecera/líneas dentro de una sola transacción. Todos los participantes comparten contexto y transacción. El OCR se ejecuta antes para no mantener bloqueos durante el reconocimiento. Un fallo debe revertir todos los efectos.
 

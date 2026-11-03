@@ -15,6 +15,7 @@ El backend actual sigue siendo Express/SQLite. Para migrarlo conservando React, 
 
 ## Mapa del repositorio
 ```
+database/      el esquema de MySQL: migraciones .sql y su historial (database/mysql/AGENTS.md)
 server/        el servidor: Express + SQLite (server/AGENTS.md)
   common/      lo transversal: errores, HTTP, SQLite, puertos comunes, ayudantes de tests
   migrations/  el esquema de la base de datos (server/migrations/AGENTS.md)
@@ -41,6 +42,7 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
 | `server/modules/health/` | su AGENTS.md |
 | `server/common/` o `server/app.ts` | `server/AGENTS.md` y `docs/arquitectura.md` |
 | `server/migrations/` | `server/migrations/AGENTS.md` y `docs/base-de-datos.md` |
+| `database/mysql/` o `server/common/mysql/` | `database/mysql/AGENTS.md`, `docs/base-de-datos.md` y `docs/migration/DATA.md` |
 | `shared/` | `shared/AGENTS.md`: el cambio afecta a la web y al servidor |
 | `src/features/auth/` | su AGENTS.md y `src/AGENTS.md` |
 | `src/features/finance/` | su AGENTS.md, `src/AGENTS.md` y `server/modules/finance/AGENTS.md` |
