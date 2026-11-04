@@ -23,7 +23,9 @@ export default defineConfig({
     {
       command: 'dotnet run --no-build --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj',
       url: 'http://127.0.0.1:3202/api/auth/me',
-      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: '3202', CUENTAS_CODIGO: DOTNET_E2E_CODE },
+      // Playwright añade estas variables a las del entorno: CUENTAS_DB_USER vacío deja el host solo con el acceso,
+      // aunque quien lo lance tenga CUENTAS_DB_* (si no, abriría y migraría su base, por defecto cuentas_claras).
+      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: '3202', CUENTAS_CODIGO: DOTNET_E2E_CODE, CUENTAS_DB_USER: '' },
       reuseExistingServer: false,
       timeout: 60_000,
     },

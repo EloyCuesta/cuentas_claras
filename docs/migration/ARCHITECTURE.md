@@ -2,7 +2,7 @@
 
 Estado: diseño por implementar. Consulta [STATUS.md](STATUS.md) para saber qué existe.
 
-La organización actual de Express ya es hexagonal modular y está descrita en [arquitectura actual](../arquitectura.md). Las capas, proyectos y tipos C# de este documento son destino; BASE-01 conserva los puertos y adaptadores TypeScript. El acceso a MySQL desde .NET es una propuesta pendiente de autorizar y validar en DATA-01: MySqlConnector con SQL explícito, como hace Express desde la fase MYSQL, porque AGENTS.md prohíbe los ORM y Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10.
+La organización actual de Express ya es hexagonal modular y está descrita en [arquitectura actual](../arquitectura.md). Las capas, proyectos y tipos C# de este documento son destino; BASE-01 conserva los puertos y adaptadores TypeScript. El acceso a MySQL desde .NET es MySqlConnector 2.6.2 con SQL explícito (autorizado en DATA-01), como hace Express desde la fase MYSQL, porque AGENTS.md prohíbe los ORM y Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10.
 
 ## Producto y límites
 
@@ -16,13 +16,13 @@ Finanzas y despensa son ámbitos separados. Los tickets pertenecen al flujo de c
 | --- | --- | --- |
 | API | ASP.NET Core 10 | SDK estable y configuración de arranque en el equipo |
 | Negocio y aplicación | C# | Equivalencia con reglas y fixtures TypeScript |
-| Persistencia | SQL explícito con MySqlConnector (propuesta) sobre el esquema y las migraciones de `database/mysql/` | Autorizar la dependencia, fijar versión tras restore y prueba real contra MySQL |
+| Persistencia | SQL explícito con MySqlConnector 2.6.2 (DATA-01) sobre el esquema y las migraciones de `database/mysql/` | Aceptación en MySQL 8.4; probado en 8.0.36 (STATUS) |
 | Base de datos | MySQL Server 8.4, InnoDB, utf8mb4 | JSON, precisión, collations, restricciones y concurrencia |
 | Administración | MySQL Workbench | Conexión al servidor local; no sustituye al servidor |
 | Interfaz | React + TypeScript + Vite existentes | Ajustar consumidores y conservar experiencia de escritorio/móvil |
 | OCR | Adaptador local detrás de `ITicketReader` | Ensayo con fixtures antes de elegir implementación definitiva |
 
-No se fija aquí una versión concreta de un paquete MySQL. Comprueba documentación oficial y paquetes estables al ejecutar `DATA-01`, registra la combinación elegida y no uses previews por defecto. El esquema ya existe: .NET aplica las mismas migraciones .sql y el mismo `schema_migrations`.
+El proveedor se eligió en `DATA-01`: MySqlConnector 2.6.2, la última estable al ejecutarla, con versión exacta y sin previews; un cambio de versión se autoriza y se registra en STATUS. El esquema ya existe: .NET aplica las mismas migraciones .sql, incrustadas en Infrastructure, y el mismo `schema_migrations`.
 
 ## Organización propuesta
 

@@ -38,11 +38,20 @@ public sealed class ArchitectureTests
                     .Replace("CuentasClaras.", "")).Order().ToArray();
             Assert.Equal(allowed!.Order(), actual);
             if (layer is "Domain" or "Application")
-            {
-                Assert.Empty(xml.Descendants("PackageReference"));
                 Assert.Empty(xml.Descendants("FrameworkReference"));
-            }
+            // El único paquete de ejecución es el proveedor MySQL autorizado en DATA-01, con versión exacta y solo en Infrastructure.
+            var packages = xml.Descendants("PackageReference")
+                .Select(item => $"{item.Attribute("Include")!.Value} {item.Attribute("Version")?.Value}").ToArray();
+            Assert.Equal(layer == "Infrastructure" ? ["MySqlConnector [2.6.2]"] : [], packages);
         }
+    }
+
+    [Fact]
+    public void Solo_Infrastructure_referencia_el_ensamblado_del_driver_MySQL()
+    {
+        var users = Assemblies.Where(assembly => assembly.GetReferencedAssemblies().Any(reference => reference.Name == "MySqlConnector"))
+            .Select(assembly => assembly.GetName().Name);
+        Assert.Equal(["CuentasClaras.Infrastructure"], users);
     }
 
     [Fact]
@@ -107,6 +116,13 @@ public sealed class ArchitectureTests
     [InlineData("CuentasClaras.Application.Pantry.Query", "Microsoft.EntityFrameworkCore.DbContext", false)]
     [InlineData("CuentasClaras.Application.Auth.Login", "Microsoft.AspNetCore.Http.HttpContext", false)]
     [InlineData("CuentasClaras.Domain.Auth.Policy", "System.Math", true)]
+    [InlineData("CuentasClaras.Application.Finance.Save", "MySqlConnector.MySqlConnection", false)]
+    [InlineData("CuentasClaras.Domain.Finance.Category", "MySqlConnector.MySqlDataReader", false)]
+    [InlineData("CuentasClaras.Api.Composition.ApiHost", "MySqlConnector.MySqlConnection", false)]
+    [InlineData("CuentasClaras.Api.Finance.Routes", "MySqlConnector.MySqlException", false)]
+    [InlineData("CuentasClaras.Infrastructure.Finance.Store", "MySqlConnector.MySqlConnection", true)]
+    [InlineData("CuentasClaras.Infrastructure.Common.MySql.MySqlMigrations", "CuentasClaras.Infrastructure.Finance.DefaultCategorySeed", false)]
+    [InlineData("CuentasClaras.Infrastructure.Finance.DefaultCategorySeed", "CuentasClaras.Infrastructure.Common.MySql.MySqlCommands", true)]
     public void La_politica_detecta_infracciones_aunque_el_modulo_aun_no_este_portado(
         string source, string target, bool allowed) => Assert.Equal(allowed, Violation(source, target) is null);
 
@@ -124,6 +140,8 @@ public sealed class ArchitectureTests
         var origin = source.Split('.');
         if (origin.Length < 3 || origin[0] != "CuentasClaras") return null;
         var layer = origin[1];
+        if (target.StartsWith("MySqlConnector.", StringComparison.Ordinal) && layer != "Infrastructure")
+            return "solo Infrastructure usa el driver MySQL";
         if (layer is "Domain" or "Application")
         {
             if (target.StartsWith("System.IO.", StringComparison.Ordinal) ||

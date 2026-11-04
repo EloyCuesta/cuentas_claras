@@ -1,8 +1,8 @@
 # database/mysql/ — Esquema de MySQL
 
-> Lee antes: /AGENTS.md, `docs/base-de-datos.md` y `docs/migration/DATA.md`. Lo aplica `server/common/mysql/migrations.ts` (al arrancar el servidor y en el importador) y lo reutilizará el backend .NET.
+> Lee antes: /AGENTS.md, `docs/base-de-datos.md` y `docs/migration/DATA.md`. Lo aplican `server/common/mysql/migrations.ts` (al arrancar el servidor y en el importador) y el backend .NET, que incrusta estos mismos archivos (`backend/src/CuentasClaras.Infrastructure/Common/MySql/MySqlMigrations.cs`).
 
-Las migraciones de MySQL en archivos .sql, con su propio historial. Son el esquema de la aplicación: el servidor Node no tiene otro, y .NET aplicará estos mismos archivos y la misma tabla `schema_migrations`.
+Las migraciones de MySQL en archivos .sql, con su propio historial. Son el esquema de la aplicación: ni el servidor Node ni .NET tienen otro, y los dos usan la misma tabla `schema_migrations` y la misma clave de GET_LOCK.
 
 ## Qué hay
 
@@ -34,7 +34,7 @@ Empieza en la versión 5 para que `/api/health` siga diciendo 5. Las migraciones
 ## Cómo añadir una migración
 
 1. `migrations/006-<que-hace>.sql`, con un comentario que explique qué cambia y por qué no se pierde nada.
-2. Una prueba en `server/common/mysql/migrations.test.ts` que parta de una base de la versión anterior con datos, y las restricciones nuevas en `server/common/mysql/schema.test.ts`.
+2. Una prueba en `server/common/mysql/migrations.test.ts` que parta de una base de la versión anterior con datos, y las restricciones nuevas en `server/common/mysql/schema.test.ts`. .NET la incrusta sola al compilar; añade su huella también en `backend/tests/CuentasClaras.Tests/MySqlMigrationTests.cs`.
 3. El adaptador mysql del módulo dueño, `docs/base-de-datos.md` y el AGENTS.md del módulo.
 4. Su huella en el test de migraciones publicadas.
 

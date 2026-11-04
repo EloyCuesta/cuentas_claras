@@ -10,12 +10,12 @@
 | Referencia documental histórica | `91832a52b987b8e89f270ee86b4a95b8a4ddad15`, main del 30 de octubre de 2026 |
 | Backend ejecutable | Node.js + Express, en `server/`, sobre MySQL desde MYSQL-02 (mysql2, migraciones de `database/mysql/`); el servidor ya no abre SQLite |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |
-| Backend .NET | Host de acceso en `backend/` (BASE-02, verificado): en Windows con el SDK 10.0.102, restore con `--locked-mode`, compilación sin avisos, 68/68 pruebas y sus cuatro E2E React/.NET (registro BASE-02). Todavía sin MySQL ni rutas de negocio |
+| Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, implementado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36; falta la aceptación en 8.4. Todavía sin rutas de negocio (registros BASE-02 y DATA-01) |
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | BASE-02 verificada: la prueba del login con `[]` espera ya el mensaje que dan Express y .NET («Falta el cuerpo de la petición en JSON.»), y pasan la suite .NET y los E2E de acceso. La aplicación no cambia. La entrega anterior, MYSQL-04, tiene su registro |
-| Pruebas de aplicación de esta entrega | Ver el registro BASE-02 del 4 de noviembre, también para las regresiones Node en Windows con MySQL 8.0.36: Vitest 500/503 y E2E 48/48 |
+| Resultado de esta entrega | DATA-01 implementado, pendiente de verificar en MySQL 8.4: el host .NET abre y migra la base con el historial de Express, responde la salud con la versión aplicada y tiene transacciones y bloqueos probados con dos conexiones. Express y la web no cambian. BASE-02 y MYSQL-04 tienen sus registros |
+| Pruebas de aplicación de esta entrega | Ver el registro DATA-01: .NET 111/111 (28 contra MySQL 8.0.36), E2E de acceso 4/4, Vitest 501/503 y E2E 48/48, en Windows con MySQL 8.0.36 y un usuario limitado |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
 
@@ -42,7 +42,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | MYSQL-02 | Finanzas, despensa y tickets sobre MySQL, con bloqueos. La API completa funciona y pasan los contratos de BASE-01 | MYSQL-01 | verificado |
 | MYSQL-03 | Importador SQLite→MySQL con informe | MYSQL-02 | verificado |
 | MYSQL-04 | E2E sobre MySQL, documentación, better-sqlite3 fuera del runtime y pasos del corte | MYSQL-02, MYSQL-03 | verificado |
-| DATA-01 | Acceso de .NET al MySQL ya migrado: conexión, transacciones y bloqueos sobre `database/mysql/`, sin esquema propio, con pruebas de tipos/índices/JSON desde C# | BASE-02, MYSQL-04 | pendiente |
+| DATA-01 | Acceso de .NET al MySQL ya migrado: conexión, transacciones y bloqueos sobre `database/mysql/`, sin esquema propio, con pruebas de tipos/índices/JSON desde C# | BASE-02, MYSQL-04 | implementado |
 | FIN-01 | Lectura de finanzas, categorías, presupuestos de categoría y metadatos; primer recorrido React | DATA-01 | pendiente |
 | FIN-02 | Movimientos, pagos, eliminación e IDs estables ante reintentos | FIN-01 | pendiente |
 | FIN-03 | Recurrentes, exclusiones, cuotas y generación sin duplicados concurrentes | FIN-02 | pendiente |
@@ -65,11 +65,11 @@ La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MyS
 | Elemento | Estado | Evidencia necesaria |
 | --- | --- | --- |
 | SDK .NET | `global.json` pide 10.0.102 con `rollForward: latestFeature`: vale 10.0.102 o una banda/parche posterior de 10.0 (comprobado con 10.0.114 en Linux y con 10.0.102 en Windows) | Hecho en BASE-02, el 4 de noviembre en Windows con acceso a nuget.org: restore con `--locked-mode`, compilación y 68/68 pruebas |
-| Proveedor .NET para MySQL | Propuesta, sin autorizar: MySqlConnector con SQL explícito sobre `database/mysql/`. Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10 y AGENTS.md prohíbe los ORM | Autorización de la dependencia, versión estable exacta, restore/build y pruebas contra MySQL (DATA-01) |
-| MySQL de la instalación | Las pruebas del agente usan MySQL Server 8.4 de Ubuntu 26.04 en Linux (8.4.8 en MYSQL-01; 8.4.11, con el registro binario activo como en una instalación normal, desde MYSQL-02) | `npm run check` y `npm run test:e2e` en Windows con el MySQL Server 8.4 de la persona (allí `lower_case_table_names` vale 1; todos los nombres de tablas y bases son minúsculas) |
-| Pruebas Node en Windows | Ensayadas en BASE-02 con MySQL Server 8.0.36: Vitest 500/503 y E2E 48/48 | Cerrar la base abierta antes de borrar la carpeta temporal en `tools/importer/source.ts` (EPERM en Windows); decidir cómo comprobar en Windows el cierre limpio de `server/index.test.ts`, donde SIGTERM no llega al proceso; y repetir con MySQL 8.4 y un usuario de pruebas limitado |
+| Proveedor .NET para MySQL | Autorizado por la persona en DATA-01: MySqlConnector 2.6.2 (MIT), versión exacta y solo en Infrastructure, con SQL explícito sobre `database/mysql/`; arrastra Microsoft.Extensions.Logging.Abstractions y DependencyInjection.Abstractions 8.0.2. Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10 y AGENTS.md prohíbe los ORM | Restore con `--locked-mode`, compilación y pruebas contra MySQL hechas en 8.0.36; falta repetirlas en 8.4 (aceptación de DATA-01) |
+| MySQL de la instalación | La de la persona es MySQL Server 8.0.36 en Windows (servicio MySQL80, `lower_case_table_names` 1), no la 8.4 del README; BASE-02 y DATA-01 se probaron ahí, en bases `cuentas_test_*`, con el usuario limitado cuentas_pruebas (sin acceso a cuentas_claras). Las pruebas del agente en Linux usaron 8.4 (8.4.8 en MYSQL-01; 8.4.11, con el registro binario activo, desde MYSQL-02) | La suite .NET, `npm run check` y `npm run test:e2e` con MySQL Server 8.4 en Windows: es la aceptación de DATA-01 |
+| Pruebas Node en Windows | Con MySQL 8.0.36 y el usuario limitado (DATA-01): Vitest 501/503 y E2E 48/48. El fallo del CLI del importador era el falso positivo de la contraseña de root (BASE-02) y no aparece con otra | Cerrar la base abierta antes de borrar la carpeta temporal en `tools/importer/source.ts` (EPERM en Windows: afecta a DATA-02) y decidir cómo comprobar en Windows el cierre limpio de `server/index.test.ts`, donde SIGTERM no llega al proceso |
 | Textos de la web sobre SQLite | Pendiente de decisión de la persona: no se ha tocado el código de la web | `FinanceProvider.tsx`, `BackupPanel.tsx` y `SummaryPage.tsx` dicen que los datos están en «una base de datos SQLite» (y el panel, en `server/data/cuentas.db`). Cambiarlos es un cambio de textos de la interfaz que no se ha pedido. Con ellos, tres comentarios que dicen lo mismo: `src/Root.tsx`, `ApiFinanceRepository.ts` y `browserDataMigration.ts`. Ninguna prueba busca esos textos |
-| Documentación de `backend/` | Desfasada a propósito: esta fase no toca `backend/` | Su AGENTS.md dice que Express/SQLite es la aplicación de uso diario; actualizarlo en DATA-01 |
+| Chromium de Playwright | `npx playwright install chromium` no se pudo completar en el equipo de la persona: la descarga de cdn.playwright.dev caduca a los 30 s, tres veces (DATA-01). Los E2E se ejecutan con Chrome instalado (`CUENTAS_E2E_CHANNEL=chrome`) | Repetir la instalación con acceso a cdn.playwright.dev y los E2E sin el canal |
 | Cabecera de caché en errores del host | En el host .NET, comprobada en BASE-02: los 400 de JSON mal formado y los 413 llevan `Cache-Control: no-store` (pruebas HTTP, 68/68). Express conserva la diferencia | Los errores 400/413 del lector JSON de Express carecen de la cabecera hasta que .NET lo sustituya (CUT-01); entonces se actualizan la API y ARCHITECTURE.md |
 | OCR definitivo | Pendiente de ensayo | Mismos fixtures, reconocimiento real, arranque y dependencia Node si la hay |
 | Copia SQLite real | No disponible | Copia consistente, integridad y versión comprobadas |
@@ -208,6 +208,47 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 - Validación final: `npm run check` aprobado (503 pruebas en 43 archivos: las 502 de antes y 1 nueva; tipos y oxlint sin avisos); `npm run build` aprobado; `CUENTAS_E2E_CHANNEL=chrome npm run test:e2e` aprobado (48/48: las 46 de antes y la nueva en escritorio y móvil, 1,8 min); `git diff --check` sin errores. No quedan bases `cuentas_test_*`.
 - Limitaciones: todo en Linux y con datos de ensayo. Falta repetir `npm run check` y `npm run test:e2e` en Windows con el MySQL Server 8.4 de la persona, y probar Data Export de Workbench. El corte con los datos reales es DATA-02.
 - Siguiente tarea: **DATA-02**, que hace la persona (la primera pendiente con sus dependencias verificadas). Para los agentes, DATA-01 y TIC-01 esperan a que BASE-02 se verifique en un equipo con acceso a nuget.org.
+
+### DATA-01 — 4 de noviembre de 2026 (implementado)
+
+- Base: rama data-01-mysql sobre base-02-acceso `4b2ac97` (BASE-02 verificada). main sigue en `18eeb272d9b28f2bcdd3a7f06643098380f5eff3`. Entorno: Windows 10 Pro, SDK .NET 10.0.102, Node 24.13.0 y Chrome 156. MySQL: el de la persona, MySQL Server 8.0.36 (servicio MySQL80, `lower_case_table_names` 1), con el usuario cuentas_pruebas@localhost, que se creó con root para este ensayo con permisos solo sobre `cuentas\_test\_%` y `cuentas\_claras\_e2e` (comprobado: MySQL le niega cuentas_claras con 1142). Su contraseña es aleatoria y no está en el repositorio. No había MySQL 8.4.
+- Proveedor: MySqlConnector 2.6.2, la última estable en nuget.org (MIT; la 3.0.0 está en beta), autorizado por la persona con su alcance. Va como `[2.6.2]` en CuentasClaras.Infrastructure. Los locks añaden el paquete y, como transitivas, Microsoft.Extensions.Logging.Abstractions y DependencyInjection.Abstractions 8.0.2: solo interfaces, sin contenedor.
+- Código:
+  - Application: IUnitOfWork y LockName en `backend/src/CuentasClaras.Application/Common/Ports.cs`; IStorageHealth y CheckHealth pasan a async.
+  - Domain: las 27 categorías iniciales, generadas como en `shared/finance/categories.ts` (`backend/src/CuentasClaras.Domain/Finance/DefaultCategories.cs`).
+  - Infrastructure, en `backend/src/CuentasClaras.Infrastructure/Common/MySql/`: MySqlSettings (CUENTAS_DB_* con las reglas y mensajes de config.ts; sin usuario no hay base), MySqlDatabase (pool, SESSION_SETUP en cada apertura, parámetros comprobados y MySqlRead), MySqlMigrations (los .sql incrustados, GET_LOCK con la clave de Express, y sus estados y mensajes), MySqlUnitOfWork (una conexión, savepoints, app_locks primero y un reintento ante 1213) y MySqlErrors. Además, MySqlStorageHealth (la versión aplicada, leída en cada petición) y DefaultCategorySeed.
+  - Api: ApiHost.CreateConfigured (código, después CUENTAS_DB_*, después MySQL), StartupException, Program y la salud async en ApiRouter.
+  - `playwright.dotnet.config.ts`: CUENTAS_DB_USER vacío.
+- Decisiones: sin CUENTAS_DB_USER el host arranca solo con el acceso, y con él un fallo de MySQL impide arrancar. La siembra la aporta el módulo Finance a través de Composition, porque Common no conoce módulos. Las filas de productos se bloquean en el adaptador de la despensa (PAN-02); aquí se prueba el patrón con dos conexiones. MySqlConnector admite varias sentencias por texto: «una por llamada» queda por convención. Detalle en `docs/decisiones.md` y `backend/AGENTS.md`.
+- Contratos: rutas, cuerpos, mensajes y el sobre de salud sin cambios. Las migraciones publicadas tampoco cambian: .NET comprueba las mismas huellas que Express. Express, la web y cuentas_claras no se tocaron.
+- Pruebas nuevas: 43, de ellas 28 contra MySQL (categoría MySql), en `backend/tests/CuentasClaras.Tests/` (MySqlMigrationTests, MySqlUnitOfWorkTests, MySqlSchemaTests, MySqlHostTests y su ayudante TestDatabase), más los casos del driver en ArchitectureTests. Cada una crea su base `cuentas_test_*` y la borra.
+  - Dos inicializaciones sobre una copia sintética de las 12 tablas conservan el historial, las filas y el CHECKSUM TABLE de las 14.
+  - La unidad de trabajo, con dos conexiones: todo o nada, anidadas, bloqueo con nombre, bloqueo primero, interbloqueo y filas en orden de id.
+  - Los tipos leídos desde C#: céntimos hasta MAX_CENTS y negativos, milésimas, DATE sin desplazamiento, nulos, claves con mayúsculas, tildes y espacios, índices únicos y JSON como texto exacto.
+  - La salud con la versión real y los errores sin la contraseña.
+- Mutaciones, con el código restaurado después: sin el reintento ante interbloqueo, sin el bloqueo de app_locks, sin fijar la sesión, sin deshacer el savepoint, sin GET_LOCK o confirmando aunque falle, falla al menos una prueba (de una a dos). Sin credenciales, las 28 de MySQL fallan con un mensaje claro.
+- Ensayo manual con el programa real (`dotnet` sobre la API compilada, CUENTAS_DB_NAME=cuentas_test_data01):
+  - `/api/health` 200 `{"ok":true,"data":{"status":"ok","schemaVersion":5}}` con `no-store`, y en la consola la base sin la contraseña.
+  - Express (openDatabase) la abre después con el mismo historial (mismos started_at y applied_at) y 27 categorías, y un segundo arranque .NET tampoco cambia nada.
+  - Una base que migró Express la abre .NET sin tocarla.
+  - Sin CUENTAS_DB_USER, acceso 200 y salud 500.
+  - Las bases se borraron.
+- Protección de los E2E de acceso: con CUENTAS_DB_* en el entorno apuntando a una base vacía, `npm run test:e2e:dotnet` pasa y la deja con 0 tablas. Quitando a propósito CUENTAS_DB_USER vacío de la configuración, el host la migró (14 tablas): por eso se fija. La configuración se restauró.
+- Validación final, en Windows con MySQL 8.0.36 y el usuario limitado:
+  - `npm ci` correcto.
+  - `dotnet restore backend/CuentasClaras.slnx --locked-mode` correcto (cinco proyectos).
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 111/111 (las 68 de antes y 43 nuevas, 9 s).
+  - `npm run test:dotnet -- --filter "Categoria=MySql"`: 28/28 (6 s).
+  - `npx playwright install chromium`: bloqueado, la descarga caduca.
+  - `$env:CUENTAS_E2E_CHANNEL = 'chrome'; npm run test:e2e:dotnet`: 4/4 (11,4 s).
+  - `npm run check`: tipos y oxlint correctos; Vitest 501/503, con los dos fallos de Windows ya registrados.
+  - `$env:CUENTAS_E2E_CHANNEL = 'chrome'; npm run test:e2e`: 48/48 (1,4 min).
+  - `git diff --check` sin errores. No queda ninguna base `cuentas_test_*`.
+- Pruebas de integración, en PowerShell: con CUENTAS_DB_HOST, CUENTAS_DB_PORT, CUENTAS_DB_USER y CUENTAS_DB_PASSWORD del usuario de pruebas en el entorno, `npm run build:dotnet` y después `npm run test:dotnet -- --filter "Categoria=MySql"` (28 pruebas).
+- Queda en «implementado»: la aceptación se comprueba en MySQL 8.4, que no hay en este equipo. En 8.0.36, anotado aparte, pasa todo lo de DATA-01. Para verificarla: una instancia 8.4 aislada con un usuario limitado (README, «Pruebas»), y en ella los comandos de la validación final y el ensayo manual con cuentas_test_data01.
+- Bloqueos abiertos: MySQL 8.4 para la aceptación; la descarga de Chromium; los dos fallos Node de Windows (decisiones pendientes, «Pruebas Node en Windows»).
+- Siguiente tarea: verificar DATA-01 en MySQL 8.4; FIN-01 y PAN-01 dependen de ello. TIC-01, que solo depende de BASE-02, ya es elegible.
 
 ### Plantilla para la siguiente tarea
 

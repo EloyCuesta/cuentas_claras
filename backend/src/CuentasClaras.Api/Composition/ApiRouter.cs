@@ -67,7 +67,8 @@ public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSess
             }
             if (Matches(method, path, "GET", "/api/health"))
             {
-                await ApiResponse.Data(context, new { status = "ok", schemaVersion = health.Execute() });
+                var schemaVersion = await health.Execute(context.RequestAborted);
+                await ApiResponse.Data(context, new { status = "ok", schemaVersion });
                 return;
             }
 

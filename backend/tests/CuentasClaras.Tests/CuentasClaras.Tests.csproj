@@ -14,5 +14,6 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <None Include="../../../fixtures/migration/http-auth.json" Link="Fixtures/http-auth.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/migration/http-testing.json" Link="Fixtures/http-testing.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

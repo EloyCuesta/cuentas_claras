@@ -2,7 +2,7 @@
 
 Cuentas claras es una web (React, en `src/`) que habla por HTTP con un servidor (Express y MySQL, en `server/`). Los dos usan la misma lógica pura (`shared/`). El servidor sigue una arquitectura hexagonal modular, y la web está organizada por funcionalidades. Las reglas de dependencia las vigila `tests/architecture.test.ts`.
 
-El host .NET de ensayo está en `backend/`: su composición y límites por ensamblado y módulo se describen en [arquitectura de migración](migration/ARCHITECTURE.md) y se comprueban con ArchitectureTests. Su alcance actual es acceso y transporte HTTP; no sustituye todavía la aplicación siguiente.
+El host .NET de ensayo está en `backend/`: su composición y límites por ensamblado y módulo se describen en [arquitectura de migración](migration/ARCHITECTURE.md) y se comprueban con ArchitectureTests. Su alcance actual es acceso, transporte HTTP y la conexión con el mismo MySQL (migraciones, transacciones y bloqueos, DATA-01); no sustituye todavía la aplicación siguiente.
 
 ## Vista general
 

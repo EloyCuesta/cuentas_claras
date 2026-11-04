@@ -48,7 +48,7 @@ Doce tablas de la aplicación y dos técnicas. Cada tabla de la aplicación tien
 
 ## Migraciones
 
-Están en `database/mysql/migrations/`, como archivos `.sql` que podrá aplicar igual el backend .NET (`database/mysql/AGENTS.md`). Cada una se aplica una sola vez y queda anotada en `schema_migrations`. Una base de datos de una versión más nueva no se abre, y una migración a medias se explica en vez de continuar (el DDL de MySQL se confirma solo).
+Están en `database/mysql/migrations/`, como archivos `.sql` que aplica igual el backend .NET (`database/mysql/AGENTS.md`). Cada una se aplica una sola vez y queda anotada en `schema_migrations`. Una base de datos de una versión más nueva no se abre, y una migración a medias se explica en vez de continuar (el DDL de MySQL se confirma solo).
 
 | Versión | Archivo | Qué hace |
 | --- | --- | --- |

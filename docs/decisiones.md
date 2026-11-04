@@ -78,6 +78,14 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Pruebas con MySQL real.** Ni SQLite ni falsos en su lugar: cada archivo crea sus bases `cuentas_test_*` y las borra. Los contratos de BASE-01 pasan sin tocar sus expectativas: la API no cambió. La prueba de atomicidad provoca una clave primaria repetida en vez de usar un trigger, que con el registro binario activo exige SUPER.
 
+## Del backend .NET (noviembre de 2026)
+
+**MySqlConnector con SQL explícito, solo en Infrastructure.** Es el proveedor de .NET para MySQL, autorizado en DATA-01 con la versión exacta 2.6.2 (licencia MIT). Como mysql2 en Express, es un driver: las consultas siguen escritas a mano, con parámetros, y no hay ORM. Pomelo, el proveedor de EF Core, no tiene versión para EF Core 10. Ni Api ni las capas puras usan sus tipos: lo vigila ArchitectureTests.
+
+**Las mismas migraciones, incrustadas.** El ensamblado de Infrastructure lleva los .sql de `database/mysql/` tal cual, con el mismo historial, la misma clave de GET_LOCK, los mismos estados (base nueva, existente, a medias, más nueva) y los mismos mensajes que Express. Una base que migró uno la abre el otro sin tocarla. Las categorías iniciales se generan en C# como en `shared/finance/categories.ts`, y una prueba las compara con el contrato `http-testing.json`.
+
+**El host .NET puede arrancar sin base de datos.** Sin CUENTAS_DB_USER sirve solo el acceso, y la salud responde 500. Así los E2E de acceso siguen aislados de cualquier base, y `playwright.dotnet.config.ts` lo fuerza aunque el entorno tenga CUENTAS_DB_*. Con CUENTAS_DB_USER, un fallo de MySQL impide arrancar, como en Express.
+
 ## Pendiente
 
 **Retirar la migración de los datos del navegador** (IndexedDB → la base de datos del servidor), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:

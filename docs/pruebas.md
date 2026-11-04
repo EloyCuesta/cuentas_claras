@@ -88,32 +88,49 @@ La comprobación documental recorre también las subcarpetas de `docs/`, verific
 
 ## Qué se comprueba
 
-### Ensayo .NET de BASE-02
+### Ensayo .NET (BASE-02 y DATA-01)
 
-La solución `backend/CuentasClaras.slnx` pide el SDK 10.0.102 en `global.json` (versión publicada en [las notas oficiales de .NET](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.2/10.0.2.md)), sin previews y con `rollForward: latestFeature`: vale esa versión o una banda o parche posterior de 10.0, así que actualizar el SDK no rompe `dotnet build`. No afirma que sea el último parche disponible. Los proyectos de ejecución usan solo el framework. Las referencias NuGet de pruebas ya estaban en el trabajo retomado: xunit.v3 3.2.2, xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.0.1 y Microsoft.AspNetCore.Mvc.Testing 10.0.2, con versiones exactas y locks. No se añade un proveedor MySQL en BASE-02.
+La solución `backend/CuentasClaras.slnx` pide el SDK 10.0.102 en `global.json` (versión publicada en [las notas oficiales de .NET](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.2/10.0.2.md)), sin previews y con `rollForward: latestFeature`: vale esa versión o una banda o parche posterior de 10.0, así que actualizar el SDK no rompe `dotnet build`. No afirma que sea el último parche disponible. El único paquete de ejecución es MySqlConnector 2.6.2, en Infrastructure (DATA-01). Las referencias NuGet de pruebas ya estaban en el trabajo retomado: xunit.v3 3.2.2, xunit.runner.visualstudio 3.1.5, Microsoft.NET.Test.Sdk 18.0.1 y Microsoft.AspNetCore.Mvc.Testing 10.0.2. Todas con versiones exactas y locks.
+
+Las pruebas de la categoría MySql usan MySQL real con las CUENTAS_DB_* del entorno: el host .NET no lee .env. Con un usuario limitado a `cuentas\_test\_%` (README, «Pruebas»), en PowerShell:
 
 ```powershell
 dotnet restore backend/CuentasClaras.slnx --locked-mode
 npm run build:dotnet
+$env:CUENTAS_DB_HOST = '127.0.0.1'
+$env:CUENTAS_DB_PORT = '3306'
+$env:CUENTAS_DB_USER = 'cuentas_pruebas'
+$env:CUENTAS_DB_PASSWORD = Read-Host 'Contraseña del usuario de pruebas'
 npm run test:dotnet
+npm run test:dotnet -- --filter "Categoria=MySql"
+Remove-Item env:CUENTAS_DB_USER, env:CUENTAS_DB_PASSWORD
 $env:CUENTAS_E2E_CHANNEL = 'chrome'
 npm run test:e2e:dotnet
 ```
 
-Las pruebas .NET arrancan Kestrel en puertos libres y prueban por HTTP los 22 pasos de los tres escenarios de `fixtures/migration/http-auth.json`, sin modificar sus expectativas. También cubren arranque rechazado en proceso real, caducidad/reinicio/renovación de sesión, limitación por IP, proxy fiable, protección de rutas, límites de 20/30 MiB (incluido gzip), JSON erróneo y fallos sin detalles internos. AuthTests cubre las reglas Unicode y los límites temporales con reloj falso, y concurrencia de intentos. ArchitectureTests comprueba proyectos, ensamblados y dependencias compiladas (firmas e IL), incluidos módulos y composición; sus casos negativos verifican que detecta infracciones. No hay base de datos ni lectura de datos personales.
+Sin MySQL, las de la categoría MySql fallan con un mensaje claro (no se saltan); `--filter "Categoria!=MySql"` ejecuta las demás. Las pruebas HTTP arrancan Kestrel en puertos libres, sin base de datos, y prueban los 22 pasos de los tres escenarios de `fixtures/migration/http-auth.json`, sin modificar sus expectativas. También cubren arranque rechazado en proceso real, caducidad/reinicio/renovación de sesión, limitación por IP, proxy fiable, protección de rutas, límites de 20/30 MiB (incluido gzip), JSON erróneo y fallos sin detalles internos. AuthTests cubre las reglas Unicode y los límites temporales con reloj falso, y concurrencia de intentos. ArchitectureTests comprueba proyectos, paquetes, ensamblados y dependencias compiladas (firmas e IL), incluidos módulos, composición y el driver; sus casos negativos verifican que detecta infracciones.
 
-`playwright.dotnet.config.ts` usa API en 3202 y Vite en 4175, sin reutilizar procesos. La página de `e2e/dotnet/` monta AuthProvider, LoginDialog y SessionPanel existentes y llama a .NET mediante el proxy del mismo origen. Cuatro recorridos combinan escritorio/móvil y claro/oscuro. No prueban todavía el resto de la aplicación contra .NET; los 46 E2E habituales siguen ejecutándose contra Express/SQLite temporal.
+Las de MySQL crean bases `cuentas_test_*` con `backend/tests/CuentasClaras.Tests/TestDatabase.cs` y las borran. Reproducen las de `server/common/mysql/`:
+- Migraciones: base nueva con su historial y las categorías del contrato `http-testing.json`, dos inicializaciones sobre una copia sintética (filas, historial y CHECKSUM TABLE iguales), sin sembrar, dos arranques a la vez, la clave de GET_LOCK de Express, versión más nueva, migración a medias y tablas ajenas. Las huellas de los .sql incrustados son las del test de Express.
+- Unidad de trabajo, con dos conexiones cuando hace falta: todo o nada, confirmación al final, anidadas con savepoint, bloqueo con nombre, bloqueo primero, fila de bloqueo ausente, interbloqueo reintentado una vez y filas de productos bloqueadas en orden de id.
+- Tipos desde C#: la sesión de cada conexión, parámetros (nunca una fecha de .NET), céntimos hasta MAX_CENTS y negativos, milésimas, DATE sin desplazamiento, nulos, claves con mayúsculas/tildes/espacios, índices únicos, restricciones y JSON como texto exacto.
+- Host configurado: la salud responde la versión leída de MySQL en cada petición, el código se valida antes de conectar, y un usuario rechazado o una base inexistente se explican sin la contraseña.
 
-Para arrancar solo la API de ensayo después de compilar, usa una terminal propia:
+`playwright.dotnet.config.ts` usa API en 3202 y Vite en 4175, sin reutilizar procesos, y pasa CUENTAS_DB_USER vacío para que el host no abra ninguna base. La página de `e2e/dotnet/` monta AuthProvider, LoginDialog y SessionPanel existentes y llama a .NET mediante el proxy del mismo origen. Cuatro recorridos combinan escritorio/móvil y claro/oscuro. No prueban todavía el resto de la aplicación contra .NET; los E2E habituales siguen ejecutándose contra Express y `cuentas_claras_e2e`.
+
+Para arrancar la API de ensayo después de compilar, en una terminal propia y contra una base de pruebas que exista (el host no la crea):
 
 ```powershell
 $env:CUENTAS_CODIGO = 'codigo-local-de-ensayo'
 $env:CUENTAS_HOST = '127.0.0.1'
 $env:CUENTAS_PORT = '3201'
+$env:CUENTAS_DB_USER = 'cuentas_pruebas'
+$env:CUENTAS_DB_PASSWORD = Read-Host 'Contraseña del usuario de pruebas'
+$env:CUENTAS_DB_NAME = 'cuentas_test_data01'
 dotnet run --no-build --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj
 ```
 
-No lee .env automáticamente. Usa `/api/auth/me` para comprobar disponibilidad. Salud consulta IStorageHealth y devuelve 500 mientras no exista almacenamiento configurado; el 200 de sus pruebas usa un adaptador sintético y no prueba MySQL. Las rutas pendientes no devuelven datos simulados. Express sigue siendo el servidor de uso diario. Antes de sustituirlo, sigue las dependencias y validaciones de [STATUS](migration/STATUS.md).
+No lee .env automáticamente. Al arrancar aplica las migraciones de `database/mysql/` (y siembra una base nueva) y escribe en la consola la base, sin la contraseña. `/api/health` devuelve 200 con la versión aplicada; sin CUENTAS_DB_USER arranca solo con el acceso y salud devuelve 500. Las rutas pendientes no devuelven datos simulados. Express sigue siendo el servidor de uso diario. Antes de sustituirlo, sigue las dependencias y validaciones de [STATUS](migration/STATUS.md).
 
 ### Cobertura de la aplicación actual
 

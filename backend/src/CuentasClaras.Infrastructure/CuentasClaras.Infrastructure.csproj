@@ -3,4 +3,13 @@
     <ProjectReference Include="../CuentasClaras.Application/CuentasClaras.Application.csproj" />
     <ProjectReference Include="../CuentasClaras.Domain/CuentasClaras.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- DATA-01: el único proveedor de datos, autorizado con versión exacta. Solo Infrastructure lo conoce. -->
+    <PackageReference Include="MySqlConnector" Version="[2.6.2]" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- El esquema compartido con Express: los mismos archivos y el mismo historial, incrustados tal cual. -->
+    <EmbeddedResource Include="../../../database/mysql/schema_migrations.sql" LogicalName="database/mysql/schema_migrations.sql" />
+    <EmbeddedResource Include="../../../database/mysql/migrations/*.sql" LogicalName="database/mysql/migrations/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

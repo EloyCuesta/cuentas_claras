@@ -293,11 +293,11 @@ public sealed class HttpTests
     {
         public int Checks { get; private set; }
         public bool Fail { get; set; }
-        public int Check()
+        public Task<int> Check(CancellationToken cancellationToken)
         {
             Checks++;
             if (Fail) throw new InvalidOperationException("detalle privado sintético");
-            return 5;
+            return Task.FromResult(5);
         }
     }
 
