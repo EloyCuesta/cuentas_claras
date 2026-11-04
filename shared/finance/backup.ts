@@ -1,8 +1,17 @@
-import { isValidISODate } from '../core/dates.ts'
-import { MAX_CENTS } from '../core/money.ts'
-import type { ValidationResult } from '../core/validation.ts'
+import { DEFAULT_CATEGORIES } from './categories.ts'
+import { isValidISODate } from '../common/dates.ts'
+import { MAX_CENTS } from '../common/money.ts'
 import { FREQUENCY_MONTHS, MAX_OCCURRENCES } from './recurring.ts'
-import type { Category, FinanceData, Frequency, Movement, MovementStatus, MovementType, RecurringRule } from './types.ts'
+import type {
+  Category,
+  FinanceData,
+  Frequency,
+  Movement,
+  MovementStatus,
+  MovementType,
+  RecurringRule,
+} from './types.ts'
+import type { ValidationResult } from '../common/validation.ts'
 
 /**
  * Copias de seguridad en JSON.
@@ -274,6 +283,19 @@ export function validateFinanceData(raw: unknown): ValidationResult<FinanceData>
     if (!isObject(raw)) throw new BackupError('No se han recibido los datos.')
     return readFinanceData(raw)
   })
+}
+
+const categoryKey = (c: Category) => JSON.stringify([c.id, c.name, c.type, c.parentId, c.order, c.budgetCents])
+
+/**
+ * true si hay algo del usuario: movimientos, recurrentes o categorías distintas
+ * de las iniciales (nombres, presupuestos…). Sirve para no importar encima de
+ * datos que ya existen.
+ */
+export function hasUserData(data: FinanceData): boolean {
+  if (data.movements.length > 0 || data.recurring.length > 0) return true
+  const defaults = new Set(DEFAULT_CATEGORIES.map(categoryKey))
+  return data.categories.length !== defaults.size || data.categories.some((c) => !defaults.has(categoryKey(c)))
 }
 
 /** Valida el texto de un archivo de copia. No modifica nada. */

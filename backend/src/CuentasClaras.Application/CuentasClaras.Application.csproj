@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../CuentasClaras.Domain/CuentasClaras.Domain.csproj" />
+  </ItemGroup>
+</Project>

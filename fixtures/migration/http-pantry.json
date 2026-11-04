@@ -1,0 +1,783 @@
+{
+  "format": "cuentas-claras-http-v1",
+  "provenance": "Datos inventados para BASE-01; respuestas de Express/SQLite de la rama hexagonal, sin datos personales.",
+  "scenarios": [
+    {
+      "name": "catálogo público, ajustes relativos, compras, deshacer y revisión",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": false,
+        "testMode": false,
+        "ids": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "crear persona normaliza espacios",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/personas",
+            "body": {
+              "name": " Persona de ensayo "
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "name": "Persona de ensayo",
+                "createdAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "listar personas",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/personas"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000001",
+                  "name": "Persona de ensayo",
+                  "createdAt": "2026-11-01T08:00:00.000Z"
+                }
+              ]
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "renombrar persona",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/personas/00000000-0000-4000-8000-000000000001",
+            "body": {
+              "name": "Persona renombrada"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "name": "Persona renombrada",
+                "createdAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "crear producto conserva milésimas y precio desconocido",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos",
+            "body": {
+              "name": "Leche de ensayo",
+              "ownerId": "00000000-0000-4000-8000-000000000001",
+              "unit": "l",
+              "quantity": 0.125,
+              "target": 2,
+              "frequency": "semanal",
+              "priceCents": null,
+              "notes": ""
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "Leche de ensayo",
+                "ownerId": "00000000-0000-4000-8000-000000000001",
+                "unit": "l",
+                "tracking": "cantidad",
+                "quantity": 0.125,
+                "target": 2,
+                "frequency": "semanal",
+                "priceCents": null,
+                "notes": "",
+                "version": 1,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "updatedAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "listar productos",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/productos"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "name": "Leche de ensayo",
+                  "ownerId": "00000000-0000-4000-8000-000000000001",
+                  "unit": "l",
+                  "tracking": "cantidad",
+                  "quantity": 0.125,
+                  "target": 2,
+                  "frequency": "semanal",
+                  "priceCents": null,
+                  "notes": "",
+                  "version": 1,
+                  "createdAt": "2026-11-01T08:00:00.000Z",
+                  "updatedAt": "2026-11-01T08:00:00.000Z"
+                }
+              ]
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "no borrar persona con productos",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/despensa/personas/00000000-0000-4000-8000-000000000001"
+          },
+          "expected": {
+            "status": 409,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "CONFLICT",
+                "message": "«Persona renombrada» tiene un producto. Pásalos a otra persona o a «Compartido», o elimínalos, antes de borrarla."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "editar producto a compartido y gratis",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002",
+            "body": {
+              "name": "Leche de ensayo",
+              "ownerId": null,
+              "unit": "l",
+              "quantity": 0.125,
+              "target": 2,
+              "frequency": "semanal",
+              "priceCents": 0,
+              "notes": ""
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "Leche de ensayo",
+                "ownerId": null,
+                "unit": "l",
+                "tracking": "cantidad",
+                "quantity": 0.125,
+                "target": 2,
+                "frequency": "semanal",
+                "priceCents": 0,
+                "notes": "",
+                "version": 2,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "updatedAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "ajuste relativo usa el valor actual",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002/ajustar",
+            "body": {
+              "delta": 0.125
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "Leche de ensayo",
+                "ownerId": null,
+                "unit": "l",
+                "tracking": "cantidad",
+                "quantity": 0.25,
+                "target": 2,
+                "frequency": "semanal",
+                "priceCents": 0,
+                "notes": "",
+                "version": 3,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "updatedAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "resta no baja de cero",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002/ajustar",
+            "body": {
+              "delta": -3
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "Leche de ensayo",
+                "ownerId": null,
+                "unit": "l",
+                "tracking": "cantidad",
+                "quantity": 0,
+                "target": 2,
+                "frequency": "semanal",
+                "priceCents": 0,
+                "notes": "",
+                "version": 4,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "updatedAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "comprar completa hasta el objetivo",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/comprado",
+            "body": {
+              "ids": [
+                "00000000-0000-4000-8000-000000000002",
+                "00000000-0000-4000-8000-000000000002"
+              ],
+              "date": "2026-10-31"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "changes": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000002",
+                    "previousQuantity": 0,
+                    "version": 5
+                  }
+                ],
+                "items": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000002",
+                    "name": "Leche de ensayo",
+                    "ownerId": null,
+                    "unit": "l",
+                    "tracking": "cantidad",
+                    "quantity": 2,
+                    "target": 2,
+                    "frequency": "semanal",
+                    "priceCents": 0,
+                    "notes": "",
+                    "version": 5,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ]
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "deshacer restaura solo cantidad",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/comprado/deshacer",
+            "body": {
+              "changes": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "previousQuantity": 0,
+                  "version": 5
+                }
+              ]
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "name": "Leche de ensayo",
+                  "ownerId": null,
+                  "unit": "l",
+                  "tracking": "cantidad",
+                  "quantity": 0,
+                  "target": 2,
+                  "frequency": "semanal",
+                  "priceCents": 0,
+                  "notes": "",
+                  "version": 6,
+                  "createdAt": "2026-11-01T08:00:00.000Z",
+                  "updatedAt": "2026-11-01T08:00:00.000Z"
+                }
+              ]
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "repetir deshacer da conflicto",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/comprado/deshacer",
+            "body": {
+              "changes": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "previousQuantity": 0,
+                  "version": 5
+                }
+              ]
+            }
+          },
+          "expected": {
+            "status": 409,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "CONFLICT",
+                "message": "No se puede deshacer: algún producto ha cambiado o se ha borrado después de la compra (quizá desde otro dispositivo). No se ha tocado nada."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "crear revisión con fecha del navegador",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002/revision",
+            "body": {
+              "kind": "poco",
+              "date": "2026-10-31"
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000003",
+                "itemId": "00000000-0000-4000-8000-000000000002",
+                "kind": "poco",
+                "date": "2026-10-31",
+                "createdAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "consultar actividad con fecha del navegador",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/actividad?hoy=2026-11-01"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "purchases": [],
+                "events": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000003",
+                    "itemId": "00000000-0000-4000-8000-000000000002",
+                    "kind": "poco",
+                    "date": "2026-10-31",
+                    "createdAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ]
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "deshacer revisión",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/despensa/revisiones/00000000-0000-4000-8000-000000000003"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "consultar presupuesto inicialmente ausente",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/presupuesto"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "monthlyBudgetCents": null,
+                "lastReviewDate": null
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "presupuesto cero no es desconocido",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/presupuesto",
+            "body": {
+              "monthlyBudgetCents": 0
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "monthlyBudgetCents": 0,
+                "lastReviewDate": null
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "guardar fecha de repaso",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/repaso",
+            "body": {
+              "date": "2026-10-31"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "monthlyBudgetCents": 0,
+                "lastReviewDate": "2026-10-31"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "quitar presupuesto conserva repaso",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/presupuesto",
+            "body": {
+              "monthlyBudgetCents": null
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "monthlyBudgetCents": null,
+                "lastReviewDate": "2026-10-31"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "leer presupuesto y repaso",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/presupuesto"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "monthlyBudgetCents": null,
+                "lastReviewDate": "2026-10-31"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "eliminar producto",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "eliminar persona ya libre",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/despensa/personas/00000000-0000-4000-8000-000000000001"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "producto eliminado no admite ajustes",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002/ajustar",
+            "body": {
+              "delta": 1
+            }
+          },
+          "expected": {
+            "status": 404,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "Ese producto ya no existe. Vuelve a cargar la despensa."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "persona vacía se rechaza",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/personas",
+            "body": {
+              "name": ""
+            }
+          },
+          "expected": {
+            "status": 400,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "VALIDATION",
+                "message": "La persona: el nombre está vacío."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "cantidad fraccionaria en unidad entera se rechaza",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos",
+            "body": {
+              "name": "Leche de ensayo",
+              "ownerId": null,
+              "unit": "ud",
+              "quantity": 0.125,
+              "target": 2,
+              "frequency": "semanal",
+              "priceCents": null,
+              "notes": ""
+            }
+          },
+          "expected": {
+            "status": 400,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "VALIDATION",
+                "message": "Cantidad actual: En «ud» la cantidad tiene que ser un número entero."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

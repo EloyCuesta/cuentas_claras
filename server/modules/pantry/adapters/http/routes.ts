@@ -1,0 +1,148 @@
+import { Router } from 'express'
+import {
+  validateBudgetInput,
+  validateDeltaInput,
+  validateEventInput,
+  validateItemInput,
+  validatePersonInput,
+  validatePurchaseInput,
+  validateReviewInput,
+  validateUndoInput,
+} from '#shared/pantry/pantryValidation.ts'
+import { valid } from '../../../../common/http/request.ts'
+import { sendData } from '../../../../common/http/response.ts'
+import type { AddEvent } from '../../application/AddEvent.ts'
+import type { AdjustItem } from '../../application/AdjustItem.ts'
+import type { CreateItem } from '../../application/CreateItem.ts'
+import type { CreatePerson } from '../../application/CreatePerson.ts'
+import type { DeleteEvent } from '../../application/DeleteEvent.ts'
+import type { DeleteItem } from '../../application/DeleteItem.ts'
+import type { DeletePerson } from '../../application/DeletePerson.ts'
+import type { MarkPurchased } from '../../application/MarkPurchased.ts'
+import type { PantryQueries } from '../../application/queries.ts'
+import type { RenamePerson } from '../../application/RenamePerson.ts'
+import type { SetBudget } from '../../application/SetBudget.ts'
+import type { SetReviewDate } from '../../application/SetReviewDate.ts'
+import type { UndoPurchase } from '../../application/UndoPurchase.ts'
+import type { UpdateItem } from '../../application/UpdateItem.ts'
+
+/** Lo que usan las rutas de la despensa: un caso de uso por ruta que escribe y las lecturas. */
+export interface PantryRouteDeps {
+  queries: PantryQueries
+  createPerson: CreatePerson
+  renamePerson: RenamePerson
+  deletePerson: DeletePerson
+  createItem: CreateItem
+  updateItem: UpdateItem
+  adjustItem: AdjustItem
+  deleteItem: DeleteItem
+  addEvent: AddEvent
+  deleteEvent: DeleteEvent
+  setBudget: SetBudget
+  setReviewDate: SetReviewDate
+  markPurchased: MarkPurchased
+  undoPurchase: UndoPurchase
+}
+
+/**
+ * Despensa. Rutas públicas a propósito: las puede usar cualquiera de casa,
+ * sepa o no el código de acceso. No devuelven ningún dato financiero.
+ *
+ * Personas
+ * - GET    /api/despensa/personas            lista ordenada por nombre
+ * - POST   /api/despensa/personas            { name } → 201 con la persona creada
+ * - PUT    /api/despensa/personas/:id        { name } → la persona renombrada
+ * - DELETE /api/despensa/personas/:id        409 si todavía tiene productos
+ * Productos
+ * - GET    /api/despensa/productos           lista ordenada por frecuencia y nombre
+ * - POST   /api/despensa/productos           PantryItemInput → 201 con el producto (id, versión y fechas del servidor)
+ * - PUT    /api/despensa/productos/:id       PantryItemInput → el producto actualizado
+ * - POST   /api/despensa/productos/:id/ajustar  { delta } → suma o resta a la cantidad actual (botones + y −)
+ * - POST   /api/despensa/productos/:id/revision { kind: 'queda' | 'poco' | 'se_acabo' | 'comprado', date } → 201 con la revisión
+ * - DELETE /api/despensa/revisiones/:id        deshace una revisión
+ * - DELETE /api/despensa/productos/:id
+ * Presupuesto y repaso de la semana
+ * - GET    /api/despensa/presupuesto         { monthlyBudgetCents, lastReviewDate }
+ * - PUT    /api/despensa/presupuesto         { monthlyBudgetCents: número o null }
+ * - PUT    /api/despensa/repaso              { date } → apunta el día del repaso de la semana
+ * Compra
+ * - POST   /api/despensa/comprado            { ids, date? } → { changes, items }
+ * - POST   /api/despensa/comprado/deshacer   { changes } → items, o 409 si algo cambió después
+ *
+ * Los id inexistentes responden 404 sin cambiar nada.
+ */
+export function pantryRoutes(deps: PantryRouteDeps): Router {
+  const { queries } = deps
+  const router = Router()
+
+  router.get('/despensa/personas', async (_req, res) => {
+    sendData(res, await queries.listPeople())
+  })
+
+  router.post('/despensa/personas', async (req, res) => {
+    sendData(res, await deps.createPerson.execute(valid(validatePersonInput(req.body)).name), 201)
+  })
+
+  router.put('/despensa/personas/:id', async (req, res) => {
+    sendData(res, await deps.renamePerson.execute(req.params.id, valid(validatePersonInput(req.body)).name))
+  })
+
+  router.delete('/despensa/personas/:id', async (req, res) => {
+    await deps.deletePerson.execute(req.params.id)
+    sendData(res, null)
+  })
+
+  router.get('/despensa/productos', async (_req, res) => {
+    sendData(res, await queries.listItems())
+  })
+
+  router.post('/despensa/productos', async (req, res) => {
+    sendData(res, await deps.createItem.execute(valid(validateItemInput(req.body))), 201)
+  })
+
+  router.put('/despensa/productos/:id', async (req, res) => {
+    sendData(res, await deps.updateItem.execute(req.params.id, valid(validateItemInput(req.body))))
+  })
+
+  router.post('/despensa/productos/:id/ajustar', async (req, res) => {
+    sendData(res, await deps.adjustItem.execute(req.params.id, valid(validateDeltaInput(req.body))))
+  })
+
+  router.post('/despensa/productos/:id/revision', async (req, res) => {
+    const { kind, date } = valid(validateEventInput(req.body))
+    sendData(res, await deps.addEvent.execute(req.params.id, kind, date), 201)
+  })
+
+  router.delete('/despensa/revisiones/:id', async (req, res) => {
+    await deps.deleteEvent.execute(req.params.id)
+    sendData(res, null)
+  })
+
+  router.delete('/despensa/productos/:id', async (req, res) => {
+    await deps.deleteItem.execute(req.params.id)
+    sendData(res, null)
+  })
+
+  router.get('/despensa/presupuesto', async (_req, res) => {
+    sendData(res, await queries.getSettings())
+  })
+
+  router.put('/despensa/presupuesto', async (req, res) => {
+    sendData(res, await deps.setBudget.execute(valid(validateBudgetInput(req.body)).monthlyBudgetCents))
+  })
+
+  router.put('/despensa/repaso', async (req, res) => {
+    sendData(res, await deps.setReviewDate.execute(valid(validateReviewInput(req.body)).date))
+  })
+
+  router.post('/despensa/comprado', async (req, res) => {
+    const { ids, date } = valid(validatePurchaseInput(req.body))
+    sendData(res, await deps.markPurchased.execute(ids, date))
+  })
+
+  router.post('/despensa/comprado/deshacer', async (req, res) => {
+    sendData(res, await deps.undoPurchase.execute(valid(validateUndoInput(req.body))))
+  })
+
+  return router
+}

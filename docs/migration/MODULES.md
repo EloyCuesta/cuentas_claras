@@ -1,12 +1,14 @@
 # Módulos, funcionalidades y contratos actuales
 
-Referencia: `91832a52b987b8e89f270ee86b4a95b8a4ddad15`. Las rutas de esta página ya existen en Express; la implementación .NET está pendiente. Toda ruta lleva el prefijo `/api`. Los cuerpos y respuestas exactos se caracterizan desde tipos, validadores, rutas y consumidores en `BASE-01`; estas tablas no sustituyen esa comprobación.
+Referencia actual: `7eebed2`, rama refactor/arquitectura-hexagonal. El documento inicial de `9d1df17` describía `91832a5`; las fuentes siguientes corresponden a la rama actual. Las rutas de esta página ya existen en Express; la implementación .NET está pendiente. Toda ruta lleva el prefijo `/api`. Los cuerpos y respuestas exactos se caracterizan desde tipos, validadores, rutas y consumidores en `BASE-01`; estas tablas no sustituyen esa comprobación.
+
+El [índice de la API actual](../api.md) contiene 39 pares método/ruta de aplicación (health 1, auth 3, finance 12, pantry 16 y tickets 7), más `POST /api/test/reset`, exclusivo de pruebas. Las descripciones detalladas siguen en los AGENTS de cada módulo; aquí se asignan a las entregas de migración.
 
 Cada ID corresponde a una unidad de trabajo en [STATUS.md](STATUS.md). Completar una funcionalidad exige sus reglas, caso de uso, adaptadores, consumidor afectado y comprobaciones, no solo una nueva carpeta.
 
 ## Base técnica y acceso
 
-Fuentes: [composición](../../server/app.ts), [acceso](../../server/infra/auth.ts), [errores HTTP](../../server/infra/http.ts), [cliente](../../src/api/apiClient.ts) y [proxy](../../vite.config.ts).
+Fuentes: [composición](../../server/app.ts), [acceso](../../server/modules/auth/index.ts), [errores HTTP](../../server/common/http/response.ts), [cliente](../../src/api/client.ts) y [proxy](../../vite.config.ts).
 
 | Función | Contrato actual | Aceptación de la sustitución |
 | --- | --- | --- |
@@ -18,11 +20,15 @@ Fuentes: [composición](../../server/app.ts), [acceso](../../server/infra/auth.t
 
 `BASE-01` deja ejemplos deterministas de peticiones/respuestas y reglas de borde y ejecuta la línea base disponible. `BASE-02` crea la solución .NET, host, composición, configuración, reloj/IDs, errores, acceso y pruebas de dependencias. Debe demostrar arranque y rutas básicas reales; los puertos sin implementación no bastan.
 
-Pruebas de referencia: [server/app.test.ts](../../server/app.test.ts), [server/infra/auth.test.ts](../../server/infra/auth.test.ts) y [e2e/app.spec.ts](../../e2e/app.spec.ts). Conserva caducidad de 12 horas, pérdida de sesión al reiniciar, bloqueo tras cinco fallos, IP de proxy fiable y arranque rechazado si falta código. La ruta de reset de pruebas no puede habilitarse en ejecución normal.
+Los [contratos de ensayo](../../fixtures/migration) fijan las entradas y salidas para el portado. Su [ejecutor HTTP](../../server/migrationContracts.test.ts) comprueba respuestas completas y cobertura de las rutas actuales; el formato y los comandos se explican en [pruebas](../pruebas.md).
+
+Pruebas de referencia: [server/app.test.ts](../../server/app.test.ts), [server/modules/auth/auth.test.ts](../../server/modules/auth/auth.test.ts) y [e2e/app.spec.ts](../../e2e/app.spec.ts). Conserva caducidad de 12 horas, pérdida de sesión al reiniciar, bloqueo tras cinco fallos, IP de proxy fiable y arranque rechazado si falta código. La ruta de reset de pruebas no puede habilitarse en ejecución normal.
+
+El orden actual del middleware también forma parte de la caracterización: una ruta desconocida de `/api` sin sesión devuelve 401, y con sesión devuelve 404. El lector JSON precede a la autenticación y al router; la diferencia de caché en sus errores está registrada en [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Finance: finanzas personales
 
-Fuentes: [repositorio](../../server/finance/repository.ts), [rutas](../../server/finance/routes), [reglas y tipos](../../shared/finance), [cliente React](../../src/finance/ApiFinanceRepository.ts) y [pantallas](../../src/finance/pages).
+Fuentes: [repositorio](../../server/modules/finance/adapters/mysql/MysqlFinanceStore.ts), [rutas](../../server/modules/finance/adapters/http), [reglas y tipos](../../shared/finance), [cliente React](../../src/features/finance/ApiFinanceRepository.ts) y [pantallas](../../src/features/finance/pages).
 
 | ID | Funcionalidad y contratos actuales | Reglas y condición de aceptación |
 | --- | --- | --- |
@@ -30,17 +36,19 @@ Fuentes: [repositorio](../../server/finance/repository.ts), [rutas](../../server
 | FIN-02 | Movimientos y pagos: `PUT/DELETE /api/movements/:id` | Ingreso/gasto y pendiente/realizado conservan fechas e importes válidos. Pagar modifica el mismo movimiento, no crea otro. El ID de URL coincide con el cuerpo; reintentar la misma operación no duplica tras una recarga fallida |
 | FIN-03 | Recurrentes: `PUT/DELETE /api/recurring/:id`; `POST /api/occurrences/generate` | Preservar horizon, markPaidBefore, frecuencias, cuotas, exclusiones y pagos realizados. Editar regenera pendientes; borrar conserva realizados. Día 31 se ajusta a fin de mes y vuelve al 31 cuando procede. Dos conexiones no crean la misma ocurrencia dos veces |
 | FIN-04 | Resumen mensual/anual, presupuestos, filtros y previsión | Portar reglas de cálculo a consultas de aplicación y adaptar pantallas. La columna anual coincide con el mismo mes; realizado se atribuye a fecha de pago y pendiente a vencimiento. Proyectados no se persisten ni se pagan hasta generarse. Los nuevos endpoints de consulta se diseñan/documentan en esta tarea, no se presuponen existentes |
-| FIN-05 | Copia financiera, restauración y exportaciones; `PUT /api/data` y metadatos | Validar todo antes de sustituir, restauración financiera atómica y sin tocar despensa/tickets. Conservar JSON v1 y formato CSV para Excel/LibreOffice. CSV financiero no es una copia completa de la instalación |
+| FIN-05 | Copia financiera, restauración y exportaciones; `PUT /api/data`, `POST /api/import` y metadatos | Validar todo antes de sustituir, restauración financiera atómica y sin tocar despensa/tickets. Conservar JSON v1, formato CSV e importación del navegador mientras siga disponible. CSV financiero no es una copia completa de la instalación |
 
 Las cifras financieras se guardan positivas y su tipo distingue ingreso/gasto. No traslades sin más a finanzas la admisión de negativos de las devoluciones de tickets.
 
-Reglas a leer: [recurring.ts](../../shared/finance/recurring.ts), [summary.ts](../../shared/finance/summary.ts), [annual.ts](../../shared/finance/annual.ts), [backup.ts](../../shared/finance/backup.ts) y [csv.ts](../../shared/finance/csv.ts). React aún calcula previsión en [useForecastMovements.ts](../../src/finance/useForecastMovements.ts); preserva esos consumidores durante el portado.
+La importación actual recibe `{ data, lastBackupAt }`, devuelve 201 con los recuentos de categorías, movimientos y recurrentes y responde 409 si ya hay datos del usuario. Su consumidor está en [browserMigration](../../src/features/finance/browserMigration); el invitado no ejecuta esa migración. No confundir este recorrido IndexedDB→servidor con el importador SQLite→MySQL ni con DATA-02.
 
-Validación: [pruebas del repositorio](../../server/finance/repository.test.ts), pruebas `shared/finance/*.test.ts` y los recorridos financieros de `e2e/app.spec.ts`. Compara resultados C#/TypeScript con la misma fecha, IDs y casos, no con el reloj real de cada ejecución.
+Reglas a leer: [recurring.ts](../../shared/finance/recurring.ts), [summary.ts](../../shared/finance/summary.ts), [annual.ts](../../shared/finance/annual.ts), [backup.ts](../../shared/finance/backup.ts) y [csv.ts](../../shared/finance/csv.ts). React aún calcula previsión en [useForecastMovements.ts](../../src/features/finance/useForecastMovements.ts); preserva esos consumidores durante el portado.
+
+Validación: [pruebas del repositorio](../../server/modules/finance/finance.test.ts), pruebas `shared/finance/*.test.ts` y los recorridos financieros de `e2e/app.spec.ts`. Compara resultados C#/TypeScript con la misma fecha, IDs y casos, no con el reloj real de cada ejecución.
 
 ## Pantry: despensa
 
-Fuentes: [repositorio](../../server/pantry/repository.ts), [rutas](../../server/pantry/routes.ts), [reglas y tipos](../../shared/pantry), [API React](../../src/pantry/pantryApi.ts), [provider](../../src/pantry/PantryProvider.tsx) y [componentes](../../src/pantry/components).
+Fuentes: [repositorio](../../server/modules/pantry/adapters/mysql/MysqlPantryRepository.ts), [rutas](../../server/modules/pantry/adapters/http/routes.ts), [reglas y tipos](../../shared/pantry), [API React](../../src/features/pantry/api.ts), [hook de estado](../../src/features/pantry/usePantry.ts) y [componentes](../../src/features/pantry/components).
 
 | ID | Funcionalidad y contratos actuales | Reglas y condición de aceptación |
 | --- | --- | --- |
@@ -54,11 +62,13 @@ Las unidades con fracciones admiten hasta tres decimales según validadores; el 
 
 La lista de la compra, compartir/copiar/descargar y WhatsApp son comportamientos del frontend que se mantienen. La migración no debe transformar el enlace de compartir en un envío automático.
 
-Validación: [server/pantry/pantry.test.ts](../../server/pantry/pantry.test.ts), [pantry.test.ts](../../shared/pantry/pantry.test.ts), [rhythm.test.ts](../../shared/pantry/rhythm.test.ts), [review.test.ts](../../shared/pantry/review.test.ts) y [e2e/despensa.spec.ts](../../e2e/despensa.spec.ts). Añade integración MySQL con dos conexiones para edición, ajustes y deshacer.
+Validación: [server/modules/pantry/pantry.test.ts](../../server/modules/pantry/pantry.test.ts), [pantry.test.ts](../../shared/pantry/pantry.test.ts), [pantryRhythm.test.ts](../../shared/pantry/pantryRhythm.test.ts), [pantryReview.test.ts](../../shared/pantry/pantryReview.test.ts) y [e2e/despensa.spec.ts](../../e2e/despensa.spec.ts). Añade integración MySQL con dos conexiones para edición, ajustes y deshacer.
 
 ## Tickets: lectura, revisión y efectos de compra
 
-Fuentes: [servicio](../../server/tickets/service.ts), [OCR](../../server/tickets/ocr.ts), [rutas](../../server/tickets/routes.ts), [validación de lectura](../../server/tickets/request.ts), [repositorio](../../server/tickets/repository.ts), [reglas](../../shared/tickets) y [fixtures](../../shared/tickets/fixtures).
+Fuentes: [lectura](../../server/modules/tickets/application/ReadTicket.ts), [guardado](../../server/modules/tickets/application/SaveTicket.ts), [reglas de compra](../../server/modules/tickets/domain/ticketPurchase.ts), [OCR](../../server/modules/tickets/adapters/tesseract/TesseractTicketReader.ts), [rutas](../../server/modules/tickets/adapters/http/routes.ts), [validación de lectura](../../server/modules/tickets/adapters/http/readTicketRequest.ts), [repositorio](../../server/modules/tickets/adapters/mysql/MysqlTicketRepository.ts), [reglas compartidas](../../shared/tickets) y [fixtures](../../fixtures/tickets).
+
+En esta rama el guardado lo coordina SaveTicket con las reglas de ticketPurchase y ticketArithmetic; no existe el archivo savePlan de la referencia documental anterior. El portado debe partir de estos casos de uso y sus pruebas. La procedencia de los fixtures existentes se explica en [pruebas](../pruebas.md): algunos usan transcripciones aportadas por el dueño; los nuevos casos de BASE-01 son sintéticos.
 
 | ID | Funcionalidad y contratos actuales | Reglas y condición de aceptación |
 | --- | --- | --- |
@@ -77,12 +87,14 @@ Fuentes: [servicio](../../server/tickets/service.ts), [OCR](../../server/tickets
 - El servidor actual procesa PNG/JPEG y texto; no hay soporte PDF por el mero cambio a .NET. Caracteriza los límites de imágenes/franjas/texto y tamaño de JSON antes de adaptar el host.
 - Las imágenes no se guardan actualmente; se conserva texto/evidencia del ticket confirmado. No incorpores almacenamiento permanente de fotos o servicios OCR externos como efecto secundario de la migración.
 
-Casos y pruebas: [cases.test.ts](../../shared/tickets/cases.test.ts), [safety.test.ts](../../shared/tickets/safety.test.ts), [evidence.test.ts](../../shared/tickets/evidence.test.ts), [savePlan.test.ts](../../shared/tickets/savePlan.test.ts), [fixtures.test.ts](../../shared/tickets/fixtures.test.ts), [server/tickets/tickets.test.ts](../../server/tickets/tickets.test.ts), [ticketReviewState.test.ts](../../src/pantry/components/ticketReviewState.test.ts) y [e2e/tickets.spec.ts](../../e2e/tickets.spec.ts).
+Casos y pruebas: [ticketCases.test.ts](../../shared/tickets/ticketCases.test.ts), [ticketSafety.test.ts](../../shared/tickets/ticketSafety.test.ts), [ticketEvidence.test.ts](../../shared/tickets/ticketEvidence.test.ts), [ticketFixtures.test.ts](../../shared/tickets/ticketFixtures.test.ts), [guardado, huellas y API](../../server/modules/tickets/tickets.test.ts), [ticketReviewState.test.ts](../../src/features/tickets/ticketReviewState.test.ts) y [e2e/tickets.spec.ts](../../e2e/tickets.spec.ts).
 
 ## Datos, integración y cambio final
 
-`DATA-01` crea el esquema completo, sus restricciones y pruebas del proveedor según [DATA.md](DATA.md). No introduce una API paralela de importación ni ejecuta una carga al arrancar.
+La fase MYSQL (MYSQL-01 a MYSQL-04, en [STATUS.md](STATUS.md)) cambia primero el motor: Express pasa de SQLite a MySQL con la misma API, y deja el esquema en `database/mysql/` y el importador SQLite→MySQL.
 
-`DATA-02` construye la utilidad de importación y comparación, la demuestra con datos sintéticos y registra por separado la validación con el archivo real cuando esté disponible.
+`DATA-01` conecta .NET con ese MySQL: conexión, transacciones y bloqueos sobre las migraciones de `database/mysql/`, sin esquema propio, con pruebas del proveedor según [DATA.md](DATA.md). No introduce una API paralela de importación ni ejecuta una carga al arrancar.
 
-`CUT-01` integra los módulos, ejecuta recorridos de escritorio/móvil contra .NET/MySQL, ensaya backup/recuperación y realiza el corte de escrituras solo cuando se cumplen sus condiciones. La conservación temporal del worker OCR o de cálculos React debe quedar visible; no se declara retirada completa del backend anterior mientras aún tenga dependencias de ejecución necesarias.
+`DATA-02` es la validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03, revisa el informe y se registra el resultado.
+
+`CUT-01` integra los módulos, ejecuta recorridos de escritorio/móvil contra .NET sobre la misma base MySQL, ensaya backup/recuperación y cambia el backend, no el motor, solo cuando se cumplen sus condiciones. La conservación temporal del worker OCR o de cálculos React debe quedar visible; no se declara retirada completa del backend anterior mientras aún tenga dependencias de ejecución necesarias.

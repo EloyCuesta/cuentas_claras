@@ -1,10 +1,10 @@
-import { isValidISODate } from '../core/dates.ts'
-import { parseAmount } from '../core/money.ts'
-import type { ISODate } from '../core/types.ts'
-import type { FieldErrors } from '../core/validation.ts'
 import { normalizeText } from './filters.ts'
+import { parseAmount } from '../common/money.ts'
 import { FREQUENCY_MONTHS } from './recurring.ts'
+import { isValidISODate } from '../common/dates.ts'
+import type { ISODate } from '../common/types.ts'
 import type { Category, Frequency, Movement, MovementStatus, MovementType, RecurringRule } from './types.ts'
+import type { FieldErrors } from '../common/validation.ts'
 
 /**
  * Validación de formularios. Los formularios trabajan con texto (lo que escribe

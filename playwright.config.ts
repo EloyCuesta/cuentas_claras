@@ -1,5 +1,3 @@
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { defineConfig, devices } from '@playwright/test'
 import { E2E_CODE } from './e2e/auth.ts'
 
@@ -7,20 +5,26 @@ import { E2E_CODE } from './e2e/auth.ts'
  * Pruebas de extremo a extremo en un navegador real (Chromium).
  * Antes de la primera ejecución: npx playwright install chromium
  *
- * Usan su propio servidor de API (puerto 3101) con su propia base de datos en la
- * carpeta temporal del sistema, y su propia web (puerto 4174) apuntada a él.
- * Nunca se reutiliza un servidor ya abierto, así que no pueden tocar los datos
- * reales (server/data/cuentas.db) ni el servidor de npm run dev.
+ * Usan su propio servidor de API (puerto 3101) con su propia base MySQL
+ * (cuentas_claras_e2e, que e2e/prepareDatabase.ts crea si falta y cada prueba
+ * vacía) y su propia web (puerto 4174) apuntada a él. Nunca se reutiliza un
+ * servidor ya abierto, así que no pueden tocar los datos reales (la base
+ * cuentas_claras) ni el servidor de npm run dev. Con CUENTAS_TEST=1 el
+ * servidor se niega a arrancar contra otra base.
  *
- * El servidor de pruebas usa su propio código de acceso (E2E_CODE). Las
- * variables de entorno tienen prioridad sobre un .env personal.
+ * El servidor, el usuario y la contraseña de MySQL son los de CUENTAS_DB_* (del
+ * entorno o de .env). El servidor de pruebas usa su propio código de acceso
+ * (E2E_CODE) y su propia base: estas variables tienen prioridad sobre un .env
+ * personal.
  */
 const API_PORT = 3101
 const WEB_PORT = 4174
-const TEST_DB = join(tmpdir(), 'cuentas-claras-e2e', 'cuentas.db')
+const E2E_DATABASE = 'cuentas_claras_e2e'
 
 export default defineConfig({
   testDir: './e2e',
+  // La sustitución parcial .NET se prueba con su propio host y página de acceso.
+  testIgnore: '**/dotnet/**',
   timeout: 30_000,
   // Todas comparten la base de datos de pruebas: van de una en una y cada una la vacía al empezar.
   fullyParallel: false,
@@ -39,9 +43,9 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run server',
+      command: 'node --env-file-if-exists=.env --import tsx e2e/prepareDatabase.ts && npm run server',
       url: `http://127.0.0.1:${API_PORT}/api/health`,
-      env: { CUENTAS_PORT: String(API_PORT), CUENTAS_DB_PATH: TEST_DB, CUENTAS_TEST: '1', CUENTAS_CODIGO: E2E_CODE },
+      env: { CUENTAS_PORT: String(API_PORT), CUENTAS_DB_NAME: E2E_DATABASE, CUENTAS_TEST: '1', CUENTAS_CODIGO: E2E_CODE },
       reuseExistingServer: false,
       timeout: 60_000,
     },

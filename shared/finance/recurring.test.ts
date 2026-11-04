@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { movement, NOW, rule, testId } from '../test/factories.ts'
+import { movement, NOW, rule, testId } from '../testing/factories.ts'
 import {
   generationHorizon,
   isProjected,

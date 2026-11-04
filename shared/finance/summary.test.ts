@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { monthPeriod, yearPeriod } from '../core/period.ts'
-import { categories, movement } from '../test/factories.ts'
+import { categories, movement } from '../testing/factories.ts'
 import { MONTHS } from './annual.ts'
+import { monthPeriod, yearPeriod } from './period.ts'
 import {
   budgetLines,
   categoryBreakdown,

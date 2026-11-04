@@ -58,9 +58,25 @@ async function addProduct(
 
 const item = (page: Page, name: string) => page.locator('.pantry-item', { has: page.getByRole('button', { name: `Editar ${name}` }) })
 
-test('el invitado solo ve la despensa y no pide datos financieros', async ({ page }) => {
+test('el invitado solo ve la despensa y no pide datos financieros ni migra el navegador', async ({ page }) => {
   const requests = recordApiRequests(page)
   await page.goto('/')
+  // Datos de una versión anterior guardados en este navegador: como invitado no se tocan.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('cuentas-claras', 1)
+        open.onupgradeneeded = () => {
+          for (const store of ['categories', 'movements', 'recurring', 'meta']) open.result.createObjectStore(store, { keyPath: store === 'meta' ? 'key' : 'id' })
+        }
+        open.onsuccess = () => {
+          open.result.close()
+          resolve()
+        }
+        open.onerror = () => reject(open.error)
+      }),
+  )
+  await page.reload()
 
   await expect(page.getByRole('heading', { name: 'Despensa', level: 1 })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Tengo el código' })).toBeVisible()
@@ -78,6 +94,7 @@ test('el invitado solo ve la despensa y no pide datos financieros', async ({ pag
 
   expect(requests.filter((r) => FINANCE_REQUEST.test(r))).toEqual([])
   expect(requests).toContain('GET /api/auth/me')
+  expect(await page.evaluate(() => localStorage.getItem('cuentas-claras:datos-del-navegador'))).toBeNull()
   // Y aunque se intente a mano, el servidor no da los datos.
   expect((await page.request.get('/api/data')).status()).toBe(401)
 })
@@ -150,6 +167,33 @@ test('los botones + y −, marcar como comprado y deshacer', async ({ page, requ
   // Deshecho de verdad en el servidor, no solo en pantalla.
   await page.reload()
   await expect(item(page, 'Arroz').locator('.stepper__value')).toHaveText('0 kg')
+})
+
+test('dos móviles pulsan + a la vez y el servidor suma los dos', async ({ page, browser, request }) => {
+  await request.post('/api/despensa/productos', {
+    data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 3, frequency: 'mensual', priceCents: 120, notes: '' },
+  })
+  const otherContext = await browser.newContext({ locale: 'es-ES', timezoneId: 'Europe/Madrid' })
+  const phones = [page, await otherContext.newPage()]
+  await Promise.all(phones.map((phone) => phone.goto('/')))
+  await Promise.all(phones.map((phone) => expect(item(phone, 'Arroz').locator('.stepper__value')).toHaveText('1 kg')))
+
+  // Los dos ven 1 kg y pulsan a la vez: cada uno manda «+0,5» y el servidor lo suma a lo que tiene él.
+  const answers = await Promise.all(
+    phones.map(async (phone) => {
+      const adjusted = phone.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/ajustar'))
+      await item(phone, 'Arroz').getByRole('button', { name: 'Añadir 0,5 kg a Arroz' }).click()
+      const response = await adjusted
+      expect(response.status()).toBe(200)
+      return ((await response.json()) as { data: { quantity: number } }).data.quantity
+    }),
+  )
+  // Uno detrás de otro: 1,5 y 2. Si uno pisara al otro, los dos dirían 1,5.
+  expect(answers.sort((a, b) => a - b)).toEqual([1.5, 2])
+
+  await Promise.all(phones.map((phone) => phone.reload()))
+  await Promise.all(phones.map((phone) => expect(item(phone, 'Arroz').locator('.stepper__value')).toHaveText('2 kg')))
+  await otherContext.close()
 })
 
 test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', async ({ page, request }) => {

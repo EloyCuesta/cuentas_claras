@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { formatDate, todayISO } from '../shared/core/dates.ts'
-import type { YearMonth } from '../shared/core/period.ts'
-import { EMPTY_FILTERS, type MovementFilters } from '../shared/finance/filters.ts'
-import { effectiveDate } from '../shared/finance/summary.ts'
-import type { Movement, MovementType } from '../shared/finance/types.ts'
-import { MovementDialog } from './finance/components/MovementDialog.tsx'
-import { PaymentDialog } from './finance/components/PaymentDialog.tsx'
-import { useFinance } from './finance/financeContext.ts'
-import { BudgetsPage } from './finance/pages/BudgetsPage.tsx'
-import { MovementsPage } from './finance/pages/MovementsPage.tsx'
-import { RecurringPage } from './finance/pages/RecurringPage.tsx'
-import { SettingsPage } from './finance/pages/SettingsPage.tsx'
-import { SummaryPage } from './finance/pages/SummaryPage.tsx'
-import { YearPage } from './finance/pages/YearPage.tsx'
-import { DespensaPage } from './pantry/DespensaPage.tsx'
-import { yearRange } from './ui/helpers.ts'
 import { Icon, LogoMark, type IconName } from './ui/Icon.tsx'
+import {
+  MovementDialog,
+  PaymentDialog,
+  BudgetsPage,
+  MovementsPage,
+  RecurringPage,
+  SettingsPage,
+  SummaryPage,
+  YearPage,
+  useFinance,
+} from './features/finance/index.ts'
+import { formatDate, todayISO } from '#shared/common/dates.ts'
+import { EMPTY_FILTERS, type MovementFilters } from '#shared/finance/filters.ts'
+import type { YearMonth } from '#shared/finance/period.ts'
+import { effectiveDate } from '#shared/finance/summary.ts'
+import type { Movement, MovementType } from '#shared/finance/types.ts'
+import { DespensaPage } from './features/pantry/index.ts'
+import { yearRange } from './ui/helpers.ts'
 import { navigate, useHashRoute, type Route } from './ui/useHashRoute.ts'
 
 const NAV: { route: Route; label: string; icon: IconName }[] = [

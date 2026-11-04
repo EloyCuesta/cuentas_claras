@@ -1,0 +1,574 @@
+{
+  "format": "cuentas-claras-http-v1",
+  "provenance": "Datos inventados para BASE-01; respuestas de Express/SQLite de la rama hexagonal, sin datos personales.",
+  "scenarios": [
+    {
+      "name": "entrar, consultar sesión y cerrar conserva cookie y acceso",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": false,
+        "testMode": false,
+        "ids": [],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "consultar como invitado",
+          "request": {
+            "method": "GET",
+            "path": "/api/auth/me"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "invitado"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "finanzas requieren sesión",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Hace falta el código de acceso para ver esta sección."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "ruta inexistente sin sesión también requiere acceso",
+          "request": {
+            "method": "GET",
+            "path": "/api/no-existe"
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Hace falta el código de acceso para ver esta sección."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "validar código vacío",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": ""
+            }
+          },
+          "expected": {
+            "status": 400,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "VALIDATION",
+                "message": "Escribe el código de acceso."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "iniciar sesión",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "codigo-de-prueba"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "admin"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": "cc_sesion=<token>; HttpOnly; SameSite=Strict; Path=/api; Max-Age=43200",
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "consultar como administrador",
+          "request": {
+            "method": "GET",
+            "path": "/api/auth/me"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "admin"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "ruta inexistente con sesión devuelve 404",
+          "request": {
+            "method": "GET",
+            "path": "/api/no-existe"
+          },
+          "expected": {
+            "status": 404,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "No existe GET /api/no-existe."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "cerrar sesión",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/logout"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": "cc_sesion=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0",
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "consultar después de salir",
+          "request": {
+            "method": "GET",
+            "path": "/api/auth/me"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "invitado"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "cerrar sesión es idempotente",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/logout"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": "cc_sesion=; HttpOnly; SameSite=Strict; Path=/api; Max-Age=0",
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "la sesión caduca exactamente a las doce horas",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": false,
+        "testMode": false,
+        "ids": [],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "iniciar sesión",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "codigo-de-prueba"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "admin"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": "cc_sesion=<token>; HttpOnly; SameSite=Strict; Path=/api; Max-Age=43200",
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "sigue vigente antes del límite",
+          "advanceMs": 43199999,
+          "request": {
+            "method": "GET",
+            "path": "/api/auth/me"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "admin"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "caduca en el límite",
+          "advanceMs": 1,
+          "request": {
+            "method": "GET",
+            "path": "/api/auth/me"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "invitado"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "finanzas se cierran al caducar",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "Hace falta el código de acceso para ver esta sección."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "cinco fallos bloquean el siguiente intento durante quince minutos",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": false,
+        "testMode": false,
+        "ids": [],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "fallo de acceso 1",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "incorrecto"
+            }
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "El código no es correcto."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "fallo de acceso 2",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "incorrecto"
+            }
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "El código no es correcto."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "fallo de acceso 3",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "incorrecto"
+            }
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "El código no es correcto."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "fallo de acceso 4",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "incorrecto"
+            }
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "El código no es correcto."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "fallo de acceso 5",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "incorrecto"
+            }
+          },
+          "expected": {
+            "status": 401,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "UNAUTHORIZED",
+                "message": "El código no es correcto."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "el código correcto tampoco entra bloqueado",
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "codigo-de-prueba"
+            }
+          },
+          "expected": {
+            "status": 429,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "TOO_MANY_ATTEMPTS",
+                "message": "Demasiados intentos con un código incorrecto. Vuelve a intentarlo dentro de 15 min."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": "900"
+            }
+          }
+        },
+        {
+          "name": "sigue bloqueado un milisegundo antes",
+          "advanceMs": 899999,
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "codigo-de-prueba"
+            }
+          },
+          "expected": {
+            "status": 429,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "TOO_MANY_ATTEMPTS",
+                "message": "Demasiados intentos con un código incorrecto. Vuelve a intentarlo dentro de 1 min."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": "1"
+            }
+          }
+        },
+        {
+          "name": "puede entrar a los quince minutos",
+          "advanceMs": 1,
+          "request": {
+            "method": "POST",
+            "path": "/api/auth/login",
+            "body": {
+              "codigo": "codigo-de-prueba"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "rol": "admin"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": "cc_sesion=<token>; HttpOnly; SameSite=Strict; Path=/api; Max-Age=43200",
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

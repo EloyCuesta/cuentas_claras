@@ -8,30 +8,28 @@ Aplicación web para apuntar ingresos, gastos y próximos pagos, y responder de 
 - ¿Cuánto me quedará después de pagar los gastos previstos?
 - ¿Cómo va el año, mes a mes y por categoría?
 
-Hecha con React y TypeScript. Los datos se guardan en una base de datos **SQLite** de tu equipo (`server/data/cuentas.db`), a través de un pequeño servidor Node.js + Express. No hace falta instalar MySQL, PostgreSQL ni Docker, ni registrarse.
+Hecha con React y TypeScript. Los datos se guardan en una base de datos **MySQL** de tu equipo (MySQL Server 8.4, que puedes ver y administrar con MySQL Workbench), a través de un pequeño servidor Node.js + Express. No hace falta Docker ni registrarse.
 
-## Migración a .NET, React y MySQL
-
-La versión ejecutable descrita abajo sigue usando Express y SQLite. La migración objetivo está documentada en [docs/migration/README.md](docs/migration/README.md): arquitectura hexagonal modular, datos, funcionalidades, tareas y prompts para Codex. Consulta [AGENTS.md](AGENTS.md) antes de implementar y [el estado de las tareas](docs/migration/STATUS.md) para continuar el trabajo sin confundir lo previsto con lo terminado.
+Antes los datos estaban en un archivo SQLite (`server/data/cuentas.db`); si vienes de esa versión, mira «Pasar los datos de SQLite a MySQL». La migración prevista del servidor a ASP.NET Core, conservando React y esta misma base MySQL, se prepara en [la guía de migración](docs/migration/README.md). Su [estado comprobado](docs/migration/STATUS.md) distingue lo implementado de lo pendiente; los pasos de uso siguientes corresponden a la aplicación actual.
 
 ## Cómo ejecutarla
 
-Necesitas Node.js 22.12 o superior.
+Necesitas Node.js 22.12 o superior y MySQL Server 8.4 con su base y su usuario (ver «Preparar MySQL»).
 
 ```bash
 npm install
-cp .env.example .env # y escribe tu código en CUENTAS_CODIGO (ver «Código de acceso»)
+cp .env.example .env # y escribe tu código y los datos de MySQL (ver «Código de acceso» y «Preparar MySQL»)
 npm run dev          # abre http://localhost:5173
 ```
 
 `npm run dev` arranca a la vez dos procesos, cada uno con su prefijo en la consola:
 
-- `[api]` el servidor (Express + SQLite) en `http://127.0.0.1:3001/api`. Se reinicia solo al cambiar su código.
+- `[api]` el servidor (Express + MySQL) en `http://127.0.0.1:3001/api`. Se reinicia solo al cambiar su código.
 - `[web]` la interfaz (Vite) en `http://localhost:5173`. Envía a la API todo lo que empieza por `/api`, así que no hay problemas de CORS.
 
-La primera vez se crea `server/data/cuentas.db` con sus tablas y las categorías iniciales. Las siguientes veces se abre tal cual y solo se aplican las migraciones nuevas, si las hay. Con Ctrl+C se cierran los dos procesos.
+La primera vez se crean las tablas en la base `cuentas_claras`, con las categorías iniciales. Las siguientes veces se abre tal cual y solo se aplican las migraciones nuevas, si las hay. Si MySQL no está en marcha, la base no existe o el usuario o la contraseña no valen, el servidor no arranca y dice qué revisar. Con Ctrl+C se cierran los dos procesos.
 
-Comprobar que el servidor funciona: abre `http://localhost:5173/api/health`.
+Comprobar que el servidor funciona: abre `http://localhost:5173/api/health` (también comprueba que MySQL responde).
 
 Versión de producción:
 
@@ -41,11 +39,96 @@ npm run server       # en una terminal: la API en el puerto 3001
 npm run preview      # en otra: la web en http://localhost:4173 (también envía /api al servidor)
 ```
 
-`dist/` sigue siendo un conjunto de archivos estáticos, pero ahora necesita el servidor de la API para leer y guardar los datos.
+`dist/` sigue siendo un conjunto de archivos estáticos, pero necesita el servidor de la API (y MySQL) para leer y guardar los datos.
 
-**Usarla en el móvil** (misma red wifi): `npm run dev:server` en una terminal y `npm run dev:web -- --host` en otra. Abre en el móvil la dirección «Network» que aparece en la consola. Sin el código solo se ve la Despensa; con «Tengo el código» se ve todo. El móvil y el ordenador ven los mismos datos, porque los dos usan la base de datos del ordenador.
+**Usarla en el móvil** (misma red wifi): `npm run dev:server` en una terminal y `npm run dev:web -- --host` en otra. Abre en el móvil la dirección «Network» que aparece en la consola. Sin el código solo se ve la Despensa; con «Tengo el código» se ve todo. El móvil y el ordenador ven los mismos datos, porque los dos usan la base de datos del ordenador. MySQL no tiene que estar abierto a la red: solo lo usa el servidor, en el mismo equipo.
 
 **Datos de ejemplo**: la app empieza vacía. Si quieres verla con datos, ve a *Ajustes › Restaurar una copia…* y elige `ejemplo/copia-de-ejemplo.json` (un mes de octubre de 2026 con nómina, alquiler, un préstamo a 48 cuotas, recibos y presupuestos). En *Resumen › Año* se ve el año completo, con noviembre y diciembre previstos a partir de los recurrentes.
+
+**Si venías de la versión anterior** (datos guardados en el navegador): al entrar con el código en ese navegador, los datos que hubiera en ese navegador se pasan solos a la base de datos, siempre que esta todavía no tenga datos tuyos. Después se comprueba que ha llegado todo. La copia del navegador no se borra. Si la base de datos ya tenía datos, no se mezcla nada y la app lo avisa.
+
+### Variables de entorno
+
+Variables de entorno del servidor. Los scripts `server` y `dev:server` también las leen de `.env`, si existe; una variable ya definida en el entorno tiene prioridad sobre `.env`.
+
+| Variable | Valor por defecto | Para qué |
+| --- | --- | --- |
+| `CUENTAS_CODIGO` | **obligatoria** | Código de acceso a las cuentas (al menos 4 caracteres) |
+| `CUENTAS_DB_HOST` | `127.0.0.1` | Equipo de MySQL Server |
+| `CUENTAS_DB_PORT` | `3306` | Puerto de MySQL Server |
+| `CUENTAS_DB_USER` | **obligatoria** | Usuario de MySQL de la aplicación (no uses root) |
+| `CUENTAS_DB_PASSWORD` | vacía | Su contraseña. Nunca aparece en la consola ni en los mensajes |
+| `CUENTAS_DB_NAME` | `cuentas_claras` | La base de datos, que tiene que existir: la aplicación crea sus tablas, pero no la base |
+| `CUENTAS_PORT` | `3001` | Puerto de la API |
+| `CUENTAS_HOST` | `127.0.0.1` | Dirección: por defecto, solo accesible desde este equipo |
+| `CUENTAS_TEST=1` | desactivada | Modo pruebas: solo arranca con `cuentas_claras_e2e` o una base `cuentas_test_*` |
+
+`CUENTAS_DB_PATH`, de la versión con SQLite, ya no se usa: el servidor avisa si la encuentra.
+
+La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber adónde enviar `/api`.
+
+## Preparar MySQL
+
+Una vez, en el equipo donde se ejecuta la app (los pasos son para Windows; en otros sistemas, lo mismo con su instalador):
+
+1. Instala **MySQL Server 8.4** (la versión LTS) y **MySQL Workbench** desde [MySQL Community Downloads](https://dev.mysql.com/downloads/). Al terminar, MySQL Configurator propone el puerto **3306** y un servicio de Windows (**MySQL84**) que arranca con el equipo: déjalo así y apunta la contraseña de **root**.
+2. Abre MySQL Workbench, entra en la conexión local como root y, en una pestaña de consulta, ejecuta esto (con tu propia contraseña, larga):
+
+   ```sql
+   CREATE DATABASE cuentas_claras CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+   CREATE USER 'cuentas'@'localhost' IDENTIFIED BY 'escribe-aqui-una-contraseña-larga';
+   GRANT ALL PRIVILEGES ON cuentas_claras.* TO 'cuentas'@'localhost';
+   ```
+
+3. En `.env`, escribe `CUENTAS_DB_USER=cuentas` y su contraseña en `CUENTAS_DB_PASSWORD=`. El resto (`127.0.0.1`, `3306`, `cuentas_claras`) ya está en `.env.example`.
+4. `npm run dev`. La primera vez crea las tablas en `cuentas_claras`; en Workbench las verás en *Schemas* (actualiza la lista). Si vienes de la versión con SQLite, no la arranques todavía: el importador solo carga en una base vacía, así que sigue antes «Pasar los datos de SQLite a MySQL».
+
+La aplicación no usa root ni crea bases de datos: solo trabaja dentro de `cuentas_claras`. Sus tablas usan `utf8mb4_0900_bin`, que distingue mayúsculas, tildes y espacios como hacía SQLite.
+
+## Pasar los datos de SQLite a MySQL
+
+Si ya usabas la app con SQLite, tus datos siguen en `server/data/cuentas.db`: el servidor ya no lo abre, pero no lo borra. Se pasan una sola vez a una base `cuentas_claras` **vacía** con el importador, que copia las doce tablas tal cual (ids, versiones, tickets y lo aprendido; no siembra categorías ni repite lo que hizo cada ticket) y comprueba fila a fila que no se ha perdido nada. Lo haces tú, con tus datos:
+
+1. **Para la app de antes**, la de SQLite (Ctrl+C en la consola de `npm run dev` o de `npm run server`). Al cerrarse pasa a `cuentas.db` lo que quedaba en `cuentas.db-wal` y lo borra. Si en `server/data/` sigue habiendo un `cuentas.db-wal` (la app no se cerró bien), guarda aparte los tres archivos `cuentas.db*` y, desde la carpeta de la app, ejecuta `node -e "const db = require('better-sqlite3')('server/data/cuentas.db'); db.pragma('wal_checkpoint(TRUNCATE)'); db.close()"`: SQLite pasa el `-wal` al archivo y lo borra.
+2. **Copia `cuentas.db`** a una carpeta fuera del repositorio, por ejemplo `C:\copias\cuentas-2026-11-04.db`. Guárdala: es tu vuelta atrás.
+3. **Prepara MySQL** con los pasos 1 a 3 de «Preparar MySQL» (instalar, crear la base y el usuario, y el `.env`), sin arrancar la app: así la base sigue vacía. Si ya arrancaste la app con MySQL, la base tiene las categorías iniciales y el importador no la usará: si no tiene nada tuyo, bórrala y créala otra vez en Workbench (`DROP DATABASE cuentas_claras;` y el `CREATE DATABASE` de arriba).
+4. **Importa**, con las `CUENTAS_DB_*` de tu `.env`. Si acabas de actualizar la app, antes `npm install`: instala mysql2 y, para el importador, better-sqlite3 (es una dependencia de desarrollo, así que `npm install --omit=dev` no lo instala).
+
+   ```bash
+   npm run importar:sqlite -- "C:\copias\cuentas-2026-11-04.db"
+   ```
+
+5. **Revisa el informe**, que se guarda junto a la copia (`informe-importacion-AAAAMMDD-HHMMSS.json`; con `--informe <archivo>`, donde digas). Tiene que decir `"resultado": "válido"`, cada tabla `"iguales": true` y `"sumas"` con `"iguales": true`; las sumas (céntimos por mes, movimientos, tickets…) sirven para compararlas con lo que conoces. Ni la consola ni el informe enseñan tus conceptos, nombres o notas: solo claves, recuentos, huellas y sumas. El comando sale con 0 si todo coincide; con 1 si algo no coincide; con 2 si no se ha podido importar (la copia no vale, MySQL no responde o la base no está vacía). En los dos últimos casos se deshace todo y la base queda vacía, así que puedes corregirlo y repetir. Con 3, se importó y comprobó pero no se pudo escribir el informe.
+6. **Arranca la app** (`npm run dev`) y mira el resumen del mes, los movimientos, la despensa y los últimos tickets.
+7. **Haz una copia completa de MySQL** (ver «Copias de MySQL»).
+
+Mientras no escribas nada nuevo en MySQL, volver atrás es arrancar la versión anterior de la app (la de SQLite), que sigue usando `server/data/cuentas.db`; si ese archivo ya no está, pon allí tu copia. Después de escribir en MySQL, esa copia ya no tiene lo nuevo. Cuando todo esté bien y tengas la copia de MySQL, `server/data/cuentas.db` ya no hace falta, pero guarda la copia del paso 2 un tiempo.
+
+## Copias de MySQL
+
+La copia JSON de *Ajustes* solo guarda las finanzas. La copia completa (finanzas, despensa, tickets y lo aprendido) es la de la base `cuentas_claras`:
+
+- **MySQL Workbench**: *Server › Data Export*, marca `cuentas_claras`, elige *Export to Self-Contained File* e *Include Create Schema*, y *Start Export*. Para recuperarla: *Server › Data Import*, en una base vacía.
+- **mysqldump** (en Windows está en `C:\Program Files\MySQL\MySQL Server 8.4\bin`):
+
+  ```bash
+  mysqldump -u cuentas -p --single-transaction --no-tablespaces --result-file=copia-cuentas_claras.sql cuentas_claras
+  ```
+
+  `--no-tablespaces` evita que pida un permiso que el usuario de la app no tiene, y `--result-file` escribe el archivo tal cual (en PowerShell, `>` lo guardaría en UTF-16). Para recuperarla en una base vacía (creada como en «Preparar MySQL»): `mysql -u cuentas -p cuentas_claras --execute="source copia-cuentas_claras.sql"`.
+
+Guarda las copias fuera del equipo de vez en cuando: si el disco falla, se van con él.
+
+## Pruebas
+
+`npm run check` y `npm run test:e2e` prueban contra MySQL de verdad, nunca con tus datos: Vitest crea y borra bases `cuentas_test_…`, y las pruebas en navegador usan `cuentas_claras_e2e` (la crean si falta). Usan el servidor, el usuario y la contraseña de `CUENTAS_DB_*` (de `.env` o del entorno). Dale a ese usuario permiso sobre esas bases, en Workbench como root:
+
+```sql
+GRANT ALL PRIVILEGES ON `cuentas\_test\_%`.* TO 'cuentas'@'localhost';
+GRANT ALL PRIVILEGES ON cuentas_claras_e2e.* TO 'cuentas'@'localhost';
+```
+
+Si MySQL no está en marcha o falta el usuario, las pruebas fallan con un mensaje que dice qué revisar. El detalle está en [docs/pruebas.md](docs/pruebas.md).
 
 ## Código de acceso
 
@@ -53,7 +136,7 @@ Las cuentas solo se ven con un código que pones tú. Sin él, cualquiera de cas
 
 1. Copia `.env.example` como `.env` (`cp .env.example .env`; en Windows, `copy .env.example .env`).
 2. Escribe tu código en `CUENTAS_CODIGO=` (al menos 4 caracteres, que no sean solo espacios). `.env` no se sube al repositorio.
-3. Arranca como siempre (`npm run dev`, o `npm run dev:server` + `npm run dev:web -- --host` para la red de casa). Sin código, el servidor avisa y no arranca, y no llega a abrir ni crear la base de datos.
+3. Arranca como siempre (`npm run dev`, o `npm run dev:server` + `npm run dev:web -- --host` para la red de casa). Sin código, el servidor avisa y no arranca, y no llega a conectar con MySQL.
 
 Cómo funciona:
 
@@ -124,230 +207,27 @@ Una vez a la semana, en un par de minutos, se mira lo que puede acabarse antes d
   - **Copiar**: si el navegador no deja copiar solo, selecciona el texto para copiarlo a mano.
   - **Descargar .txt**.
   - **Marcar todo como comprado**: en los que se cuentan, completa lo que hay hasta el objetivo; en los que van por compras, apunta una compra de hoy. Durante unos segundos aparece **Deshacer**. Si mientras tanto alguien ha cambiado alguno de esos productos, no se deshace nada (para no pisar su cambio) y la app lo avisa.
-- La Despensa se guarda en la misma base de datos SQLite, en tablas aparte. **Las copias JSON y los CSV no la incluyen** y restaurar una copia no la toca.
+- La Despensa se guarda en la misma base de datos MySQL, en tablas aparte. **Las copias JSON y los CSV no la incluyen**, y restaurar una copia o importar los datos del navegador no la toca.
 
-## Comprobaciones
+## Para desarrollar
 
-```bash
-npm test                        # pruebas unitarias, del almacenamiento y de la API (Vitest)
-npm run typecheck               # TypeScript estricto (interfaz y servidor)
-npm run lint                    # oxlint
+Cómo está hecha por dentro, cómo se prueba y por qué es así:
 
-npx playwright install chromium # solo la primera vez
-npm run test:e2e                # pruebas en un navegador real, en escritorio y en móvil
-```
-
-Las pruebas **nunca tocan tus datos**:
-
-- Las de Vitest usan bases de datos temporales.
-- Las de navegador arrancan su propio servidor (puerto 3101), con su propia base de datos en la carpeta temporal del sistema, su propio código de acceso y su propia web (puerto 4174). Nunca reutilizan un servidor abierto. Antes de cada prueba la base de datos de pruebas se vacía con `POST /api/test/reset`, una ruta que solo existe en ese modo y que también exige sesión. Las pruebas inician sesión como el formulario, sin ningún atajo.
-
-Las comprobaciones pedidas están automatizadas a tres niveles:
-
-| Comprobación | Base de datos (`npm test`) | API HTTP (`npm test`) | Navegador (`npm run test:e2e`) |
-| --- | --- | --- | --- |
-| Los movimientos se conservan después de recargar | Se cierra la base de datos y se vuelve a abrir | Se reinicia el servidor con el mismo archivo | Se apunta un gasto y se recarga la página |
-| Editar o eliminar un movimiento actualiza los totales | Totales del mes tras editar y eliminar | Crear, consultar, modificar y eliminar un gasto | Edición y borrado desde la interfaz |
-| Marcar un pago pendiente como pagado no duplica el gasto | Sigue habiendo un solo registro | — | El total pasa de «pendiente» a «pagado» y hay un solo movimiento |
-| Abrir varias veces la aplicación no duplica vencimientos | Generación repetida, con dos conexiones a la vez y tras cerrar | Generar dos veces crea 0 la segunda | Tres recargas y dos pestañas nuevas a la vez |
-| Exportar y restaurar una copia conserva los datos | Copia → restauración en otra base de datos → datos idénticos | Una copia incoherente se rechaza sin tocar nada | Se descarga la copia, se restaura en una instalación vacía y se compara |
-
-Además se prueban:
-
-- La validación de campos y de peticiones (mensajes en español y códigos 400 y 409).
-- Que no se puede inyectar SQL.
-- Las migraciones: se aplican una sola vez, no borran nada y no se abre una base de datos de una versión más nueva.
-- Las restricciones de la base de datos.
-- La regla del día 31, las cuotas que quedan, el formato del CSV y la proyección de recurrentes.
-- Las plantillas mensual y anual.
-- El código de acceso: arranque sin código, rutas protegidas (`401`), cookie y caducidad de la sesión, cierre de sesión, sesiones que no sobreviven a un reinicio, y el bloqueo por intentos, por dispositivo y sin poder eludirlo con cabeceras inventadas (con un reloj controlado, sin esperar minutos).
-- La despensa: personas, productos, presupuesto, unidades, cálculos sin restos decimales, el texto exacto de la lista, comprar y deshacer (también con cambios de otro dispositivo), la migración desde una base de datos anterior y que las copias financieras no la tocan.
-- Los tickets: la lectura con el OCR de verdad de una captura de Lidl **inventada** (`shared/tickets/fixtures/`, con los datos que debe dar), la interpretación de las líneas (cantidades, pesos, descuentos, devoluciones, cifras y letras del IVA mal leídas), la corrección con el total, varias capturas seguidas, otras tiendas, lo aprendido y los nombres parecidos, guardar sin duplicar, cambiar una línea, borrar, la validación de las imágenes y la migración 003.
-- El ritmo de compra: lo que dura cada producto (mediana, escalado por cantidad, compras del mismo día), «Queda», «Queda poco», «Se acabó», «Lo he comprado», los avisos, la lista y la estimación mensual.
-- El repaso de la semana: cuándo toca (también la primera vez) y qué se repasa y en qué orden; la migración 004 conserva las revisiones que ya había.
-- En el navegador: el invitado solo ve la despensa y no pide datos financieros; persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles; entrar con el código, cerrar sesión y sesión caducada; escanear la captura de un ticket, revisarla (cambiar un nombre, no seguir una línea), guardarla, verla en «Últimas compras» y no poder guardarla dos veces; días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra; y el repaso de la semana («Hoy no», un producto cada vez, volver atrás y cambiar la respuesta, contar con − y +, y la lista hecha al final).
-
-## Estructura
-
-El código está organizado **por módulo**: finanzas (`finance`), despensa (`pantry`) y tickets de la compra (`tickets`). Cada módulo tiene las mismas piezas en tres sitios:
-
-| Pieza | Dónde | Qué hace |
-| --- | --- | --- |
-| Dominio | `shared/<módulo>/` | Tipos, reglas y cálculos en TypeScript puro (sin React, sin base de datos, sin reloj). Lo usan la web y el servidor. Con pruebas. |
-| Servidor | `server/<módulo>/` | Repositorio SQLite, rutas de la API y, si hace falta, un servicio que orquesta varios pasos. |
-| Web | `src/<módulo>/` | Provider con el estado (escribir → releer), cliente de la API, páginas y componentes. |
-
-Reglas para mantenerlo así:
-
-- **Las reglas van en `shared/`.** Un repositorio solo lee y escribe; si tiene que decidir algo (qué producto crear, qué precio poner…), esa decisión es una función pura en `shared/` que devuelve un plan, y el repositorio lo aplica (ver `shared/tickets/savePlan.ts`).
-- **Las rutas son finas**: comprueban la petición con un validador de `shared/` (o de `server/<módulo>/request.ts`) y llaman al repositorio o al servicio.
-- **El estado de la web sigue un solo patrón**: el Provider de cada módulo guarda en el servidor y vuelve a leer el módulo. Los componentes toman las acciones del contexto (`useFinance`, `usePantry`, `usePantryActions`), no por props.
-- **Un módulo no importa a otro**, salvo `tickets`, que forma parte de la despensa y usa sus tipos. Lo común está en `shared/core`, `src/ui`, `src/api` y `server/infra`.
-
-```
-shared/                       Dominio puro (lo usan la web y el servidor), con sus pruebas
-├── core/                     Fechas «AAAA-MM-DD», importes en céntimos, periodos, ids y ValidationResult
-├── finance/                  Categorías, movimientos, recurrentes, resumen, año, copias, CSV, validación
-│   └── FinanceRepository.ts  El contrato del almacenamiento de las finanzas (lo cumplen el servidor y el cliente de la API)
-├── pantry/                   Despensa: cantidades, lista y estimaciones (pantry.ts), modo de seguimiento
-│                             (tracking.ts), ritmo de compra (rhythm.ts), repaso de la semana (review.ts), validación
-├── tickets/                  Tickets: leerlos (parse.ts y parse/ paso a paso), emparejar productos (match.ts),
-│   │                         comprobar cifras (arithmetic.ts, evidence.ts), validar y planear el guardado (savePlan.ts)
-│   └── fixtures/             Tickets INVENTADOS para las pruebas: imágenes, lo que lee el OCR y lo que debe salir
-└── test/factories.ts         Datos de prueba
-server/                       Node.js + Express + SQLite (se ejecuta con tsx)
-├── index.ts                  Arranque: variables de entorno (código obligatorio), puerto y cierre ordenado
-├── app.ts                    La aplicación Express: crea el SqliteContext y los repositorios y monta las rutas
-│                             (públicas → requireAdmin → finanzas)
-├── infra/                    SqliteContext (conexión, reloj, ids, transacciones), base de datos y migraciones,
-│                             formato HTTP y errores, código de acceso, /health y el reinicio de pruebas
-├── finance/                  SqliteFinanceRepository y rutas /data, /movements, /categories, /recurring, /meta
-├── pantry/                   SqlitePantryRepository y rutas /despensa (personas, productos, revisiones, compra)
-├── tickets/                  Repositorio de tickets, TicketService (leer: OCR → ticket → sugerencias),
-│                             comprobación de la petición, OCR con Tesseract y rutas /despensa/tickets
-└── data/                     Aquí se crea cuentas.db (fuera de git: son tus datos)
-src/                          La web (React)
-├── main.tsx · Root.tsx       Entrada; con el código, la app completa; sin él, GuestApp (solo la despensa)
-├── App.tsx · GuestApp.tsx    Estructura, navegación y ventanas de edición
-├── ui/                       Componentes comunes (Dialog, forms, Icon, Section, avisos…) y utilidades
-├── api/                      Cliente de /api y textos de error
-├── auth/                     Sesión: AuthProvider, «Tengo el código» y cerrar sesión
-├── finance/                  FinanceProvider, cliente de la API, páginas (Resumen, Año, Movimientos,
-│                             Recurrentes, Presupuestos, Ajustes) y componentes
-├── pantry/                   PantryProvider, cliente de la API, DespensaPage, componentes y preparar las fotos de los tickets
-└── styles/                   Estilos por módulo; index.css los carga en orden
-e2e/                          Pruebas en navegador: finanzas (app), despensa y acceso, tickets y repaso
-ejemplo/                      Copia de seguridad con datos de ejemplo
-```
-
-## Base de datos
-
-Trece tablas, solo con lo que usa la aplicación:
-
-| Tabla | Contenido |
-| --- | --- |
-| `categories` | Categorías y subcategorías (`parent_id`, un solo nivel). El presupuesto mensual es una columna (`budget_cents`). |
-| `movements` | Ingresos y gastos, realizados o pendientes. Incluye los vencimientos de los recurrentes (`recurring_id`, `occurrence_date`) y el número de cuota. |
-| `recurring_rules` | Pagos y cobros recurrentes. Las financiaciones son recurrentes con un número de cuotas (`installments`). |
-| `recurring_excluded_dates` | Vencimientos eliminados que no deben volver a crearse. |
-| `meta` | Datos auxiliares: fecha de la última copia. |
-| `pantry_people` | Personas de la despensa. |
-| `pantry_items` | Productos: dueño (`owner_id`, `NULL` = Compartido, borrado restringido), unidad, cantidades, frecuencia, precio en céntimos (`NULL` = desconocido), cómo se sigue (`tracking`: `compras` o `cantidad`) y `version`, que sube en cada escritura para poder deshacer sin pisar cambios. |
-| `pantry_settings` | Una sola fila con el presupuesto mensual de la despensa y el día del último repaso de la semana (`last_review_date`, `NULL` = ninguno todavía). |
-| `pantry_tickets` | Tickets guardados: tienda, dirección, fecha, hora, total y una huella única (tienda, fecha, hora y total) para no guardarlos dos veces. Sin imágenes. |
-| `pantry_ticket_lines` | Las líneas de cada ticket tal como venían (nombre, cantidad, importes, descuento, peso, letra del IVA, «para una ocasión») y su producto (`NULL` = no se sigue; si se borra el producto, la línea se queda). |
-| `pantry_aliases` | Lo aprendido: qué producto es cada nombre de ticket en cada tienda, o que no se sigue. Se borra con su producto. |
-| `pantry_events` | «Queda», «Queda poco», «Se acabó» y «Lo he comprado» de cada producto, con su fecha. |
-| `schema_migrations` | Migraciones aplicadas (versión, nombre y fecha). |
-
-Decisiones sobre el modelo:
-
-- **Importes en céntimos enteros** (`INTEGER`, con `CHECK > 0`) y fechas como texto `AAAA-MM-DD`, igual que en la aplicación.
-- **Claves foráneas**: los movimientos y recurrentes apuntan a su categoría, y las subcategorías a su categoría principal.
-- **Índice único** `(recurring_id, occurrence_date)`: un vencimiento no puede existir dos veces. Los movimientos normales tienen `NULL` y no chocan.
-- `movements.recurring_id` **no** es clave foránea a propósito: al borrar un recurrente se conservan sus vencimientos ya pagados.
-- **No hay tablas** de cuentas bancarias, vivienda, vehículos, seguros ni financiaciones:
-  - La app no lleva saldos, así que no hay cuentas.
-  - Vivienda, Coche o Seguros son categorías.
-  - Una financiación es un recurrente con cuotas.
-  - Así no se duplica información.
-- **Funcionamiento**:
-  - Cada operación es una transacción: se guarda entera o no se guarda nada.
-  - El modo WAL protege la base de datos ante un corte.
-  - Todas las consultas usan parámetros, así que el SQL no se puede inyectar.
-- **Migraciones**: cada una se aplica una sola vez, en una transacción, y queda anotada. La `002-despensa` añade las tablas de la despensa sin tocar las demás. La `003-tickets` añade las de los tickets y la columna `tracking`; los productos que ya había siguen contándose (`cantidad`). La `004-repaso` añade el día del último repaso y la revisión «Queda poco»: como SQLite no deja cambiar una regla `CHECK`, copia `pantry_events` entera a una tabla nueva sin perder ninguna fila. Los cambios futuros serán migraciones nuevas (`005-…`) que no borran datos. Una base de datos de una versión más nueva no se abre.
-
-## API
-
-Todas las rutas están bajo `/api` y responden con el mismo formato:
-
-- Si todo va bien: `{ "ok": true, "data": … }`.
-- Si hay un error: `{ "ok": false, "error": { "code": "…", "message": "…" } }`, con el mensaje en español.
-
-Públicas (sin código):
-
-| Método y ruta | Qué hace |
-| --- | --- |
-| `GET /api/health` | Estado del servidor y versión del esquema (sin datos ni rutas de archivos) |
-| `POST /api/auth/login` | `{ codigo }` → `{ rol: 'admin' }` y la cookie de sesión. `401` si no es correcto, `429` (con `Retry-After`) si hay bloqueo |
-| `POST /api/auth/logout` | Cierra la sesión de este navegador y borra la cookie (siempre `200`) |
-| `GET /api/auth/me` | `{ rol: 'admin' \| 'invitado' }` |
-| `GET` / `POST /api/despensa/personas` | Lista las personas o crea una `{ name }` (`201`) |
-| `PUT` / `DELETE /api/despensa/personas/:id` | Renombra o borra (`409` si tiene productos) |
-| `GET` / `POST /api/despensa/productos` | Lista los productos o crea uno (`201`; el servidor pone id, versión y fechas; `tracking` es `cantidad` si no se indica) |
-| `PUT` / `DELETE /api/despensa/productos/:id` | Edita o borra un producto |
-| `POST /api/despensa/productos/:id/ajustar` | `{ delta }`: botones + y − sobre el valor actual |
-| `POST /api/despensa/productos/:id/revision` | `{ kind, date }` con `kind` = `queda`, `poco`, `se_acabo` o `comprado` (`201`) |
-| `DELETE /api/despensa/revisiones/:id` | Deshace una revisión |
-| `GET` / `PUT /api/despensa/presupuesto` | `GET` da `{ monthlyBudgetCents, lastReviewDate }`; `PUT` recibe `{ monthlyBudgetCents }` (número o `null`) |
-| `PUT /api/despensa/repaso` | `{ date }`: apunta el día del repaso de la semana |
-| `POST /api/despensa/comprado` | `{ ids, date }` → completa hasta el objetivo (los que se cuentan) o apunta una compra (los que van por compras); devuelve `{ changes, items }` |
-| `POST /api/despensa/comprado/deshacer` | `{ changes }` → lo deja como estaba, o `409` si algo cambió después |
-| `POST /api/despensa/tickets/leer` | `{ imagenes: [base64…] }` (PNG o JPEG, hasta 6 de 8 MB) o `{ texto }`, y `{ hoy }` → el ticket leído, lo que se propone para cada producto y si ya estaba guardado. No guarda nada |
-| `GET` / `POST /api/despensa/tickets` | Lista los tickets o guarda uno revisado (`201`; `409` si ya estaba guardado) |
-| `GET` / `DELETE /api/despensa/tickets/:id` | Un ticket con sus líneas, o borrarlo |
-| `PUT /api/despensa/tickets/:id/lineas/:lineId` | `{ itemId }` (o `null`): cambia el producto de esa línea y de las iguales, y lo aprendido |
-| `GET /api/despensa/actividad?hoy=` | Compras y revisiones de los últimos 400 días, para el ritmo de compra |
-
-Con sesión (sin ella, `401`):
-
-| Método y ruta | Qué hace |
-| --- | --- |
-| `GET /api/data` | Todas las categorías, movimientos y recurrentes |
-| `PUT /api/data` | Sustituye todo (restaurar una copia; se valida entera antes de tocar nada) |
-| `PUT /api/movements/:id` | Crea o actualiza un movimiento |
-| `DELETE /api/movements/:id` | Elimina un movimiento (si era un vencimiento, no se vuelve a crear) |
-| `PUT /api/categories/:id` | Crea o actualiza una categoría |
-| `DELETE /api/categories/:id?replacementId=…` | Elimina una categoría; sus movimientos pasan a otra |
-| `PUT /api/recurring/:id` | Guarda un recurrente `{ rule, horizon, markPaidBefore }` y devuelve `{ created }` |
-| `DELETE /api/recurring/:id` | Elimina un recurrente y sus vencimientos pendientes |
-| `POST /api/occurrences/generate` | Crea los vencimientos que falten hasta `{ horizon }` |
-| `GET` / `PUT /api/meta/:key` | Datos auxiliares (`lastBackupAt`) |
-
-Códigos de error:
-
-| Código | Estado HTTP | Cuándo |
-| --- | --- | --- |
-| `VALIDATION` | 400 | Datos no válidos, o una imagen de ticket que no se puede leer |
-| `UNAUTHORIZED` | 401 | Ruta financiera sin sesión, o código incorrecto |
-| `NOT_FOUND` | 404 | Ruta o dato que no existe |
-| `CONFLICT` | 409 | Vencimiento duplicado, categoría en uso, persona con productos, ticket ya guardado o «Deshacer» tras otro cambio |
-| `TOO_MANY_ATTEMPTS` | 429 | Demasiados códigos incorrectos desde este dispositivo |
-| `INTERNAL` | 500 | Error inesperado; el detalle sale en la consola |
-
-Variables de entorno del servidor. Los scripts `server` y `dev:server` también las leen de `.env`, si existe; una variable ya definida en el entorno tiene prioridad sobre `.env`.
-
-| Variable | Valor por defecto | Para qué |
-| --- | --- | --- |
-| `CUENTAS_CODIGO` | **obligatoria** | Código de acceso a las cuentas (al menos 4 caracteres) |
-| `CUENTAS_DB_PATH` | `server/data/cuentas.db` | Archivo de la base de datos |
-| `CUENTAS_PORT` | `3001` | Puerto |
-| `CUENTAS_HOST` | `127.0.0.1` | Dirección: por defecto, solo accesible desde este equipo |
-| `CUENTAS_TEST=1` | desactivada | Modo pruebas |
-
-La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber adónde enviar `/api`.
-
-## Decisiones de diseño
-
-- **Céntimos enteros.** 12,34 € se guarda como `1234`. Nunca se suman decimales, así que no hay errores de redondeo. El campo de importe acepta `12,5`, `12.50` o `1.234,56`.
-- **Fechas sin hora.** Se guardan como `"2026-10-28"` para que el cambio de zona horaria no mueva un gasto de día. La fecha de «hoy» la pone el navegador, no el servidor.
-- **Real y previsto.** Un movimiento pagado cuenta en el mes de su fecha de pago; uno pendiente, en el mes de su fecha prevista. El resultado previsto es lo cobrado más lo pendiente de cobrar, menos lo pagado y lo pendiente de pagar en ese mes. Lo real se muestra en trazo sólido y lo previsto «a lápiz» (gris y líneas discontinuas), siempre con su etiqueta.
-- **Recurrentes.** Al abrir la app se crean los vencimientos que falten hasta el final del mes siguiente, como pendientes. Cada vencimiento se identifica por *recurrente + fecha programada* con un índice único en la base de datos, así que no puede existir dos veces aunque se abran varias pestañas a la vez. Si borras un vencimiento, se anota para no volver a crearlo. Si un vencimiento cae en un día 31 y el mes no lo tiene, se usa el último día del mes.
-- **Plantillas mensual y anual.** *Resumen* tiene dos vistas, Mes y Año, que comparten los mismos cálculos: reciben un periodo (`shared/core/period.ts`) en lugar de un año y un mes, así que una columna del año coincide siempre con ese mes. El mes añade un detalle por categoría y subcategoría (presupuesto, real, pendiente, total y lo que queda); el año, la evolución mes a mes, una tabla de categorías × meses y el presupuesto anual (el mensual × 12). Las dos se descargan como hoja de cálculo con el mismo formato que el CSV de movimientos.
-- **Proyección de recurrentes.** Para los meses posteriores al horizonte de generación, los vencimientos de los recurrentes se calculan al vuelo y cuentan en la previsión como pendientes, marcados como «proyectados». No se guardan, así que no aparecen en Movimientos ni se pueden pagar hasta que la aplicación los cree. Respetan las cuotas, la fecha de fin y los vencimientos eliminados.
-- **Marcar como pagado** modifica el mismo movimiento (estado y fecha de pago), no crea otro. Se puede ajustar el importe final, por ejemplo en una factura de luz.
-- **Categorías** con un nivel de subcategorías (Vivienda › Luz). El gráfico y los presupuestos usan la categoría principal. La de ingresos se llama «Otros ingresos» para no confundirla con «Otros».
-- **Copias.** La restauración valida todo el archivo (tipos, importes, fechas, ids repetidos, referencias) y pide confirmación antes de sustituir nada. El servidor vuelve a validarlo con las mismas reglas. El CSV usa `;`, coma decimal, fechas dd/mm/aaaa y gastos en negativo, para que Excel o LibreOffice lo abran bien.
-- **Tickets con OCR local.** Los tickets se leen con [tesseract.js](https://github.com/naptha/tesseract.js) y el modelo de español de `@tesseract.js-data/spa`, los dos dentro de `node_modules`: no hace falta Internet ni una cuenta en ningún servicio, y las compras no salen de casa. Cada captura se lee dos veces: una para el texto y otra, solo con cifras, para la columna de importes. El total del ticket sirve de comprobación: entre lo leído y lo que se puede calcular (cantidad × precio, peso × precio por kilo) se elige la combinación que cuadra, y lo que no se puede asegurar se marca para revisar en lugar de inventarlo. El lector se abre la primera vez que se usa y se cierra tras 5 minutos sin uso.
-- **Por compras, no por inventario.** Contar lo que hay en casa es pesado y se desactualiza; con los tickets la app ya sabe qué se compró y cuándo. Por eso los productos nuevos se siguen por compras, y contar queda como opción para quien lo prefiera.
-- **Accesibilidad.** Formularios con etiquetas y errores asociados, foco en el primer campo con error, ventanas modales nativas (`<dialog>`), navegación con teclado y contraste AA en modo claro y oscuro. Revisado con axe sin incidencias.
+- [AGENTS.md](AGENTS.md): la guía de entrada (mapa del repositorio, reglas que no se rompen, comandos y qué leer antes de tocar cada parte). Cada carpeta importante tiene la suya.
+- [docs/arquitectura.md](docs/arquitectura.md): el servidor por módulos (hexagonal), el dominio compartido, la web por funcionalidades y la estructura del repositorio.
+- [docs/api.md](docs/api.md): las rutas, el formato de las respuestas y los códigos de error.
+- [docs/base-de-datos.md](docs/base-de-datos.md): las tablas, las decisiones del modelo y las migraciones.
+- [docs/pruebas.md](docs/pruebas.md): las comprobaciones (`npm run check`, `npm run test:e2e`) y qué prueba cada una.
+- [docs/frontend.md](docs/frontend.md): la web, los estilos y la accesibilidad.
+- [docs/decisiones.md](docs/decisiones.md): las decisiones de diseño (céntimos, fechas sin hora, recurrentes, OCR local…).
+- [docs/convenciones.md](docs/convenciones.md) y [docs/glosario.md](docs/glosario.md): cómo se escribe el código y qué es cada término.
 
 ## Límites de esta versión
 
-- Los datos están en `server/data/cuentas.db`, **en este equipo**.
+- Los datos están en la base MySQL `cuentas_claras`, **en este equipo**.
   - No hay cuentas de usuario ni sincronización, y el servidor solo escucha en `127.0.0.1` (el móvil llega a través de Vite con `--host`).
-  - Si borras ese archivo, se pierden, salvo que tengas una copia. Por eso la app recuerda hacer copias y muestra la fecha de la última.
-  - Para hacer una copia del archivo a mano, cierra antes la app (`cuentas.db-wal` puede tener cambios aún no pasados a `cuentas.db`). La copia JSON de *Ajustes* se puede descargar en cualquier momento.
+  - Si borras la base (o desinstalas MySQL borrando sus datos), se pierden, salvo que tengas una copia. Por eso la app recuerda hacer copias y muestra la fecha de la última.
+  - La copia JSON de *Ajustes* solo guarda las finanzas y se puede descargar en cualquier momento. La copia completa (también la Despensa y los tickets) se hace con MySQL Workbench o mysqldump: ver «Copias de MySQL».
 - No está conectada al banco: el resultado del mes **no es un saldo**, es la diferencia entre lo que entra y lo que sale.
 - Una sola moneda (euro).
 - Los recurrentes solo crean vencimientos (que se pueden pagar o editar) hasta el final del mes siguiente. En meses más lejanos la previsión los proyecta con el importe de la regla: si sabes que un recibo cambiará, ajústalo cuando se cree.

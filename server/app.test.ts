@@ -1,15 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { FinanceData } from '../shared/finance/types.ts'
-import { movement, rule } from '../shared/test/factories.ts'
-import { startApi, stopApis, type TestApi } from './api-test-helpers.ts'
-import { LATEST_VERSION } from './infra/migrations/index.ts'
-import { removeTempDbs } from './test-helpers.ts'
+import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
+import type { FinanceData } from '#shared/finance/types.ts'
+import { movement, rule } from '#shared/testing/factories.ts'
+import { LATEST_VERSION } from './common/mysql/migrations.ts'
+import { dropTestDatabases } from './common/testing/testDatabase.ts'
+import { startApi, stopApis, type TestApi } from './common/testing/testApi.ts'
 
-/** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch, con la sesión iniciada. */
+/** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch, con la sesión iniciada y MySQL de pruebas. */
 
 afterEach(async () => {
   await stopApis()
-  removeTempDbs()
+  await dropTestDatabases()
 })
 
 const dataOf = async (call: TestApi['call']) => (await call('GET', '/data')).body.data as FinanceData
@@ -17,7 +18,7 @@ const dataOf = async (call: TestApi['call']) => (await call('GET', '/data')).bod
 describe('API', () => {
   it('GET /api/health responde con el estado, sin revelar datos', async () => {
     const { call } = await startApi({ login: false })
-    // Pública y sin datos: ni la ruta del archivo ni nada financiero.
+    // Pública y sin datos: ni el servidor ni la base de MySQL, ni nada financiero.
     expect((await call('GET', '/health')).body).toEqual({ ok: true, data: { status: 'ok', schemaVersion: LATEST_VERSION } })
   })
 
@@ -32,9 +33,9 @@ describe('API', () => {
     await first.call('PUT', `/movements/${expense.id}`, edited)
     expect((await dataOf(first.call)).movements).toEqual([edited])
 
-    // Reiniciar el servidor con el mismo archivo: el gasto sigue ahí.
+    // Reiniciar el servidor con la misma base de datos: el gasto sigue ahí.
     await first.stop()
-    const second = await startApi({ path: first.path })
+    const second = await startApi({ database: first.database })
     expect((await dataOf(second.call)).movements).toEqual([edited])
 
     expect((await second.call('DELETE', `/movements/${expense.id}`)).status).toBe(200)
@@ -101,6 +102,16 @@ describe('API', () => {
     expect(rejected.status).toBe(400)
     expect(rejected.body.error?.message).toMatch(/categoría que no existe/)
     expect((await dataOf(call)).movements.map((m) => m.concept)).toEqual(['De la copia'])
+  })
+
+  it('importa los datos del navegador una sola vez', async () => {
+    const { call } = await startApi()
+    const browser = { categories: DEFAULT_CATEGORIES, movements: [movement()], recurring: [] }
+    const imported = await call('POST', '/import', { data: browser, lastBackupAt: '2026-10-01T10:00:00.000Z' })
+    expect(imported).toMatchObject({ status: 201, body: { ok: true, data: { categories: DEFAULT_CATEGORIES.length, movements: 1, recurring: 0 } } })
+    expect((await call('POST', '/import', { data: browser, lastBackupAt: null })).status).toBe(409)
+    expect((await dataOf(call)).movements).toHaveLength(1)
+    expect((await call('GET', '/meta/lastBackupAt')).body.data).toEqual({ value: '2026-10-01T10:00:00.000Z' })
   })
 
   it('guarda los datos auxiliares y rechaza claves desconocidas', async () => {

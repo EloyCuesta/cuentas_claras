@@ -1,33 +1,27 @@
 import express, { Router, type Express } from 'express'
-import { SqliteFinanceRepository } from './finance/repository.ts'
-import { categoryRoutes } from './finance/routes/categories.ts'
-import { dataRoutes } from './finance/routes/data.ts'
-import { metaRoutes } from './finance/routes/meta.ts'
-import { movementRoutes } from './finance/routes/movements.ts'
-import { recurringRoutes } from './finance/routes/recurring.ts'
-import { AccessControl, authRoutes, requireAdmin } from './infra/auth.ts'
-import type { OpenedDatabase } from './infra/database.ts'
-import { healthRoutes } from './infra/health.ts'
-import { errorHandler, notFoundHandler } from './infra/http.ts'
-import { SqliteContext, type SqliteContextOptions } from './infra/sqlite.ts'
-import { testingRoutes } from './infra/testing.ts'
-import { SqlitePantryRepository } from './pantry/repository.ts'
-import { pantryRoutes } from './pantry/routes.ts'
-import { createTesseractReader, type TicketReader } from './tickets/ocr.ts'
-import { SqliteTicketRepository } from './tickets/repository.ts'
-import { ticketRoutes } from './tickets/routes.ts'
-import { TicketService } from './tickets/service.ts'
+import { errorHandler, notFoundHandler } from './common/http/response.ts'
+import { testingRoutes } from './common/http/testingRoutes.ts'
+import type { OpenedDatabase } from './common/mysql/MysqlDatabase.ts'
+import { MysqlUnitOfWork } from './common/mysql/MysqlUnitOfWork.ts'
+import type { Clock, IdGenerator } from './common/ports.ts'
+import { randomIds, systemClock } from './common/system.ts'
+import { createAuthModule } from './modules/auth/index.ts'
+import { createFinanceModule } from './modules/finance/index.ts'
+import { createHealthModule } from './modules/health/index.ts'
+import { createPantryModule } from './modules/pantry/index.ts'
+import { createTesseractReader, createTicketsModule, type TicketReader } from './modules/tickets/index.ts'
 
 export interface AppOptions {
+  /** La base MySQL ya abierta y migrada (openDatabase en server/common/mysql/MysqlDatabase.ts). */
   database: OpenedDatabase
   /** Código que da acceso a las finanzas (CUENTAS_CODIGO). Obligatorio: sin él no se crea la aplicación. */
   accessCode: string
   /** Activa POST /api/test/reset (solo para las pruebas en navegador). También exige sesión. */
   testMode?: boolean
-  /** Reloj en milisegundos para las sesiones y los bloqueos (inyectable en los tests). */
-  clock?: () => number
-  /** Reloj e ids de los repositorios (inyectables en los tests). */
-  sqlite?: SqliteContextOptions
+  /** Reloj del servidor: sesiones, bloqueos, marcas de tiempo y la fecha de respaldo (inyectable en los tests). */
+  clock?: Clock
+  /** Ids de lo que crea el servidor (inyectables en los tests). */
+  ids?: IdGenerator
   /** Lector de tickets (OCR). Por defecto, Tesseract en este equipo; los tests pasan uno falso. */
   ticketReader?: TicketReader
 }
@@ -44,17 +38,18 @@ export function createApp({
   database,
   accessCode,
   testMode = false,
-  clock,
-  sqlite,
+  clock = systemClock,
+  ids = randomIds,
   ticketReader,
 }: AppOptions): Express {
   // Lanza si falta el código o no es válido: nunca hay una aplicación con el acceso abierto.
-  const access = new AccessControl(accessCode, clock)
-  const ctx = new SqliteContext(database.db, sqlite)
-  const repository = new SqliteFinanceRepository(ctx)
-  const pantry = new SqlitePantryRepository(ctx)
-  const tickets = new SqliteTicketRepository(ctx, pantry)
-  const reader = ticketReader ?? createTesseractReader()
+  const auth = createAuthModule({ accessCode, clock })
+  const health = createHealthModule({ database })
+  const unitOfWork = new MysqlUnitOfWork(database.db)
+  const deps = { db: database.db, clock, ids, unitOfWork }
+  const finance = createFinanceModule(deps)
+  const pantry = createPantryModule(deps)
+  const tickets = createTicketsModule({ ...deps, pantry: pantry.api, reader: ticketReader ?? createTesseractReader() })
 
   const app = express()
   app.disable('x-powered-by')
@@ -71,18 +66,25 @@ export function createApp({
     res.set('Cache-Control', 'no-store')
     next()
   })
-  api.use(healthRoutes(database))
-  api.use(authRoutes(access))
-  api.use(pantryRoutes(pantry))
-  api.use(ticketRoutes(tickets, new TicketService(tickets, pantry, reader)))
+  api.use(health.router)
+  api.use(auth.router)
+  api.use(pantry.router)
+  api.use(tickets.router)
 
-  api.use(requireAdmin(access))
-  api.use(dataRoutes(repository))
-  api.use(movementRoutes(repository))
-  api.use(categoryRoutes(repository))
-  api.use(recurringRoutes(repository))
-  api.use(metaRoutes(repository))
-  if (testMode) api.use(testingRoutes(repository, pantry))
+  api.use(auth.requireAdmin)
+  api.use(finance.router)
+  if (testMode) {
+    // Una transacción: primero los bloqueos de finanzas y de tickets, y la despensa después de los tickets (claves foráneas).
+    api.use(
+      testingRoutes(() =>
+        unitOfWork.run(async () => {
+          await finance.reset()
+          await tickets.reset()
+          await pantry.reset()
+        }),
+      ),
+    )
+  }
   api.use(notFoundHandler)
 
   app.use('/api', api)

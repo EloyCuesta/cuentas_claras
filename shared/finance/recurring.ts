@@ -1,5 +1,5 @@
-import { addMonthsClamped, endOfNextMonth } from '../core/dates.ts'
-import type { ISODate } from '../core/types.ts'
+import { addMonthsClamped, endOfNextMonth } from '../common/dates.ts'
+import type { ISODate } from '../common/types.ts'
 import type { Frequency, Movement, RecurringRule } from './types.ts'
 
 /**

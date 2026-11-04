@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CuentasClaras.Domain/CuentasClaras.Domain.csproj" />
+    <Project Path="src/CuentasClaras.Application/CuentasClaras.Application.csproj" />
+    <Project Path="src/CuentasClaras.Infrastructure/CuentasClaras.Infrastructure.csproj" />
+    <Project Path="src/CuentasClaras.Api/CuentasClaras.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CuentasClaras.Tests/CuentasClaras.Tests.csproj" />
+  </Folder>
+</Solution>

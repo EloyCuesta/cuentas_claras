@@ -1,4 +1,4 @@
-import type { ISODate } from '../core/types.ts'
+import type { ISODate } from '../common/types.ts'
 
 /**
  * Despensa. Independiente de las finanzas: no forma parte de FinanceData ni de

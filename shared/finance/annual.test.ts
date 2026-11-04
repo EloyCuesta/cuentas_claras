@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { yearPeriod } from '../core/period.ts'
-import { categories, movement } from '../test/factories.ts'
+import { categories, movement } from '../testing/factories.ts'
 import { categoryMonthMatrix, monthlySeries } from './annual.ts'
+import { yearPeriod } from './period.ts'
 import { periodSummary, totalsByCategory } from './summary.ts'
 
 const data = [

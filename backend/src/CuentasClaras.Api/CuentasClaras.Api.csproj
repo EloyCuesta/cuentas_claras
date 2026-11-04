@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../CuentasClaras.Application/CuentasClaras.Application.csproj" />
+    <ProjectReference Include="../CuentasClaras.Infrastructure/CuentasClaras.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

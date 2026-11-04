@@ -16,8 +16,8 @@ import {
   whatsAppUrl,
   type ShoppingListFilter,
 } from './pantry.ts'
+import { parsePantryCentsInput, parseQuantityInput, validateItemDraft, validateItemInput } from './pantryValidation.ts'
 import type { PantryItem, PantryPerson } from './types.ts'
-import { parsePantryCentsInput, parseQuantityInput, validateItemDraft, validateItemInput } from './validation.ts'
 
 let seq = 0
 function item(overrides: Partial<PantryItem> = {}): PantryItem {

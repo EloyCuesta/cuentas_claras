@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { LoginDialog } from './auth/LoginDialog.tsx'
-import { DespensaPage } from './pantry/DespensaPage.tsx'
 import { Icon, LogoMark } from './ui/Icon.tsx'
+import { LoginDialog } from './features/auth/index.ts'
+import { DespensaPage } from './features/pantry/index.ts'
 
 /**
  * Vista de invitado: solo la despensa y el botón «Tengo el código». No usa
- * FinanceProvider, así que no pide datos financieros. Un enlace como #resumen
- * también acaba aquí.
+ * FinanceProvider, así que no pide datos financieros ni ejecuta la migración de
+ * los datos del navegador. Un enlace como #resumen también acaba aquí.
  */
 export function GuestApp() {
   const [loggingIn, setLoggingIn] = useState(false)

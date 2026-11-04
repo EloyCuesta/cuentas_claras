@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { categories, movement, NOW, rule } from '../test/factories.ts'
+import { categories, movement, NOW, rule } from '../testing/factories.ts'
 import { parseBackup, serializeBackup } from './backup.ts'
 import type { FinanceData } from './types.ts'
 

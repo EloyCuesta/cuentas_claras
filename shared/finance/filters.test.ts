@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { categories, movement } from '../test/factories.ts'
+import { categories, movement } from '../testing/factories.ts'
 import { EMPTY_FILTERS, filterMovements } from './filters.ts'
 
 const data = [

@@ -15,15 +15,23 @@ dist-ssr
 # Configuración personal (código de acceso): nunca va al repositorio
 .env
 
-# Base de datos SQLite: son tus datos personales, nunca van al repositorio
+# Base de datos SQLite de antes de MySQL: son tus datos personales, nunca van al repositorio
 server/data/*.db
 server/data/*.db-wal
 server/data/*.db-shm
 server/data/*.db-journal
 
+# Informes del importador (claves y sumas de tus datos)
+informe-importacion-*.json
+
 # Pruebas en navegador
 test-results
 playwright-report
+
+# Compilación de la API .NET (la solución y los paquetes fijados sí se conservan)
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
 
 # Editor directories and files
 .vscode/*

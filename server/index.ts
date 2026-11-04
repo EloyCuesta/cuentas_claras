@@ -1,45 +1,70 @@
 import { createServer } from 'node:http'
-import { resolve } from 'node:path'
 import { createApp } from './app.ts'
-import { checkAccessCode } from './infra/auth.ts'
-import { DEFAULT_DB_PATH, openDatabase, type OpenedDatabase } from './infra/database.ts'
-import { createTesseractReader } from './tickets/ocr.ts'
+import { describeDatabase, isTestDatabaseName, readDatabaseConfig } from './common/mysql/config.ts'
+import { DatabaseSetupError } from './common/mysql/errors.ts'
+import { openDatabase, type OpenedDatabase } from './common/mysql/MysqlDatabase.ts'
+import { checkAccessCode } from './modules/auth/index.ts'
+import { createTesseractReader } from './modules/tickets/index.ts'
 
 /**
- * Servidor de Cuentas claras: la API REST sobre SQLite.
+ * Servidor de Cuentas claras: la API REST sobre MySQL.
  *
  * Variables de entorno. Los scripts de package.json las leen también del
- * archivo .env, si existe (ver .env.example).
+ * archivo .env, si existe (ver .env.example); las del entorno tienen prioridad.
  *
- * Obligatoria:
- * - CUENTAS_CODIGO   código de acceso a las finanzas (al menos 4 caracteres). Sin él
- *                    el servidor no arranca. Quien no lo sepa solo puede usar la despensa.
+ * Obligatorias:
+ * - CUENTAS_CODIGO       código de acceso a las finanzas (al menos 4 caracteres). Sin él
+ *                        el servidor no arranca ni conecta con MySQL. Quien no lo sepa
+ *                        solo puede usar la despensa.
+ * - CUENTAS_DB_USER      usuario de MySQL, con CUENTAS_DB_PASSWORD (su contraseña).
  *
  * Opcionales:
- * - CUENTAS_DB_PATH  archivo de la base de datos (por defecto server/data/cuentas.db)
- * - CUENTAS_PORT     puerto (por defecto 3001)
- * - CUENTAS_HOST     dirección (por defecto 127.0.0.1: solo accesible desde este equipo)
- * - CUENTAS_TEST=1   modo pruebas: activa POST /api/test/reset
+ * - CUENTAS_DB_HOST      servidor de MySQL (por defecto 127.0.0.1)
+ * - CUENTAS_DB_PORT      puerto de MySQL (por defecto 3306)
+ * - CUENTAS_DB_NAME      base de datos, que tiene que existir (por defecto cuentas_claras)
+ * - CUENTAS_PORT         puerto de la API (por defecto 3001)
+ * - CUENTAS_HOST         dirección (por defecto 127.0.0.1: solo accesible desde este equipo)
+ * - CUENTAS_TEST=1       modo pruebas: activa POST /api/test/reset y solo arranca contra
+ *                        cuentas_claras_e2e o una base cuentas_test_*
  */
 
-// Lo primero: sin un código válido no se abre (ni se crea) la base de datos.
-const accessCode = checkAccessCode(process.env.CUENTAS_CODIGO)
-if (!accessCode.ok) {
-  console.error(`[api] ${accessCode.message}`)
+function fail(message: string): never {
+  console.error(`[api] ${message}`)
   process.exit(1)
 }
 
+// Lo primero: sin un código válido no se conecta con MySQL.
+const accessCode = checkAccessCode(process.env.CUENTAS_CODIGO)
+if (!accessCode.ok) fail(accessCode.message)
+
+const databaseConfig = readDatabaseConfig(process.env)
+if (!databaseConfig.ok) fail(databaseConfig.message)
+const config = databaseConfig.config
+
 const port = Number(process.env.CUENTAS_PORT ?? 3001)
 const host = process.env.CUENTAS_HOST ?? '127.0.0.1'
-const dbPath = process.env.CUENTAS_DB_PATH ? resolve(process.env.CUENTAS_DB_PATH) : DEFAULT_DB_PATH
 const testMode = process.env.CUENTAS_TEST === '1'
+
+// El modo pruebas vacía la base con POST /api/test/reset: nunca contra la de uso diario.
+if (testMode && !isTestDatabaseName(config.database)) {
+  fail(
+    `Con CUENTAS_TEST=1 el servidor solo usa la base de las pruebas (cuentas_claras_e2e) o una cuentas_test_*, ` +
+      `nunca «${config.database}»: sus datos se borrarían. Quita CUENTAS_TEST o cambia CUENTAS_DB_NAME.`,
+  )
+}
+
+if (process.env.CUENTAS_DB_PATH) {
+  console.warn(
+    '[api] CUENTAS_DB_PATH ya no se usa: los datos están en MySQL (CUENTAS_DB_*). Para pasar los de una copia de cuentas.db, ' +
+      'usa el importador (README, «Pasar los datos de SQLite a MySQL»).',
+  )
+}
 
 let database: OpenedDatabase
 try {
-  database = openDatabase(dbPath)
+  database = await openDatabase(config)
 } catch (error) {
-  console.error(`[api] No se puede abrir la base de datos ${dbPath}:`, error instanceof Error ? error.message : error)
-  process.exit(1)
+  fail(error instanceof DatabaseSetupError ? error.message : `No se puede usar la base de datos ${describeDatabase(config)}.`)
 }
 
 const ticketReader = createTesseractReader()
@@ -51,29 +76,27 @@ server.on('error', (error: NodeJS.ErrnoException) => {
   } else {
     console.error('[api]', error)
   }
-  database.db.close()
-  process.exit(1)
+  void database.db.close().finally(() => process.exit(1))
 })
 
 server.listen(port, host, () => {
   console.log(`[api] Cuentas claras escuchando en http://${host}:${port}/api`)
-  console.log(`[api] Base de datos: ${database.path} (esquema ${database.schemaVersion})${testMode ? ' · MODO PRUEBAS' : ''}`)
+  console.log(`[api] Base de datos MySQL: ${describeDatabase(config)} (esquema ${database.schemaVersion})${testMode ? ' · MODO PRUEBAS' : ''}`)
 })
 
-// Al cerrar (Ctrl+C), se terminan las peticiones en curso y se cierra la base de datos.
+// Al cerrar (Ctrl+C), se terminan las peticiones en curso, se cierra el lector y después las conexiones con MySQL.
 let closing = false
 function shutdown() {
   if (closing) return
   closing = true
   server.close(() => {
-    void ticketReader.close().finally(() => {
-      database.db.close()
-      process.exit(0)
-    })
+    void ticketReader
+      .close()
+      .finally(() => database.db.close())
+      .finally(() => process.exit(0))
   })
   setTimeout(() => {
-    database.db.close()
-    process.exit(0)
+    void database.db.close().finally(() => process.exit(0))
   }, 2000).unref()
 }
 process.on('SIGINT', shutdown)

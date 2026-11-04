@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { monthPeriod } from '../core/period.ts'
-import { categories, movement } from '../test/factories.ts'
+import { categories, movement } from '../testing/factories.ts'
 import { categoryMonthMatrix, monthlySeries } from './annual.ts'
 import { monthTemplateCsv, movementsToCsv, yearTemplateCsv } from './csv.ts'
+import { monthPeriod } from './period.ts'
 import { categoryBreakdown } from './summary.ts'
 
 describe('movementsToCsv', () => {

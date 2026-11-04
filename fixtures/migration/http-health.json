@@ -1,0 +1,42 @@
+{
+  "format": "cuentas-claras-http-v1",
+  "provenance": "Datos inventados para BASE-01; respuestas de Express/SQLite de la rama hexagonal, sin datos personales.",
+  "scenarios": [
+    {
+      "name": "salud pública y versión del esquema sin datos de la instalación",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": false,
+        "testMode": false,
+        "ids": [],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "consultar salud",
+          "request": {
+            "method": "GET",
+            "path": "/api/health"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "status": "ok",
+                "schemaVersion": 5
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

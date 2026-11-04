@@ -1,0 +1,1404 @@
+{
+  "format": "cuentas-claras-http-v1",
+  "provenance": "Datos inventados para BASE-01; respuestas de Express/SQLite de la rama hexagonal, sin datos personales.",
+  "scenarios": [
+    {
+      "name": "categorías, pago con ID estable, sustitución y metadatos",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": true,
+        "testMode": false,
+        "ids": [],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "restaurar una base financiera pequeña",
+          "request": {
+            "method": "PUT",
+            "path": "/api/data",
+            "body": {
+              "categories": [
+                {
+                  "id": "g-ensayo",
+                  "name": "Categoría de ensayo",
+                  "type": "gasto",
+                  "parentId": null,
+                  "order": 1.5,
+                  "budgetCents": 12345
+                }
+              ],
+              "movements": [],
+              "recurring": []
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "leer la base restaurada",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "crear una categoría con orden fraccionario",
+          "request": {
+            "method": "PUT",
+            "path": "/api/categories/g-destino",
+            "body": {
+              "id": "g-destino",
+              "name": "Destino de ensayo",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2.75,
+              "budgetCents": 0
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "crear un pago pendiente",
+          "request": {
+            "method": "PUT",
+            "path": "/api/movements/mov-ensayo",
+            "body": {
+              "id": "mov-ensayo",
+              "concept": "Compra de ensayo",
+              "amountCents": 1234,
+              "type": "gasto",
+              "categoryId": "g-ensayo",
+              "status": "pendiente",
+              "paidDate": null,
+              "dueDate": "2026-11-03",
+              "notes": "",
+              "recurringId": null,
+              "occurrenceDate": null,
+              "installmentNumber": null,
+              "createdAt": "2026-11-01T08:00:00.000Z",
+              "updatedAt": "2026-11-01T08:00:00.000Z"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "reintentar con el mismo ID",
+          "request": {
+            "method": "PUT",
+            "path": "/api/movements/mov-ensayo",
+            "body": {
+              "id": "mov-ensayo",
+              "concept": "Compra de ensayo",
+              "amountCents": 1234,
+              "type": "gasto",
+              "categoryId": "g-ensayo",
+              "status": "pendiente",
+              "paidDate": null,
+              "dueDate": "2026-11-03",
+              "notes": "",
+              "recurringId": null,
+              "occurrenceDate": null,
+              "installmentNumber": null,
+              "createdAt": "2026-11-01T08:00:00.000Z",
+              "updatedAt": "2026-11-01T08:00:00.000Z"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "solo existe un pendiente",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-destino",
+                    "name": "Destino de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 2.75,
+                    "budgetCents": 0
+                  },
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "mov-ensayo",
+                    "concept": "Compra de ensayo",
+                    "amountCents": 1234,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "pendiente",
+                    "paidDate": null,
+                    "dueDate": "2026-11-03",
+                    "notes": "",
+                    "recurringId": null,
+                    "occurrenceDate": null,
+                    "installmentNumber": null,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "pagar conserva el ID",
+          "request": {
+            "method": "PUT",
+            "path": "/api/movements/mov-ensayo",
+            "body": {
+              "id": "mov-ensayo",
+              "concept": "Compra de ensayo",
+              "amountCents": 1234,
+              "type": "gasto",
+              "categoryId": "g-ensayo",
+              "status": "realizado",
+              "paidDate": "2026-11-01",
+              "dueDate": "2026-11-03",
+              "notes": "",
+              "recurringId": null,
+              "occurrenceDate": null,
+              "installmentNumber": null,
+              "createdAt": "2026-11-01T08:00:00.000Z",
+              "updatedAt": "2026-11-01T08:00:00.000Z"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "el pago sigue siendo un solo movimiento",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-destino",
+                    "name": "Destino de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 2.75,
+                    "budgetCents": 0
+                  },
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "mov-ensayo",
+                    "concept": "Compra de ensayo",
+                    "amountCents": 1234,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "realizado",
+                    "paidDate": "2026-11-01",
+                    "dueDate": "2026-11-03",
+                    "notes": "",
+                    "recurringId": null,
+                    "occurrenceDate": null,
+                    "installmentNumber": null,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "categoría en uso exige destino",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/categories/g-ensayo"
+          },
+          "expected": {
+            "status": 409,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "CONFLICT",
+                "message": "La categoría tiene movimientos: elige a qué categoría pasarlos."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "eliminar reasigna el movimiento",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/categories/g-ensayo?replacementId=g-destino"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "leer después de reasignar",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-destino",
+                    "name": "Destino de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 2.75,
+                    "budgetCents": 0
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "mov-ensayo",
+                    "concept": "Compra de ensayo",
+                    "amountCents": 1234,
+                    "type": "gasto",
+                    "categoryId": "g-destino",
+                    "status": "realizado",
+                    "paidDate": "2026-11-01",
+                    "dueDate": "2026-11-03",
+                    "notes": "",
+                    "recurringId": null,
+                    "occurrenceDate": null,
+                    "installmentNumber": null,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "borrar el movimiento",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/movements/mov-ensayo"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "repetir el borrado",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/movements/mov-ensayo"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "consultar fecha de copia ausente",
+          "request": {
+            "method": "GET",
+            "path": "/api/meta/lastBackupAt"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "value": null
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "guardar fecha de copia",
+          "request": {
+            "method": "PUT",
+            "path": "/api/meta/lastBackupAt",
+            "body": {
+              "value": "2026-11-01T08:00:00.000Z"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "consultar fecha de copia guardada",
+          "request": {
+            "method": "GET",
+            "path": "/api/meta/lastBackupAt"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "value": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "rechazar metadato desconocido",
+          "request": {
+            "method": "GET",
+            "path": "/api/meta/no-existe"
+          },
+          "expected": {
+            "status": 404,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "No existe el dato «no-existe»."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "validar ID de cuerpo y URL",
+          "request": {
+            "method": "PUT",
+            "path": "/api/movements/otro-id",
+            "body": {
+              "id": "mov-ensayo",
+              "concept": "Compra de ensayo",
+              "amountCents": 1234,
+              "type": "gasto",
+              "categoryId": "g-ensayo",
+              "status": "pendiente",
+              "paidDate": null,
+              "dueDate": "2026-11-03",
+              "notes": "",
+              "recurringId": null,
+              "occurrenceDate": null,
+              "installmentNumber": null,
+              "createdAt": "2026-11-01T08:00:00.000Z",
+              "updatedAt": "2026-11-01T08:00:00.000Z"
+            }
+          },
+          "expected": {
+            "status": 400,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "VALIDATION",
+                "message": "El id de la dirección no coincide con el de los datos."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "recurrentes del día 31, exclusiones, pagos y generación repetida",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": true,
+        "testMode": false,
+        "ids": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003"
+        ],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "preparar categoría",
+          "request": {
+            "method": "PUT",
+            "path": "/api/data",
+            "body": {
+              "categories": [
+                {
+                  "id": "g-ensayo",
+                  "name": "Categoría de ensayo",
+                  "type": "gasto",
+                  "parentId": null,
+                  "order": 1.5,
+                  "budgetCents": 12345
+                }
+              ],
+              "movements": [],
+              "recurring": []
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "crear dos cuotas y marcar la anterior como pagada",
+          "request": {
+            "method": "PUT",
+            "path": "/api/recurring/regla-ensayo",
+            "body": {
+              "rule": {
+                "id": "regla-ensayo",
+                "concept": "Cuota de ensayo",
+                "amountCents": 5000,
+                "type": "gasto",
+                "categoryId": "g-ensayo",
+                "frequency": "mensual",
+                "startDate": "2026-01-31",
+                "endDate": null,
+                "installments": 3,
+                "notes": "",
+                "excludedDates": [],
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "updatedAt": "2026-11-01T08:00:00.000Z"
+              },
+              "horizon": "2026-02-28",
+              "markPaidBefore": "2026-02-01"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "created": 2
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "leer enero y febrero",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000001",
+                    "concept": "Cuota de ensayo",
+                    "amountCents": 5000,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "realizado",
+                    "paidDate": "2026-01-31",
+                    "dueDate": "2026-01-31",
+                    "notes": "",
+                    "recurringId": "regla-ensayo",
+                    "occurrenceDate": "2026-01-31",
+                    "installmentNumber": 1,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  },
+                  {
+                    "id": "00000000-0000-4000-8000-000000000002",
+                    "concept": "Cuota de ensayo",
+                    "amountCents": 5000,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "pendiente",
+                    "paidDate": null,
+                    "dueDate": "2026-02-28",
+                    "notes": "",
+                    "recurringId": "regla-ensayo",
+                    "occurrenceDate": "2026-02-28",
+                    "installmentNumber": 2,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": [
+                  {
+                    "id": "regla-ensayo",
+                    "concept": "Cuota de ensayo",
+                    "amountCents": 5000,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "frequency": "mensual",
+                    "startDate": "2026-01-31",
+                    "endDate": null,
+                    "installments": 3,
+                    "notes": "",
+                    "excludedDates": [],
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ]
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "repetir generación hasta febrero",
+          "request": {
+            "method": "POST",
+            "path": "/api/occurrences/generate",
+            "body": {
+              "horizon": "2026-02-28"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "created": 0
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "borrar febrero lo excluye",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/movements/00000000-0000-4000-8000-000000000002"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "generar marzo sin recuperar febrero",
+          "request": {
+            "method": "POST",
+            "path": "/api/occurrences/generate",
+            "body": {
+              "horizon": "2026-03-31"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "created": 1
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "marzo vuelve al día 31 y febrero sigue excluido",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000001",
+                    "concept": "Cuota de ensayo",
+                    "amountCents": 5000,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "realizado",
+                    "paidDate": "2026-01-31",
+                    "dueDate": "2026-01-31",
+                    "notes": "",
+                    "recurringId": "regla-ensayo",
+                    "occurrenceDate": "2026-01-31",
+                    "installmentNumber": 1,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  },
+                  {
+                    "id": "00000000-0000-4000-8000-000000000003",
+                    "concept": "Cuota de ensayo",
+                    "amountCents": 5000,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "pendiente",
+                    "paidDate": null,
+                    "dueDate": "2026-03-31",
+                    "notes": "",
+                    "recurringId": "regla-ensayo",
+                    "occurrenceDate": "2026-03-31",
+                    "installmentNumber": 3,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": [
+                  {
+                    "id": "regla-ensayo",
+                    "concept": "Cuota de ensayo",
+                    "amountCents": 5000,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "frequency": "mensual",
+                    "startDate": "2026-01-31",
+                    "endDate": null,
+                    "installments": 3,
+                    "notes": "",
+                    "excludedDates": [
+                      "2026-02-28"
+                    ],
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ]
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "repetir generación no duplica",
+          "request": {
+            "method": "POST",
+            "path": "/api/occurrences/generate",
+            "body": {
+              "horizon": "2026-03-31"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "created": 0
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "borrar recurrente conserva pagos",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/recurring/regla-ensayo"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "enero realizado conserva el vínculo histórico",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000001",
+                    "concept": "Cuota de ensayo",
+                    "amountCents": 5000,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "realizado",
+                    "paidDate": "2026-01-31",
+                    "dueDate": "2026-01-31",
+                    "notes": "",
+                    "recurringId": "regla-ensayo",
+                    "occurrenceDate": "2026-01-31",
+                    "installmentNumber": 1,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "importación del navegador una sola vez y restauración aislada",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": true,
+        "testMode": false,
+        "ids": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002"
+        ],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "crear una persona pública antes de importar",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/personas",
+            "body": {
+              "name": "Persona de ensayo"
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "name": "Persona de ensayo",
+                "createdAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "crear producto ajeno a las finanzas",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/productos",
+            "body": {
+              "name": "Leche de ensayo",
+              "ownerId": "00000000-0000-4000-8000-000000000001",
+              "unit": "l",
+              "quantity": 0.125,
+              "target": 2,
+              "frequency": "semanal",
+              "priceCents": null,
+              "notes": ""
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "Leche de ensayo",
+                "ownerId": "00000000-0000-4000-8000-000000000001",
+                "unit": "l",
+                "tracking": "cantidad",
+                "quantity": 0.125,
+                "target": 2,
+                "frequency": "semanal",
+                "priceCents": null,
+                "notes": "",
+                "version": 1,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "updatedAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "importar finanzas del navegador",
+          "request": {
+            "method": "POST",
+            "path": "/api/import",
+            "body": {
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "mov-ensayo",
+                    "concept": "Compra de ensayo",
+                    "amountCents": 1234,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "pendiente",
+                    "paidDate": null,
+                    "dueDate": "2026-11-03",
+                    "notes": "",
+                    "recurringId": null,
+                    "occurrenceDate": null,
+                    "installmentNumber": null,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": []
+              },
+              "lastBackupAt": "2026-11-01T08:00:00.000Z"
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": 1,
+                "movements": 1,
+                "recurring": 0
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "rechazar una segunda importación",
+          "request": {
+            "method": "POST",
+            "path": "/api/import",
+            "body": {
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "mov-ensayo",
+                    "concept": "Compra de ensayo",
+                    "amountCents": 1234,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "pendiente",
+                    "paidDate": null,
+                    "dueDate": "2026-11-03",
+                    "notes": "",
+                    "recurringId": null,
+                    "occurrenceDate": null,
+                    "installmentNumber": null,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": []
+              },
+              "lastBackupAt": null
+            }
+          },
+          "expected": {
+            "status": 409,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "CONFLICT",
+                "message": "La base de datos ya tiene datos, así que no se han importado los del navegador."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "consultar lo importado",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [
+                  {
+                    "id": "mov-ensayo",
+                    "concept": "Compra de ensayo",
+                    "amountCents": 1234,
+                    "type": "gasto",
+                    "categoryId": "g-ensayo",
+                    "status": "pendiente",
+                    "paidDate": null,
+                    "dueDate": "2026-11-03",
+                    "notes": "",
+                    "recurringId": null,
+                    "occurrenceDate": null,
+                    "installmentNumber": null,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "restaurar finanzas vacías",
+          "request": {
+            "method": "PUT",
+            "path": "/api/data",
+            "body": {
+              "categories": [
+                {
+                  "id": "g-ensayo",
+                  "name": "Categoría de ensayo",
+                  "type": "gasto",
+                  "parentId": null,
+                  "order": 1.5,
+                  "budgetCents": 12345
+                }
+              ],
+              "movements": [],
+              "recurring": []
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "producto y persona siguen intactos",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/productos"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "name": "Leche de ensayo",
+                  "ownerId": "00000000-0000-4000-8000-000000000001",
+                  "unit": "l",
+                  "tracking": "cantidad",
+                  "quantity": 0.125,
+                  "target": 2,
+                  "frequency": "semanal",
+                  "priceCents": null,
+                  "notes": "",
+                  "version": 1,
+                  "createdAt": "2026-11-01T08:00:00.000Z",
+                  "updatedAt": "2026-11-01T08:00:00.000Z"
+                }
+              ]
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "persona sigue intacta",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/personas"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000001",
+                  "name": "Persona de ensayo",
+                  "createdAt": "2026-11-01T08:00:00.000Z"
+                }
+              ]
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "solo se han vaciado movimientos",
+          "request": {
+            "method": "GET",
+            "path": "/api/data"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "categories": [
+                  {
+                    "id": "g-ensayo",
+                    "name": "Categoría de ensayo",
+                    "type": "gasto",
+                    "parentId": null,
+                    "order": 1.5,
+                    "budgetCents": 12345
+                  }
+                ],
+                "movements": [],
+                "recurring": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

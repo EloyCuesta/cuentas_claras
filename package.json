@@ -2,8 +2,11 @@
   "name": "cuentas-claras",
   "private": true,
   "version": "1.0.0",
-  "description": "Ingresos, gastos y próximos pagos (React + TypeScript + Express + SQLite).",
+  "description": "Ingresos, gastos y próximos pagos (React + TypeScript + Express + MySQL).",
   "type": "module",
+  "imports": {
+    "#shared/*": "./shared/*"
+  },
   "engines": {
     "node": ">=22.12.0"
   },
@@ -12,11 +15,15 @@
     "dev:web": "vite",
     "dev:server": "tsx watch --env-file-if-exists=.env server/index.ts",
     "server": "tsx --env-file-if-exists=.env server/index.ts",
+    "importar:sqlite": "tsx --env-file-if-exists=.env tools/importer/cli.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "build:dotnet": "dotnet build backend/CuentasClaras.slnx --no-restore",
+    "test:dotnet": "dotnet test backend/CuentasClaras.slnx --no-build --no-restore",
+    "test:e2e:dotnet": "playwright test --config playwright.dotnet.config.ts",
     "typecheck": "tsc -b",
     "lint": "oxlint",
     "check": "npm run typecheck && npm run lint && npm test"
@@ -24,8 +31,9 @@
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
     "@tesseract.js-data/spa": "^1.0.0",
-    "better-sqlite3": "^13.0.3",
     "express": "^5.3.0",
+    "idb": "^8.0.4",
+    "mysql2": "3.24.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tesseract.js": "^7.0.0"
@@ -38,7 +46,9 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "better-sqlite3": "12.11.1",
     "concurrently": "^10.0.6",
+    "fake-indexeddb": "^6.2.6",
     "oxlint": "^1.89.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",

@@ -13,7 +13,7 @@ TAREA: la siguiente tarea pendiente de docs/migration/STATUS.md cuyas dependenci
 
 Lee primero AGENTS.md, docs/migration/README.md y STATUS.md. Consulta ARCHITECTURE.md, DATA.md y la funcionalidad correspondiente de MODULES.md. Contrasta todo con los archivos y pruebas actuales: la documentación distingue código existente, arquitectura objetivo y validaciones pendientes.
 
-Objetivo del proyecto: conservar React/TypeScript y migrar Express/SQLite a un backend ASP.NET Core con arquitectura hexagonal modular y MySQL local. Trabaja por funcionalidad, sin reescribir toda la aplicación en una sola entrega.
+Objetivo del proyecto: conservar React/TypeScript y migrar el backend Express (ya sobre MySQL local desde la fase MYSQL) a un backend ASP.NET Core con arquitectura hexagonal modular sobre la misma base MySQL. Trabaja por funcionalidad, sin reescribir toda la aplicación en una sola entrega.
 
 Antes de editar, indica el ID elegido, los contratos y reglas que afecta y un plan breve. Después implementa la tarea: reglas de dominio, caso de uso, puertos/adaptadores, persistencia, API, consumidor React y pruebas cuando correspondan. Para una tarea de caracterización, entrega los fixtures, inventario y resultados necesarios para habilitar la siguiente; para una tarea de implementación no te quedes en recomendaciones o carpetas vacías.
 
@@ -32,7 +32,8 @@ Usa la misma instrucción principal y sustituye su línea `TAREA` por una de est
 | --- | --- | --- |
 | Primera sesión | `TAREA: BASE-01.` | Contratos/fixtures caracterizados y línea base registrada |
 | Base .NET y acceso | `TAREA: BASE-02.` | Solución ejecutable, acceso, errores, configuración y pruebas de dependencias |
-| Esquema MySQL | `TAREA: DATA-01.` | Modelo completo y migración inicial probada con MySQL real |
+| Express sobre MySQL | `TAREA: MYSQL-01.` (después MYSQL-02, MYSQL-03 y MYSQL-04) | Conexión, transacciones, esquema, módulos, importador y E2E contra MySQL real |
+| .NET sobre MySQL | `TAREA: DATA-01.` | Acceso desde .NET al esquema de `database/mysql/`, probado con MySQL real |
 | Finanzas: lectura y categorías | `TAREA: FIN-01.` | Primer recorrido React/API/MySQL y categorías/metadatos |
 | Finanzas: movimientos y pagos | `TAREA: FIN-02.` | Altas/ediciones/borrados y pagar sin duplicar |
 | Finanzas: recurrentes | `TAREA: FIN-03.` | Cuotas, exclusiones, fechas y generación concurrente |
@@ -45,7 +46,7 @@ Usa la misma instrucción principal y sustituye su línea `TAREA` por una de est
 | Tickets: OCR local | `TAREA: TIC-02.` | Puerto/adaptador y borrador revisable, con límites y fixtures |
 | Tickets: guardar compra | `TAREA: TIC-03.` | Transacción integral y deduplicación con dos conexiones |
 | Tickets: historial | `TAREA: TIC-04.` | Detalle, asociación, borrado y actividad equivalente |
-| Migrar todos los datos | `TAREA: DATA-02.` | Importador y comparador, ensayos sintéticos y estado de los reales |
+| Validar los datos reales | `TAREA: DATA-02.` | Registro del corte que hace la persona con el importador de MYSQL-03 |
 | Integrar y preparar el corte | `TAREA: CUT-01.` | Recorridos completos, recuperación y condiciones de corte verificadas |
 
 Si pides un ID con dependencias pendientes, el agente debe identificarlo y empezar por la primera dependencia necesaria que sí pueda completar; no debe afirmar que migró el módulo copiando su versión TypeScript a otra carpeta. Para seguir el orden sin elegir manualmente, usa la selección automática del prompt principal.

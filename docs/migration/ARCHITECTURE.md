@@ -2,6 +2,8 @@
 
 Estado: diseño por implementar. Consulta [STATUS.md](STATUS.md) para saber qué existe.
 
+La organización actual de Express ya es hexagonal modular y está descrita en [arquitectura actual](../arquitectura.md). Las capas, proyectos y tipos C# de este documento son destino; BASE-01 conserva los puertos y adaptadores TypeScript. El acceso a MySQL desde .NET es una propuesta pendiente de autorizar y validar en DATA-01: MySqlConnector con SQL explícito, como hace Express desde la fase MYSQL, porque AGENTS.md prohíbe los ORM y Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10.
+
 ## Producto y límites
 
 Cuentas Claras sirve para registrar ingresos, gastos y próximos pagos, distinguir realizado de previsto, consultar meses y años y gestionar la despensa doméstica mediante productos, compras, repaso semanal y tickets. La instalación será local, con una web, una API y MySQL. Se mantiene un repositorio y un monolito modular.
@@ -14,28 +16,28 @@ Finanzas y despensa son ámbitos separados. Los tickets pertenecen al flujo de c
 | --- | --- | --- |
 | API | ASP.NET Core 10 | SDK estable y configuración de arranque en el equipo |
 | Negocio y aplicación | C# | Equivalencia con reglas y fixtures TypeScript |
-| Persistencia | EF Core 10 con proveedor MySQL estable compatible | Fijar versiones tras restore y prueba real del proveedor |
+| Persistencia | SQL explícito con MySqlConnector (propuesta) sobre el esquema y las migraciones de `database/mysql/` | Autorizar la dependencia, fijar versión tras restore y prueba real contra MySQL |
 | Base de datos | MySQL Server 8.4, InnoDB, utf8mb4 | JSON, precisión, collations, restricciones y concurrencia |
 | Administración | MySQL Workbench | Conexión al servidor local; no sustituye al servidor |
 | Interfaz | React + TypeScript + Vite existentes | Ajustar consumidores y conservar experiencia de escritorio/móvil |
 | OCR | Adaptador local detrás de `ITicketReader` | Ensayo con fixtures antes de elegir implementación definitiva |
 
-No se fija aquí una versión concreta de un paquete MySQL ni se presupone que cualquier proveedor soporte EF Core 10. Comprueba documentación oficial y paquetes estables al ejecutar `BASE-02`/`DATA-01`, registra la combinación elegida y no uses previews por defecto.
+No se fija aquí una versión concreta de un paquete MySQL. Comprueba documentación oficial y paquetes estables al ejecutar `DATA-01`, registra la combinación elegida y no uses previews por defecto. El esquema ya existe: .NET aplica las mismas migraciones .sql y el mismo `schema_migrations`.
 
 ## Organización propuesta
 
-La carpeta `backend/` y los proyectos siguientes son destino, no rutas ya creadas. React puede permanecer en `src/` durante toda la sustitución.
+Los cuatro proyectos y el de pruebas ya existen en `backend/` (BASE-02), con el acceso; lo que describe cada uno para finanzas, despensa y tickets es destino. React puede permanecer en `src/` durante toda la sustitución.
 
-| Proyecto bajo `backend/` | Responsabilidad | Referencias permitidas |
+| Proyecto bajo backend/ | Responsabilidad | Referencias permitidas |
 | --- | --- | --- |
 | `CuentasClaras.Domain` | Entidades, valores y reglas puras; carpetas Finance, Pantry, Tickets y un núcleo común pequeño | Biblioteca estándar |
 | `CuentasClaras.Application` | Casos de uso, puertos, DTO de aplicación, contratos públicos entre módulos | Domain |
-| `CuentasClaras.Infrastructure` | MySQL/EF, transacciones, OCR y adaptadores de configuración/acceso | Application y Domain |
+| `CuentasClaras.Infrastructure` | MySQL con SQL explícito, transacciones, OCR y adaptadores de configuración/acceso | Application y Domain |
 | `CuentasClaras.Api` | HTTP, políticas, serialización y composición | Application; Infrastructure para registrar adaptadores |
 
 Los tests irán separados del código de ejecución y seguirán las necesidades reales: reglas puras, dependencias arquitectónicas, integración MySQL y contrato HTTP. Conserva y adapta los E2E de React.
 
-Domain no conoce ASP.NET Core, EF Core, React ni el proveedor MySQL. Application no devuelve `IQueryable`, `DbContext`, entidades EF ni conexiones. Los puertos pertenecen a la capa que los necesita y sus implementaciones a Infrastructure. Los DTO HTTP se mapean explícitamente; no se serializan entidades de dominio directamente.
+Domain no conoce ASP.NET Core, React ni el proveedor MySQL. Application no devuelve conexiones, lectores ni tipos del proveedor. Los puertos pertenecen a la capa que los necesita y sus implementaciones a Infrastructure. Los DTO HTTP se mapean explícitamente; no se serializan entidades de dominio directamente.
 
 Las capas quedan separadas por ensamblados y los módulos por namespaces dentro de ellos. Esa distribución no impide por sí sola referencias indebidas entre módulos: añade pruebas de arquitectura para verificar las reglas. No atribuyas al compilador una separación que todavía depende de convenciones.
 
@@ -52,7 +54,7 @@ Pantry no importa el dominio de Tickets. Su historial se obtiene mediante un pue
 
 ## Transacciones y concurrencia
 
-Inicialmente habrá un `AppDbContext` por ámbito de petición y una unidad de trabajo común, con configuraciones agrupadas por módulo. Los repositorios no confirman independientemente una operación coordinada. El caso exterior decide cuándo guardar y confirmar.
+Habrá una unidad de trabajo común con una conexión MySQL por operación, como la de Express (`server/common/mysql/MysqlUnitOfWork.ts`): las llamadas anidadas se unen a la transacción exterior y los bloqueos (`app_locks` y `SELECT … FOR UPDATE` de productos en orden de id) se toman antes de leer. Los repositorios no confirman independientemente una operación coordinada. El caso exterior decide cuándo guardar y confirmar.
 
 `GuardarTicketRevisado` debe comprobar duplicados, consultar el catálogo vigente, calcular el plan, crear productos, guardar equivalencias, aplicar precios/cantidades e insertar cabecera/líneas dentro de una sola transacción. Todos los participantes comparten contexto y transacción. El OCR se ejecuta antes para no mantener bloqueos durante el reconocimiento. Un fallo debe revertir todos los efectos.
 
@@ -62,7 +64,7 @@ Para los ajustes relativos de cantidad, calcula sobre el valor actual y usa una 
 
 Recurrentes y tickets requieren índices únicos, además de comprobaciones de aplicación. Prueba las carreras con dos conexiones MySQL; ejecutar una operación dos veces secuencialmente no demuestra ausencia de duplicados concurrentes.
 
-En movimientos financieros conserva el mismo ID cuando se reintenta la misma operación. La interfaz distingue «guardado confirmado» de «recarga fallida» para evitar repetir un alta ya confirmada.
+En movimientos financieros conserva el mismo ID cuando se reintenta la misma operación. En FIN-02 la interfaz deberá distinguir «guardado confirmado» de «recarga fallida» para evitar repetir un alta ya confirmada; no se da esa mejora por implementada en React.
 
 ## HTTP, acceso y configuración
 
@@ -85,13 +87,15 @@ La política actual a conservar es:
 - Sesiones de 12 horas, cookie `cc_sesion`, HttpOnly, SameSite=Strict y Path=/api. El servidor actual las invalida al reiniciar; no cambies esa semántica por adoptar cookies persistentes de framework sin documentar el cambio.
 - Cinco códigos incorrectos bloquean los siguientes intentos durante 15 minutos por IP. Conserva 401/429 y `Retry-After`; confía solo en el proxy local observado, no en cabeceras de cualquier cliente.
 - La configuración del código de acceso se valida antes de abrir/crear la base de datos. No puede quedar una API de finanzas abierta por faltar configuración.
-- Las respuestas de `/api` llevan `Cache-Control: no-store`.
+- Las respuestas que atraviesan el router de `/api` llevan `Cache-Control: no-store`. Los errores del lector JSON de Express (400/413) se producen antes y actualmente carecen de esa cabecera. BASE-01 registra esa diferencia; BASE-02 deberá aplicar la garantía también a los errores del host y documentar la corrección deliberada.
 
 Vite ya permite seleccionar el servidor con `CUENTAS_API_URL`. Mantén el proxy del mismo origen para las cookies; al arrancar dos APIs de ensayo usa puertos distintos. Conserva `CUENTAS_CODIGO` o documenta su mapeo de forma explícita. ASP.NET Core no debe presuponerse lector automático del `.env` usado por Node: implementa y documenta la carga/configuración local que se elija, sin guardar secretos en git.
 
 ## React y retirada del backend anterior
 
-Reutiliza `src/api/apiClient.ts`, `src/finance/ApiFinanceRepository.ts` y `src/pantry/pantryApi.ts`. Adapta cada consumidor cuando cambie su contrato. No reescribas todas las pantallas para cambiar el motor de datos.
+Reutiliza `src/api/client.ts`, `src/features/finance/ApiFinanceRepository.ts` y `src/features/pantry/api.ts`. Adapta cada consumidor cuando cambie su contrato. No reescribas todas las pantallas para cambiar el motor de datos.
+
+La migración de IndexedDB al servidor y `POST /api/import` siguen presentes en esta rama. Conserva el recorrido y sus pruebas mientras no se apruebe su retirada, pendiente en [las decisiones actuales](../decisiones.md).
 
 `shared/` también contiene reglas consumidas por React. La proyección de recurrentes y los resúmenes no están todos en el servidor actual. Antes de retirarlos, porta las reglas y verifica equivalencia; después integra consultas de aplicación con contratos documentados. No inventes que esos endpoints nuevos ya existen.
 

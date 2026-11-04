@@ -1,0 +1,652 @@
+{
+  "format": "cuentas-claras-http-v1",
+  "provenance": "Datos inventados para BASE-01; respuestas de Express/SQLite de la rama hexagonal, sin datos personales.",
+  "scenarios": [
+    {
+      "name": "lectura, guardado, duplicado, historial, asociación y borrado públicos",
+      "setup": {
+        "now": "2026-11-01T08:00:00.000Z",
+        "today": "2026-11-01",
+        "login": false,
+        "testMode": false,
+        "ids": [
+          "00000000-0000-4000-8000-000000000001",
+          "00000000-0000-4000-8000-000000000002",
+          "00000000-0000-4000-8000-000000000003",
+          "00000000-0000-4000-8000-000000000004",
+          "00000000-0000-4000-8000-000000000005"
+        ],
+        "accessCode": "codigo-de-prueba"
+      },
+      "steps": [
+        {
+          "name": "leer texto sin guardar",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/tickets/leer",
+            "body": {
+              "texto": "LIDL\nEUR\nPAN ENSAYO 1,00 A\nTOTAL 1,00\nFECHA: 31/10/26",
+              "hoy": "2026-11-01"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "ticket": {
+                  "store": "lidl",
+                  "storeName": "Lidl",
+                  "address": "",
+                  "date": "2026-10-31",
+                  "time": null,
+                  "totalCents": 100,
+                  "lines": [
+                    {
+                      "position": 0,
+                      "rawName": "PAN ENSAYO",
+                      "key": "PAN ENSAYO",
+                      "quantity": 1,
+                      "unitPriceCents": null,
+                      "amountCents": 100,
+                      "discountCents": 0,
+                      "weightKg": null,
+                      "pricePerKgCents": null,
+                      "taxCode": "A",
+                      "flags": [],
+                      "evidence": {
+                        "text": "PAN ENSAYO 1,00 A",
+                        "reread": null,
+                        "normalized": "PAN ENSAYO 1,00 A",
+                        "recognizedCents": 100,
+                        "calculatedCents": null,
+                        "selectedBy": "read",
+                        "issues": []
+                      }
+                    }
+                  ],
+                  "adjustments": [],
+                  "issues": [],
+                  "check": {
+                    "status": "cuadra",
+                    "linesTotalCents": 100,
+                    "differenceCents": 0,
+                    "unreadable": 0,
+                    "pending": 0
+                  },
+                  "taxGroups": [],
+                  "paymentMethod": null
+                },
+                "suggestions": {
+                  "PAN ENSAYO": {
+                    "kind": "new",
+                    "name": "Pan ensayo",
+                    "frequency": "semanal"
+                  }
+                },
+                "duplicate": null,
+                "possibleDuplicate": null,
+                "sourceFingerprint": "5d53146463cef2fd82dcca878d92569cab2dd1a39d7ced20c4c7d7cd122735ec",
+                "importId": "00000000-0000-4000-8000-000000000001"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "la lectura no crea tickets",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/tickets"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": []
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "guardar ticket crea producto de compras",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/tickets",
+            "body": {
+              "store": "lidl",
+              "storeName": "Lidl",
+              "address": "",
+              "date": "2026-10-31",
+              "time": "12:34",
+              "totalCents": 100,
+              "acknowledged": true,
+              "importId": "00000000-0000-4000-8000-000000000001",
+              "sourceFingerprint": "5d53146463cef2fd82dcca878d92569cab2dd1a39d7ced20c4c7d7cd122735ec",
+              "adjustments": [],
+              "issues": [],
+              "lines": [
+                {
+                  "rawName": "PAN ENSAYO",
+                  "quantity": 1,
+                  "unitPriceCents": 100,
+                  "amountCents": 100,
+                  "discountCents": 0,
+                  "weightKg": null,
+                  "pricePerKgCents": null,
+                  "taxCode": "A",
+                  "occasional": false,
+                  "confirmed": true,
+                  "reviewStatus": "verified"
+                }
+              ],
+              "decisions": {
+                "PAN ENSAYO": {
+                  "kind": "new",
+                  "name": "Pan de ensayo",
+                  "ownerId": null,
+                  "frequency": "semanal"
+                }
+              }
+            }
+          },
+          "expected": {
+            "status": 201,
+            "body": {
+              "ok": true,
+              "data": {
+                "ticket": {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "store": "lidl",
+                  "storeName": "Lidl",
+                  "address": "",
+                  "date": "2026-10-31",
+                  "time": "12:34",
+                  "totalCents": 100,
+                  "linesCount": 1,
+                  "productsCount": 1,
+                  "createdAt": "2026-11-01T08:00:00.000Z",
+                  "lines": [
+                    {
+                      "id": "00000000-0000-4000-8000-000000000004",
+                      "position": 0,
+                      "rawName": "PAN ENSAYO",
+                      "quantity": 1,
+                      "unitPriceCents": 100,
+                      "amountCents": 100,
+                      "discountCents": 0,
+                      "weightKg": null,
+                      "pricePerKgCents": null,
+                      "taxCode": "A",
+                      "itemId": "00000000-0000-4000-8000-000000000002",
+                      "occasional": false,
+                      "reviewStatus": "verified",
+                      "confirmed": true
+                    }
+                  ],
+                  "adjustments": [],
+                  "issues": []
+                },
+                "items": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000002",
+                    "name": "Pan de ensayo",
+                    "ownerId": null,
+                    "unit": "ud",
+                    "tracking": "compras",
+                    "quantity": 0,
+                    "target": 0,
+                    "frequency": "semanal",
+                    "priceCents": 100,
+                    "notes": "",
+                    "version": 1,
+                    "createdAt": "2026-11-01T08:00:00.000Z",
+                    "updatedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ]
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "repetir guardado conserva deduplicación",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/tickets",
+            "body": {
+              "store": "lidl",
+              "storeName": "Lidl",
+              "address": "",
+              "date": "2026-10-31",
+              "time": "12:34",
+              "totalCents": 100,
+              "acknowledged": true,
+              "importId": "00000000-0000-4000-8000-000000000001",
+              "sourceFingerprint": "5d53146463cef2fd82dcca878d92569cab2dd1a39d7ced20c4c7d7cd122735ec",
+              "adjustments": [],
+              "issues": [],
+              "lines": [
+                {
+                  "rawName": "PAN ENSAYO",
+                  "quantity": 1,
+                  "unitPriceCents": 100,
+                  "amountCents": 100,
+                  "discountCents": 0,
+                  "weightKg": null,
+                  "pricePerKgCents": null,
+                  "taxCode": "A",
+                  "occasional": false,
+                  "confirmed": true,
+                  "reviewStatus": "verified"
+                }
+              ],
+              "decisions": {
+                "PAN ENSAYO": {
+                  "kind": "new",
+                  "name": "Pan de ensayo",
+                  "ownerId": null,
+                  "frequency": "semanal"
+                }
+              }
+            }
+          },
+          "expected": {
+            "status": 409,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "CONFLICT",
+                "message": "Este ticket ya está guardado (Lidl, 31/10/2026)."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "leer historial con resumen",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/tickets"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "store": "lidl",
+                  "storeName": "Lidl",
+                  "address": "",
+                  "date": "2026-10-31",
+                  "time": "12:34",
+                  "totalCents": 100,
+                  "linesCount": 1,
+                  "productsCount": 1,
+                  "createdAt": "2026-11-01T08:00:00.000Z"
+                }
+              ]
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "leer detalle completo",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/tickets/00000000-0000-4000-8000-000000000003"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000003",
+                "store": "lidl",
+                "storeName": "Lidl",
+                "address": "",
+                "date": "2026-10-31",
+                "time": "12:34",
+                "totalCents": 100,
+                "linesCount": 1,
+                "productsCount": 1,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "lines": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000004",
+                    "position": 0,
+                    "rawName": "PAN ENSAYO",
+                    "quantity": 1,
+                    "unitPriceCents": 100,
+                    "amountCents": 100,
+                    "discountCents": 0,
+                    "weightKg": null,
+                    "pricePerKgCents": null,
+                    "taxCode": "A",
+                    "itemId": "00000000-0000-4000-8000-000000000002",
+                    "occasional": false,
+                    "reviewStatus": "verified",
+                    "confirmed": true
+                  }
+                ],
+                "adjustments": [],
+                "issues": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "actividad incluye la compra",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/actividad?hoy=2026-11-01"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "purchases": [
+                  {
+                    "itemId": "00000000-0000-4000-8000-000000000002",
+                    "date": "2026-10-31",
+                    "amount": 1,
+                    "measure": "ud",
+                    "costCents": 100,
+                    "store": "Lidl",
+                    "ticketId": "00000000-0000-4000-8000-000000000003",
+                    "recordedAt": "2026-11-01T08:00:00.000Z"
+                  }
+                ],
+                "events": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "asociar línea a no seguir",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/tickets/00000000-0000-4000-8000-000000000003/lineas/00000000-0000-4000-8000-000000000004",
+            "body": {
+              "itemId": null
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "id": "00000000-0000-4000-8000-000000000003",
+                "store": "lidl",
+                "storeName": "Lidl",
+                "address": "",
+                "date": "2026-10-31",
+                "time": "12:34",
+                "totalCents": 100,
+                "linesCount": 1,
+                "productsCount": 0,
+                "createdAt": "2026-11-01T08:00:00.000Z",
+                "lines": [
+                  {
+                    "id": "00000000-0000-4000-8000-000000000004",
+                    "position": 0,
+                    "rawName": "PAN ENSAYO",
+                    "quantity": 1,
+                    "unitPriceCents": 100,
+                    "amountCents": 100,
+                    "discountCents": 0,
+                    "weightKg": null,
+                    "pricePerKgCents": null,
+                    "taxCode": "A",
+                    "itemId": null,
+                    "occasional": false,
+                    "reviewStatus": "verified",
+                    "confirmed": true
+                  }
+                ],
+                "adjustments": [],
+                "issues": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "leer de nuevo conserva aprendizaje y duplicado",
+          "request": {
+            "method": "POST",
+            "path": "/api/despensa/tickets/leer",
+            "body": {
+              "texto": "LIDL\nEUR\nPAN ENSAYO 1,00 A\nTOTAL 1,00\nFECHA: 31/10/26",
+              "hoy": "2026-11-01"
+            }
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "ticket": {
+                  "store": "lidl",
+                  "storeName": "Lidl",
+                  "address": "",
+                  "date": "2026-10-31",
+                  "time": null,
+                  "totalCents": 100,
+                  "lines": [
+                    {
+                      "position": 0,
+                      "rawName": "PAN ENSAYO",
+                      "key": "PAN ENSAYO",
+                      "quantity": 1,
+                      "unitPriceCents": null,
+                      "amountCents": 100,
+                      "discountCents": 0,
+                      "weightKg": null,
+                      "pricePerKgCents": null,
+                      "taxCode": "A",
+                      "flags": [],
+                      "evidence": {
+                        "text": "PAN ENSAYO 1,00 A",
+                        "reread": null,
+                        "normalized": "PAN ENSAYO 1,00 A",
+                        "recognizedCents": 100,
+                        "calculatedCents": null,
+                        "selectedBy": "read",
+                        "issues": []
+                      }
+                    }
+                  ],
+                  "adjustments": [],
+                  "issues": [],
+                  "check": {
+                    "status": "cuadra",
+                    "linesTotalCents": 100,
+                    "differenceCents": 0,
+                    "unreadable": 0,
+                    "pending": 0
+                  },
+                  "taxGroups": [],
+                  "paymentMethod": null
+                },
+                "suggestions": {
+                  "PAN ENSAYO": {
+                    "kind": "ignore",
+                    "how": "recordado"
+                  }
+                },
+                "duplicate": {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "store": "lidl",
+                  "storeName": "Lidl",
+                  "address": "",
+                  "date": "2026-10-31",
+                  "time": "12:34",
+                  "totalCents": 100,
+                  "linesCount": 1,
+                  "productsCount": 0,
+                  "createdAt": "2026-11-01T08:00:00.000Z"
+                },
+                "possibleDuplicate": null,
+                "sourceFingerprint": "5d53146463cef2fd82dcca878d92569cab2dd1a39d7ced20c4c7d7cd122735ec",
+                "importId": "00000000-0000-4000-8000-000000000005"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "borrar ticket",
+          "request": {
+            "method": "DELETE",
+            "path": "/api/despensa/tickets/00000000-0000-4000-8000-000000000003"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": null
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "detalle borrado da 404",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/tickets/00000000-0000-4000-8000-000000000003"
+          },
+          "expected": {
+            "status": 404,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "NOT_FOUND",
+                "message": "Ese ticket ya no existe."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "el producto se conserva después del borrado",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/productos"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000002",
+                  "name": "Pan de ensayo",
+                  "ownerId": null,
+                  "unit": "ud",
+                  "tracking": "compras",
+                  "quantity": 0,
+                  "target": 0,
+                  "frequency": "semanal",
+                  "priceCents": 100,
+                  "notes": "",
+                  "version": 1,
+                  "createdAt": "2026-11-01T08:00:00.000Z",
+                  "updatedAt": "2026-11-01T08:00:00.000Z"
+                }
+              ]
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "la compra desaparece de actividad",
+          "request": {
+            "method": "GET",
+            "path": "/api/despensa/actividad?hoy=2026-11-01"
+          },
+          "expected": {
+            "status": 200,
+            "body": {
+              "ok": true,
+              "data": {
+                "purchases": [],
+                "events": []
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

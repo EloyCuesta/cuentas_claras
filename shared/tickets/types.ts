@@ -1,7 +1,7 @@
-import type { ISODate } from '../core/types.ts'
+import type { ISODate } from '../common/types.ts'
 import type { PantryFrequency } from '../pantry/types.ts'
 
-/** Tickets de la compra: lo que lee el OCR, lo que se revisa y lo que se guarda. */
+/** Tickets de la compra: lo que lee el OCR, la revisión y lo que se guarda. */
 
 /** Una línea leída de la imagen de un ticket. `reread`: su parte final leída otra vez solo con cifras. */
 export interface OcrLine {

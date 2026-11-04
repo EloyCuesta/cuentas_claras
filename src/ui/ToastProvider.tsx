@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Icon } from './Icon.tsx'
 import { ToastContext, type ToastApi, type ToastTone } from './toastContext.ts'
+import { Icon } from './Icon.tsx'
 
 interface Toast {
   id: number

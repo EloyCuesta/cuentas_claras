@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { categories, movement, NOW } from '../test/factories.ts'
-import {
-  markAsPaid,
-  validateCategoryName,
-  validateMovementDraft,
-  validateRecurringDraft,
-  type MovementDraft,
-  type RecurringDraft,
-} from './validation.ts'
+import { categories, movement, NOW } from '../testing/factories.ts'
+import { markAsPaid, validateCategoryName, validateMovementDraft, validateRecurringDraft, type MovementDraft, type RecurringDraft } from './validation.ts'
 
 const draft = (overrides: Partial<MovementDraft> = {}): MovementDraft => ({
   type: 'gasto',

@@ -1,6 +1,9 @@
-import type { ISODate } from '../core/types.ts'
+import type { ISODate } from '../common/types.ts'
 
-/** Finanzas: categorías, movimientos y recurrentes. Importes en céntimos enteros y positivos. */
+/**
+ * Tipos de las finanzas: categorías, movimientos y recurrentes. Lo que se
+ * exporta en la copia JSON es FinanceData.
+ */
 
 export type MovementType = 'ingreso' | 'gasto'
 
@@ -71,4 +74,15 @@ export interface FinanceData {
   categories: Category[]
   movements: Movement[]
   recurring: RecurringRule[]
+}
+
+/** Opciones al guardar un recurrente (el cuerpo de PUT /api/recurring/:id, sin la regla). */
+export interface SaveRecurringOptions {
+  /** Último día para el que se crean vencimientos. */
+  horizon: ISODate
+  /**
+   * Si se indica, los vencimientos anteriores a esa fecha se guardan como ya
+   * pagados (en su fecha). Sirve para dar de alta un préstamo ya empezado.
+   */
+  markPaidBefore?: ISODate | null
 }
