@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3'
-import { writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { FinanceData } from '#shared/finance/types.ts'
 import type { PantryItem, PantrySettings } from '#shared/pantry/types.ts'
@@ -30,6 +32,26 @@ afterEach(async () => {
   await dropTestDatabases()
   removeTempDbs()
 })
+
+/**
+ * Ejecuta `work` con la carpeta temporal del sistema (TEMP, TMP y TMPDIR) en una vacía y devuelve lo que quede en
+ * ella: el importador lee la copia desde un duplicado ahí y lo tiene que borrar siempre.
+ */
+async function leftInTempFolder(work: () => Promise<void>): Promise<string[]> {
+  const folder = mkdtempSync(join(tmpdir(), 'cuentas-claras-test-temp-'))
+  const saved = { TEMP: process.env.TEMP, TMP: process.env.TMP, TMPDIR: process.env.TMPDIR }
+  Object.assign(process.env, { TEMP: folder, TMP: folder, TMPDIR: folder })
+  try {
+    await work()
+    return readdirSync(folder)
+  } finally {
+    for (const [variable, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[variable]
+      else process.env[variable] = value
+    }
+    rmSync(folder, { recursive: true, force: true })
+  }
+}
 
 /** Una base MySQL de pruebas vacía, sin tablas: como la crea la persona en Workbench. */
 async function emptyTarget() {
@@ -155,11 +177,15 @@ describe('importador SQLite → MySQL', () => {
       old.prepare('INSERT INTO schema_migrations VALUES (?, ?, ?)').run(migration.version, migration.name, NOW)
     }
     old.close()
-    expect((await importSqlite({ sourcePath: v4, target: config })).mensaje).toMatch(/versión 4 del esquema de SQLite y el importador solo lee la 5/)
-
     const text = tempDbPath()
     writeFileSync(text, 'esto no es una base de datos')
-    expect((await importSqlite({ sourcePath: text, target: config })).mensaje).toMatch(/no es una base de datos SQLite/)
+    const leftovers = await leftInTempFolder(async () => {
+      expect((await importSqlite({ sourcePath: v4, target: config })).mensaje).toMatch(/versión 4 del esquema de SQLite y el importador solo lee la 5/)
+      const notSqlite = await importSqlite({ sourcePath: text, target: config })
+      expect([notSqlite.resultado, exitCode(notSqlite), notSqlite.mensaje]).toEqual(['rechazado', 2, expect.stringMatching(/no es una base de datos SQLite/)])
+    })
+    // Las dos se leyeron desde un duplicado temporal que se borra también al rechazarlas (en Windows, con SQLite ya cerrado).
+    expect(leftovers).toEqual([])
 
     const withWal = tempDbPath()
     createSyntheticCopy(withWal)

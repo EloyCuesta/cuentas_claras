@@ -44,6 +44,7 @@ JSON (`cuentas-claras-importacion-v1`): `resultado` y `mensaje`; `origen` (archi
 - El DDL de MySQL se confirma solo: las tablas se crean antes de la transacción de los datos y se quedan aunque la carga se deshaga. Por eso se puede repetir en la misma base, que sigue vacía.
 - Los REAL de SQLite pueden traer ruido (0,1 + 0,2): se comparan en milésimas, como DECIMAL(10,3).
 - Los enteros se leen como bigint (`safeIntegers`): uno que no cabe en JavaScript se rechaza en vez de perder precisión.
+- better-sqlite3 abre cualquier archivo y falla en la primera lectura. Windows no borra un archivo abierto, así que el duplicado se cierra antes de borrar su carpeta también al rechazar una copia que no es SQLite (si no, la persona vería EPERM). Lo comprueba `importSqlite.test.ts`, que mira que la carpeta temporal queda vacía.
 - Las pruebas usan `afterTable` para provocar un fallo o una diferencia a mitad de la carga; el comando nunca lo pasa.
 
 ## Cómo probar

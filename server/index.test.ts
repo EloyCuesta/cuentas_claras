@@ -92,7 +92,8 @@ describe('arranque del servidor con MySQL', () => {
       },
     )
     expect(health).toEqual({ ok: true, data: { status: 'ok', schemaVersion: 5 } })
-    // La prueba lo para (SIGTERM) en cuanto responde: cierra el lector y las conexiones y sale con 0.
+    // La prueba le pide que se cierre en cuanto responde (SIGTERM; en Windows, SIGINT por IPC): cierra el lector y
+    // las conexiones y sale con 0. Un cierre forzado daría null.
     expect(result.status).toBe(0)
     expect(result.stdout).toContain(`Cuentas claras escuchando en http://127.0.0.1:${port}/api`)
     expect(result.stdout).toMatch(new RegExp(`Base de datos MySQL: [^ ]+@127\\.0\\.0\\.1:\\d+/${name} \\(esquema 5\\) · MODO PRUEBAS`))

@@ -134,11 +134,13 @@ export function readSourceCopy(path: string): SourceCopy {
   try {
     const duplicate = join(folder, 'copia.db')
     copyFileSync(path, duplicate)
-    let db: Database.Database
+    let db: Database.Database | undefined
     try {
       db = openSqliteReadOnly(duplicate)
       db.pragma('schema_version')
     } catch (error) {
+      // better-sqlite3 abre cualquier archivo y falla al leerlo: Windows no borra la carpeta con él abierto.
+      db?.close()
       throw new ImportRefused(`«${file}» no es una base de datos SQLite (${error instanceof Error ? error.message : String(error)}).`)
     }
     try {

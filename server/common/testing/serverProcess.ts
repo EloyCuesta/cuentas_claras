@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer, type Server, type Socket } from 'node:net'
 import type { AddressInfo } from 'node:net'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 /**
  * Arrancar `server/index.ts` de verdad, en otro proceso, para probar lo que
@@ -24,25 +25,39 @@ export interface RunOptions {
   timeoutMs?: number
   /**
    * Si la salida encaja con `pattern` (el servidor ya escucha), ejecuta `check`
-   * y para el proceso con SIGTERM, como Ctrl+C: si se cierra bien, status es 0.
+   * y le pide que se cierre como con Ctrl+C: si se cierra bien, status es 0.
    * Sin esto, arrancar es fallar y el proceso se para a los `timeoutMs`.
    */
   whenListening?: { pattern: RegExp; check: () => Promise<void> }
 }
 
+/**
+ * En Windows, child.kill() termina el proceso sin pasar por su cierre (status
+ * null): allí la señal viaja por IPC y la emite signalOverIpc.ts dentro del
+ * servidor. En el resto, SIGTERM de verdad.
+ */
+const WINDOWS = process.platform === 'win32'
+const SIGNAL_OVER_IPC = pathToFileURL(fileURLToPath(new URL('./signalOverIpc.ts', import.meta.url))).href
+
 /** Ejecuta el servidor hasta que termina (o hasta `whenListening`). */
 export async function runServer(env: Record<string, string | undefined>, { timeoutMs = 20_000, whenListening }: RunOptions = {}): Promise<ServerRun> {
-  const child = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts'], {
+  const child = spawn(process.execPath, ['--import', 'tsx', ...(WINDOWS ? ['--import', SIGNAL_OVER_IPC] : []), 'server/index.ts'], {
     env: { ...baseEnv(), CUENTAS_PORT: '0', ...env },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: WINDOWS ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'],
   })
+  const askToClose = () => {
+    if (!WINDOWS) child.kill('SIGTERM')
+    else if (child.connected) child.send('SIGINT')
+  }
+  // Con el canal IPC el tipo de stdio no es una tupla fija: las dos salidas son tuberías por la opción de arriba.
+  if (!child.stdout || !child.stderr) throw new Error('runServer necesita la salida del servidor en tuberías.')
   let stdout = ''
   let stderr = ''
   let checking: Promise<void> | null = null
   child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
     stdout += chunk
     if (whenListening && !checking && whenListening.pattern.test(stdout)) {
-      checking = whenListening.check().finally(() => child.kill())
+      checking = whenListening.check().finally(askToClose)
     }
   })
   child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk))
