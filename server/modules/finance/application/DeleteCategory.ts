@@ -20,23 +20,26 @@ export class DeleteCategory {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string, replacementId: string | null): void {
-    this.unitOfWork.run(() => {
-      const all = this.store.listCategories()
-      const removed = withDescendants(all, id)
-      const target = all.find((c) => c.id === id)
-      const replacement = replacementId ? all.find((c) => c.id === replacementId) : undefined
-      // Las comprobaciones se hacen antes de escribir nada.
-      if (target && replacementId && (!replacement || replacement.type !== target.type || removed.includes(replacementId))) {
-        throw new AppError('VALIDATION', 'La categoría de destino no es válida.')
-      }
+  execute(id: string, replacementId: string | null): Promise<void> {
+    return this.unitOfWork.run(
+      async () => {
+        const all = await this.store.listCategories()
+        const removed = withDescendants(all, id)
+        const target = all.find((c) => c.id === id)
+        const replacement = replacementId ? all.find((c) => c.id === replacementId) : undefined
+        // Las comprobaciones se hacen antes de escribir nada.
+        if (target && replacementId && (!replacement || replacement.type !== target.type || removed.includes(replacementId))) {
+          throw new AppError('VALIDATION', 'La categoría de destino no es válida.')
+        }
 
-      const affected = this.store.countCategoryUsage(removed)
-      if (affected > 0 && !replacementId) {
-        throw new AppError('CONFLICT', 'La categoría tiene movimientos: elige a qué categoría pasarlos.')
-      }
-      if (affected > 0 && replacementId) this.store.reassignCategories(removed, replacementId, this.clock.nowISO())
-      this.store.deleteCategories(removed)
-    })
+        const affected = await this.store.countCategoryUsage(removed)
+        if (affected > 0 && !replacementId) {
+          throw new AppError('CONFLICT', 'La categoría tiene movimientos: elige a qué categoría pasarlos.')
+        }
+        if (affected > 0 && replacementId) await this.store.reassignCategories(removed, replacementId, this.clock.nowISO())
+        await this.store.deleteCategories(removed)
+      },
+      { lock: 'finance' },
+    )
   }
 }

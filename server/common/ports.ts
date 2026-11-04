@@ -2,11 +2,11 @@ import type { ISODate } from '#shared/common/types.ts'
 
 /**
  * Puertos comunes a todos los módulos. Los casos de uso dependen de estas
- * interfaces, nunca de Date, de crypto ni de SQLite directamente, así los tests
+ * interfaces, nunca de Date, de crypto ni de MySQL directamente, así los tests
  * pueden pasar un reloj o unos ids controlados.
  *
  * Las implementaciones reales están en system.ts (reloj e ids) y en
- * sqlite/SqliteUnitOfWork.ts (transacciones).
+ * mysql/MysqlUnitOfWork.ts (transacciones).
  */
 
 /** La hora del servidor. */
@@ -28,13 +28,21 @@ export interface IdGenerator {
 }
 
 /**
+ * Zonas cuyas escrituras van en serie: cada una es una fila de app_locks
+ * (database/mysql/migrations/005-esquema-inicial.sql).
+ */
+export type LockName = 'finance' | 'tickets'
+
+/**
  * Una transacción: o se guarda todo o no se guarda nada.
  *
- * Síncrona a propósito: better-sqlite3 no admite trabajo async dentro de una
- * transacción. Se puede anidar (un caso de uso que llama a otro, o a otro
- * módulo, sigue siendo atómico). `immediate` reserva la escritura desde el
- * principio, como hacen los tickets.
+ * Async: la transacción se confirma cuando termina la promesa de `work`, con
+ * una sola conexión de principio a fin. Se puede anidar: un caso de uso que
+ * llama a otro, o a otro módulo, se une a la transacción de fuera y sigue
+ * siendo atómico. `lock` toma la fila de esa zona como primera sentencia, así
+ * que dos operaciones de la misma zona van una detrás de otra y la segunda ve
+ * lo que guardó la primera.
  */
 export interface UnitOfWork {
-  run<T>(work: () => T, options?: { immediate?: boolean }): T
+  run<T>(work: () => Promise<T>, options?: { lock?: LockName }): Promise<T>
 }

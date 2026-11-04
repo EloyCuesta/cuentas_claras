@@ -8,8 +8,8 @@ const typeLabel = (type: MovementType) => (type === 'gasto' ? 'gastos' : 'ingres
  * Un movimiento o un recurrente debe usar una categoría que exista y sea de su
  * mismo tipo. `label` empieza el mensaje: «El movimiento», «El recurrente».
  */
-export function requireCategory(store: FinanceStore, categoryId: string, type: MovementType, label: string): void {
-  const category = store.getCategory(categoryId)
+export async function requireCategory(store: FinanceStore, categoryId: string, type: MovementType, label: string): Promise<void> {
+  const category = await store.getCategory(categoryId)
   if (!category) throw new AppError('VALIDATION', `${label} usa una categoría que no existe.`)
   if (category.type !== type) {
     throw new AppError('VALIDATION', `${label} es de ${typeLabel(type)}, pero su categoría es de ${typeLabel(category.type)}.`)

@@ -18,26 +18,29 @@ export class SaveCategory {
     this.unitOfWork = unitOfWork
   }
 
-  execute(category: Category): void {
-    this.unitOfWork.run(() => {
-      if (category.parentId !== null) {
-        const parent = this.store.getCategory(category.parentId)
-        if (category.parentId === category.id || !parent) {
-          throw new AppError('VALIDATION', 'La categoría principal no existe.')
+  execute(category: Category): Promise<void> {
+    return this.unitOfWork.run(
+      async () => {
+        if (category.parentId !== null) {
+          const parent = await this.store.getCategory(category.parentId)
+          if (category.parentId === category.id || !parent) {
+            throw new AppError('VALIDATION', 'La categoría principal no existe.')
+          }
+          if (parent.parentId !== null) throw new AppError('VALIDATION', 'Solo hay un nivel de subcategorías.')
+          if (parent.type !== category.type) {
+            throw new AppError('VALIDATION', 'La subcategoría debe ser del mismo tipo que su categoría principal.')
+          }
+          if ((await this.store.countChildren(category.id)) > 0) {
+            throw new AppError('VALIDATION', 'Una categoría con subcategorías no puede pasar a ser subcategoría.')
+          }
         }
-        if (parent.parentId !== null) throw new AppError('VALIDATION', 'Solo hay un nivel de subcategorías.')
-        if (parent.type !== category.type) {
-          throw new AppError('VALIDATION', 'La subcategoría debe ser del mismo tipo que su categoría principal.')
+        const existing = await this.store.getCategory(category.id)
+        if (existing && existing.type !== category.type) {
+          throw new AppError('CONFLICT', 'No se puede cambiar una categoría de gastos a ingresos ni al revés.')
         }
-        if (this.store.countChildren(category.id) > 0) {
-          throw new AppError('VALIDATION', 'Una categoría con subcategorías no puede pasar a ser subcategoría.')
-        }
-      }
-      const existing = this.store.getCategory(category.id)
-      if (existing && existing.type !== category.type) {
-        throw new AppError('CONFLICT', 'No se puede cambiar una categoría de gastos a ingresos ni al revés.')
-      }
-      this.store.upsertCategory(category)
-    })
+        await this.store.upsertCategory(category)
+      },
+      { lock: 'finance' },
+    )
   }
 }

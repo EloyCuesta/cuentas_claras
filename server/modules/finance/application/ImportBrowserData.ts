@@ -27,15 +27,18 @@ export class ImportBrowserData {
     this.unitOfWork = unitOfWork
   }
 
-  execute(data: FinanceData, lastBackupAt: string | null): ImportSummary {
-    return this.unitOfWork.run(() => {
-      if (hasUserData(this.store.readAll())) {
-        throw new AppError('CONFLICT', 'La base de datos ya tiene datos, así que no se han importado los del navegador.')
-      }
-      this.store.writeAll(data)
-      if (lastBackupAt && !this.store.getMeta('lastBackupAt')) this.store.setMeta('lastBackupAt', lastBackupAt)
-      this.store.setMeta('browserImportAt', this.clock.nowISO())
-      return { categories: data.categories.length, movements: data.movements.length, recurring: data.recurring.length }
-    })
+  execute(data: FinanceData, lastBackupAt: string | null): Promise<ImportSummary> {
+    return this.unitOfWork.run(
+      async () => {
+        if (hasUserData(await this.store.readAll())) {
+          throw new AppError('CONFLICT', 'La base de datos ya tiene datos, así que no se han importado los del navegador.')
+        }
+        await this.store.writeAll(data)
+        if (lastBackupAt && !(await this.store.getMeta('lastBackupAt'))) await this.store.setMeta('lastBackupAt', lastBackupAt)
+        await this.store.setMeta('browserImportAt', this.clock.nowISO())
+        return { categories: data.categories.length, movements: data.movements.length, recurring: data.recurring.length }
+      },
+      { lock: 'finance' },
+    )
   }
 }

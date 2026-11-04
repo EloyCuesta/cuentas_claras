@@ -22,11 +22,13 @@ export class AddEvent {
     this.unitOfWork = unitOfWork
   }
 
-  execute(itemId: string, kind: PantryEventKind, date: ISODate): PantryEvent {
-    return this.unitOfWork.run(() => {
-      requireItem(this.repository, itemId)
+  execute(itemId: string, kind: PantryEventKind, date: ISODate): Promise<PantryEvent> {
+    return this.unitOfWork.run(async () => {
+      // Si otro lo borra a la vez, aquí espera y después da 404, como cuando todo iba en serie.
+      await this.repository.lockItems([itemId])
+      await requireItem(this.repository, itemId)
       const event = { id: this.ids.newId(), itemId, kind, date, createdAt: this.clock.nowISO() }
-      this.repository.insertEvent(event)
+      await this.repository.insertEvent(event)
       return event
     })
   }

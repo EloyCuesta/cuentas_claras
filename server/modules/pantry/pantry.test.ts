@@ -4,11 +4,11 @@ import type { FinanceData } from '#shared/finance/types.ts'
 import type { PantryItem, PantryPerson, PantryPurchaseChange } from '#shared/pantry/types.ts'
 import { movement } from '#shared/testing/factories.ts'
 import { startApi, stopApis, type TestApi } from '../../common/testing/testApi.ts'
-import { removeTempDbs } from '../../common/testing/tempDb.ts'
+import { dropTestDatabases } from '../../common/testing/testDatabase.ts'
 
 afterEach(async () => {
   await stopApis()
-  removeTempDbs()
+  await dropTestDatabases()
 })
 
 const milk = { name: 'Leche', ownerId: null, unit: 'l', quantity: 2, target: 6, frequency: 'semanal', priceCents: 95, notes: '' }
@@ -127,6 +127,36 @@ describe('API de la despensa', () => {
     expect((await g.call('POST', '/despensa/productos/no-existe/ajustar', { delta: 1 })).status).toBe(404)
   })
 
+  it('dos móviles que pulsan + a la vez, desde dos conexiones, no se pisan: cuenta cada pulsación', async () => {
+    const api = await startApi({ login: false })
+    const other = await startApi({ database: api.database, login: false })
+    const bread = await createItem(api, { name: 'Pan', unit: 'ud', quantity: 2, target: 30 })
+    // Diez + repartidos entre dos servidores con su propio pool: sin el bloqueo del producto, alguno leería lo mismo que otro.
+    const presses = Array.from({ length: 10 }, (_, i) => guest(i % 2 === 0 ? api : other).call('POST', `/despensa/productos/${bread.id}/ajustar`, { delta: 1 }))
+    const results = await Promise.all(presses)
+    expect(results.map((result) => result.status)).toEqual(Array(10).fill(200))
+    // Cada respuesta ve su propia suma: 3, 4, …, 12, sin repetir ninguna.
+    expect(results.map((result) => (result.body.data as PantryItem).quantity).sort((a, b) => a - b)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+    expect((await items(api)).find((i) => i.id === bread.id)).toMatchObject({ quantity: 12, version: 11 })
+  })
+
+  it('guarda las milésimas y los céntimos exactos, y los nombres distinguen mayúsculas, tildes y espacios', async () => {
+    const api = await startApi({ login: false })
+    const g = guest(api)
+    const flour = await createItem(api, { name: 'Harina', unit: 'kg', quantity: 0.001, target: 999_999.999, priceCents: 10_000_000 })
+    expect(flour).toMatchObject({ quantity: 0.001, target: 999_999.999, priceCents: 10_000_000 })
+    expect((await g.call('POST', `/despensa/productos/${flour.id}/ajustar`, { delta: 0.002 })).body.data).toMatchObject({ quantity: 0.003 })
+    // En utf8mb4_0900_bin son tres nombres distintos, como en SQLite (con utf8mb4_0900_ai_ci serían iguales).
+    for (const name of ['pina', 'piña', 'PINA']) await createItem(api, { name })
+    const people = await Promise.all(['Íñigo', 'Iñigo', 'iñigo'].map((name) => createPerson(api, name)))
+    expect(people.map((p) => p.name)).toEqual(['Íñigo', 'Iñigo', 'iñigo'])
+    const names = (await items(api)).map((i) => i.name).sort()
+    expect(names).toEqual(['Harina', 'PINA', 'pina', 'piña'])
+    // Un nombre de 40 letras con tildes cabe: el límite cuenta caracteres, no bytes.
+    expect((await g.call('POST', '/despensa/personas', { name: 'Ñ'.repeat(40) })).status).toBe(201)
+    expect((await g.call('POST', '/despensa/personas', { name: 'Ñ'.repeat(41) })).status).toBe(400)
+  })
+
   it('consulta, fija y quita el presupuesto, distinguiendo 0 de sin presupuesto', async () => {
     const api = await startApi({ login: false })
     const g = guest(api)
@@ -191,9 +221,9 @@ describe('marcar como comprado y deshacer', () => {
     expect(after.find((i) => i.id === milkItem.id)).toMatchObject({ quantity: 2, target: 6, name: 'Leche', version: 3 })
     expect(after.find((i) => i.id === eggs.id)).toMatchObject({ quantity: 0, version: 3 })
 
-    // Persistido en SQLite: otra instancia del servidor lo ve igual.
+    // Guardado en MySQL: otra instancia del servidor lo ve igual.
     await api.stop()
-    const reopened = await startApi({ path: api.path, login: false })
+    const reopened = await startApi({ database: api.database, login: false })
     expect((await items(reopened)).find((i) => i.id === milkItem.id)?.quantity).toBe(2)
 
     // Deshacer dos veces no vuelve a aplicar nada.

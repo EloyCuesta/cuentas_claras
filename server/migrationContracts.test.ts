@@ -1,12 +1,14 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { startApi, stopApis, TEST_CODE } from './common/testing/testApi.ts'
-import { removeTempDbs } from './common/testing/tempDb.ts'
+import { dropTestDatabases } from './common/testing/testDatabase.ts'
 
 /**
- * Contratos HTTP de BASE-01: reproduce los JSON de ensayo contra Express y
- * SQLite temporal. Los resultados están fijados en archivos portables, nunca
- * se regeneran al ejecutar las pruebas. El futuro backend debe reproducirlos.
+ * Contratos HTTP de BASE-01: reproduce los JSON de ensayo contra Express y una
+ * base MySQL de pruebas nueva en cada escenario. Los resultados están fijados en
+ * archivos portables (los grabó Express sobre SQLite), nunca se regeneran al
+ * ejecutar las pruebas: que pasen sin tocarlos es la prueba de que cambiar de
+ * motor no cambia la API. El futuro backend debe reproducirlos.
  */
 
 interface ContractStep {
@@ -53,7 +55,7 @@ const fixtures = FILES.map((module) => ({
 
 afterEach(async () => {
   await stopApis()
-  removeTempDbs()
+  await dropTestDatabases()
 })
 
 /** Solo el token aleatorio se sustituye; sus atributos y su uso real se comprueban. */

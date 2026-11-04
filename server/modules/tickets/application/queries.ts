@@ -24,13 +24,13 @@ export class TicketQueries {
   }
 
   /** Los últimos tickets (resumen), los más recientes primero. */
-  listTickets(): PantryTicketSummary[] {
+  listTickets(): Promise<PantryTicketSummary[]> {
     return this.repository.listSummaries(RECENT_TICKETS)
   }
 
   /** Un ticket con sus líneas (404 si ya no existe). */
-  getTicket(id: string): PantryTicket {
-    const ticket = this.repository.getTicket(id)
+  async getTicket(id: string): Promise<PantryTicket> {
+    const ticket = await this.repository.getTicket(id)
     if (!ticket) throw new AppError('NOT_FOUND', 'Ese ticket ya no existe.')
     return ticket
   }
@@ -40,11 +40,11 @@ export class TicketQueries {
    * producto y ticket) y las revisiones de la despensa. `today` es la fecha de
    * hoy del navegador; sin ella, la del servidor.
    */
-  activity(today: ISODate | null): PantryActivity {
+  async activity(today: ISODate | null): Promise<PantryActivity> {
     const since = addDays(today ?? this.clock.today(), -ACTIVITY_DAYS)
     return {
-      purchases: purchasesFromLines(this.repository.purchaseLinesSince(since)),
-      events: this.pantry.eventsSince(since),
+      purchases: purchasesFromLines(await this.repository.purchaseLinesSince(since)),
+      events: await this.pantry.eventsSince(since),
     }
   }
 }

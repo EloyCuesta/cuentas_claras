@@ -38,3 +38,6 @@ Lo que ve la persona en la interfaz, cómo se llama en el código y qué es.
 | Para una ocasión | `occasional` | Una compra que no cuenta para el ritmo. |
 | Huella del ticket | `fingerprint`, `sourceFingerprint` | Lo que impide guardar el mismo ticket dos veces. |
 | Últimas compras | `listTickets` | Los tickets guardados, en la Despensa. |
+| — (no se ve) | `UnitOfWork`, `MysqlUnitOfWork` | Una transacción de MySQL con una sola conexión: se guarda todo o nada, y las anidadas se unen a la de fuera. |
+| — (no se ve) | bloqueo (`LockName`: `finance`, `tickets`; `app_locks`; `lockItems`) | Lo que pone en serie dos escrituras a la vez: la fila de una zona, o los productos que cambian (`FOR UPDATE`). |
+| — (no se ve) | base de pruebas (`cuentas_test_*`, `cuentas_claras_e2e`) | Las bases MySQL de Vitest y de las pruebas en navegador, que nunca son `cuentas_claras`. |

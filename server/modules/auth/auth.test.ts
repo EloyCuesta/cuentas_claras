@@ -1,16 +1,14 @@
-import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { movement } from '#shared/testing/factories.ts'
 import { startApi, stopApis, TEST_CODE } from '../../common/testing/testApi.ts'
 import { createApp } from '../../app.ts'
 import { ATTEMPT_WINDOW_MS, checkAccessCode, LOCK_MS, SESSION_MS } from './index.ts'
-import { openDatabase } from '../../common/sqlite/openDatabase.ts'
-import { removeTempDbs, tempDbPath } from '../../common/testing/tempDb.ts'
+import { countingListener, runServer } from '../../common/testing/serverProcess.ts'
+import { dropTestDatabases, openTestDatabase } from '../../common/testing/testDatabase.ts'
 
 afterEach(async () => {
   await stopApis()
-  removeTempDbs()
+  await dropTestDatabases()
 })
 
 /** Reloj controlado: las caducidades y los bloqueos se prueban sin esperar minutos reales. */
@@ -56,38 +54,37 @@ describe('checkAccessCode', () => {
     expect(checkAccessCode(' a b ')).toEqual({ ok: true, code: ' a b ' })
   })
 
-  it('createApp no se crea sin un código válido: el acceso nunca queda abierto', () => {
-    const database = openDatabase(tempDbPath())
-    try {
-      expect(() => createApp({ database, accessCode: '' })).toThrow(/código/)
-      expect(() => createApp({ database, accessCode: '   ' })).toThrow(/espacios/)
-      // @ts-expect-error: accessCode es obligatorio
-      expect(() => createApp({ database })).toThrow(/código/)
-    } finally {
-      database.db.close()
-    }
+  it('createApp no se crea sin un código válido: el acceso nunca queda abierto', async () => {
+    const database = await openTestDatabase()
+    expect(() => createApp({ database, accessCode: '' })).toThrow(/código/)
+    expect(() => createApp({ database, accessCode: '   ' })).toThrow(/espacios/)
+    // @ts-expect-error: accessCode es obligatorio
+    expect(() => createApp({ database })).toThrow(/código/)
   })
 })
 
 describe('arranque del servidor', () => {
-  const start = (code: string | undefined) => {
-    const dbPath = tempDbPath()
-    const env: NodeJS.ProcessEnv = { ...process.env, CUENTAS_DB_PATH: dbPath, CUENTAS_PORT: '0' }
-    delete env.CUENTAS_CODIGO
-    if (code !== undefined) env.CUENTAS_CODIGO = code
-    const result = spawnSync(process.execPath, ['--import', 'tsx', 'server/index.ts'], { env, encoding: 'utf8', timeout: 20_000 })
-    return { ...result, dbPath }
-  }
-
   it.each([
     ['sin código', undefined, /Falta el código de acceso/],
     ['con un código de solo espacios', '     ', /solo espacios/],
     ['con un código demasiado corto', 'abc', /al menos 4 caracteres/],
-  ])('%s termina con un mensaje en español antes de crear la base de datos', (_label, code, message) => {
-    const { status, stderr, dbPath } = start(code)
-    expect(status).toBe(1)
-    expect(stderr).toMatch(message)
-    expect(existsSync(dbPath)).toBe(false)
+  ])('%s termina con un mensaje en español antes de conectar con MySQL', async (_label, code, message) => {
+    // «MySQL» es un puerto que cuenta las conexiones: el servidor no debe llegar a abrir ninguna.
+    const mysql = await countingListener()
+    try {
+      const { status, stderr } = await runServer({
+        CUENTAS_CODIGO: code,
+        CUENTAS_DB_HOST: '127.0.0.1',
+        CUENTAS_DB_PORT: String(mysql.port),
+        CUENTAS_DB_USER: 'usuario-de-prueba',
+        CUENTAS_DB_NAME: 'cuentas_test_arranque',
+      })
+      expect(status).toBe(1)
+      expect(stderr).toMatch(message)
+      expect(mysql.connections()).toBe(0)
+    } finally {
+      await mysql.close()
+    }
   })
 })
 
@@ -183,7 +180,7 @@ describe('acceso con código', () => {
     const first = await startApi()
     const session = first.cookie
     await first.stop()
-    const second = await startApi({ path: first.path, login: false })
+    const second = await startApi({ database: first.database, login: false })
     expect((await second.call('GET', '/data', undefined, { cookie: session })).status).toBe(401)
   })
 })

@@ -28,7 +28,7 @@ El orden actual del middleware también forma parte de la caracterización: una 
 
 ## Finance: finanzas personales
 
-Fuentes: [repositorio](../../server/modules/finance/adapters/sqlite/SqliteFinanceStore.ts), [rutas](../../server/modules/finance/adapters/http), [reglas y tipos](../../shared/finance), [cliente React](../../src/features/finance/ApiFinanceRepository.ts) y [pantallas](../../src/features/finance/pages).
+Fuentes: [repositorio](../../server/modules/finance/adapters/mysql/MysqlFinanceStore.ts), [rutas](../../server/modules/finance/adapters/http), [reglas y tipos](../../shared/finance), [cliente React](../../src/features/finance/ApiFinanceRepository.ts) y [pantallas](../../src/features/finance/pages).
 
 | ID | Funcionalidad y contratos actuales | Reglas y condición de aceptación |
 | --- | --- | --- |
@@ -40,7 +40,7 @@ Fuentes: [repositorio](../../server/modules/finance/adapters/sqlite/SqliteFinanc
 
 Las cifras financieras se guardan positivas y su tipo distingue ingreso/gasto. No traslades sin más a finanzas la admisión de negativos de las devoluciones de tickets.
 
-La importación actual recibe `{ data, lastBackupAt }`, devuelve 201 con los recuentos de categorías, movimientos y recurrentes y responde 409 si ya hay datos del usuario. Su consumidor está en [browserMigration](../../src/features/finance/browserMigration); el invitado no ejecuta esa migración. No confundir este recorrido IndexedDB→SQLite con DATA-02.
+La importación actual recibe `{ data, lastBackupAt }`, devuelve 201 con los recuentos de categorías, movimientos y recurrentes y responde 409 si ya hay datos del usuario. Su consumidor está en [browserMigration](../../src/features/finance/browserMigration); el invitado no ejecuta esa migración. No confundir este recorrido IndexedDB→servidor con el importador SQLite→MySQL ni con DATA-02.
 
 Reglas a leer: [recurring.ts](../../shared/finance/recurring.ts), [summary.ts](../../shared/finance/summary.ts), [annual.ts](../../shared/finance/annual.ts), [backup.ts](../../shared/finance/backup.ts) y [csv.ts](../../shared/finance/csv.ts). React aún calcula previsión en [useForecastMovements.ts](../../src/features/finance/useForecastMovements.ts); preserva esos consumidores durante el portado.
 
@@ -48,7 +48,7 @@ Validación: [pruebas del repositorio](../../server/modules/finance/finance.test
 
 ## Pantry: despensa
 
-Fuentes: [repositorio](../../server/modules/pantry/adapters/sqlite/SqlitePantryRepository.ts), [rutas](../../server/modules/pantry/adapters/http/routes.ts), [reglas y tipos](../../shared/pantry), [API React](../../src/features/pantry/api.ts), [hook de estado](../../src/features/pantry/usePantry.ts) y [componentes](../../src/features/pantry/components).
+Fuentes: [repositorio](../../server/modules/pantry/adapters/mysql/MysqlPantryRepository.ts), [rutas](../../server/modules/pantry/adapters/http/routes.ts), [reglas y tipos](../../shared/pantry), [API React](../../src/features/pantry/api.ts), [hook de estado](../../src/features/pantry/usePantry.ts) y [componentes](../../src/features/pantry/components).
 
 | ID | Funcionalidad y contratos actuales | Reglas y condición de aceptación |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ Validación: [server/modules/pantry/pantry.test.ts](../../server/modules/pantry/
 
 ## Tickets: lectura, revisión y efectos de compra
 
-Fuentes: [lectura](../../server/modules/tickets/application/ReadTicket.ts), [guardado](../../server/modules/tickets/application/SaveTicket.ts), [reglas de compra](../../server/modules/tickets/domain/ticketPurchase.ts), [OCR](../../server/modules/tickets/adapters/tesseract/TesseractTicketReader.ts), [rutas](../../server/modules/tickets/adapters/http/routes.ts), [validación de lectura](../../server/modules/tickets/adapters/http/readTicketRequest.ts), [repositorio](../../server/modules/tickets/adapters/sqlite/SqliteTicketRepository.ts), [reglas compartidas](../../shared/tickets) y [fixtures](../../fixtures/tickets).
+Fuentes: [lectura](../../server/modules/tickets/application/ReadTicket.ts), [guardado](../../server/modules/tickets/application/SaveTicket.ts), [reglas de compra](../../server/modules/tickets/domain/ticketPurchase.ts), [OCR](../../server/modules/tickets/adapters/tesseract/TesseractTicketReader.ts), [rutas](../../server/modules/tickets/adapters/http/routes.ts), [validación de lectura](../../server/modules/tickets/adapters/http/readTicketRequest.ts), [repositorio](../../server/modules/tickets/adapters/mysql/MysqlTicketRepository.ts), [reglas compartidas](../../shared/tickets) y [fixtures](../../fixtures/tickets).
 
 En esta rama el guardado lo coordina SaveTicket con las reglas de ticketPurchase y ticketArithmetic; no existe el archivo savePlan de la referencia documental anterior. El portado debe partir de estos casos de uso y sus pruebas. La procedencia de los fixtures existentes se explica en [pruebas](../pruebas.md): algunos usan transcripciones aportadas por el dueño; los nuevos casos de BASE-01 son sintéticos.
 

@@ -15,14 +15,17 @@ export class DeleteMovement {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string): void {
-    this.unitOfWork.run(() => {
-      const movement = this.store.getMovement(id)
-      if (!movement) return
-      if (movement.recurringId && movement.occurrenceDate && this.store.hasRule(movement.recurringId)) {
-        this.store.addExcludedDate(movement.recurringId, movement.occurrenceDate)
-      }
-      this.store.deleteMovement(id)
-    })
+  execute(id: string): Promise<void> {
+    return this.unitOfWork.run(
+      async () => {
+        const movement = await this.store.getMovement(id)
+        if (!movement) return
+        if (movement.recurringId && movement.occurrenceDate && (await this.store.hasRule(movement.recurringId))) {
+          await this.store.addExcludedDate(movement.recurringId, movement.occurrenceDate)
+        }
+        await this.store.deleteMovement(id)
+      },
+      { lock: 'finance' },
+    )
   }
 }

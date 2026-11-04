@@ -11,10 +11,14 @@ import type { Hasher, PantryGateway, TicketRepository } from './ports.ts'
 import type { TicketQueries } from './queries.ts'
 
 /**
- * Guardar un ticket revisado, todo o nada (una transacción inmediata):
+ * Guardar un ticket revisado, todo o nada, en una transacción con el bloqueo
+ * «tickets»: dos guardados a la vez van uno detrás de otro. Antes de leer
+ * nada se bloquean también los productos que ya existían (FOR UPDATE, en
+ * orden de id), así que un + a la vez no se pierde.
  *
  * 1. 409 si ya estaba guardado, o si hay otra compra igual y no se ha
- *    confirmado que es distinta (`distinctPurchase`).
+ *    confirmado que es distinta (`distinctPurchase`). Se comprueba dentro del
+ *    bloqueo: el segundo de dos guardados iguales ve el primero.
  * 2. Cada producto del ticket (las líneas con el mismo nombre normalizado van
  *    juntas) se asocia a uno de la despensa, a uno nuevo (uno por nombre y
  *    persona, aunque venga en varias líneas) o a ninguno, según su decisión.
@@ -53,17 +57,29 @@ export class SaveTicket {
     this.unitOfWork = unitOfWork
   }
 
-  execute(input: TicketSaveInput): { ticket: PantryTicket; items: PantryItem[] } {
+  execute(input: TicketSaveInput): Promise<{ ticket: PantryTicket; items: PantryItem[] }> {
     return this.unitOfWork.run(
-      () => {
-        const duplicate = findDuplicate(this.repository, this.hasher, input)
+      async () => {
+        const linesByKey = new Map<string, TicketSaveLine[]>()
+        for (const line of input.lines) {
+          const key = nameKey(line.rawName)
+          linesByKey.set(key, [...(linesByKey.get(key) ?? []), line])
+        }
+        // Los productos que ya existen y van a cambiar se bloquean antes de cualquier lectura.
+        const existing = [...linesByKey.keys()].flatMap((key) => {
+          const decision = input.decisions[key]
+          return decision?.kind === 'item' ? [decision.itemId] : []
+        })
+        await this.pantry.lockItems([...new Set(existing)])
+
+        const duplicate = await findDuplicate(this.repository, this.hasher, input)
         if (duplicate) {
           throw new AppError(
             'CONFLICT',
             `Este ticket ya está guardado (${duplicate.storeName}, ${duplicate.date.split('-').reverse().join('/')}).`,
           )
         }
-        if (!input.distinctPurchase && possibleDuplicate(this.repository, input)) {
+        if (!input.distinctPurchase && (await possibleDuplicate(this.repository, input))) {
           throw new AppError(
             'CONFLICT',
             'Hay una compra con la misma fecha, hora y total. Confirma si se trata de otra compra.',
@@ -71,11 +87,6 @@ export class SaveTicket {
         }
         const aliasStore = aliasStoreOf(input.store, input.storeName)
         const now = this.clock.nowISO()
-        const linesByKey = new Map<string, TicketSaveLine[]>()
-        for (const line of input.lines) {
-          const key = nameKey(line.rawName)
-          linesByKey.set(key, [...(linesByKey.get(key) ?? []), line])
-        }
 
         // Producto de cada clave: uno que ya existe, uno nuevo (uno por nombre y persona) o ninguno.
         const itemOfKey = new Map<string, string | null>()
@@ -88,7 +99,7 @@ export class SaveTicket {
             continue
           }
           if (decision.kind === 'item') {
-            if (!this.pantry.getItem(decision.itemId)) {
+            if (!(await this.pantry.getItem(decision.itemId))) {
               throw new AppError(
                 'VALIDATION',
                 `«${lines[0].rawName}» está asociado a un producto que ya no existe. Elige otro.`,
@@ -112,17 +123,19 @@ export class SaveTicket {
               .flatMap(([, l]) => l)
               .filter(canApplyLine)
             const unit = newItemUnit(allLines)
-            id = this.pantry.createItem({
-              name: decision.name,
-              ownerId: decision.ownerId,
-              unit,
-              tracking: 'compras',
-              quantity: 0,
-              target: 0,
-              frequency: decision.frequency,
-              priceCents: priceFromLines(allLines, unit),
-              notes: '',
-            }).id
+            id = (
+              await this.pantry.createItem({
+                name: decision.name,
+                ownerId: decision.ownerId,
+                unit,
+                tracking: 'compras',
+                quantity: 0,
+                target: 0,
+                frequency: decision.frequency,
+                priceCents: priceFromLines(allLines, unit),
+                notes: '',
+              })
+            ).id
             created.set(sameNew, id)
           }
           itemOfKey.set(key, id)
@@ -130,7 +143,7 @@ export class SaveTicket {
 
         // Lo aprendido y lo que cambia en los productos que ya existían.
         for (const [key, itemId] of itemOfKey) {
-          if (linesByKey.get(key)?.some(canApplyLine)) this.repository.upsertAlias(aliasStore, key, itemId, now)
+          if (linesByKey.get(key)?.some(canApplyLine)) await this.repository.upsertAlias(aliasStore, key, itemId, now)
         }
         const touched = new Map<string, TicketSaveLine[]>()
         for (const [key, itemId] of itemOfKey) {
@@ -140,15 +153,15 @@ export class SaveTicket {
         for (const [itemId, lines] of touched) {
           if (!lines.length) continue
           // «Para una ocasión» no cuenta para el ritmo, pero lo comprado sí está en casa.
-          const item = this.pantry.getItem(itemId) as PantryItem
-          this.pantry.applyTicketPurchase(itemId, {
+          const item = (await this.pantry.getItem(itemId)) as PantryItem
+          await this.pantry.applyTicketPurchase(itemId, {
             priceCents: priceFromLines(lines, item.unit),
             addQuantity: quantityFromLines(lines, item.unit),
           })
         }
 
         const ticketId = this.ids.newId()
-        this.repository.insertTicket({
+        await this.repository.insertTicket({
           id: ticketId,
           store: input.store,
           storeName: input.storeName,
@@ -163,8 +176,8 @@ export class SaveTicket {
           importId: input.importId ?? null,
           sourceFingerprint: input.sourceFingerprint ?? null,
         })
-        input.lines.forEach((line, position) => {
-          this.repository.insertLine({
+        for (const [position, line] of input.lines.entries()) {
+          await this.repository.insertLine({
             id: this.ids.newId(),
             ticketId,
             position,
@@ -183,10 +196,10 @@ export class SaveTicket {
             confirmed: line.confirmed === true,
             evidence: line.evidence,
           })
-        })
-        return { ticket: this.queries.getTicket(ticketId), items: this.pantry.listItems() }
+        }
+        return { ticket: await this.queries.getTicket(ticketId), items: await this.pantry.listItems() }
       },
-      { immediate: true },
+      { lock: 'tickets' },
     )
   }
 }

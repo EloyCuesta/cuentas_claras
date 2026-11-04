@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3'
 import type { ErrorRequestHandler, RequestHandler, Response } from 'express'
 import { AppError, type ErrorCode } from '../errors.ts'
+import { isConstraintViolation } from '../mysql/errors.ts'
 
 /**
  * Formato de todas las respuestas de la API:
@@ -54,7 +54,8 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     sendError(res, 400, 'VALIDATION', 'El cuerpo de la petición no es JSON válido.')
     return
   }
-  if (error instanceof Database.SqliteError && error.code.startsWith('SQLITE_CONSTRAINT')) {
+  // Una restricción de MySQL (clave repetida, clave foránea, CHECK o NOT NULL), como antes SQLITE_CONSTRAINT.
+  if (isConstraintViolation(error)) {
     sendError(res, 409, 'CONFLICT', 'Los datos no encajan con los que ya están guardados, así que no se ha cambiado nada.')
     return
   }

@@ -15,11 +15,12 @@ export class UpdateItem {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string, input: PantryItemInput): PantryItem {
-    return this.unitOfWork.run(() => {
-      requireItem(this.repository, id)
-      requireOwner(this.repository, input.ownerId)
-      this.repository.updateItem(id, input, this.clock.nowISO())
+  execute(id: string, input: PantryItemInput): Promise<PantryItem> {
+    return this.unitOfWork.run(async () => {
+      await this.repository.lockItems([id])
+      await requireItem(this.repository, id)
+      await requireOwner(this.repository, input.ownerId)
+      await this.repository.updateItem(id, input, this.clock.nowISO())
       return requireItem(this.repository, id)
     })
   }

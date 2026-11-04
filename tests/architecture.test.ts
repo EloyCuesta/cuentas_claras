@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * Vigila las reglas de dependencia de docs/arquitectura.md leyendo los imports
- * de cada archivo .ts y .tsx de server/, shared/ y src/. Si falla, el mensaje
- * dice qué archivo, qué import y qué regla se rompe.
+ * de cada archivo .ts y .tsx de server/, shared/, src/ y tools/. Si falla, el
+ * mensaje dice qué archivo, qué import y qué regla se rompe. También que los
+ * puertos de persistencia son async (MySQL).
  *
  * Los tests, server/common/testing/ y shared/testing/ quedan fuera de las reglas.
  * La API .NET se vigila al compilar y con backend/tests/CuentasClaras.Tests/ArchitectureTests.cs:
@@ -126,7 +127,7 @@ const SERVER_RULES: Rule[] = [
   (file, imp) => {
     const own = serverModule(file)
     if (!own || own.layer !== 'application') return null
-    if (imp.target === null) return 'application/ no importa paquetes ni node:* (Express, better-sqlite3, tesseract.js…): van en adapters/ o detrás de un puerto'
+    if (imp.target === null) return 'application/ no importa paquetes ni node:* (Express, mysql2, tesseract.js…): van en adapters/ o detrás de un puerto'
     const allowed =
       imp.target.startsWith('shared/') ||
       imp.target.startsWith(`server/modules/${own.module}/domain/`) ||
@@ -176,13 +177,19 @@ const SERVER_RULES: Rule[] = [
   // common/: transversal, sin módulos.
   (file, imp) => {
     if (!file.startsWith('server/common/') || imp.target === null) return null
-    const allowed = imp.target.startsWith('server/common/') || imp.target.startsWith('server/migrations/') || imp.target.startsWith('shared/')
+    const allowed = imp.target.startsWith('server/common/') || imp.target.startsWith('shared/')
     return allowed ? null : 'common/ no importa módulos ni app.ts: es transversal y no sabe nada del negocio'
   },
-  // migrations/: librerías, shared/ (las categorías iniciales) y sí misma.
+  // Todo server/: nada de SQLite ni de las herramientas (el importador y el esquema de antes).
   (file, imp) => {
-    if (!file.startsWith('server/migrations/') || imp.target === null) return null
-    return imp.target.startsWith('server/migrations/') || imp.target.startsWith('shared/') ? null : 'una migración solo importa librerías, shared/ y otras migraciones'
+    if (!file.startsWith('server/')) return null
+    if (imp.specifier === 'better-sqlite3') return 'el servidor no usa SQLite: better-sqlite3 solo está en tools/ (el importador y sus pruebas)'
+    return imp.target?.startsWith('tools/') ? 'el servidor no importa tools/: las herramientas usan el servidor, no al revés' : null
+  },
+  // tools/sqlite/: las migraciones de SQLite de antes; librerías, shared/ (las categorías iniciales) y sí misma.
+  (file, imp) => {
+    if (!file.startsWith('tools/sqlite/') || imp.target === null) return null
+    return imp.target.startsWith('tools/sqlite/') || imp.target.startsWith('shared/') ? null : 'tools/sqlite/ solo importa librerías, shared/ y su propia carpeta'
   },
   // app.ts e index.ts: la raíz de composición solo conoce el index.ts de cada módulo y common/.
   (file, imp) => {
@@ -289,6 +296,31 @@ function codeViolations(files: string[]): string[] {
 const serverFiles = sourceFiles('server')
 const sharedFiles = sourceFiles('shared')
 const webFiles = sourceFiles('src')
+const toolFiles = sourceFiles('tools')
+
+/** Métodos de una interfaz de application/ports.ts (o de common/ports.ts) que no devuelven Promise. */
+function syncMethods(portsFile: string, name: string): string[] | null {
+  const code = stripComments(readFileSync(`${ROOT}${portsFile}`, 'utf8'))
+  const body = new RegExp(`export interface ${name}\\b[^{]*\\{([\\s\\S]*?)\\n\\}`).exec(code)?.[1]
+  if (body === undefined) return null
+  // Cada método en una línea: «nombre(argumentos): Tipo».
+  return [...body.matchAll(/^\s*(\w+)(?:<[^>]*>)?\((.*)\):\s*(.+)$/gm)].filter((m) => !m[3].startsWith('Promise<')).map((m) => m[1])
+}
+
+/** Los puertos que implementa cada adaptador mysql/ («class X implements Puerto»), con el archivo de su módulo. */
+function mysqlPorts(): { adapter: string; port: string; portsFile: string }[] {
+  return serverFiles
+    .filter((file) => /^server\/modules\/[^/]+\/adapters\/mysql\//.test(file) && !isTest(file))
+    .flatMap((file) => {
+      const module = serverModule(file)!.module
+      const code = stripComments(readFileSync(`${ROOT}${file}`, 'utf8'))
+      return [...code.matchAll(/class\s+\w+\s+implements\s+(\w+)/g)].map((m) => ({
+        adapter: file,
+        port: m[1],
+        portsFile: `server/modules/${module}/application/ports.ts`,
+      }))
+    })
+}
 
 describe('arquitectura', () => {
   it('encuentra el código que vigila (si no, el test pasaría sin comprobar nada)', () => {
@@ -303,9 +335,28 @@ describe('arquitectura', () => {
     for (const feature of features) expect(webFiles, `falta src/features/${feature}/index.ts`).toContain(`src/features/${feature}/index.ts`)
   })
 
-  it('el servidor y shared/ cumplen las reglas de dependencia', () => {
-    const found = violations([...serverFiles, ...sharedFiles, ...webFiles], SERVER_RULES)
+  it('el servidor, shared/ y tools/ cumplen las reglas de dependencia', () => {
+    expect(toolFiles.length).toBeGreaterThan(5)
+    const found = violations([...serverFiles, ...sharedFiles, ...webFiles, ...toolFiles], SERVER_RULES)
     expect(found, found.join('\n')).toEqual([])
+  })
+
+  it('los puertos de persistencia y la unidad de trabajo son async: todos sus métodos devuelven Promise', () => {
+    const ports = mysqlPorts()
+    expect(ports.map((p) => p.port).sort()).toEqual(['FinanceStore', 'PantryRepository', 'TicketRepository'])
+    const checked = [
+      ...ports.map(({ port, portsFile }) => ({ port, portsFile })),
+      { port: 'PantryGateway', portsFile: 'server/modules/tickets/application/ports.ts' },
+      { port: 'UnitOfWork', portsFile: 'server/common/ports.ts' },
+    ]
+    const problems = checked.flatMap(({ port, portsFile }) => {
+      const sync = syncMethods(portsFile, port)
+      if (sync === null) return [`${portsFile}: no encuentro la interfaz ${port}`]
+      return sync.map((method) => `${portsFile}: ${port}.${method} no devuelve Promise (con MySQL todo lo que toca la base de datos es async)`)
+    })
+    expect(problems, problems.join('\n')).toEqual([])
+    // Y el comprobador detecta un método síncrono.
+    expect(syncMethods('server/common/ports.ts', 'Clock')).toEqual(['nowMs', 'nowISO', 'today'])
   })
 
   it('la web cumple las reglas de dependencia', () => {

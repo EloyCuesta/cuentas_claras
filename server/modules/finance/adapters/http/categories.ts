@@ -20,17 +20,17 @@ export function categoryRoutes({
 }): Router {
   const router = Router()
 
-  router.put('/categories/:id', (req, res) => {
-    saveCategory.execute(sameId(valid(validateCategory(req.body)), req.params.id))
+  router.put('/categories/:id', async (req, res) => {
+    await saveCategory.execute(sameId(valid(validateCategory(req.body)), req.params.id))
     sendData(res, null)
   })
 
-  router.delete('/categories/:id', (req, res) => {
+  router.delete('/categories/:id', async (req, res) => {
     const { replacementId } = req.query
     if (replacementId !== undefined && (typeof replacementId !== 'string' || replacementId === '')) {
       throw new AppError('VALIDATION', 'El parámetro «replacementId» no es válido.')
     }
-    deleteCategory.execute(req.params.id, replacementId ?? null)
+    await deleteCategory.execute(req.params.id, replacementId ?? null)
     sendData(res, null)
   })
 

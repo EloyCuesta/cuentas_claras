@@ -17,17 +17,17 @@ export class DeletePerson {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string): void {
-    this.unitOfWork.run(() => {
-      const person = requirePerson(this.repository, id)
-      const n = this.repository.countItemsOf(id)
+  execute(id: string): Promise<void> {
+    return this.unitOfWork.run(async () => {
+      const person = await requirePerson(this.repository, id)
+      const n = await this.repository.countItemsOf(id)
       if (n > 0) {
         throw new AppError(
           'CONFLICT',
           `«${person.name}» tiene ${n === 1 ? 'un producto' : `${n} productos`}. Pásalos a otra persona o a «Compartido», o elimínalos, antes de borrarla.`,
         )
       }
-      this.repository.deletePerson(id)
+      await this.repository.deletePerson(id)
     })
   }
 }

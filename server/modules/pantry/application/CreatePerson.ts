@@ -17,10 +17,10 @@ export class CreatePerson {
   }
 
   /** `name` ya viene validado (sin espacios a los lados y de 1 a 40 caracteres). */
-  execute(name: string): PantryPerson {
-    return this.unitOfWork.run(() => {
+  execute(name: string): Promise<PantryPerson> {
+    return this.unitOfWork.run(async () => {
       const person = { id: this.ids.newId(), name, createdAt: this.clock.nowISO() }
-      this.repository.insertPerson(person)
+      await this.repository.insertPerson(person)
       return person
     })
   }

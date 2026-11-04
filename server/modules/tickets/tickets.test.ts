@@ -1,4 +1,3 @@
-import Database from 'better-sqlite3'
 import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import type { TicketSuggestion } from '#shared/tickets/ticketMatch.ts'
@@ -12,8 +11,8 @@ import type {
   TicketSaveInput,
 } from '#shared/tickets/types.ts'
 import { startApi, stopApis, type TestApi } from '../../common/testing/testApi.ts'
+import { connectTestDatabase, dropTestDatabases } from '../../common/testing/testDatabase.ts'
 import { createTesseractReader, type TicketReader } from './index.ts'
-import { removeTempDbs } from '../../common/testing/tempDb.ts'
 
 /**
  * Tickets de la compra por la API. El ticket es INVENTADO (fixtures/tickets/ticket-lidl-ejemplo.png).
@@ -30,7 +29,7 @@ const TRUTH = JSON.parse(readFileSync(new URL('../../../fixtures/tickets/ticket-
 
 afterEach(async () => {
   await stopApis()
-  removeTempDbs()
+  await dropTestDatabases()
 })
 
 const fakeReader = (pages: OcrLine[][] = [FIXTURE_OCR]): TicketReader => ({ read: async () => pages, close: async () => undefined })
@@ -395,13 +394,10 @@ describe('API de tickets', () => {
       sourceFingerprint: fingerprintOf(pasted),
     })
     expect(saved.status).toBe(201)
-    const db = new Database(api.path, { readonly: true })
-    try {
-      expect(db.prepare('SELECT fingerprint, source_fingerprint FROM pantry_tickets').all()).toEqual([
-        { fingerprint: '4ee26779153a9a0ba92b3af35f8f543155cfe656884bd3d4d5693140d5baeb30', source_fingerprint: 'a8737b2f4204b7b1b9c9b81440ae55228438a252a379693401a3cdfdc19a71e4' },
-      ])
-    } finally {
-      db.close()
-    }
+    const db = await connectTestDatabase(api.database)
+    const [rows] = await db.query('SELECT fingerprint, source_fingerprint FROM pantry_tickets')
+    expect(rows).toEqual([
+      { fingerprint: '4ee26779153a9a0ba92b3af35f8f543155cfe656884bd3d4d5693140d5baeb30', source_fingerprint: 'a8737b2f4204b7b1b9c9b81440ae55228438a252a379693401a3cdfdc19a71e4' },
+    ])
   })
 })

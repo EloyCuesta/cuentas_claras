@@ -1,13 +1,15 @@
+import type { UnitOfWork } from '../ports.ts'
 import { isDeadlock } from './errors.ts'
 import type { MysqlDatabase, TransactionContext } from './MysqlDatabase.ts'
 
 /** Opciones de una transacción. */
 export interface TransactionOptions {
   /**
-   * Nombre de una fila de app_locks («finance», «tickets»). Se toma con
-   * SELECT … FOR UPDATE como primera sentencia de la transacción y se suelta al
-   * confirmar o deshacer: dos operaciones con el mismo nombre van en serie, y la
-   * segunda ve todo lo que confirmó la primera.
+   * Nombre de una fila de app_locks («finance», «tickets»: LockName en
+   * server/common/ports.ts). Se toma con SELECT … FOR UPDATE como primera
+   * sentencia de la transacción y se suelta al confirmar o deshacer: dos
+   * operaciones con el mismo nombre van en serie, y la segunda ve todo lo que
+   * confirmó la primera.
    */
   lock?: string
 }
@@ -26,7 +28,7 @@ export interface TransactionOptions {
  * - Con REPEATABLE READ, la primera lectura normal fija lo que verá la
  *   transacción: por eso el bloqueo va antes que cualquier lectura.
  */
-export class MysqlUnitOfWork {
+export class MysqlUnitOfWork implements UnitOfWork {
   private readonly db: MysqlDatabase
 
   constructor(db: MysqlDatabase) {

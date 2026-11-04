@@ -17,7 +17,7 @@ export class RestoreBackup {
     this.unitOfWork = unitOfWork
   }
 
-  execute(data: FinanceData): void {
-    this.unitOfWork.run(() => this.store.writeAll(data))
+  execute(data: FinanceData): Promise<void> {
+    return this.unitOfWork.run(() => this.store.writeAll(data), { lock: 'finance' })
   }
 }

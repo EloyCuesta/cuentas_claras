@@ -23,27 +23,31 @@ export class SaveRecurring {
     this.unitOfWork = unitOfWork
   }
 
-  execute(rule: RecurringRule, options: SaveRecurringOptions): number {
-    return this.unitOfWork.run(() => {
-      requireCategory(this.store, rule.categoryId, rule.type, 'El recurrente')
-      this.store.upsertRule(rule)
-      this.store.clearExcludedDates(rule.id)
-      for (const date of rule.excludedDates) this.store.addExcludedDate(rule.id, date)
+  execute(rule: RecurringRule, options: SaveRecurringOptions): Promise<number> {
+    // Con el bloqueo «finance», generar a la vez desde otra pestaña espera y no duplica (ni da 409).
+    return this.unitOfWork.run(
+      async () => {
+        await requireCategory(this.store, rule.categoryId, rule.type, 'El recurrente')
+        await this.store.upsertRule(rule)
+        await this.store.clearExcludedDates(rule.id)
+        for (const date of rule.excludedDates) await this.store.addExcludedDate(rule.id, date)
 
-      // Los vencimientos pendientes se rehacen con los datos nuevos; los pagados se conservan.
-      const kept = this.store.movementsOfRule(rule.id).filter((m) => m.status !== 'pendiente')
-      this.store.deletePendingOfRule(rule.id)
+        // Los vencimientos pendientes se rehacen con los datos nuevos; los pagados se conservan.
+        const kept = (await this.store.movementsOfRule(rule.id)).filter((m) => m.status !== 'pendiente')
+        await this.store.deletePendingOfRule(rule.id)
 
-      const planned = planOccurrences(rule, kept, options.horizon, this.clock.nowISO(), () => this.ids.newId())
-      for (const movement of planned) {
-        const paidAlready = options.markPaidBefore && (movement.occurrenceDate as string) < options.markPaidBefore
-        // Un préstamo empezado: lo anterior a markPaidBefore se crea ya pagado, en su fecha.
-        const occurrence = paidAlready
-          ? { ...movement, status: 'realizado' as const, paidDate: movement.occurrenceDate }
-          : movement
-        this.store.insertOccurrence(occurrence)
-      }
-      return planned.length
-    })
+        const planned = planOccurrences(rule, kept, options.horizon, this.clock.nowISO(), () => this.ids.newId())
+        for (const movement of planned) {
+          const paidAlready = options.markPaidBefore && (movement.occurrenceDate as string) < options.markPaidBefore
+          // Un préstamo empezado: lo anterior a markPaidBefore se crea ya pagado, en su fecha.
+          const occurrence = paidAlready
+            ? { ...movement, status: 'realizado' as const, paidDate: movement.occurrenceDate }
+            : movement
+          await this.store.insertOccurrence(occurrence)
+        }
+        return planned.length
+      },
+      { lock: 'finance' },
+    )
   }
 }

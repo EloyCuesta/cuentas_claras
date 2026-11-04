@@ -24,23 +24,23 @@ export function dataRoutes({
 }): Router {
   const router = Router()
 
-  router.get('/data', (_req, res) => {
-    sendData(res, queries.loadAll())
+  router.get('/data', async (_req, res) => {
+    sendData(res, await queries.loadAll())
   })
 
-  router.put('/data', (req, res) => {
-    restoreBackup.execute(valid(validateFinanceData(req.body)))
+  router.put('/data', async (req, res) => {
+    await restoreBackup.execute(valid(validateFinanceData(req.body)))
     sendData(res, null)
   })
 
-  router.post('/import', (req, res) => {
+  router.post('/import', async (req, res) => {
     const body = readBody(req.body)
     const data = valid(validateFinanceData(body.data))
     const { lastBackupAt } = body
     if (lastBackupAt !== null && lastBackupAt !== undefined && typeof lastBackupAt !== 'string') {
       throw new AppError('VALIDATION', 'El campo «lastBackupAt» debe ser texto.')
     }
-    sendData(res, importBrowserData.execute(data, lastBackupAt ?? null), 201)
+    sendData(res, await importBrowserData.execute(data, lastBackupAt ?? null), 201)
   })
 
   return router

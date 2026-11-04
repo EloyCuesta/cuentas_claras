@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
 import { movement, rule } from '#shared/testing/factories.ts'
+import { LATEST_VERSION } from './common/mysql/migrations.ts'
+import { dropTestDatabases } from './common/testing/testDatabase.ts'
 import { startApi, stopApis, type TestApi } from './common/testing/testApi.ts'
-import { LATEST_VERSION } from './migrations/index.ts'
-import { removeTempDbs } from './common/testing/tempDb.ts'
 
-/** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch, con la sesión iniciada. */
+/** Pruebas de la API por HTTP: un servidor real en un puerto libre y fetch, con la sesión iniciada y MySQL de pruebas. */
 
 afterEach(async () => {
   await stopApis()
-  removeTempDbs()
+  await dropTestDatabases()
 })
 
 const dataOf = async (call: TestApi['call']) => (await call('GET', '/data')).body.data as FinanceData
@@ -18,7 +18,7 @@ const dataOf = async (call: TestApi['call']) => (await call('GET', '/data')).bod
 describe('API', () => {
   it('GET /api/health responde con el estado, sin revelar datos', async () => {
     const { call } = await startApi({ login: false })
-    // Pública y sin datos: ni la ruta del archivo ni nada financiero.
+    // Pública y sin datos: ni el servidor ni la base de MySQL, ni nada financiero.
     expect((await call('GET', '/health')).body).toEqual({ ok: true, data: { status: 'ok', schemaVersion: LATEST_VERSION } })
   })
 
@@ -33,9 +33,9 @@ describe('API', () => {
     await first.call('PUT', `/movements/${expense.id}`, edited)
     expect((await dataOf(first.call)).movements).toEqual([edited])
 
-    // Reiniciar el servidor con el mismo archivo: el gasto sigue ahí.
+    // Reiniciar el servidor con la misma base de datos: el gasto sigue ahí.
     await first.stop()
-    const second = await startApi({ path: first.path })
+    const second = await startApi({ database: first.database })
     expect((await dataOf(second.call)).movements).toEqual([edited])
 
     expect((await second.call('DELETE', `/movements/${expense.id}`)).status).toBe(200)

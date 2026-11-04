@@ -13,7 +13,8 @@ export interface TicketPurchase {
 /**
  * Lo que deja un ticket guardado en un producto que ya existía: el precio nuevo
  * y, si el producto se cuenta, lo comprado. Cada cambio sube la versión. Lo
- * llama el módulo tickets dentro de su transacción (aquí queda anidada).
+ * llama el módulo tickets dentro de su transacción (aquí queda anidada), que
+ * ya ha bloqueado sus productos al empezar; el bloqueo de aquí no espera.
  */
 export class ApplyTicketPurchase {
   private readonly repository: PantryRepository
@@ -26,14 +27,15 @@ export class ApplyTicketPurchase {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string, { priceCents, addQuantity }: TicketPurchase): void {
-    this.unitOfWork.run(() => {
-      const item = requireItem(this.repository, id)
+  execute(id: string, { priceCents, addQuantity }: TicketPurchase): Promise<void> {
+    return this.unitOfWork.run(async () => {
+      await this.repository.lockItems([id])
+      const item = await requireItem(this.repository, id)
       const now = this.clock.nowISO()
-      if (priceCents !== null && priceCents !== item.priceCents) this.repository.setPrice(id, priceCents, now)
+      if (priceCents !== null && priceCents !== item.priceCents) await this.repository.setPrice(id, priceCents, now)
       if (addQuantity !== null && addQuantity > 0 && item.tracking === 'cantidad') {
         const checked = checkQuantity(Math.round((item.quantity + addQuantity) * 1000) / 1000, item.unit)
-        if (checked.ok) this.repository.setQuantity(id, checked.value, now)
+        if (checked.ok) await this.repository.setQuantity(id, checked.value, now)
       }
     })
   }

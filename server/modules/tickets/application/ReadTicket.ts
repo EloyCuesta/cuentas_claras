@@ -16,7 +16,9 @@ export type TicketSourceInput =
 /**
  * Leer un ticket sin guardar nada: el texto (con OCR local si son imágenes),
  * lo que se propone para cada producto (lo aprendido en esa tienda y los
- * nombres parecidos) y si ya estaba guardado.
+ * nombres parecidos) y si ya estaba guardado. Sin transacción ni bloqueo: el
+ * OCR tarda segundos y no debe parar los guardados; lo que importa se vuelve
+ * a comprobar al guardar, dentro del bloqueo «tickets».
  *
  * El total nunca decide un importe: lo hace parseTicket (shared/tickets). Si
  * el OCR falla, se explica con un 400 y el detalle sale en la consola.
@@ -70,10 +72,10 @@ export class ReadTicket {
         'No se ha encontrado ningún producto en el ticket. Prueba con una captura más nítida o pega el texto.',
       )
     }
-    const learned = this.repository.aliases(aliasStoreOf(ticket.store, ticket.storeName))
-    const suggestions = suggestForTicket(ticket.lines, learned, this.pantry.listItems())
+    const learned = await this.repository.aliases(aliasStoreOf(ticket.store, ticket.storeName))
+    const suggestions = suggestForTicket(ticket.lines, learned, await this.pantry.listItems())
     const lines = ticket.lines.map((line) => ({ ...line, occasional: false }))
-    const duplicate = findDuplicate(this.repository, this.hasher, {
+    const duplicate = await findDuplicate(this.repository, this.hasher, {
       store: ticket.store,
       storeName: ticket.storeName,
       date: ticket.date ?? today,
@@ -83,7 +85,7 @@ export class ReadTicket {
       adjustments: ticket.adjustments,
       sourceFingerprint,
     })
-    const possible = duplicate ? null : possibleDuplicate(this.repository, { ...ticket, date: ticket.date ?? today })
+    const possible = duplicate ? null : await possibleDuplicate(this.repository, { ...ticket, date: ticket.date ?? today })
     return {
       ticket,
       suggestions: Object.fromEntries(suggestions),

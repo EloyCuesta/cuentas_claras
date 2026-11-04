@@ -1,7 +1,7 @@
 import type { Router } from 'express'
 import type { ModuleDeps } from '../../common/modules.ts'
 import { financeRoutes, type FinanceUseCases } from './adapters/http/routes.ts'
-import { SqliteFinanceStore } from './adapters/sqlite/SqliteFinanceStore.ts'
+import { MysqlFinanceStore } from './adapters/mysql/MysqlFinanceStore.ts'
 import { DeleteCategory } from './application/DeleteCategory.ts'
 import { DeleteMovement } from './application/DeleteMovement.ts'
 import { DeleteRecurring } from './application/DeleteRecurring.ts'
@@ -28,11 +28,11 @@ export interface FinanceModule {
   /** Los casos de uso, para los tests del módulo (ningún otro módulo los usa). */
   useCases: FinanceUseCases
   /** Deja las finanzas como recién creadas (solo para POST /api/test/reset). */
-  reset(): void
+  reset(): Promise<void>
 }
 
 export function createFinanceModule({ db, clock, ids, unitOfWork }: ModuleDeps): FinanceModule {
-  const store = new SqliteFinanceStore(db)
+  const store = new MysqlFinanceStore(db)
   const useCases: FinanceUseCases = {
     queries: new FinanceQueries(store, unitOfWork),
     saveMovement: new SaveMovement(store, unitOfWork),
@@ -46,5 +46,5 @@ export function createFinanceModule({ db, clock, ids, unitOfWork }: ModuleDeps):
     importBrowserData: new ImportBrowserData(store, clock, unitOfWork),
     setMeta: new SetMeta(store, unitOfWork),
   }
-  return { router: financeRoutes(useCases), useCases, reset: () => unitOfWork.run(() => store.reset()) }
+  return { router: financeRoutes(useCases), useCases, reset: () => unitOfWork.run(() => store.reset(), { lock: 'finance' }) }
 }

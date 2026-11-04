@@ -16,9 +16,9 @@ export class SetBudget {
     this.unitOfWork = unitOfWork
   }
 
-  execute(monthlyBudgetCents: number | null): PantrySettings {
-    return this.unitOfWork.run(() => {
-      this.repository.setBudget(monthlyBudgetCents)
+  execute(monthlyBudgetCents: number | null): Promise<PantrySettings> {
+    return this.unitOfWork.run(async () => {
+      await this.repository.setBudget(monthlyBudgetCents)
       return this.repository.getSettings()
     })
   }

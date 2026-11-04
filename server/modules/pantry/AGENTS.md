@@ -10,7 +10,7 @@ Público a propósito: lo usa cualquiera de casa, sepa o no el código. Nunca de
 
 ## API pública (index.ts)
 - `createPantryModule(deps)` → `{ router, api, reset }`.
-- `api` (tipo PantryApi): `getItem`, `createItem`, `applyTicketPurchase`, `listItems` y `eventsSince`. Es lo único que usa tickets.
+- `api` (tipo PantryApi): `lockItems`, `getItem`, `createItem`, `applyTicketPurchase`, `listItems` y `eventsSince`, todos async. Es lo único que usa tickets; dentro de una transacción de tickets, todo se une a ella.
 - `reset()`: vacía la despensa, solo para POST /api/test/reset.
 
 ## Casos de uso y rutas
@@ -39,8 +39,8 @@ Todas bajo /api/despensa. Los ids que no existen dan 404 sin cambiar nada.
 ## Puertos
 | Puerto | Para qué | Adaptador real | Falso en los tests |
 | --- | --- | --- | --- |
-| PantryRepository | Guardar y leer personas, productos, revisiones y ajustes | `adapters/sqlite/SqlitePantryRepository.ts` | SQLite temporal (`startApi`) |
-| Clock, IdGenerator, UnitOfWork (comunes) | Fechas, ids y transacciones | `server/common/system.ts` y `server/common/sqlite/SqliteUnitOfWork.ts` | `startApi({ clock: { nowISO } })` |
+| PantryRepository | Guardar, leer y bloquear personas, productos, revisiones y ajustes | `adapters/mysql/MysqlPantryRepository.ts` | una base MySQL de pruebas (`startApi`) |
+| Clock, IdGenerator, UnitOfWork (comunes) | Fechas, ids y transacciones | `server/common/system.ts` y `server/common/mysql/MysqlUnitOfWork.ts` | `startApi({ clock: { nowISO } })` |
 
 Las comprobaciones que comparten varios casos de uso (la persona, el producto o el dueño existen) están en `application/require.ts`.
 
@@ -52,6 +52,7 @@ Las comprobaciones que comparten varios casos de uso (la persona, el producto o 
 - Los ids y las fechas los pone el servidor. La fecha de hoy la manda el navegador (`date`); el servidor solo usa la suya si `comprado` llega sin ella.
 - Precios en céntimos enteros: `null` es desconocido y 0 es gratis.
 - Cada operación que escribe es una sola transacción (UnitOfWork), anidada dentro de la de tickets cuando la llama tickets.
+- Lo que cambia productos que ya existen (+ y −, editar, borrar, revisiones, comprar, deshacer y lo que deja un ticket) los bloquea antes de leer nada: `repository.lockItems(ids)`, un `SELECT … FOR UPDATE` en orden de id. Dos + a la vez desde dos móviles suman los dos.
 
 ## Datos
 - `pantry_people`, la persona de cada apartado.
@@ -59,10 +60,10 @@ Las comprobaciones que comparten varios casos de uso (la persona, el producto o 
 - `pantry_events`, las revisiones, que se borran con su producto.
 - `pantry_settings`, una sola fila, con `monthly_budget_cents` y `last_review_date`.
 
-Vienen de las migraciones 002, 003 y 004: ver `docs/base-de-datos.md`.
+Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql`), que reúne las 002, 003 y 004 de SQLite: ver `docs/base-de-datos.md`. `quantity` y `target` son `DECIMAL(10,3)` (milésimas exactas).
 
 ## Pruebas
-- `pantry.test.ts`: la API por HTTP como invitado (personas, productos, validación, + y −, presupuesto, comprar y deshacer, y que no se mezcla con las finanzas).
+- `pantry.test.ts`: la API por HTTP como invitado (personas, productos, validación, + y −, presupuesto, comprar y deshacer, y que no se mezcla con las finanzas), diez + a la vez desde dos conexiones, milésimas, céntimos y nombres con tildes.
 - Las revisiones, «Queda poco» y el repaso se prueban con los tickets: `server/modules/tickets/tickets.test.ts`.
 - Las reglas puras (cantidades, ritmo y repaso) están en `shared/pantry/`.
 
@@ -70,6 +71,8 @@ Solo estas: `npx vitest run server/modules/pantry`.
 
 ## Trampas y decisiones
 - MarkPurchased apunta las compras con AddEvent, en una transacción anidada.
+- Con REPEATABLE READ, la primera lectura normal fija lo que ve la transacción: por eso `lockItems` va antes que cualquier lectura. Un bloqueo tardío no vería lo que otro confirmó antes (`server/common/mysql/MysqlUnitOfWork.test.ts`).
+- Las revisiones salen por fecha, momento e id: en SQLite los empates quedaban en el orden en que se apuntaron; aquí el id los ordena.
 - `reset` solo vacía las tablas de la despensa: los tickets y lo aprendido los vacía antes el módulo tickets, en la misma transacción (`server/app.ts`).
 - Un producto creado por la API sin `tracking` se sigue contando (`cantidad`); los que crean los tickets van por compras: ver `docs/decisiones.md`.
 

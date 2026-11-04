@@ -15,11 +15,14 @@ export class DeleteRecurring {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string): void {
-    this.unitOfWork.run(() => {
-      // Sus fechas excluidas se borran en cascada; los vencimientos pagados se conservan.
-      this.store.deleteRule(id)
-      this.store.deletePendingOfRule(id)
-    })
+  execute(id: string): Promise<void> {
+    return this.unitOfWork.run(
+      async () => {
+        // Sus fechas excluidas se borran en cascada; los vencimientos pagados se conservan.
+        await this.store.deleteRule(id)
+        await this.store.deletePendingOfRule(id)
+      },
+      { lock: 'finance' },
+    )
   }
 }

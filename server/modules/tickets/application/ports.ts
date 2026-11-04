@@ -13,7 +13,10 @@ import type {
 } from '#shared/tickets/types.ts'
 import type { PurchaseLine } from '../domain/purchaseHistory.ts'
 
-/** Puertos del módulo tickets. Todo síncrono salvo el OCR, que es lo único asíncrono de verdad. */
+/**
+ * Puertos del módulo tickets. La persistencia (MySQL), la despensa y el OCR son
+ * async; la huella (Hasher) es un cálculo y sigue siendo síncrona.
+ */
 
 /** Un ticket nuevo, tal como se guarda (sin sus líneas). */
 export interface TicketToInsert {
@@ -63,33 +66,33 @@ export interface StoredLineRef {
 /** Tickets guardados, sus líneas y lo aprendido en cada tienda. */
 export interface TicketRepository {
   /** Lo aprendido en una tienda (ver aliasStoreOf): nombre normalizado → producto, o null si no se sigue. */
-  aliases(aliasStore: string): AliasRecord[]
-  upsertAlias(aliasStore: string, nameKey: string, itemId: string | null, now: string): void
+  aliases(aliasStore: string): Promise<AliasRecord[]>
+  upsertAlias(aliasStore: string, nameKey: string, itemId: string | null, now: string): Promise<void>
 
   /** El ticket guardado desde esa misma lectura (importId) o desde el mismo origen (huella del texto o las imágenes). */
-  findByImport(importId: string, sourceFingerprint: string): PantryTicketSummary | null
-  findByFingerprint(fingerprint: string): PantryTicketSummary | null
-  /** Tickets de esa fecha y ese total (el total puede ser null). */
-  candidates(date: ISODate, totalCents: number | null): PantryTicketSummary[]
+  findByImport(importId: string, sourceFingerprint: string): Promise<PantryTicketSummary | null>
+  findByFingerprint(fingerprint: string): Promise<PantryTicketSummary | null>
+  /** Tickets de esa fecha y ese total (el total puede ser null), en orden de id. */
+  candidates(date: ISODate, totalCents: number | null): Promise<PantryTicketSummary[]>
   /** Los últimos, por fecha y hora de compra. */
-  listSummaries(limit: number): PantryTicketSummary[]
-  getSummary(id: string): PantryTicketSummary | null
+  listSummaries(limit: number): Promise<PantryTicketSummary[]>
+  getSummary(id: string): Promise<PantryTicketSummary | null>
   /** Con sus líneas en orden, sus ajustes y sus avisos. */
-  getTicket(id: string): PantryTicket | null
-  getLine(ticketId: string, lineId: string): StoredLineRef | null
-  linesOf(ticketId: string): StoredLineRef[]
+  getTicket(id: string): Promise<PantryTicket | null>
+  getLine(ticketId: string, lineId: string): Promise<StoredLineRef | null>
+  linesOf(ticketId: string): Promise<StoredLineRef[]>
 
-  insertTicket(ticket: TicketToInsert): void
-  insertLine(line: LineToInsert): void
-  setLineItem(lineId: string, itemId: string | null): void
+  insertTicket(ticket: TicketToInsert): Promise<void>
+  insertLine(line: LineToInsert): Promise<void>
+  setLineItem(lineId: string, itemId: string | null): Promise<void>
   /** Sus líneas se borran en cascada. */
-  deleteTicket(id: string): void
+  deleteTicket(id: string): Promise<void>
 
   /** Las líneas que cuentan para el ritmo desde una fecha (con producto, verificadas y no «para una ocasión»). */
-  purchaseLinesSince(date: ISODate): PurchaseLine[]
+  purchaseLinesSince(date: ISODate): Promise<PurchaseLine[]>
 
   /** Vacía los tickets y lo aprendido (solo para las pruebas). */
-  reset(): void
+  reset(): Promise<void>
 }
 
 /** Lee el texto de las imágenes de un ticket, en este mismo equipo. */
@@ -99,14 +102,19 @@ export interface TicketReader {
   close(): Promise<void>
 }
 
-/** Lo que tickets usa de la despensa. server/app.ts le pasa la API pública del módulo pantry. */
+/**
+ * Lo que tickets usa de la despensa. server/app.ts le pasa la API pública del
+ * módulo pantry. Dentro de una transacción de tickets, todo se une a ella.
+ */
 export interface PantryGateway {
-  getItem(id: string): PantryItem | null
-  createItem(input: PantryItemInput): PantryItem
+  /** Bloquea esos productos hasta el final de la transacción (FOR UPDATE, en orden de id): antes de leer nada. */
+  lockItems(ids: readonly string[]): Promise<void>
+  getItem(id: string): Promise<PantryItem | null>
+  createItem(input: PantryItemInput): Promise<PantryItem>
   /** Precio nuevo y, si el producto se cuenta, lo comprado. */
-  applyTicketPurchase(id: string, purchase: { priceCents: number | null; addQuantity: number | null }): void
-  listItems(): PantryItem[]
-  eventsSince(date: ISODate): PantryEvent[]
+  applyTicketPurchase(id: string, purchase: { priceCents: number | null; addQuantity: number | null }): Promise<void>
+  listItems(): Promise<PantryItem[]>
+  eventsSince(date: ISODate): Promise<PantryEvent[]>
 }
 
 /** SHA-256 en hexadecimal de las partes, una detrás de otra (el texto, en UTF-8). */

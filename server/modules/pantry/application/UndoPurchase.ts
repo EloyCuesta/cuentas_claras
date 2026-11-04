@@ -10,7 +10,8 @@ import type { PantryQueries } from './queries.ts'
  * anterior y se borran las compras apuntadas. Solo si nada ha cambiado desde
  * entonces (misma versión, la compra sigue ahí); si no, 409 y no se toca nada,
  * para no pisar el cambio de otro móvil. Solo se restaura la cantidad, nunca
- * otros campos.
+ * otros campos. Sus productos se bloquean antes de comprobar nada (FOR UPDATE,
+ * en orden de id): un + o un deshacer a la vez espera y después ve el cambio.
  */
 export class UndoPurchase {
   private readonly repository: PantryRepository
@@ -25,8 +26,9 @@ export class UndoPurchase {
     this.unitOfWork = unitOfWork
   }
 
-  execute(changes: readonly PantryPurchaseChange[]): PantryItem[] {
-    return this.unitOfWork.run(() => {
+  execute(changes: readonly PantryPurchaseChange[]): Promise<PantryItem[]> {
+    return this.unitOfWork.run(async () => {
+      await this.repository.lockItems([...new Set(changes.map((change) => change.id))])
       const conflict = () =>
         new AppError(
           'CONFLICT',
@@ -37,20 +39,20 @@ export class UndoPurchase {
       const events: string[] = []
       for (const change of changes) {
         if ('eventId' in change) {
-          const event = this.repository.getEvent(change.eventId)
+          const event = await this.repository.getEvent(change.eventId)
           if (!event || event.itemId !== change.id || event.kind !== 'comprado') throw conflict()
           events.push(change.eventId)
           continue
         }
-        const item = this.repository.getItem(change.id)
+        const item = await this.repository.getItem(change.id)
         if (!item || item.version !== change.version) throw conflict()
         const quantity = checkQuantity(change.previousQuantity, item.unit)
         if (!quantity.ok) throw new AppError('VALIDATION', quantity.error)
         quantities.push({ id: change.id, quantity: quantity.value })
       }
       const now = this.clock.nowISO()
-      for (const { id, quantity } of quantities) this.repository.setQuantity(id, quantity, now)
-      for (const id of events) this.repository.deleteEvent(id)
+      for (const { id, quantity } of quantities) await this.repository.setQuantity(id, quantity, now)
+      for (const id of events) await this.repository.deleteEvent(id)
       return this.queries.listItems()
     })
   }

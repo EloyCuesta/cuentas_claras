@@ -34,13 +34,14 @@ Los routers están en `adapters/http/` y `adapters/http/routes.ts` los monta en 
 ## Puertos
 | Puerto | Para qué | Adaptador real | Falso en los tests |
 | --- | --- | --- | --- |
-| FinanceStore | Guardar y leer categorías, movimientos, recurrentes y metadatos | `adapters/sqlite/SqliteFinanceStore.ts` | SQLite temporal (`openFinance` en `finance.test.ts`) |
-| Clock, IdGenerator, UnitOfWork (comunes) | Fechas de los cambios, ids de los vencimientos y transacciones | `server/common/system.ts` y `server/common/sqlite/SqliteUnitOfWork.ts` | `clock: { nowISO: () => NOW }` |
+| FinanceStore | Guardar y leer categorías, movimientos, recurrentes y metadatos | `adapters/mysql/MysqlFinanceStore.ts` | una base MySQL de pruebas (`openFinance` en `finance.test.ts`) |
+| Clock, IdGenerator, UnitOfWork (comunes) | Fechas de los cambios, ids de los vencimientos y transacciones | `server/common/system.ts` y `server/common/mysql/MysqlUnitOfWork.ts` | `clock: { nowISO: () => NOW }` |
 
-FinanceStore es síncrono; el contrato asíncrono FinanceRepository es de la web (`src/features/finance/FinanceRepository.ts`), y el servidor no lo implementa.
+FinanceStore es async (MySQL) y no se parece por casualidad al contrato FinanceRepository de la web (`src/features/finance/FinanceRepository.ts`): ese habla con la API, y el servidor no lo implementa.
 
 ## Reglas que no se rompen
 - Importes en céntimos enteros (> 0) y fechas `AAAA-MM-DD`. El `horizon` y `markPaidBefore` los calcula la web con su fecha de hoy.
+- Todo lo que escribe va en una transacción con el bloqueo `finance` (`unitOfWork.run(…, { lock: 'finance' })`): dos escrituras de finanzas van una detrás de otra, como iban en SQLite. Así, generar vencimientos desde dos pestañas a la vez da `[0, 2]`, sin 409. Las lecturas (`loadAll`) van en una transacción sin bloqueo: una foto coherente.
 - Un vencimiento no existe dos veces: índice único `(recurring_id, occurrence_date)` y 409 «Ese vencimiento ya existe, así que no se ha creado otro.».
 - Borrar un vencimiento de un recurrente anota su fecha para no volver a crearlo.
 - Guardar un recurrente rehace sus pendientes y conserva los pagados. Borrarlo borra los pendientes y deja los pagados (con su `recurringId`).
@@ -49,10 +50,10 @@ FinanceStore es síncrono; el contrato asíncrono FinanceRepository es de la web
 - Listas `IN (...)` (borrar categorías) siempre con parámetros.
 
 ## Datos
-Tablas `categories`, `movements`, `recurring_rules`, `recurring_excluded_dates` y `meta`, de la migración 001. `movements.recurring_id` no es clave foránea a propósito. Ver `docs/base-de-datos.md`.
+Tablas `categories`, `movements`, `recurring_rules`, `recurring_excluded_dates` y `meta`, de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql`). `movements.recurring_id` no es clave foránea a propósito. Ver `docs/base-de-datos.md`.
 
 ## Pruebas
-- `finance.test.ts`: los casos de uso contra SQLite temporal, con los mismos nombres que el contrato de la web (`openFinance`).
+- `finance.test.ts`: los casos de uso contra una base MySQL de pruebas, con los mismos nombres que el contrato de la web (`openFinance`), también con dos conexiones a la vez (generar y guardar recurrentes), choques con el índice único y céntimos hasta el máximo.
 - La API por HTTP está en `server/app.test.ts`, y el acceso (401), en `server/modules/auth/auth.test.ts`.
 - Los cálculos (resumen, recurrentes, copias, CSV) están en `shared/finance/`.
 
@@ -61,9 +62,11 @@ Solo estas: `npx vitest run server/modules/finance`.
 ## Trampas y decisiones
 - GenerateOccurrences lo llama la web al abrirse y al cambiar de día: varias pestañas a la vez no duplican nada.
 - `writeAll` (restaurar e importar) usa la inserción sin traducir: un choque ahí sale como el 409 genérico de `errorHandler`, no como «vencimiento duplicado».
+- `movements` tiene dos claves únicas (id, y recurrente + fecha): `upsertMovement` actualiza por id y, si no había, inserta. Con `ON DUPLICATE KEY UPDATE`, un vencimiento repetido sobrescribiría el otro movimiento en vez de dar 409. Las demás tablas solo tienen su clave primaria y sí lo usan.
+- `key` (tabla `meta`) es palabra reservada en MySQL: va entre comillas invertidas.
 - Por qué no hay tablas de cuentas, préstamos ni vivienda: ver `docs/decisiones.md`.
 
 ## Si cambias este módulo
 - Rutas o mensajes: `docs/api.md`, la web (`src/features/finance/ApiFinanceRepository.ts`) y `e2e/app.spec.ts`.
 - Reglas de cálculo o validación: `shared/finance/`, que comparte la web.
-- Tablas: una migración nueva (`server/migrations/AGENTS.md`).
+- Tablas: una migración nueva (`database/mysql/AGENTS.md`).

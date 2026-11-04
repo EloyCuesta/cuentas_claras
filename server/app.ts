@@ -1,9 +1,9 @@
 import express, { Router, type Express } from 'express'
 import { errorHandler, notFoundHandler } from './common/http/response.ts'
 import { testingRoutes } from './common/http/testingRoutes.ts'
+import type { OpenedDatabase } from './common/mysql/MysqlDatabase.ts'
+import { MysqlUnitOfWork } from './common/mysql/MysqlUnitOfWork.ts'
 import type { Clock, IdGenerator } from './common/ports.ts'
-import type { OpenedDatabase } from './common/sqlite/openDatabase.ts'
-import { SqliteUnitOfWork } from './common/sqlite/SqliteUnitOfWork.ts'
 import { randomIds, systemClock } from './common/system.ts'
 import { createAuthModule } from './modules/auth/index.ts'
 import { createFinanceModule } from './modules/finance/index.ts'
@@ -12,6 +12,7 @@ import { createPantryModule } from './modules/pantry/index.ts'
 import { createTesseractReader, createTicketsModule, type TicketReader } from './modules/tickets/index.ts'
 
 export interface AppOptions {
+  /** La base MySQL ya abierta y migrada (openDatabase en server/common/mysql/MysqlDatabase.ts). */
   database: OpenedDatabase
   /** Código que da acceso a las finanzas (CUENTAS_CODIGO). Obligatorio: sin él no se crea la aplicación. */
   accessCode: string
@@ -44,7 +45,7 @@ export function createApp({
   // Lanza si falta el código o no es válido: nunca hay una aplicación con el acceso abierto.
   const auth = createAuthModule({ accessCode, clock })
   const health = createHealthModule({ database })
-  const unitOfWork = new SqliteUnitOfWork(database.db)
+  const unitOfWork = new MysqlUnitOfWork(database.db)
   const deps = { db: database.db, clock, ids, unitOfWork }
   const finance = createFinanceModule(deps)
   const pantry = createPantryModule(deps)
@@ -73,12 +74,13 @@ export function createApp({
   api.use(auth.requireAdmin)
   api.use(finance.router)
   if (testMode) {
+    // Una transacción: primero los bloqueos de finanzas y de tickets, y la despensa después de los tickets (claves foráneas).
     api.use(
       testingRoutes(() =>
-        unitOfWork.run(() => {
-          finance.reset()
-          tickets.reset()
-          pantry.reset()
+        unitOfWork.run(async () => {
+          await finance.reset()
+          await tickets.reset()
+          await pantry.reset()
         }),
       ),
     )

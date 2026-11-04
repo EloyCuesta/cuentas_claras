@@ -1,5 +1,7 @@
 # Pruebas
 
+Las pruebas del servidor usan **MySQL de verdad**: un MySQL Server en marcha y las `CUENTAS_DB_*` (del entorno o de `.env`) de un usuario que pueda crear y borrar las bases `cuentas_test_%` y usar `cuentas_claras_e2e` (README, «Pruebas»). Sin MySQL fallan con un mensaje claro; no se saltan ni se sustituyen por SQLite o por falsos.
+
 ```bash
 npm run check                    # tipos (tsc -b), oxlint y Vitest: lo que tiene que estar en verde siempre
 npm test                         # solo Vitest
@@ -16,8 +18,11 @@ CUENTAS_E2E_CHANNEL=chrome npm run test:e2e   # con el Chrome instalado, si no s
 | Nivel | Dónde | Qué prueba |
 | --- | --- | --- |
 | Dominio | `shared/**/*.test.ts` | La lógica pura: dinero, fechas, recurrentes, resumen, copias, CSV, despensa, ritmo, repaso y lectura de tickets. Sin base de datos ni red. |
-| Servidor, casos de uso | `server/modules/finance/finance.test.ts`, `server/common/sqlite/*.test.ts` y `server/migrations/migrations.test.ts` | Los casos de uso y las migraciones contra una base de datos SQLite temporal. |
-| Servidor, API por HTTP | `server/app.test.ts` y `server/modules/*/<módulo>.test.ts` | El servidor de verdad en un puerto libre (`startApi`), con una base de datos temporal y la cookie como un navegador. |
+| Servidor, MySQL | `server/common/mysql/*.test.ts` | Configuración, conexión, migraciones, esquema (tipos, restricciones, colaciones, precisión) y transacciones con dos conexiones. |
+| Servidor, casos de uso | `server/modules/finance/finance.test.ts` | Los casos de uso contra una base MySQL de pruebas, también con dos conexiones a la vez. |
+| Servidor, API por HTTP | `server/app.test.ts` y `server/modules/*/<módulo>.test.ts` | El servidor de verdad en un puerto libre (`startApi`), con una base MySQL de pruebas y la cookie como un navegador. |
+| Servidor, arranque | `server/index.test.ts` y el arranque de `server/modules/auth/auth.test.ts` | `server/index.ts` en otro proceso: sin código no conecta, y sin MySQL o con la base o el usuario mal no arranca y lo explica. |
+| Esquema de antes | `tools/sqlite/migrations.test.ts` | Las migraciones 001–005 de SQLite y sus restricciones, contra archivos temporales: la base que lee el importador. |
 | Web | `src/features/**/*.test.ts` | El estado de la revisión de tickets, la preparación de imágenes y la migración del navegador (con IndexedDB en memoria). |
 | Arquitectura y documentación | `tests/architecture.test.ts` y `tests/docs.test.ts` | Las reglas de dependencia y que la documentación para agentes esté completa y al día. |
 | Navegador | `e2e/*.spec.ts` (Playwright) | La app entera, en escritorio y en móvil (`docs/frontend.md`). |
@@ -26,23 +31,25 @@ Un test va junto al código que prueba, con el mismo nombre y `.test.ts`. Los te
 
 ## Los falsos y los ayudantes
 
-- **Base de datos temporal**: `tempDbPath()` y `removeTempDbs()` (`server/common/testing/tempDb.ts`), una carpeta nueva en el directorio temporal del sistema para cada base de datos. Nunca `server/data/`.
-- **API en un puerto libre**: `startApi(opciones)` y `stopApis()` (`server/common/testing/testApi.ts`). Inicia sesión con `TEST_CODE` salvo `login: false`; `call(método, ruta, cuerpo, { cookie: null })` llama como invitado.
+- **Base MySQL de pruebas**: `createTestDatabase()`, `openTestDatabase()` y `connectTestDatabase(nombre)` (`server/common/testing/testDatabase.ts`) crean una base `cuentas_test_<aleatorio>` con las `CUENTAS_DB_*` (nunca `CUENTAS_DB_NAME`) y la abren; `dropTestDatabases()`, en `afterEach`, cierra las conexiones y la borra. Nunca `cuentas_claras` ni `server/data/`.
+- **API en un puerto libre**: `startApi(opciones)` y `stopApis()` (`server/common/testing/testApi.ts`), con una base de pruebas nueva o, con `{ database: api.database }`, la de otro servidor (reiniciar, o dos servidores a la vez para las pruebas de dos conexiones). Inicia sesión con `TEST_CODE` salvo `login: false`; `call(método, ruta, cuerpo, { cookie: null })` llama como invitado.
+- **El servidor en otro proceso**: `runServer(env)`, `countingListener()` y `closedPort()` (`server/common/testing/serverProcess.ts`), para probar el arranque sin el `.env` de nadie.
+- **SQLite temporal** (solo el esquema de antes y el importador): `tempDbPath()` y `removeTempDbs()` (`server/common/testing/tempDb.ts`), una carpeta nueva en el directorio temporal del sistema.
 - **Reloj**: `startApi({ clock: { nowMs } })` sustituye solo lo que haga falta. El resto es el reloj de verdad (`server/common/system.ts`). Así se prueba que una sesión caduca a las 12 horas sin esperar: `auth.test.ts` adelanta el reloj. `{ nowISO }` fija las fechas de lo que crea el servidor.
 - **Ids**: `startApi({ ids })` con un IdGenerator propio.
 - **Lector de tickets**: `startApi({ ticketReader })`. Sin él, un lector que falla si se usa (no arranca Tesseract). `fakeReader()` en `server/modules/tickets/tickets.test.ts` devuelve lo que leyó el OCR de verdad de una imagen de prueba. Las dos primeras pruebas de ese archivo usan Tesseract de verdad y tardan unos segundos.
-- **Casos de uso sueltos**: `openFinance()` en `server/modules/finance/finance.test.ts` crea el módulo con su base de datos y da sus casos de uso con los nombres del contrato de la web.
+- **Casos de uso sueltos**: `openFinance()` en `server/modules/finance/finance.test.ts` crea el módulo con su propio pool sobre una base de pruebas y da sus casos de uso con los nombres del contrato de la web. Dos `openFinance` sobre la misma base son dos conexiones, como dos procesos.
 - **Datos**: `movement()`, `rule()` y `NOW` en `shared/testing/factories.ts`.
 
 ## Guardas que no deben cambiar
 
 - Las huellas de los tickets (`server/modules/tickets/tickets.test.ts`, «las huellas no cambian…»): si cambian, los tickets ya guardados dejarían de reconocerse como duplicados.
-- Las migraciones publicadas (`server/migrations/migrations.test.ts`), que no se editan.
-- La ruta por defecto de la base de datos (`server/common/sqlite/openDatabase.test.ts`).
+- Las migraciones publicadas de MySQL (`server/common/mysql/migrations.test.ts`) y de SQLite (`tools/sqlite/migrations.test.ts`), que no se editan.
+- La conexión por defecto (127.0.0.1:3306, base `cuentas_claras`, en `server/common/mysql/config.test.ts`).
 
 ## Las pruebas en el navegador
 
-`playwright.config.ts` arranca **su propio** servidor de API (puerto 3101), con una base de datos en la carpeta temporal del sistema y su propio código de acceso, y **su propia** web (puerto 4174), construida con `npm run build`. Nunca reutiliza un servidor abierto, así que no toca los datos reales ni el `npm run dev` que tengas abierto (3001 y 5173). Antes de cada prueba vacía la base de datos con `POST /api/test/reset`, que solo existe en ese modo y también exige sesión. Las pruebas inician sesión como el formulario, sin ningún atajo (`e2e/auth.ts`).
+`playwright.config.ts` arranca **su propio** servidor de API (puerto 3101), con su propia base MySQL (`cuentas_claras_e2e`, que `e2e/prepareDatabase.ts` crea si falta) y su propio código de acceso, y **su propia** web (puerto 4174), construida con `npm run build`. Nunca reutiliza un servidor abierto, así que no toca los datos reales ni el `npm run dev` que tengas abierto (3001 y 5173). Con `CUENTAS_TEST=1` el servidor se niega a arrancar contra otra base. Antes de cada prueba vacía la base de datos con `POST /api/test/reset`, que solo existe en ese modo y también exige sesión. Las pruebas inician sesión como el formulario, sin ningún atajo (`e2e/auth.ts`).
 
 ## Datos de prueba
 
@@ -57,15 +64,15 @@ Cada fixture lleva un campo `provenance` que dice de dónde sale. Si añades una
 
 ## Caracterización para la migración
 
-Los contratos de BASE-01 están en `fixtures/migration/`: JSON con datos inventados, preparación y peticiones/respuestas completas, separados por módulo y con su procedencia. `server/migrationContracts.test.ts` los ejecuta sobre la API Express real y una SQLite temporal, con reloj e IDs controlados. Las expectativas se revisan y se guardan en el repositorio; ejecutar las pruebas no las regenera. Así podrán reutilizarse desde C# al sustituir el backend. Los tokens de sesión siguen siendo aleatorios: se comprueban sus atributos y funcionamiento, no un valor fijo.
+Los contratos de BASE-01 están en `fixtures/migration/`: JSON con datos inventados, preparación y peticiones/respuestas completas, separados por módulo y con su procedencia. `server/migrationContracts.test.ts` los ejecuta sobre la API Express real y una base MySQL de pruebas nueva por escenario, con reloj e IDs controlados. Se grabaron con SQLite: que pasen igual sobre MySQL, sin tocar sus expectativas, es la prueba de que cambiar de motor no cambió la API. Las expectativas se revisan y se guardan en el repositorio; ejecutar las pruebas no las regenera. Así podrán reutilizarse desde C# al sustituir el backend. Los tokens de sesión siguen siendo aleatorios: se comprueban sus atributos y funcionamiento, no un valor fijo.
 
 Los seis archivos http-* usan `format: cuentas-claras-http-v1`, `provenance` y `scenarios`. Cada escenario empieza en una base recién migrada, con `setup` (`accessCode`, `now`, `today`, `login`, `testMode`, `ids`) y una secuencia de `steps`. Cada paso tiene nombre, `request` (método, ruta completa con /api, cuerpo opcional y `guest`) y `expected` (estado, cuerpo completo y cabeceras). `advanceMs` adelanta el reloj antes de la petición; `today` sigue siendo la fecha de calendario explícita del escenario. Los IDs se consumen en orden y se comprueba que no sobren ni falten. `login` abre una sesión inicial; después, las cookies recibidas se usan en los siguientes pasos salvo `guest`. Solo se normaliza el token como `<token>` al comparar Set-Cookie, conservando y utilizando su valor real para enviar peticiones. Las cuatro cabeceras comparadas son Cache-Control, Content-Type, Set-Cookie y Retry-After; Date y otras cabeceras del transporte no forman parte del corpus.
 
 `fixtures/migration/rules.json` contiene entradas y salidas de reglas puras, ejecutadas por `tests/migrationRules.test.ts`. Su formato es `cuentas-claras-rules-v1`, con `provenance` y `cases`: cada caso tiene `id`, `description`, `operation`, `input` y `expected`. El ejecutor selecciona la regla indicada y compara el resultado completo, sin completar entradas ni recalcular expectativas. Cubre céntimos y límites, precio desconocido o cero, milésimas, fechas de calendario y redondeo de tickets, incluidas devoluciones y líneas pendientes.
 
-`server/common/http/response.test.ts` caracteriza los errores HTTP, incluidos JSON mal formado, los límites de tamaño y fallos internos. Estas pruebas describen lo observado; las discrepancias y garantías aún pendientes se registran en [STATUS.md](migration/STATUS.md). Un resultado verde en SQLite no demuestra concurrencia ni compatibilidad de tipos en MySQL.
+`server/common/http/response.test.ts` caracteriza los errores HTTP, incluidos JSON mal formado, los límites de tamaño y fallos internos. Estas pruebas describen lo observado; las discrepancias y garantías aún pendientes se registran en [STATUS.md](migration/STATUS.md). La concurrencia y los tipos de MySQL se prueban aparte, con dos conexiones (`server/common/mysql/`, los módulos y `ticketAtomicity.test.ts`).
 
-`server/modules/tickets/ticketAtomicity.test.ts` fuerza un error de SQLite en la segunda línea de un ticket, después de crear productos y equivalencias y cambiar precios/cantidades. Compara las filas completas de todas las tablas con su estado anterior, vuelve a guardar con éxito al retirar el fallo y rechaza un duplicado sin repetir efectos. También comprueba que una restauración financiera conserva todas las tablas de despensa y tickets.
+`server/modules/tickets/ticketAtomicity.test.ts` fuerza un error real de MySQL en la segunda línea de un ticket (su id ya está ocupado: clave primaria repetida), después de crear productos y equivalencias y cambiar precios/cantidades. Compara las filas completas de todas las tablas con su estado anterior, vuelve a guardar con éxito al retirar el fallo y rechaza un duplicado sin repetir efectos. No usa triggers: con el registro binario activo, como en una instalación normal de MySQL 8.4, un usuario sin SUPER no puede crearlos (error 1419). Con dos conexiones, prueba también dos guardados iguales a la vez (un 201 y un 409, sin efectos dobles) y un ticket y un + a la vez sobre el mismo producto. Y que una restauración financiera conserva todas las tablas de despensa y tickets.
 
 ```bash
 npx vitest run server/migrationContracts.test.ts server/common/http/response.test.ts
@@ -109,7 +116,7 @@ No lee .env automáticamente. Usa `/api/auth/me` para comprobar disponibilidad. 
 
 | Comprobación | Base de datos (`npm test`) | API HTTP (`npm test`) | Navegador (`npm run test:e2e`) |
 | --- | --- | --- | --- |
-| Los movimientos se conservan después de recargar | Se cierra la base de datos y se vuelve a abrir | Se reinicia el servidor con el mismo archivo | Se apunta un gasto y se recarga la página |
+| Los movimientos se conservan después de recargar | Se cierran las conexiones y se vuelve a abrir | Se reinicia el servidor con la misma base | Se apunta un gasto y se recarga la página |
 | Editar o eliminar un movimiento actualiza los totales | Totales del mes tras editar y eliminar | Crear, consultar, modificar y eliminar un gasto | Edición y borrado desde la interfaz |
 | Marcar un pago pendiente como pagado no duplica el gasto | Sigue habiendo un solo registro | — | El total pasa de «pendiente» a «pagado» y hay un solo movimiento |
 | Abrir varias veces la aplicación no duplica vencimientos | Generación repetida, con dos conexiones a la vez y tras cerrar | Generar dos veces crea 0 la segunda | Tres recargas y dos pestañas nuevas a la vez |
@@ -117,7 +124,9 @@ No lee .env automáticamente. Usa `/api/auth/me` para comprobar disponibilidad. 
 
 Además:
 - **Validación**: la de campos y peticiones (mensajes en español y códigos 400 y 409), que no se puede inyectar SQL, y las restricciones de la base de datos.
-- **Migraciones**: se aplican una sola vez, no borran nada, no se abre una base de datos más nueva y las publicadas no cambian. Las transacciones: todo o nada, anidadas y nunca async.
+- **Migraciones**: se aplican una sola vez (también con dos procesos a la vez), no borran nada, no se abre una base de datos más nueva, una a medias se explica y las publicadas no cambian. Las transacciones: todo o nada, async con una sola conexión, anidadas, bloqueos con nombre y por producto, y un reintento ante un interbloqueo.
+- **Concurrencia**, con dos conexiones: vencimientos generados a la vez (`[0, 2]`, sin 409), guardar un recurrente mientras se genera, diez + sobre el mismo producto, un ticket duplicado en paralelo y un ticket con un + a la vez.
+- **Tipos de MySQL**: céntimos hasta el máximo, milésimas, fechas DATE, JSON como texto exacto, colaciones (mayúsculas, tildes y espacios finales) y nombres de 40 caracteres con tildes.
 - **Finanzas**: la importación de los datos del navegador (una sola vez, sin mezclar y conservando la copia), la regla del día 31, las cuotas que quedan, el formato del CSV, la proyección de recurrentes y las plantillas mensual y anual.
 - **Código de acceso**: arranque sin código, rutas protegidas (401), cookie y caducidad de la sesión, cierre de sesión, sesiones que no sobreviven a un reinicio, y el bloqueo por intentos, por dispositivo y sin poder eludirlo con cabeceras inventadas.
 - **Despensa**: personas, productos, presupuesto, unidades, cálculos sin restos decimales, el texto exacto de la lista, comprar y deshacer (también con cambios de otro dispositivo) y que las copias e importaciones financieras no la tocan.

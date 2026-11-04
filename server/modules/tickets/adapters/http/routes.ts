@@ -37,30 +37,30 @@ export function ticketRoutes({ queries, readTicket, saveTicket, setLineItem, del
     sendData(res, await readTicket.execute(source, today))
   })
 
-  router.post('/despensa/tickets', (req, res) => {
-    sendData(res, saveTicket.execute(valid(validateTicketSave(req.body))), 201)
+  router.post('/despensa/tickets', async (req, res) => {
+    sendData(res, await saveTicket.execute(valid(validateTicketSave(req.body))), 201)
   })
 
-  router.get('/despensa/tickets', (_req, res) => {
-    sendData(res, queries.listTickets())
+  router.get('/despensa/tickets', async (_req, res) => {
+    sendData(res, await queries.listTickets())
   })
 
-  router.get('/despensa/tickets/:id', (req, res) => {
-    sendData(res, queries.getTicket(req.params.id))
+  router.get('/despensa/tickets/:id', async (req, res) => {
+    sendData(res, await queries.getTicket(req.params.id))
   })
 
-  router.put('/despensa/tickets/:id/lineas/:lineId', (req, res) => {
-    sendData(res, setLineItem.execute(req.params.id, req.params.lineId, valid(validateLineUpdate(req.body)).itemId))
+  router.put('/despensa/tickets/:id/lineas/:lineId', async (req, res) => {
+    sendData(res, await setLineItem.execute(req.params.id, req.params.lineId, valid(validateLineUpdate(req.body)).itemId))
   })
 
-  router.delete('/despensa/tickets/:id', (req, res) => {
-    deleteTicket.execute(req.params.id)
+  router.delete('/despensa/tickets/:id', async (req, res) => {
+    await deleteTicket.execute(req.params.id)
     sendData(res, null)
   })
 
-  router.get('/despensa/actividad', (req, res) => {
+  router.get('/despensa/actividad', async (req, res) => {
     const { hoy } = req.query
-    sendData(res, queries.activity(isValidISODate(hoy) ? hoy : null))
+    sendData(res, await queries.activity(isValidISODate(hoy) ? hoy : null))
   })
 
   return router

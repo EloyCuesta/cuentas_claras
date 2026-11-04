@@ -3,19 +3,23 @@ import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CATEGORIES } from '#shared/finance/categories.ts'
-import { openDatabase } from '../common/sqlite/openDatabase.ts'
-import { removeTempDbs, tempDbPath } from '../common/testing/tempDb.ts'
+import { removeTempDbs, tempDbPath } from '../../server/common/testing/tempDb.ts'
 import { initialSchema } from './001-esquema-inicial.ts'
 import { pantrySchema } from './002-despensa.ts'
 import { ticketsSchema } from './003-tickets.ts'
 import { LATEST_VERSION } from './index.ts'
+import { createSqlite } from './openSqlite.ts'
 
-/** Las migraciones (de una versión a otra, sin perder datos) y las restricciones de las tablas. */
+/**
+ * Las migraciones de SQLite (de una versión a otra, sin perder datos) y las
+ * restricciones de sus tablas: el esquema que lee el importador. Las del
+ * esquema de MySQL están en server/common/mysql/.
+ */
 
 const opened: Database.Database[] = []
 
 function open(path: string) {
-  const result = openDatabase(path)
+  const result = createSqlite(path)
   opened.push(result.db)
   return result
 }
@@ -46,6 +50,29 @@ describe('migraciones y restricciones', () => {
       '004-repaso.ts': '7a9b2f2ac8cee46c94a15802501dcf4f99eb4fca963cecb96bde0641ef950fab',
       '005-ticket-review.ts': '4261b8453c88a32d03ab493e927f689c868c8b84a6633da42df71c43d7cac0bd',
     })
+  })
+
+  it('una base nueva llega a la versión 5 con las doce tablas de la aplicación, su historial y las categorías iniciales', () => {
+    // Lo que el importador espera encontrar en una copia de cuentas.db (antes lo comprobaba la apertura del servidor).
+    const { db, schemaVersion } = open(tempDbPath())
+    expect(schemaVersion).toBe(5)
+    expect(tables(db)).toEqual([
+      'categories',
+      'meta',
+      'movements',
+      'pantry_aliases',
+      'pantry_events',
+      'pantry_items',
+      'pantry_people',
+      'pantry_settings',
+      'pantry_ticket_lines',
+      'pantry_tickets',
+      'recurring_excluded_dates',
+      'recurring_rules',
+      'schema_migrations',
+    ])
+    expect(db.prepare('SELECT COUNT(*) FROM categories').pluck().get()).toBe(DEFAULT_CATEGORIES.length)
+    expect(db.pragma('foreign_keys', { simple: true })).toBe(1)
   })
 
   it('las restricciones de la base de datos protegen los datos', () => {

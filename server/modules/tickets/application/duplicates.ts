@@ -14,18 +14,19 @@ export function ticketFingerprint(hasher: Hasher, input: FingerprintInput): stri
  * origen, con la misma huella o, en los guardados con una huella anterior,
  * con el mismo contenido (entonces se devuelve el ticket entero, con sus líneas).
  */
-export function findDuplicate(
+export async function findDuplicate(
   repository: TicketRepository,
   hasher: Hasher,
   input: DuplicateInput,
-): PantryTicketSummary | PantryTicket | null {
+): Promise<PantryTicketSummary | PantryTicket | null> {
   const fingerprint = ticketFingerprint(hasher, input)
   const found =
-    repository.findByImport(input.importId ?? '', input.sourceFingerprint ?? '') ?? repository.findByFingerprint(fingerprint)
+    (await repository.findByImport(input.importId ?? '', input.sourceFingerprint ?? '')) ??
+    (await repository.findByFingerprint(fingerprint))
   if (found) return found
   // Los tickets guardados con una huella anterior la conservan: se compara su contenido.
-  for (const candidate of repository.candidates(input.date, input.totalCents)) {
-    const saved = repository.getTicket(candidate.id)
+  for (const candidate of await repository.candidates(input.date, input.totalCents)) {
+    const saved = await repository.getTicket(candidate.id)
     if (saved && ticketFingerprint(hasher, { ...saved, store: candidate.store }) === fingerprint) return saved
   }
   return null
@@ -36,12 +37,12 @@ export function findDuplicate(
  * misma hora (o sin hora en alguna de las dos): puede ser el mismo ticket leído
  * de otra forma, y hay que confirmarlo.
  */
-export function possibleDuplicate(
+export async function possibleDuplicate(
   repository: TicketRepository,
   input: Pick<DuplicateInput, 'store' | 'storeName' | 'date' | 'time' | 'totalCents'>,
-): PantryTicketSummary | null {
+): Promise<PantryTicketSummary | null> {
   const store = aliasStoreOf(input.store, input.storeName)
   const sameTime = (time: string | null) => time === input.time || time === null || input.time === null
-  const candidates = repository.candidates(input.date, input.totalCents)
+  const candidates = await repository.candidates(input.date, input.totalCents)
   return candidates.find((s) => aliasStoreOf(s.store, s.storeName) === store && sameTime(s.time)) ?? null
 }

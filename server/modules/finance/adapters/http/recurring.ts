@@ -26,23 +26,23 @@ export function recurringRoutes({
 }): Router {
   const router = Router()
 
-  router.put('/recurring/:id', (req, res) => {
+  router.put('/recurring/:id', async (req, res) => {
     const body = readBody(req.body)
     const rule = sameId(valid(validateRecurring(body.rule)), req.params.id)
-    const created = saveRecurring.execute(rule, {
+    const created = await saveRecurring.execute(rule, {
       horizon: readDate(body.horizon, 'horizon'),
       markPaidBefore: readOptionalDate(body.markPaidBefore, 'markPaidBefore'),
     })
     sendData(res, { created })
   })
 
-  router.delete('/recurring/:id', (req, res) => {
-    deleteRecurring.execute(req.params.id)
+  router.delete('/recurring/:id', async (req, res) => {
+    await deleteRecurring.execute(req.params.id)
     sendData(res, null)
   })
 
-  router.post('/occurrences/generate', (req, res) => {
-    const created = generateOccurrences.execute(readDate(readBody(req.body).horizon, 'horizon'))
+  router.post('/occurrences/generate', async (req, res) => {
+    const created = await generateOccurrences.execute(readDate(readBody(req.body).horizon, 'horizon'))
     sendData(res, { created })
   })
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { startApi, stopApis } from '../testing/testApi.ts'
-import { removeTempDbs } from '../testing/tempDb.ts'
+import { dropTestDatabases } from '../testing/testDatabase.ts'
 
 /**
  * Contrato del host Express que debe conocer la migración: errores completos,
@@ -10,7 +10,7 @@ import { removeTempDbs } from '../testing/tempDb.ts'
 
 afterEach(async () => {
   await stopApis()
-  removeTempDbs()
+  await dropTestDatabases()
   vi.restoreAllMocks()
 })
 

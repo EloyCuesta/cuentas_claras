@@ -38,7 +38,7 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **El dominio compartido en `shared/`.** La lógica pura que usan la web y el servidor dejó src/domain/ y se reparte por áreas (`common`, `finance`, `pantry` y `tickets`, con `tickets → pantry → common` y `finance → common`). No importa paquetes ni Node, y `tsconfig.shared.json` lo comprueba sin tipos de Node ni de Vite. Se importa con `#shared/…` (campo `imports` de `package.json`), que funciona igual en tsx, Vite, Vitest y `tsc -b`, sin dependencias nuevas.
 
-**Puertos síncronos y una sola UnitOfWork.** better-sqlite3 es síncrono y sus transacciones no admiten trabajo async (lanza un error si se intenta), así que los puertos de persistencia y `UnitOfWork.run` son síncronos. Solo el OCR es async. Hay una única UnitOfWork, creada en `server/app.ts` y compartida: cuando tickets crea un producto con el caso de uso de la despensa, la transacción se anida (savepoint) y todo sigue siendo atómico.
+**Puertos síncronos y una sola UnitOfWork** (hasta la fase MYSQL, que los hizo async: ver abajo). better-sqlite3 es síncrono y sus transacciones no admiten trabajo async (lanza un error si se intenta), así que los puertos de persistencia y `UnitOfWork.run` eran síncronos. Solo el OCR era async. Hay una única UnitOfWork, creada en `server/app.ts` y compartida: cuando tickets crea un producto con el caso de uso de la despensa, la transacción se anida (savepoint) y todo sigue siendo atómico.
 
 **Un reloj y unos ids comunes.** Antes, auth recibía un reloj en milisegundos y la despensa un `now` en ISO. Ahora hay un `Clock` (`nowMs`, `nowISO` y `today`) y un `IdGenerator` en `server/common/ports.ts`. Los ids de la despensa y los tickets salen del mismo `crypto.randomUUID` que los de finanzas (UUID v4 igual que antes).
 
@@ -54,7 +54,7 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Documentación para agentes.** Un `AGENTS.md` en la raíz, en cada zona, en cada módulo y en cada feature, con un `CLAUDE.md` al lado que solo contiene `@AGENTS.md`, y reglas cortas en `.claude/rules/`. Lo comprueba `tests/docs.test.ts`. `.claude/settings.json` impide que un agente lea `server/data/` y `.env`.
 
-**better-sqlite3 12.11.1.** La 13 no trae binarios para Windows con Node 24 y `npm install` falla al compilarla; la 12.11.1 instala los suyos precompilados.
+**better-sqlite3 12.11.1.** La 13 no trae binarios para Windows con Node 24 y `npm install` falla al compilarla; la 12.11.1 instala los suyos precompilados. Desde la fase MYSQL el servidor no lo usa: solo el esquema de antes (`tools/sqlite/`) y el importador.
 
 **Pruebas e2e con el Chrome instalado.** En el equipo de desarrollo la descarga de Chromium de Playwright caduca; `CUENTAS_E2E_CHANNEL=chrome` usa el Chrome del sistema (una opción que ya tenía `playwright.config.ts`).
 
@@ -62,9 +62,25 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Cómo se hizo.** Se hizo en pasos pequeños y con `npm run check` en verde en cada commit. Primero se midió la línea base: 359 tests de Vitest y 46 pruebas e2e. Los movimientos se hicieron con `git mv` y en commits separados de los que reparten la lógica. Antes de tocar los tickets se escribió un test golden de las huellas con el código de entonces. Al terminar hay 376 tests, porque se añadieron 17 (arquitectura, documentación y guardas) y no se quitó ninguno, y siguen pasando las 46 pruebas e2e.
 
+## De la fase MYSQL (noviembre de 2026)
+
+**MySQL local en lugar de SQLite, antes que .NET.** La persona administra sus datos con MySQL Server 8.4 y MySQL Workbench. Se cambia primero el motor, con el mismo Express y la misma API, para que el corte de datos y el de backend no lleguen a la vez: el backend .NET usará después esta misma base. Detalle y estado en [STATUS.md](migration/STATUS.md).
+
+**mysql2 con SQL explícito, sin ORM.** mysql2 es un driver: las consultas siguen escritas a mano, con parámetros, como con better-sqlite3. El pool usa `decimalNumbers` y `dateStrings` (DECIMAL como número y fechas como texto, nunca un `Date`) y una sentencia por llamada.
+
+**Puertos async y una UnitOfWork con una conexión.** Con MySQL todo lo que toca la base de datos es async. `UnitOfWork.run` usa una sola conexión de principio a fin (AsyncLocalStorage), y las llamadas anidadas se unen a la de fuera con un savepoint, como hacía better-sqlite3. Lo vigila `tests/architecture.test.ts`.
+
+**Bloqueos explícitos.** better-sqlite3 lo serializaba todo; MySQL no. Las escrituras de finanzas toman la fila `finance` de `app_locks`, las de tickets la fila `tickets`, y lo que cambia productos los bloquea con `SELECT … FOR UPDATE` en orden de id. El bloqueo va siempre primero: con REPEATABLE READ, una lectura anterior fija una instantánea que no vería lo que otra conexión confirmó después. Un interbloqueo se reintenta una vez.
+
+**utf8mb4_0900_bin en todo.** Compara como SQLite: mayúsculas, tildes y espacios finales cuentan. La colación por defecto (`utf8mb4_0900_ai_ci`) uniría ids y claves distintas, y `utf8mb4_bin` iguala los espacios finales.
+
+**El esquema en archivos .sql versionados.** `database/mysql/`, con su propio `schema_migrations`, para que .NET aplique exactamente lo mismo. La primera es la versión 5 (el esquema final de SQLite), y una migración a medias se explica en vez de continuar, porque el DDL de MySQL se confirma solo.
+
+**Pruebas con MySQL real.** Ni SQLite ni falsos en su lugar: cada archivo crea sus bases `cuentas_test_*` y las borra. Los contratos de BASE-01 pasan sin tocar sus expectativas: la API no cambió. La prueba de atomicidad provoca una clave primaria repetida en vez de usar un trigger, que con el registro binario activo exige SUPER.
+
 ## Pendiente
 
-**Retirar la migración de los datos del navegador** (IndexedDB → SQLite), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:
+**Retirar la migración de los datos del navegador** (IndexedDB → la base de datos del servidor), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:
 - unas 700 líneas menos: `src/features/finance/browserMigration/` y sus tests;
 - dos dependencias menos, `idb` y `fake-indexeddb`;
 - un FinanceProvider sin `beforeOpen` y un README más corto.

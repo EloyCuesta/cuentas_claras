@@ -13,7 +13,7 @@ TAREA: la siguiente tarea pendiente de docs/migration/STATUS.md cuyas dependenci
 
 Lee primero AGENTS.md, docs/migration/README.md y STATUS.md. Consulta ARCHITECTURE.md, DATA.md y la funcionalidad correspondiente de MODULES.md. Contrasta todo con los archivos y pruebas actuales: la documentación distingue código existente, arquitectura objetivo y validaciones pendientes.
 
-Objetivo del proyecto: conservar React/TypeScript y migrar Express/SQLite a un backend ASP.NET Core con arquitectura hexagonal modular y MySQL local. Trabaja por funcionalidad, sin reescribir toda la aplicación en una sola entrega.
+Objetivo del proyecto: conservar React/TypeScript y migrar el backend Express (ya sobre MySQL local desde la fase MYSQL) a un backend ASP.NET Core con arquitectura hexagonal modular sobre la misma base MySQL. Trabaja por funcionalidad, sin reescribir toda la aplicación en una sola entrega.
 
 Antes de editar, indica el ID elegido, los contratos y reglas que afecta y un plan breve. Después implementa la tarea: reglas de dominio, caso de uso, puertos/adaptadores, persistencia, API, consumidor React y pruebas cuando correspondan. Para una tarea de caracterización, entrega los fixtures, inventario y resultados necesarios para habilitar la siguiente; para una tarea de implementación no te quedes en recomendaciones o carpetas vacías.
 

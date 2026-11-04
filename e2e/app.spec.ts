@@ -6,8 +6,8 @@ import { resetDatabase, signIn } from './auth.ts'
 
 /**
  * Comprobaciones pedidas, hechas como lo haría una persona: con la interfaz y
- * en un navegador real. Los datos van a la base de datos SQLite del servidor de
- * pruebas (ver playwright.config.ts), que se vacía antes de cada prueba.
+ * en un navegador real. Los datos van a la base MySQL del servidor de pruebas
+ * (cuentas_claras_e2e, ver playwright.config.ts), que se vacía antes de cada prueba.
  *
  * Son pruebas de las funciones financieras: el navegador inicia sesión con el
  * código antes de cada una (las del invitado están en despensa.spec.ts).

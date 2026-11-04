@@ -15,17 +15,17 @@ function readKey(value: string): MetaKey {
 export function metaRoutes({ queries, setMeta }: { queries: FinanceQueries; setMeta: SetMeta }): Router {
   const router = Router()
 
-  router.get('/meta/:key', (req, res) => {
-    sendData(res, { value: queries.getMeta(readKey(req.params.key)) })
+  router.get('/meta/:key', async (req, res) => {
+    sendData(res, { value: await queries.getMeta(readKey(req.params.key)) })
   })
 
-  router.put('/meta/:key', (req, res) => {
+  router.put('/meta/:key', async (req, res) => {
     const key = readKey(req.params.key)
     const { value } = readBody(req.body)
     if (typeof value !== 'string' || value.length > 100) {
       throw new AppError('VALIDATION', 'El campo «value» debe ser un texto de 100 caracteres como máximo.')
     }
-    setMeta.execute(key, value)
+    await setMeta.execute(key, value)
     sendData(res, null)
   })
 

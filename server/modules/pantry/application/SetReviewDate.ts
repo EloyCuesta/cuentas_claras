@@ -17,9 +17,9 @@ export class SetReviewDate {
     this.unitOfWork = unitOfWork
   }
 
-  execute(date: ISODate): PantrySettings {
-    return this.unitOfWork.run(() => {
-      this.repository.setReviewDate(date)
+  execute(date: ISODate): Promise<PantrySettings> {
+    return this.unitOfWork.run(async () => {
+      await this.repository.setReviewDate(date)
       return this.repository.getSettings()
     })
   }

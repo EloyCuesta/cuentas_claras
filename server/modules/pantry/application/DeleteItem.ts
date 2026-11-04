@@ -16,10 +16,11 @@ export class DeleteItem {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string): void {
-    this.unitOfWork.run(() => {
-      requireItem(this.repository, id)
-      this.repository.deleteItem(id)
+  execute(id: string): Promise<void> {
+    return this.unitOfWork.run(async () => {
+      await this.repository.lockItems([id])
+      await requireItem(this.repository, id)
+      await this.repository.deleteItem(id)
     })
   }
 }

@@ -18,13 +18,13 @@ export function movementRoutes({
 }): Router {
   const router = Router()
 
-  router.put('/movements/:id', (req, res) => {
-    saveMovement.execute(sameId(valid(validateMovement(req.body)), req.params.id))
+  router.put('/movements/:id', async (req, res) => {
+    await saveMovement.execute(sameId(valid(validateMovement(req.body)), req.params.id))
     sendData(res, null)
   })
 
-  router.delete('/movements/:id', (req, res) => {
-    deleteMovement.execute(req.params.id)
+  router.delete('/movements/:id', async (req, res) => {
+    await deleteMovement.execute(req.params.id)
     sendData(res, null)
   })
 

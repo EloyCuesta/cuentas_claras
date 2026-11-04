@@ -13,10 +13,10 @@ export class RenamePerson {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string, name: string): PantryPerson {
-    return this.unitOfWork.run(() => {
-      requirePerson(this.repository, id)
-      this.repository.renamePerson(id, name)
+  execute(id: string, name: string): Promise<PantryPerson> {
+    return this.unitOfWork.run(async () => {
+      await requirePerson(this.repository, id)
+      await this.repository.renamePerson(id, name)
       return requirePerson(this.repository, id)
     })
   }

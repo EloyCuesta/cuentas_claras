@@ -1,10 +1,10 @@
 # Datos: SQLite a MySQL local
 
-Estado: el esquema MySQL existe y está probado (MYSQL-01, `database/mysql/`); el importador llega en MYSQL-03. La base SQLite de la instalación del usuario queda fuera del trabajo de agentes: no se ha leído ni importado ninguna fila real a MySQL, y las pruebas usan bases temporales y datos de ensayo.
+Estado: el esquema MySQL existe y está probado (MYSQL-01, `database/mysql/`), y Express ya usa MySQL (MYSQL-02); el importador llega en MYSQL-03. La base SQLite de la instalación del usuario queda fuera del trabajo de agentes: no se ha leído ni importado ninguna fila real a MySQL, y las pruebas usan bases temporales y datos de ensayo.
 
 ## Fuente y alcance
 
-El origen es el esquema resultante de las cinco migraciones de [server/migrations](../../server/migrations). No basta leer la migración 001: 003 añade tickets, tracking y actividad; 004 añade `poco` y último repaso; 005 añade revisión segura, ajustes, incidencias, evidencia y nuevas claves de deduplicación.
+El origen es el esquema resultante de las cinco migraciones de SQLite, que se conservan en [tools/sqlite](../../tools/sqlite). No basta leer la migración 001: 003 añade tickets, tracking y actividad; 004 añade `poco` y último repaso; 005 añade revisión segura, ajustes, incidencias, evidencia y nuevas claves de deduplicación.
 
 La copia JSON v1 de la aplicación contiene categorías, movimientos y recurrentes. No es la fuente para trasladar toda la instalación. El importador completo partirá de una copia consistente de SQLite, con sus tablas de aplicación y metadatos.
 
@@ -28,7 +28,7 @@ La copia JSON v1 de la aplicación contiene categorías, movimientos y recurrent
 
 Son 12 tablas de aplicación más el control de migraciones SQLite. MySQL tiene su propio `schema_migrations` (desde la versión 5) y la tabla técnica `app_locks`, que no son datos de la persona. Las sesiones actuales están en memoria y no se importan; el usuario vuelve a iniciar sesión al cambiar de servidor.
 
-El inventario se contrasta con [las migraciones actuales](../../server/migrations/AGENTS.md) y con [la comprobación de las tablas de una base nueva](../../server/common/sqlite/openDatabase.test.ts). La importación actual `POST /api/import` pasa únicamente finanzas desde IndexedDB a SQLite; no es el importador completo SQLite→MySQL previsto en DATA-02.
+El inventario se contrasta con [las migraciones de SQLite](../../tools/sqlite/AGENTS.md) y con [la comprobación de las tablas de una base nueva](../../tools/sqlite/migrations.test.ts). La importación `POST /api/import` pasa únicamente finanzas desde IndexedDB a la base del servidor; no es el importador completo SQLite→MySQL de MYSQL-03.
 
 ## Mapeo de tipos
 

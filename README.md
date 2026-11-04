@@ -8,28 +8,28 @@ Aplicación web para apuntar ingresos, gastos y próximos pagos, y responder de 
 - ¿Cuánto me quedará después de pagar los gastos previstos?
 - ¿Cómo va el año, mes a mes y por categoría?
 
-Hecha con React y TypeScript. Los datos se guardan en una base de datos **SQLite** de tu equipo (`server/data/cuentas.db`), a través de un pequeño servidor Node.js + Express. No hace falta instalar MySQL, PostgreSQL ni Docker, ni registrarse.
+Hecha con React y TypeScript. Los datos se guardan en una base de datos **MySQL** de tu equipo (MySQL Server 8.4, que puedes ver y administrar con MySQL Workbench), a través de un pequeño servidor Node.js + Express. No hace falta Docker ni registrarse.
 
-La migración prevista a ASP.NET Core y MySQL, conservando React, se prepara en [la guía de migración](docs/migration/README.md). Su [estado comprobado](docs/migration/STATUS.md) distingue lo implementado de lo pendiente; los pasos de uso siguientes corresponden a la aplicación actual.
+Antes los datos estaban en un archivo SQLite (`server/data/cuentas.db`); si vienes de esa versión, mira «Pasar los datos de SQLite a MySQL». La migración prevista del servidor a ASP.NET Core, conservando React y esta misma base MySQL, se prepara en [la guía de migración](docs/migration/README.md). Su [estado comprobado](docs/migration/STATUS.md) distingue lo implementado de lo pendiente; los pasos de uso siguientes corresponden a la aplicación actual.
 
 ## Cómo ejecutarla
 
-Necesitas Node.js 22.12 o superior.
+Necesitas Node.js 22.12 o superior y MySQL Server 8.4 con su base y su usuario (ver «Preparar MySQL»).
 
 ```bash
 npm install
-cp .env.example .env # y escribe tu código en CUENTAS_CODIGO (ver «Código de acceso»)
+cp .env.example .env # y escribe tu código y los datos de MySQL (ver «Código de acceso» y «Preparar MySQL»)
 npm run dev          # abre http://localhost:5173
 ```
 
 `npm run dev` arranca a la vez dos procesos, cada uno con su prefijo en la consola:
 
-- `[api]` el servidor (Express + SQLite) en `http://127.0.0.1:3001/api`. Se reinicia solo al cambiar su código.
+- `[api]` el servidor (Express + MySQL) en `http://127.0.0.1:3001/api`. Se reinicia solo al cambiar su código.
 - `[web]` la interfaz (Vite) en `http://localhost:5173`. Envía a la API todo lo que empieza por `/api`, así que no hay problemas de CORS.
 
-La primera vez se crea `server/data/cuentas.db` con sus tablas y las categorías iniciales. Las siguientes veces se abre tal cual y solo se aplican las migraciones nuevas, si las hay. Con Ctrl+C se cierran los dos procesos.
+La primera vez se crean las tablas en la base `cuentas_claras`, con las categorías iniciales. Las siguientes veces se abre tal cual y solo se aplican las migraciones nuevas, si las hay. Si MySQL no está en marcha, la base no existe o el usuario o la contraseña no valen, el servidor no arranca y dice qué revisar. Con Ctrl+C se cierran los dos procesos.
 
-Comprobar que el servidor funciona: abre `http://localhost:5173/api/health`.
+Comprobar que el servidor funciona: abre `http://localhost:5173/api/health` (también comprueba que MySQL responde).
 
 Versión de producción:
 
@@ -39,9 +39,9 @@ npm run server       # en una terminal: la API en el puerto 3001
 npm run preview      # en otra: la web en http://localhost:4173 (también envía /api al servidor)
 ```
 
-`dist/` sigue siendo un conjunto de archivos estáticos, pero ahora necesita el servidor de la API para leer y guardar los datos.
+`dist/` sigue siendo un conjunto de archivos estáticos, pero necesita el servidor de la API (y MySQL) para leer y guardar los datos.
 
-**Usarla en el móvil** (misma red wifi): `npm run dev:server` en una terminal y `npm run dev:web -- --host` en otra. Abre en el móvil la dirección «Network» que aparece en la consola. Sin el código solo se ve la Despensa; con «Tengo el código» se ve todo. El móvil y el ordenador ven los mismos datos, porque los dos usan la base de datos del ordenador.
+**Usarla en el móvil** (misma red wifi): `npm run dev:server` en una terminal y `npm run dev:web -- --host` en otra. Abre en el móvil la dirección «Network» que aparece en la consola. Sin el código solo se ve la Despensa; con «Tengo el código» se ve todo. El móvil y el ordenador ven los mismos datos, porque los dos usan la base de datos del ordenador. MySQL no tiene que estar abierto a la red: solo lo usa el servidor, en el mismo equipo.
 
 **Datos de ejemplo**: la app empieza vacía. Si quieres verla con datos, ve a *Ajustes › Restaurar una copia…* y elige `ejemplo/copia-de-ejemplo.json` (un mes de octubre de 2026 con nómina, alquiler, un préstamo a 48 cuotas, recibos y presupuestos). En *Resumen › Año* se ve el año completo, con noviembre y diciembre previstos a partir de los recurrentes.
 
@@ -54,12 +54,51 @@ Variables de entorno del servidor. Los scripts `server` y `dev:server` también 
 | Variable | Valor por defecto | Para qué |
 | --- | --- | --- |
 | `CUENTAS_CODIGO` | **obligatoria** | Código de acceso a las cuentas (al menos 4 caracteres) |
-| `CUENTAS_DB_PATH` | `server/data/cuentas.db` | Archivo de la base de datos |
-| `CUENTAS_PORT` | `3001` | Puerto |
+| `CUENTAS_DB_HOST` | `127.0.0.1` | Equipo de MySQL Server |
+| `CUENTAS_DB_PORT` | `3306` | Puerto de MySQL Server |
+| `CUENTAS_DB_USER` | **obligatoria** | Usuario de MySQL de la aplicación (no uses root) |
+| `CUENTAS_DB_PASSWORD` | vacía | Su contraseña. Nunca aparece en la consola ni en los mensajes |
+| `CUENTAS_DB_NAME` | `cuentas_claras` | La base de datos, que tiene que existir: la aplicación crea sus tablas, pero no la base |
+| `CUENTAS_PORT` | `3001` | Puerto de la API |
 | `CUENTAS_HOST` | `127.0.0.1` | Dirección: por defecto, solo accesible desde este equipo |
-| `CUENTAS_TEST=1` | desactivada | Modo pruebas |
+| `CUENTAS_TEST=1` | desactivada | Modo pruebas: solo arranca con `cuentas_claras_e2e` o una base `cuentas_test_*` |
+
+`CUENTAS_DB_PATH`, de la versión con SQLite, ya no se usa: el servidor avisa si la encuentra.
 
 La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber adónde enviar `/api`.
+
+## Preparar MySQL
+
+Una vez, en el equipo donde se ejecuta la app (los pasos son para Windows; en otros sistemas, lo mismo con su instalador):
+
+1. Instala **MySQL Server 8.4** (la versión LTS) y **MySQL Workbench** desde [MySQL Community Downloads](https://dev.mysql.com/downloads/). Al terminar, MySQL Configurator propone el puerto **3306** y un servicio de Windows (**MySQL84**) que arranca con el equipo: déjalo así y apunta la contraseña de **root**.
+2. Abre MySQL Workbench, entra en la conexión local como root y, en una pestaña de consulta, ejecuta esto (con tu propia contraseña, larga):
+
+   ```sql
+   CREATE DATABASE cuentas_claras CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+   CREATE USER 'cuentas'@'localhost' IDENTIFIED BY 'escribe-aqui-una-contraseña-larga';
+   GRANT ALL PRIVILEGES ON cuentas_claras.* TO 'cuentas'@'localhost';
+   ```
+
+3. En `.env`, escribe `CUENTAS_DB_USER=cuentas` y su contraseña en `CUENTAS_DB_PASSWORD=`. El resto (`127.0.0.1`, `3306`, `cuentas_claras`) ya está en `.env.example`.
+4. `npm run dev`. La primera vez crea las tablas en `cuentas_claras`; en Workbench las verás en *Schemas* (actualiza la lista).
+
+La aplicación no usa root ni crea bases de datos: solo trabaja dentro de `cuentas_claras`. Sus tablas usan `utf8mb4_0900_bin`, que distingue mayúsculas, tildes y espacios como hacía SQLite.
+
+## Pasar los datos de SQLite a MySQL
+
+Si ya usabas la app con SQLite, tus datos siguen en `server/data/cuentas.db`: el servidor ya no lo abre, pero no lo borra. El importador que los pasa a una base `cuentas_claras` vacía llega en la siguiente entrega (MYSQL-03, en [el estado de la migración](docs/migration/STATUS.md)). Hasta entonces, conserva ese archivo y no uses la versión MySQL con datos de verdad.
+
+## Pruebas
+
+`npm run check` y `npm run test:e2e` prueban contra MySQL de verdad, nunca con tus datos: Vitest crea y borra bases `cuentas_test_…`, y las pruebas en navegador usan `cuentas_claras_e2e` (la crean si falta). Usan el servidor, el usuario y la contraseña de `CUENTAS_DB_*` (de `.env` o del entorno). Dale a ese usuario permiso sobre esas bases, en Workbench como root:
+
+```sql
+GRANT ALL PRIVILEGES ON `cuentas\_test\_%`.* TO 'cuentas'@'localhost';
+GRANT ALL PRIVILEGES ON cuentas_claras_e2e.* TO 'cuentas'@'localhost';
+```
+
+Si MySQL no está en marcha o falta el usuario, las pruebas fallan con un mensaje que dice qué revisar. El detalle está en [docs/pruebas.md](docs/pruebas.md).
 
 ## Código de acceso
 
@@ -67,7 +106,7 @@ Las cuentas solo se ven con un código que pones tú. Sin él, cualquiera de cas
 
 1. Copia `.env.example` como `.env` (`cp .env.example .env`; en Windows, `copy .env.example .env`).
 2. Escribe tu código en `CUENTAS_CODIGO=` (al menos 4 caracteres, que no sean solo espacios). `.env` no se sube al repositorio.
-3. Arranca como siempre (`npm run dev`, o `npm run dev:server` + `npm run dev:web -- --host` para la red de casa). Sin código, el servidor avisa y no arranca, y no llega a abrir ni crear la base de datos.
+3. Arranca como siempre (`npm run dev`, o `npm run dev:server` + `npm run dev:web -- --host` para la red de casa). Sin código, el servidor avisa y no arranca, y no llega a conectar con MySQL.
 
 Cómo funciona:
 
@@ -138,7 +177,7 @@ Una vez a la semana, en un par de minutos, se mira lo que puede acabarse antes d
   - **Copiar**: si el navegador no deja copiar solo, selecciona el texto para copiarlo a mano.
   - **Descargar .txt**.
   - **Marcar todo como comprado**: en los que se cuentan, completa lo que hay hasta el objetivo; en los que van por compras, apunta una compra de hoy. Durante unos segundos aparece **Deshacer**. Si mientras tanto alguien ha cambiado alguno de esos productos, no se deshace nada (para no pisar su cambio) y la app lo avisa.
-- La Despensa se guarda en la misma base de datos SQLite, en tablas aparte. **Las copias JSON y los CSV no la incluyen**, y restaurar una copia o importar los datos del navegador no la toca.
+- La Despensa se guarda en la misma base de datos MySQL, en tablas aparte. **Las copias JSON y los CSV no la incluyen**, y restaurar una copia o importar los datos del navegador no la toca.
 
 ## Para desarrollar
 
@@ -155,10 +194,10 @@ Cómo está hecha por dentro, cómo se prueba y por qué es así:
 
 ## Límites de esta versión
 
-- Los datos están en `server/data/cuentas.db`, **en este equipo**.
+- Los datos están en la base MySQL `cuentas_claras`, **en este equipo**.
   - No hay cuentas de usuario ni sincronización, y el servidor solo escucha en `127.0.0.1` (el móvil llega a través de Vite con `--host`).
-  - Si borras ese archivo, se pierden, salvo que tengas una copia. Por eso la app recuerda hacer copias y muestra la fecha de la última.
-  - Para hacer una copia del archivo a mano, cierra antes la app (`cuentas.db-wal` puede tener cambios aún no pasados a `cuentas.db`). La copia JSON de *Ajustes* se puede descargar en cualquier momento.
+  - Si borras la base (o desinstalas MySQL borrando sus datos), se pierden, salvo que tengas una copia. Por eso la app recuerda hacer copias y muestra la fecha de la última.
+  - La copia JSON de *Ajustes* solo guarda las finanzas y se puede descargar en cualquier momento. La copia completa (también la Despensa y los tickets) se hace con MySQL Workbench (*Server › Data Export*).
 - No está conectada al banco: el resultado del mes **no es un saldo**, es la diferencia entre lo que entra y lo que sale.
 - Una sola moneda (euro).
 - Los recurrentes solo crean vencimientos (que se pueden pagar o editar) hasta el final del mes siguiente. En meses más lejanos la previsión los proyecta con el importe de la regla: si sabes que un recibo cambiará, ajústalo cuando se cree.

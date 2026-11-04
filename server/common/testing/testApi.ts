@@ -3,14 +3,15 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createApp } from '../../app.ts'
 import type { TicketReader } from '../../modules/tickets/index.ts'
+import type { OpenedDatabase } from '../mysql/MysqlDatabase.ts'
 import type { Clock, IdGenerator } from '../ports.ts'
-import { openDatabase, type OpenedDatabase } from '../sqlite/openDatabase.ts'
 import { systemClock } from '../system.ts'
-import { tempDbPath } from './tempDb.ts'
+import { createTestDatabase, openTestDatabase } from './testDatabase.ts'
 
 /**
- * Servidor de la API real en un puerto libre, con una base de datos temporal,
- * para las pruebas por HTTP. Guarda la cookie de sesión como un navegador.
+ * Servidor de la API real en un puerto libre, con una base MySQL de pruebas
+ * (cuentas_test_<aleatorio>, que borra dropTestDatabases), para las pruebas
+ * por HTTP. Guarda la cookie de sesión como un navegador.
  */
 
 export const TEST_CODE = 'codigo-de-prueba'
@@ -37,10 +38,6 @@ export interface CallResult {
 
 const running: { server: Server; database: OpenedDatabase }[] = []
 
-const closeDatabase = (database: OpenedDatabase) => {
-  if (database.db.open) database.db.close()
-}
-
 /** Lector de tickets para las pruebas que no leen imágenes: no arranca Tesseract. */
 const unusedReader: TicketReader = {
   read: () => Promise.reject(new Error('Este test no lee imágenes')),
@@ -48,14 +45,15 @@ const unusedReader: TicketReader = {
 }
 
 export async function startApi({
-  path = tempDbPath(),
+  database: name,
   testMode = false,
   clock,
   ids,
   login = true,
   ticketReader = unusedReader,
 }: {
-  path?: string
+  /** Una base de pruebas que ya existe (la de otro startApi, para «reiniciar el servidor»). Por defecto, una nueva. */
+  database?: string
   testMode?: boolean
   /** Partes del reloj que se sustituyen (por ejemplo, solo nowMs); el resto es el de verdad. */
   clock?: Partial<Clock>
@@ -63,7 +61,8 @@ export async function startApi({
   login?: boolean
   ticketReader?: TicketReader
 } = {}) {
-  const database = openDatabase(path)
+  const databaseName = name ?? (await createTestDatabase())
+  const database = await openTestDatabase(databaseName)
   const app = createApp({
     database,
     accessCode: TEST_CODE,
@@ -99,10 +98,13 @@ export async function startApi({
     return result
   }
 
+  /** Para el servidor y cierra sus conexiones; la base se queda (para volver a arrancar con ella). */
   const stop = async () => {
-    server.close()
-    await once(server, 'close')
-    closeDatabase(database)
+    if (server.listening) {
+      server.close()
+      await once(server, 'close')
+    }
+    await database.db.close().catch(() => {})
   }
 
   if (login) {
@@ -112,7 +114,8 @@ export async function startApi({
 
   return {
     base,
-    path,
+    /** Nombre de la base MySQL de pruebas (cuentas_test_…). */
+    database: databaseName,
     call,
     signIn,
     stop,
@@ -127,13 +130,13 @@ export async function startApi({
 
 export type TestApi = Awaited<ReturnType<typeof startApi>>
 
-/** Para afterEach: cierra los servidores que sigan abiertos. */
+/** Para afterEach (antes de dropTestDatabases): para los servidores que sigan abiertos y cierra sus conexiones. */
 export async function stopApis(): Promise<void> {
   for (const { server, database } of running.splice(0)) {
     if (server.listening) {
       server.close()
       await once(server, 'close')
     }
-    closeDatabase(database)
+    await database.db.close().catch(() => {})
   }
 }

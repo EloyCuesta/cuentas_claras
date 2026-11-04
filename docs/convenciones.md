@@ -8,7 +8,7 @@ Cómo se escribe el código de Cuentas claras. Antes de cambiar un archivo, imit
 | --- | --- |
 | Identificadores (`AdjustItem`, `priceCents`), archivos y carpetas de código (`server/modules/pantry/`, `usePantry.ts`) | Textos de la interfaz, mensajes de error, comentarios, documentación, nombres de tests y commits |
 
-Las migraciones y los documentos también se nombran en español: `server/migrations/004-repaso.ts`, `docs/base-de-datos.md`. Algunos nombres de la API son españoles porque ya lo eran (`/api/despensa/productos`, `{ codigo }`, `{ hoy }`): no se traducen.
+Las migraciones y los documentos también se nombran en español: `database/mysql/migrations/005-esquema-inicial.sql`, `docs/base-de-datos.md`. Algunos nombres de la API son españoles porque ya lo eran (`/api/despensa/productos`, `{ codigo }`, `{ hoy }`): no se traducen.
 
 ## TypeScript
 
@@ -41,7 +41,7 @@ Las migraciones y los documentos también se nombran en español: `server/migrat
 
   ```ts
   // Una sola escritura para todos los productos que se cuentan.
-  if (pending.length > 0) this.repository.fillToTarget(pending.map((item) => item.id), this.clock.nowISO())
+  if (pending.length > 0) await this.repository.fillToTarget(pending.map((item) => item.id), this.clock.nowISO())
   ```
 
 ## Nombres
@@ -53,7 +53,7 @@ Las migraciones y los documentos también se nombran en español: `server/migrat
 | Caso de uso | Un archivo y una clase PascalCase, verbo + nombre, con `execute` | `AdjustItem`, `SaveTicket`, `GenerateOccurrences` |
 | Lecturas de un módulo | `server/modules/<módulo>/application/queries.ts`, una clase `<Módulo>Queries` | `PantryQueries` |
 | Puerto | Por lo que hace | `TicketReader`, `Clock`, `PantryRepository` |
-| Adaptador | Tecnología + nombre del puerto | `SqlitePantryRepository`, `SqliteFinanceStore`, `TesseractTicketReader`, `Sha256Hasher` |
+| Adaptador | Tecnología + nombre del puerto | `MysqlPantryRepository`, `MysqlFinanceStore`, `TesseractTicketReader`, `Sha256Hasher` |
 | Router | `server/modules/<módulo>/adapters/http/routes.ts` (finanzas reparte los suyos en varios archivos y los monta ahí) | `pantryRoutes(deps)` |
 | Contexto de React | `xContext.ts` (contexto y hook) + `XProvider.tsx`, como pide `react/only-export-components` | `authContext.ts` + `AuthProvider.tsx` |
 | Test | `<archivo>.test.ts`, junto al código que prueba | `shared/pantry/pantry.test.ts` |

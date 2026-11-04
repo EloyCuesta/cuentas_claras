@@ -21,11 +21,11 @@ export class CreateItem {
     this.unitOfWork = unitOfWork
   }
 
-  execute(input: PantryItemInput): PantryItem {
-    return this.unitOfWork.run(() => {
-      requireOwner(this.repository, input.ownerId)
+  execute(input: PantryItemInput): Promise<PantryItem> {
+    return this.unitOfWork.run(async () => {
+      await requireOwner(this.repository, input.ownerId)
       const id = this.ids.newId()
-      this.repository.insertItem(id, input, this.clock.nowISO())
+      await this.repository.insertItem(id, input, this.clock.nowISO())
       return requireItem(this.repository, id)
     })
   }

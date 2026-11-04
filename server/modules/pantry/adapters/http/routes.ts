@@ -75,73 +75,73 @@ export function pantryRoutes(deps: PantryRouteDeps): Router {
   const { queries } = deps
   const router = Router()
 
-  router.get('/despensa/personas', (_req, res) => {
-    sendData(res, queries.listPeople())
+  router.get('/despensa/personas', async (_req, res) => {
+    sendData(res, await queries.listPeople())
   })
 
-  router.post('/despensa/personas', (req, res) => {
-    sendData(res, deps.createPerson.execute(valid(validatePersonInput(req.body)).name), 201)
+  router.post('/despensa/personas', async (req, res) => {
+    sendData(res, await deps.createPerson.execute(valid(validatePersonInput(req.body)).name), 201)
   })
 
-  router.put('/despensa/personas/:id', (req, res) => {
-    sendData(res, deps.renamePerson.execute(req.params.id, valid(validatePersonInput(req.body)).name))
+  router.put('/despensa/personas/:id', async (req, res) => {
+    sendData(res, await deps.renamePerson.execute(req.params.id, valid(validatePersonInput(req.body)).name))
   })
 
-  router.delete('/despensa/personas/:id', (req, res) => {
-    deps.deletePerson.execute(req.params.id)
+  router.delete('/despensa/personas/:id', async (req, res) => {
+    await deps.deletePerson.execute(req.params.id)
     sendData(res, null)
   })
 
-  router.get('/despensa/productos', (_req, res) => {
-    sendData(res, queries.listItems())
+  router.get('/despensa/productos', async (_req, res) => {
+    sendData(res, await queries.listItems())
   })
 
-  router.post('/despensa/productos', (req, res) => {
-    sendData(res, deps.createItem.execute(valid(validateItemInput(req.body))), 201)
+  router.post('/despensa/productos', async (req, res) => {
+    sendData(res, await deps.createItem.execute(valid(validateItemInput(req.body))), 201)
   })
 
-  router.put('/despensa/productos/:id', (req, res) => {
-    sendData(res, deps.updateItem.execute(req.params.id, valid(validateItemInput(req.body))))
+  router.put('/despensa/productos/:id', async (req, res) => {
+    sendData(res, await deps.updateItem.execute(req.params.id, valid(validateItemInput(req.body))))
   })
 
-  router.post('/despensa/productos/:id/ajustar', (req, res) => {
-    sendData(res, deps.adjustItem.execute(req.params.id, valid(validateDeltaInput(req.body))))
+  router.post('/despensa/productos/:id/ajustar', async (req, res) => {
+    sendData(res, await deps.adjustItem.execute(req.params.id, valid(validateDeltaInput(req.body))))
   })
 
-  router.post('/despensa/productos/:id/revision', (req, res) => {
+  router.post('/despensa/productos/:id/revision', async (req, res) => {
     const { kind, date } = valid(validateEventInput(req.body))
-    sendData(res, deps.addEvent.execute(req.params.id, kind, date), 201)
+    sendData(res, await deps.addEvent.execute(req.params.id, kind, date), 201)
   })
 
-  router.delete('/despensa/revisiones/:id', (req, res) => {
-    deps.deleteEvent.execute(req.params.id)
+  router.delete('/despensa/revisiones/:id', async (req, res) => {
+    await deps.deleteEvent.execute(req.params.id)
     sendData(res, null)
   })
 
-  router.delete('/despensa/productos/:id', (req, res) => {
-    deps.deleteItem.execute(req.params.id)
+  router.delete('/despensa/productos/:id', async (req, res) => {
+    await deps.deleteItem.execute(req.params.id)
     sendData(res, null)
   })
 
-  router.get('/despensa/presupuesto', (_req, res) => {
-    sendData(res, queries.getSettings())
+  router.get('/despensa/presupuesto', async (_req, res) => {
+    sendData(res, await queries.getSettings())
   })
 
-  router.put('/despensa/presupuesto', (req, res) => {
-    sendData(res, deps.setBudget.execute(valid(validateBudgetInput(req.body)).monthlyBudgetCents))
+  router.put('/despensa/presupuesto', async (req, res) => {
+    sendData(res, await deps.setBudget.execute(valid(validateBudgetInput(req.body)).monthlyBudgetCents))
   })
 
-  router.put('/despensa/repaso', (req, res) => {
-    sendData(res, deps.setReviewDate.execute(valid(validateReviewInput(req.body)).date))
+  router.put('/despensa/repaso', async (req, res) => {
+    sendData(res, await deps.setReviewDate.execute(valid(validateReviewInput(req.body)).date))
   })
 
-  router.post('/despensa/comprado', (req, res) => {
+  router.post('/despensa/comprado', async (req, res) => {
     const { ids, date } = valid(validatePurchaseInput(req.body))
-    sendData(res, deps.markPurchased.execute(ids, date))
+    sendData(res, await deps.markPurchased.execute(ids, date))
   })
 
-  router.post('/despensa/comprado/deshacer', (req, res) => {
-    sendData(res, deps.undoPurchase.execute(valid(validateUndoInput(req.body))))
+  router.post('/despensa/comprado/deshacer', async (req, res) => {
+    sendData(res, await deps.undoPurchase.execute(valid(validateUndoInput(req.body))))
   })
 
   return router

@@ -2,7 +2,7 @@ import type { Router } from 'express'
 import type { ModuleDeps } from '../../common/modules.ts'
 import { Sha256Hasher } from './adapters/crypto/Sha256Hasher.ts'
 import { ticketRoutes } from './adapters/http/routes.ts'
-import { SqliteTicketRepository } from './adapters/sqlite/SqliteTicketRepository.ts'
+import { MysqlTicketRepository } from './adapters/mysql/MysqlTicketRepository.ts'
 import { DeleteTicket } from './application/DeleteTicket.ts'
 import type { PantryGateway, TicketReader } from './application/ports.ts'
 import { TicketQueries } from './application/queries.ts'
@@ -23,7 +23,7 @@ export interface TicketsModule {
   /** /api/despensa/tickets…, /tickets/leer y /actividad (públicas, como la despensa). */
   router: Router
   /** Vacía los tickets y lo aprendido (solo para POST /api/test/reset; antes que la despensa). */
-  reset(): void
+  reset(): Promise<void>
 }
 
 export function createTicketsModule({
@@ -34,7 +34,7 @@ export function createTicketsModule({
   pantry,
   reader,
 }: ModuleDeps & { pantry: PantryGateway; reader: TicketReader }): TicketsModule {
-  const repository = new SqliteTicketRepository(db)
+  const repository = new MysqlTicketRepository(db)
   const hasher = new Sha256Hasher()
   const queries = new TicketQueries(repository, pantry, clock)
   const router = ticketRoutes({
@@ -44,5 +44,5 @@ export function createTicketsModule({
     setLineItem: new SetLineItem(repository, pantry, queries, clock, unitOfWork),
     deleteTicket: new DeleteTicket(repository, unitOfWork),
   })
-  return { router, reset: () => unitOfWork.run(() => repository.reset()) }
+  return { router, reset: () => unitOfWork.run(() => repository.reset(), { lock: 'tickets' }) }
 }

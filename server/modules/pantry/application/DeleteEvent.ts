@@ -12,10 +12,10 @@ export class DeleteEvent {
     this.unitOfWork = unitOfWork
   }
 
-  execute(id: string): void {
-    this.unitOfWork.run(() => {
-      if (!this.repository.getEvent(id)) throw new AppError('NOT_FOUND', 'Esa revisión ya no existe.')
-      this.repository.deleteEvent(id)
+  execute(id: string): Promise<void> {
+    return this.unitOfWork.run(async () => {
+      if (!(await this.repository.getEvent(id))) throw new AppError('NOT_FOUND', 'Esa revisión ya no existe.')
+      await this.repository.deleteEvent(id)
     })
   }
 }

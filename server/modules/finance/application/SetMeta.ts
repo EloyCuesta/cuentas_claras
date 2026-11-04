@@ -12,7 +12,7 @@ export class SetMeta {
     this.unitOfWork = unitOfWork
   }
 
-  execute(key: MetaKey, value: string): void {
-    this.unitOfWork.run(() => this.store.setMeta(key, value))
+  execute(key: MetaKey, value: string): Promise<void> {
+    return this.unitOfWork.run(() => this.store.setMeta(key, value), { lock: 'finance' })
   }
 }

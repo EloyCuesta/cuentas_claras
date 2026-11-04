@@ -1,12 +1,12 @@
 import type { Router } from 'express'
-import type { OpenedDatabase } from '../../common/sqlite/openDatabase.ts'
+import type { OpenedDatabase } from '../../common/mysql/MysqlDatabase.ts'
 import { healthRoutes } from './adapters/http/routes.ts'
 
 /**
  * Módulo health: solo GET /api/health. No tiene casos de uso ni puertos: el
- * SELECT 1 se prepara aquí una vez y el router lo ejecuta en cada petición.
+ * router hace ping a MySQL (SELECT 1) en cada petición con la función que le
+ * da este archivo.
  */
 export function createHealthModule({ database }: { database: OpenedDatabase }): { router: Router } {
-  const ping = database.db.prepare('SELECT 1')
-  return { router: healthRoutes({ ping: () => void ping.get(), schemaVersion: database.schemaVersion }) }
+  return { router: healthRoutes({ ping: () => database.db.ping(), schemaVersion: database.schemaVersion }) }
 }

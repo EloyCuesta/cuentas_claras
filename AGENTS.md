@@ -11,16 +11,16 @@ Una app web para una sola persona: ingresos, gastos y próximos pagos, y la desp
 5. `npm run check`, para saber de qué estado partes.
 
 ## Migración a ASP.NET Core y MySQL
-El backend actual sigue siendo Express/SQLite. Para migrarlo conservando React, lee [la entrada de migración](docs/migration/README.md) y [STATUS.md](docs/migration/STATUS.md), y después arquitectura, datos y módulos según la tarea. Elige la primera tarea pendiente con dependencias verificadas y contrasta siempre el diseño con el código de esta rama. Registra resultados reales y validaciones pendientes; no confundas el destino propuesto con una implementación disponible. Las reglas actuales de este archivo siguen vigentes.
+El backend actual es Express sobre MySQL (la fase MYSQL cambió el motor; SQLite solo queda para importar una copia antigua). Para migrarlo a .NET conservando React, lee [la entrada de migración](docs/migration/README.md) y [STATUS.md](docs/migration/STATUS.md), y después arquitectura, datos y módulos según la tarea. Elige la primera tarea pendiente con dependencias verificadas y contrasta siempre el diseño con el código de esta rama. Registra resultados reales y validaciones pendientes; no confundas el destino propuesto con una implementación disponible. Las reglas actuales de este archivo siguen vigentes.
 
 ## Mapa del repositorio
 ```
 database/      el esquema de MySQL: migraciones .sql y su historial (database/mysql/AGENTS.md)
-server/        el servidor: Express + SQLite (server/AGENTS.md)
-  common/      lo transversal: errores, HTTP, SQLite, puertos comunes, ayudantes de tests
-  migrations/  el esquema de la base de datos (server/migrations/AGENTS.md)
+server/        el servidor: Express + MySQL (server/AGENTS.md)
+  common/      lo transversal: errores, HTTP, MySQL, puertos comunes, ayudantes de tests
   modules/     auth · finance · pantry · tickets · health, cada uno con su AGENTS.md
-  data/        cuentas.db: los datos de la persona (fuera de git; no se lee)
+  data/        cuentas.db: los datos de antes de MySQL (fuera de git; no se lee)
+tools/         fuera del servidor: el esquema SQLite de antes (tools/sqlite/AGENTS.md)
 shared/        lógica pura que usan la web y el servidor (shared/AGENTS.md)
 src/           la web: React por funcionalidades (src/AGENTS.md)
   features/    auth · finance · pantry · tickets, cada una con su AGENTS.md
@@ -41,7 +41,7 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
 | `server/modules/tickets/` | su AGENTS.md, el de `server/modules/pantry/` (del que depende) y `docs/decisiones.md` (OCR local) |
 | `server/modules/health/` | su AGENTS.md |
 | `server/common/` o `server/app.ts` | `server/AGENTS.md` y `docs/arquitectura.md` |
-| `server/migrations/` | `server/migrations/AGENTS.md` y `docs/base-de-datos.md` |
+| `tools/sqlite/` | `tools/sqlite/AGENTS.md` y `docs/migration/DATA.md` |
 | `database/mysql/` o `server/common/mysql/` | `database/mysql/AGENTS.md`, `docs/base-de-datos.md` y `docs/migration/DATA.md` |
 | `shared/` | `shared/AGENTS.md`: el cambio afecta a la web y al servidor |
 | `src/features/auth/` | su AGENTS.md y `src/AGENTS.md` |
@@ -60,16 +60,16 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
   - Cookie HttpOnly `cc_sesion`, con sesiones en memoria de 12 h.
   - 5 fallos desde una IP bloquean 15 minutos, con `trust proxy` solo para loopback.
   - Sin un `CUENTAS_CODIGO` válido, el servidor no arranca.
-- **Base de datos.** Una migración publicada no se edita; los cambios van en una nueva (`docs/base-de-datos.md`). Ningún test ni agente toca `server/data/`.
-- **Atomicidad.** Cada operación que escribe es una transacción síncrona (`docs/arquitectura.md`).
-  - + y − suman sobre el valor del servidor.
+- **Base de datos.** MySQL: una migración publicada no se edita; los cambios van en una nueva (`docs/base-de-datos.md`). Ningún test ni agente toca la base `cuentas_claras` ni `server/data/`: las pruebas usan `cuentas_test_*` y `cuentas_claras_e2e`.
+- **Atomicidad.** Cada operación que escribe es una transacción async con una sola conexión (UnitOfWork), y bloquea lo que va a cambiar antes de leer nada: la fila `finance` o `tickets` y los productos con `FOR UPDATE`, en orden de id (`docs/arquitectura.md`).
+  - + y − suman sobre el valor del servidor, también desde dos móviles a la vez.
   - «Deshacer» comprueba `version` (409).
   - Un vencimiento no existe dos veces.
   - Guardar un ticket es todo o nada.
 - **Datos.** Importes en céntimos enteros y fechas `AAAA-MM-DD`. La fecha de hoy la manda el navegador. El OCR es local, las imágenes no se guardan y nada sale a Internet.
 - **Interfaz.** Mismos textos, etiquetas, roles y `data-testid`, mismo aspecto en claro y oscuro, y navegación con `#` (`docs/frontend.md`).
 - **Arquitectura.** Las capas y quién importa a quién (`docs/arquitectura.md`, `docs/frontend.md`) las vigila `tests/architecture.test.ts`.
-- **Dependencias.** Ninguna nueva sin preguntar. Nada de contenedores de inyección, ORM ni librerías de estado o de rutas.
+- **Dependencias.** Ninguna nueva sin preguntar. Nada de contenedores de inyección, ORM ni librerías de estado o de rutas. MySQL con mysql2 (un driver) y SQL explícito.
 - **TypeScript.**
   - `strict`, `erasableSyntaxOnly`: sin `enum`, `namespace` ni propiedades en el constructor.
   - `verbatimModuleSyntax`: `import type` para los tipos.
@@ -77,16 +77,16 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
 
 ## Comandos
 ```bash
-npm install                      # y copiar .env.example como .env con el código (README)
-npm run dev                      # web en :5173 y API en :3001 (con TUS datos de server/data/)
-npm run check                    # tipos + oxlint + Vitest: siempre en verde
+npm install                      # y copiar .env.example como .env con el código y MySQL (README)
+npm run dev                      # web en :5173 y API en :3001 (con TUS datos: la base cuentas_claras)
+npm run check                    # tipos + oxlint + Vitest contra MySQL: siempre en verde
 npm test                         # solo Vitest
 npx vitest run shared/pantry     # una carpeta, un archivo o, con -t "nombre", un test
 npm run build                    # tipos y la web en dist/
 npm run test:e2e                 # navegador (CUENTAS_E2E_CHANNEL=chrome si no hay Chromium)
 npx playwright test e2e/tickets.spec.ts --project=escritorio
 ```
-Para probar el servidor a mano sin tocar tus datos, usa `CUENTAS_DB_PATH` apuntando a una carpeta temporal (`server/AGENTS.md`).
+Las pruebas necesitan MySQL en marcha y las `CUENTAS_DB_*` de un usuario que pueda crear y borrar `cuentas_test_%` (README, «Pruebas»). Para probar el servidor a mano sin tocar tus datos, usa `CUENTAS_DB_NAME` con una base de pruebas (`server/AGENTS.md`).
 
 ## Terminado significa
 - `npm run check` y `npm run test:e2e` en verde, con al menos los mismos tests que antes.
@@ -103,7 +103,7 @@ Para probar el servidor a mano sin tocar tus datos, usa `CUENTAS_DB_PATH` apunta
 | --- | --- |
 | una ruta, un cuerpo o un mensaje de la API | el AGENTS.md del módulo, `docs/api.md` y el cliente de la feature |
 | un caso de uso (nuevo o renombrado) | la tabla «Casos de uso y rutas» del AGENTS.md del módulo |
-| una tabla o una migración | `docs/base-de-datos.md` y `server/migrations/AGENTS.md` |
+| una tabla o una migración | `docs/base-de-datos.md` y `database/mysql/AGENTS.md` |
 | las capas o la composición | `docs/arquitectura.md` y `tests/architecture.test.ts` |
 | un texto, rol o `data-testid` de la interfaz | el AGENTS.md de la feature y los e2e |
 | un término | `docs/glosario.md` |

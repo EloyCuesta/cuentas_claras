@@ -3,7 +3,7 @@ import type { ISODate } from '#shared/common/types.ts'
 import type { PantryEvent, PantryItem, PantryItemInput } from '#shared/pantry/types.ts'
 import type { ModuleDeps } from '../../common/modules.ts'
 import { pantryRoutes } from './adapters/http/routes.ts'
-import { SqlitePantryRepository } from './adapters/sqlite/SqlitePantryRepository.ts'
+import { MysqlPantryRepository } from './adapters/mysql/MysqlPantryRepository.ts'
 import { AddEvent } from './application/AddEvent.ts'
 import { AdjustItem } from './application/AdjustItem.ts'
 import { ApplyTicketPurchase, type TicketPurchase } from './application/ApplyTicketPurchase.ts'
@@ -27,13 +27,21 @@ import { UpdateItem } from './application/UpdateItem.ts'
 
 export type { TicketPurchase } from './application/ApplyTicketPurchase.ts'
 
-/** Lo que otros módulos pueden usar de la despensa (hoy, tickets: su PantryGateway). */
+/**
+ * Lo que otros módulos pueden usar de la despensa (hoy, tickets: su
+ * PantryGateway). Dentro de una transacción de otro módulo, todo se une a ella.
+ */
 export interface PantryApi {
-  getItem(id: string): PantryItem | null
-  createItem(input: PantryItemInput): PantryItem
-  applyTicketPurchase(id: string, purchase: TicketPurchase): void
-  listItems(): PantryItem[]
-  eventsSince(date: ISODate): PantryEvent[]
+  /**
+   * Bloquea esos productos hasta el final de la transacción en curso (FOR
+   * UPDATE, en orden de id). Quien los va a cambiar lo pide antes de leer nada.
+   */
+  lockItems(ids: readonly string[]): Promise<void>
+  getItem(id: string): Promise<PantryItem | null>
+  createItem(input: PantryItemInput): Promise<PantryItem>
+  applyTicketPurchase(id: string, purchase: TicketPurchase): Promise<void>
+  listItems(): Promise<PantryItem[]>
+  eventsSince(date: ISODate): Promise<PantryEvent[]>
 }
 
 export interface PantryModule {
@@ -41,11 +49,11 @@ export interface PantryModule {
   router: Router
   api: PantryApi
   /** Vacía la despensa (solo para POST /api/test/reset). */
-  reset(): void
+  reset(): Promise<void>
 }
 
 export function createPantryModule({ db, clock, ids, unitOfWork }: ModuleDeps): PantryModule {
-  const repository = new SqlitePantryRepository(db)
+  const repository = new MysqlPantryRepository(db)
   const queries = new PantryQueries(repository)
   const createItem = new CreateItem(repository, clock, ids, unitOfWork)
   const addEvent = new AddEvent(repository, clock, ids, unitOfWork)
@@ -71,6 +79,7 @@ export function createPantryModule({ db, clock, ids, unitOfWork }: ModuleDeps): 
   return {
     router,
     api: {
+      lockItems: (ids) => repository.lockItems(ids),
       getItem: (id) => queries.getItem(id),
       createItem: (input) => createItem.execute(input),
       applyTicketPurchase: (id, purchase) => applyTicketPurchase.execute(id, purchase),

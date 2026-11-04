@@ -13,12 +13,15 @@ export class FinanceQueries {
     this.unitOfWork = unitOfWork
   }
 
-  /** Todas las categorías, movimientos y recurrentes, leídos en una transacción: una foto coherente. */
-  loadAll(): FinanceData {
+  /**
+   * Todas las categorías, movimientos y recurrentes, leídos en una transacción:
+   * con REPEATABLE READ, las cuatro lecturas ven la misma foto coherente.
+   */
+  loadAll(): Promise<FinanceData> {
     return this.unitOfWork.run(() => this.store.readAll())
   }
 
-  getMeta(key: MetaKey): string | null {
+  getMeta(key: MetaKey): Promise<string | null> {
     return this.store.getMeta(key)
   }
 }

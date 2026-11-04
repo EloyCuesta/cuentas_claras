@@ -17,10 +17,13 @@ export class SaveMovement {
     this.unitOfWork = unitOfWork
   }
 
-  execute(movement: Movement): void {
-    this.unitOfWork.run(() => {
-      requireCategory(this.store, movement.categoryId, movement.type, 'El movimiento')
-      this.store.upsertMovement(movement)
-    })
+  execute(movement: Movement): Promise<void> {
+    return this.unitOfWork.run(
+      async () => {
+        await requireCategory(this.store, movement.categoryId, movement.type, 'El movimiento')
+        await this.store.upsertMovement(movement)
+      },
+      { lock: 'finance' },
+    )
   }
 }
