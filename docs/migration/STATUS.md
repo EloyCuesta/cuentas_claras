@@ -6,7 +6,7 @@
 
 | Aspecto | Estado y evidencia |
 | --- | --- |
-| Referencia actual | Rama feat/mysql, creada desde refactor/arquitectura-hexagonal (`700d750`); documentos recuperados de `9d1df17` |
+| Referencia actual | main, desde el 4 de noviembre de 2026: la fusión `f538929` une la historia anterior de main (`9d1df17`, un solo commit con la estructura de antes) con feat/mysql (`f593067`: refactor/arquitectura-hexagonal, `700d750`, más la fase MYSQL). Esas ramas y las de funcionalidad que ya contenían se han borrado; sus commits siguen en main. refactor/arquitectura-modular se conserva aparte, sin fusionar |
 | Referencia documental histórica | `91832a52b987b8e89f270ee86b4a95b8a4ddad15`, main del 30 de octubre de 2026 |
 | Backend ejecutable | Node.js + Express, en `server/`, sobre MySQL desde MYSQL-02 (mysql2, migraciones de `database/mysql/`); el servidor ya no abre SQLite |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |

@@ -1,6 +1,6 @@
 # Módulos, funcionalidades y contratos actuales
 
-Referencia actual: `7eebed2`, rama refactor/arquitectura-hexagonal. El documento inicial de `9d1df17` describía `91832a5`; las fuentes siguientes corresponden a la rama actual. Las rutas de esta página ya existen en Express; la implementación .NET está pendiente. Toda ruta lleva el prefijo `/api`. Los cuerpos y respuestas exactos se caracterizan desde tipos, validadores, rutas y consumidores en `BASE-01`; estas tablas no sustituyen esa comprobación.
+Referencia actual: main, que desde el 4 de noviembre de 2026 contiene refactor/arquitectura-hexagonal (BASE-01 partió de `7eebed2`) y la fase MYSQL. El documento inicial de `9d1df17` describía `91832a5`; las fuentes siguientes corresponden a main. Las rutas de esta página ya existen en Express; la implementación .NET está pendiente. Toda ruta lleva el prefijo `/api`. Los cuerpos y respuestas exactos se caracterizan desde tipos, validadores, rutas y consumidores en `BASE-01`; estas tablas no sustituyen esa comprobación.
 
 El [índice de la API actual](../api.md) contiene 39 pares método/ruta de aplicación (health 1, auth 3, finance 12, pantry 16 y tickets 7), más `POST /api/test/reset`, exclusivo de pruebas. Las descripciones detalladas siguen en los AGENTS de cada módulo; aquí se asignan a las entregas de migración.
 
