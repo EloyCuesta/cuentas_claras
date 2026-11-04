@@ -27,7 +27,7 @@ Las migraciones 001 a 005 de SQLite, tal como se publicaron, con su lista y su a
 
 - La 001 siembra las categorías iniciales desde `shared/finance/categories.ts` (`DEFAULT_CATEGORIES`). Su comentario todavía dice «src/domain/types.ts», porque es de antes de `shared/`: no se edita. Su import relativo (`../../shared/…`) vale aquí igual que en server/migrations, donde estaba antes: la misma profundidad.
 - La 005 rehace dos tablas copiando todas sus filas y comprueba las claves foráneas al final.
-- better-sqlite3 solo es una dependencia de desarrollo cuando acabe la fase MYSQL (MYSQL-04): el importador se ejecuta desde el repositorio, no desde la aplicación instalada.
+- better-sqlite3 es una dependencia de desarrollo (desde MYSQL-04): lo instala `npm install`, pero no `npm install --omit=dev`, porque el esquema de antes y el importador se ejecutan desde el repositorio y la app no lo usa. `tests/architecture.test.ts` comprueba que nadie fuera de `tools/` lo importa.
 
 ## Cómo probar
 

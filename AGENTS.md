@@ -71,7 +71,7 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
 - **Datos.** Importes en céntimos enteros y fechas `AAAA-MM-DD`. La fecha de hoy la manda el navegador. El OCR es local, las imágenes no se guardan y nada sale a Internet.
 - **Interfaz.** Mismos textos, etiquetas, roles y `data-testid`, mismo aspecto en claro y oscuro, y navegación con `#` (`docs/frontend.md`).
 - **Arquitectura.** Las capas y quién importa a quién (`docs/arquitectura.md`, `docs/frontend.md`) las vigila `tests/architecture.test.ts`.
-- **Dependencias.** Ninguna nueva sin preguntar. Nada de contenedores de inyección, ORM ni librerías de estado o de rutas. MySQL con mysql2 (un driver) y SQL explícito.
+- **Dependencias.** Ninguna nueva sin preguntar. Nada de contenedores de inyección, ORM ni librerías de estado o de rutas. MySQL con mysql2 (un driver) y SQL explícito. better-sqlite3 es de desarrollo y solo para `tools/` (el importador y el esquema de antes).
 - **TypeScript.**
   - `strict`, `erasableSyntaxOnly`: sin `enum`, `namespace` ni propiedades en el constructor.
   - `verbatimModuleSyntax`: `import type` para los tipos.

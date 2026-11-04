@@ -26,18 +26,18 @@ No se fija aquí una versión concreta de un paquete MySQL. Comprueba documentac
 
 ## Organización propuesta
 
-La carpeta backend/ y los proyectos siguientes son destino, no rutas ya creadas. React puede permanecer en `src/` durante toda la sustitución.
+Los cuatro proyectos y el de pruebas ya existen en `backend/` (BASE-02), con el acceso; lo que describe cada uno para finanzas, despensa y tickets es destino. React puede permanecer en `src/` durante toda la sustitución.
 
 | Proyecto bajo backend/ | Responsabilidad | Referencias permitidas |
 | --- | --- | --- |
 | `CuentasClaras.Domain` | Entidades, valores y reglas puras; carpetas Finance, Pantry, Tickets y un núcleo común pequeño | Biblioteca estándar |
 | `CuentasClaras.Application` | Casos de uso, puertos, DTO de aplicación, contratos públicos entre módulos | Domain |
-| `CuentasClaras.Infrastructure` | MySQL/EF, transacciones, OCR y adaptadores de configuración/acceso | Application y Domain |
+| `CuentasClaras.Infrastructure` | MySQL con SQL explícito, transacciones, OCR y adaptadores de configuración/acceso | Application y Domain |
 | `CuentasClaras.Api` | HTTP, políticas, serialización y composición | Application; Infrastructure para registrar adaptadores |
 
 Los tests irán separados del código de ejecución y seguirán las necesidades reales: reglas puras, dependencias arquitectónicas, integración MySQL y contrato HTTP. Conserva y adapta los E2E de React.
 
-Domain no conoce ASP.NET Core, EF Core, React ni el proveedor MySQL. Application no devuelve `IQueryable`, `DbContext`, entidades EF ni conexiones. Los puertos pertenecen a la capa que los necesita y sus implementaciones a Infrastructure. Los DTO HTTP se mapean explícitamente; no se serializan entidades de dominio directamente.
+Domain no conoce ASP.NET Core, React ni el proveedor MySQL. Application no devuelve conexiones, lectores ni tipos del proveedor. Los puertos pertenecen a la capa que los necesita y sus implementaciones a Infrastructure. Los DTO HTTP se mapean explícitamente; no se serializan entidades de dominio directamente.
 
 Las capas quedan separadas por ensamblados y los módulos por namespaces dentro de ellos. Esa distribución no impide por sí sola referencias indebidas entre módulos: añade pruebas de arquitectura para verificar las reglas. No atribuyas al compilador una separación que todavía depende de convenciones.
 

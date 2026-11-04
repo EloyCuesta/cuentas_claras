@@ -47,7 +47,7 @@ Cada módulo de `server/modules/` tiene:
 | `server/app.ts` · `server/index.ts` | el `index.ts` de cada módulo y `server/common/` | el interior de los módulos |
 | `src/` | lo de la web y `shared/` | nada de `server/` |
 
-Los tests (`*.test.ts`), `server/common/testing/` y `shared/testing/` quedan fuera de estas reglas. `tests/architecture.test.ts` comprueba además que los puertos que implementa un adaptador MySQL (adapters/mysql) devuelven Promise en todos sus métodos. Las reglas de la web están en `docs/frontend.md`.
+Los tests (`*.test.ts`), `server/common/testing/` y `shared/testing/` quedan fuera de estas reglas. `tests/architecture.test.ts` comprueba además que los puertos que implementa un adaptador MySQL (adapters/mysql) devuelven Promise en todos sus métodos, y que better-sqlite3 solo se importa en `tools/` (tampoco en los tests de fuera) y es una dependencia de desarrollo, no de la app. Las reglas de la web están en `docs/frontend.md`.
 
 ## Una petición de principio a fin
 

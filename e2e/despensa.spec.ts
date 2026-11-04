@@ -169,6 +169,33 @@ test('los botones + y −, marcar como comprado y deshacer', async ({ page, requ
   await expect(item(page, 'Arroz').locator('.stepper__value')).toHaveText('0 kg')
 })
 
+test('dos móviles pulsan + a la vez y el servidor suma los dos', async ({ page, browser, request }) => {
+  await request.post('/api/despensa/productos', {
+    data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 3, frequency: 'mensual', priceCents: 120, notes: '' },
+  })
+  const otherContext = await browser.newContext({ locale: 'es-ES', timezoneId: 'Europe/Madrid' })
+  const phones = [page, await otherContext.newPage()]
+  await Promise.all(phones.map((phone) => phone.goto('/')))
+  await Promise.all(phones.map((phone) => expect(item(phone, 'Arroz').locator('.stepper__value')).toHaveText('1 kg')))
+
+  // Los dos ven 1 kg y pulsan a la vez: cada uno manda «+0,5» y el servidor lo suma a lo que tiene él.
+  const answers = await Promise.all(
+    phones.map(async (phone) => {
+      const adjusted = phone.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/ajustar'))
+      await item(phone, 'Arroz').getByRole('button', { name: 'Añadir 0,5 kg a Arroz' }).click()
+      const response = await adjusted
+      expect(response.status()).toBe(200)
+      return ((await response.json()) as { data: { quantity: number } }).data.quantity
+    }),
+  )
+  // Uno detrás de otro: 1,5 y 2. Si uno pisara al otro, los dos dirían 1,5.
+  expect(answers.sort((a, b) => a - b)).toEqual([1.5, 2])
+
+  await Promise.all(phones.map((phone) => phone.reload()))
+  await Promise.all(phones.map((phone) => expect(item(phone, 'Arroz').locator('.stepper__value')).toHaveText('2 kg')))
+  await otherContext.close()
+})
+
 test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', async ({ page, request }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })

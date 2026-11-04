@@ -128,7 +128,7 @@ No lee .env automáticamente. Usa `/api/auth/me` para comprobar disponibilidad. 
 Además:
 - **Validación**: la de campos y peticiones (mensajes en español y códigos 400 y 409), que no se puede inyectar SQL, y las restricciones de la base de datos.
 - **Migraciones**: se aplican una sola vez (también con dos procesos a la vez), no borran nada, no se abre una base de datos más nueva, una a medias se explica y las publicadas no cambian. Las transacciones: todo o nada, async con una sola conexión, anidadas, bloqueos con nombre y por producto, y un reintento ante un interbloqueo.
-- **Concurrencia**, con dos conexiones: vencimientos generados a la vez (`[0, 2]`, sin 409), guardar un recurrente mientras se genera, diez + sobre el mismo producto, un ticket duplicado en paralelo y un ticket con un + a la vez.
+- **Concurrencia**, con dos conexiones: vencimientos generados a la vez (`[0, 2]`, sin 409), guardar un recurrente mientras se genera, diez + sobre el mismo producto, un ticket duplicado en paralelo y un ticket con un + a la vez. En el navegador, dos móviles que pulsan + a la vez sobre el mismo producto.
 - **Tipos de MySQL**: céntimos hasta el máximo, milésimas, fechas DATE, JSON como texto exacto, colaciones (mayúsculas, tildes y espacios finales) y nombres de 40 caracteres con tildes.
 - **Finanzas**: la importación de los datos del navegador (una sola vez, sin mezclar y conservando la copia), la regla del día 31, las cuotas que quedan, el formato del CSV, la proyección de recurrentes y las plantillas mensual y anual.
 - **Código de acceso**: arranque sin código, rutas protegidas (401), cookie y caducidad de la sesión, cierre de sesión, sesiones que no sobreviven a un reinicio, y el bloqueo por intentos, por dispositivo y sin poder eludirlo con cabeceras inventadas.
@@ -144,7 +144,7 @@ Además:
   - cuándo toca el repaso (también la primera vez) y qué se repasa y en qué orden.
 - **En el navegador**:
   - el invitado solo ve la despensa y no pide datos financieros ni ejecuta la migración del navegador;
-  - persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; copiar sin portapapeles;
+  - persona, producto, lista y enlace de WhatsApp; + y −, comprar y deshacer; dos móviles que pulsan + a la vez y ven la suma de los dos; copiar sin portapapeles;
   - entrar con el código, cerrar sesión y sesión caducada;
   - escanear un ticket, revisarlo, guardarlo y no poder guardarlo dos veces;
   - días después, «Para revisar», «Queda», «Se acabó», la lista y deshacer una compra;

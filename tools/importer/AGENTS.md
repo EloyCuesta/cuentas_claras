@@ -8,7 +8,7 @@ Pasa una copia de `cuentas.db` (la app con SQLite) a una base MySQL vacía y dem
 npm run importar:sqlite -- "<copia de cuentas.db>" [--informe <archivo.json>]
 ```
 
-Usa las `CUENTAS_DB_*` del entorno o de `.env` (la base por defecto es `cuentas_claras`); no necesita `CUENTAS_CODIGO`. Los pasos completos del corte están en el README («Pasar los datos de SQLite a MySQL»).
+Usa las `CUENTAS_DB_*` del entorno o de `.env` (la base por defecto es `cuentas_claras`); no necesita `CUENTAS_CODIGO`. Necesita better-sqlite3, que es una dependencia de desarrollo: lo instala `npm install`, no `npm install --omit=dev`. Los pasos completos del corte están en el README («Pasar los datos de SQLite a MySQL»).
 
 ## Qué hay
 

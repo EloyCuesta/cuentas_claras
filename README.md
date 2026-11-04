@@ -81,7 +81,7 @@ Una vez, en el equipo donde se ejecuta la app (los pasos son para Windows; en ot
    ```
 
 3. En `.env`, escribe `CUENTAS_DB_USER=cuentas` y su contraseña en `CUENTAS_DB_PASSWORD=`. El resto (`127.0.0.1`, `3306`, `cuentas_claras`) ya está en `.env.example`.
-4. `npm run dev`. La primera vez crea las tablas en `cuentas_claras`; en Workbench las verás en *Schemas* (actualiza la lista).
+4. `npm run dev`. La primera vez crea las tablas en `cuentas_claras`; en Workbench las verás en *Schemas* (actualiza la lista). Si vienes de la versión con SQLite, no la arranques todavía: el importador solo carga en una base vacía, así que sigue antes «Pasar los datos de SQLite a MySQL».
 
 La aplicación no usa root ni crea bases de datos: solo trabaja dentro de `cuentas_claras`. Sus tablas usan `utf8mb4_0900_bin`, que distingue mayúsculas, tildes y espacios como hacía SQLite.
 
@@ -89,10 +89,10 @@ La aplicación no usa root ni crea bases de datos: solo trabaja dentro de `cuent
 
 Si ya usabas la app con SQLite, tus datos siguen en `server/data/cuentas.db`: el servidor ya no lo abre, pero no lo borra. Se pasan una sola vez a una base `cuentas_claras` **vacía** con el importador, que copia las doce tablas tal cual (ids, versiones, tickets y lo aprendido; no siembra categorías ni repite lo que hizo cada ticket) y comprueba fila a fila que no se ha perdido nada. Lo haces tú, con tus datos:
 
-1. **Para la app** (Ctrl+C en la consola de `npm run dev` o de `npm run server`). Al cerrarse pasa a `cuentas.db` lo que quedaba en `cuentas.db-wal` y lo borra. Si en `server/data/` sigue habiendo un `cuentas.db-wal` (la app no se cerró bien), guarda aparte los tres archivos `cuentas.db*` y, desde la carpeta de la app, ejecuta `node -e "const db = require('better-sqlite3')('server/data/cuentas.db'); db.pragma('wal_checkpoint(TRUNCATE)'); db.close()"`: SQLite pasa el `-wal` al archivo y lo borra.
+1. **Para la app de antes**, la de SQLite (Ctrl+C en la consola de `npm run dev` o de `npm run server`). Al cerrarse pasa a `cuentas.db` lo que quedaba en `cuentas.db-wal` y lo borra. Si en `server/data/` sigue habiendo un `cuentas.db-wal` (la app no se cerró bien), guarda aparte los tres archivos `cuentas.db*` y, desde la carpeta de la app, ejecuta `node -e "const db = require('better-sqlite3')('server/data/cuentas.db'); db.pragma('wal_checkpoint(TRUNCATE)'); db.close()"`: SQLite pasa el `-wal` al archivo y lo borra.
 2. **Copia `cuentas.db`** a una carpeta fuera del repositorio, por ejemplo `C:\copias\cuentas-2026-11-04.db`. Guárdala: es tu vuelta atrás.
-3. **Crea la base vacía** como en «Preparar MySQL». Si ya arrancaste la app con MySQL, la base tiene las categorías iniciales y el importador no la usará: si no tiene nada tuyo, bórrala y créala otra vez en Workbench (`DROP DATABASE cuentas_claras;` y el `CREATE DATABASE` de arriba).
-4. **Importa**, con las `CUENTAS_DB_*` de tu `.env`:
+3. **Prepara MySQL** con los pasos 1 a 3 de «Preparar MySQL» (instalar, crear la base y el usuario, y el `.env`), sin arrancar la app: así la base sigue vacía. Si ya arrancaste la app con MySQL, la base tiene las categorías iniciales y el importador no la usará: si no tiene nada tuyo, bórrala y créala otra vez en Workbench (`DROP DATABASE cuentas_claras;` y el `CREATE DATABASE` de arriba).
+4. **Importa**, con las `CUENTAS_DB_*` de tu `.env`. Si acabas de actualizar la app, antes `npm install`: instala mysql2 y, para el importador, better-sqlite3 (es una dependencia de desarrollo, así que `npm install --omit=dev` no lo instala).
 
    ```bash
    npm run importar:sqlite -- "C:\copias\cuentas-2026-11-04.db"
@@ -102,7 +102,7 @@ Si ya usabas la app con SQLite, tus datos siguen en `server/data/cuentas.db`: el
 6. **Arranca la app** (`npm run dev`) y mira el resumen del mes, los movimientos, la despensa y los últimos tickets.
 7. **Haz una copia completa de MySQL** (ver «Copias de MySQL»).
 
-Mientras no escribas nada nuevo en MySQL, volver atrás es usar otra vez la copia de `cuentas.db` con la versión anterior de la app. Después, esa copia ya no tiene lo nuevo.
+Mientras no escribas nada nuevo en MySQL, volver atrás es arrancar la versión anterior de la app (la de SQLite), que sigue usando `server/data/cuentas.db`; si ese archivo ya no está, pon allí tu copia. Después de escribir en MySQL, esa copia ya no tiene lo nuevo. Cuando todo esté bien y tengas la copia de MySQL, `server/data/cuentas.db` ya no hace falta, pero guarda la copia del paso 2 un tiempo.
 
 ## Copias de MySQL
 

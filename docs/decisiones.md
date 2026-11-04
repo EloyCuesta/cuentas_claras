@@ -54,7 +54,7 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Documentación para agentes.** Un `AGENTS.md` en la raíz, en cada zona, en cada módulo y en cada feature, con un `CLAUDE.md` al lado que solo contiene `@AGENTS.md`, y reglas cortas en `.claude/rules/`. Lo comprueba `tests/docs.test.ts`. `.claude/settings.json` impide que un agente lea `server/data/` y `.env`.
 
-**better-sqlite3 12.11.1.** La 13 no trae binarios para Windows con Node 24 y `npm install` falla al compilarla; la 12.11.1 instala los suyos precompilados. Desde la fase MYSQL el servidor no lo usa: solo el esquema de antes (`tools/sqlite/`) y el importador.
+**better-sqlite3 12.11.1.** La 13 no trae binarios para Windows con Node 24 y `npm install` falla al compilarla; la 12.11.1 instala los suyos precompilados. Desde la fase MYSQL el servidor no lo usa: solo el esquema de antes (`tools/sqlite/`) y el importador, que se ejecutan desde el repositorio. Por eso es una dependencia de desarrollo (`devDependencies`): `npm install` lo sigue instalando, `npm install --omit=dev` no, y la app no lo necesita para arrancar.
 
 **Pruebas e2e con el Chrome instalado.** En el equipo de desarrollo la descarga de Chromium de Playwright caduca; `CUENTAS_E2E_CHANNEL=chrome` usa el Chrome del sistema (una opción que ya tenía `playwright.config.ts`).
 

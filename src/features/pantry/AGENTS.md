@@ -15,7 +15,7 @@ Sin el código es lo único que se ve.
 | Componente | Archivo | Qué hace | Test e2e |
 | --- | --- | --- | --- |
 | DespensaPage | `DespensaPage.tsx` | La página: estado, avisos con «Deshacer» y qué diálogo está abierto | `e2e/despensa.spec.ts` y `e2e/tickets.spec.ts` |
-| PantryRow | `components/PantryRow.tsx` | Un producto: estado, última compra, botones y + / − | «los botones + y −, marcar como comprado y deshacer» |
+| PantryRow | `components/PantryRow.tsx` | Un producto: estado, última compra, botones y + / − | «los botones + y −, marcar como comprado y deshacer» y «dos móviles pulsan + a la vez y el servidor suma los dos» |
 | ReviewBlock | `components/ReviewBlock.tsx` | «Para revisar»: lo que se acerca a lo que suele durar | «días después: qué toca revisar…» |
 | RecentTickets | `components/RecentTickets.tsx` | «Últimas compras»: los tickets guardados | «lee la captura de un ticket de Lidl…» |
 | SummaryBlock, BudgetBlock | `components/SummaryBlock.tsx`, `components/BudgetBlock.tsx` | Lo que falta, la estimación mensual y el presupuesto | — |

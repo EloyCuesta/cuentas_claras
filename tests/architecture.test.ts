@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest'
  * Vigila las reglas de dependencia de docs/arquitectura.md leyendo los imports
  * de cada archivo .ts y .tsx de server/, shared/, src/ y tools/. Si falla, el
  * mensaje dice qué archivo, qué import y qué regla se rompe. También que los
- * puertos de persistencia son async (MySQL).
+ * puertos de persistencia son async (MySQL) y que better-sqlite3 solo lo usa
+ * tools/, como dependencia de desarrollo.
  *
  * Los tests, server/common/testing/ y shared/testing/ quedan fuera de las reglas.
  * La API .NET se vigila al compilar y con backend/tests/CuentasClaras.Tests/ArchitectureTests.cs:
@@ -349,6 +350,30 @@ describe('arquitectura', () => {
     expect(toolFiles.length).toBeGreaterThan(5)
     const found = violations([...serverFiles, ...sharedFiles, ...webFiles, ...toolFiles], SERVER_RULES)
     expect(found, found.join('\n')).toEqual([])
+  })
+
+  it('better-sqlite3 solo se importa en tools/, tampoco en los tests de fuera, y es una dependencia de desarrollo', () => {
+    const isSqlite = (imp: Import) => imp.specifier === 'better-sqlite3' || imp.specifier.startsWith('better-sqlite3/')
+    // Aquí no se salta nada: ni los tests ni sus ayudantes, ni las pruebas en navegador ni la configuración.
+    const outside = [
+      ...serverFiles,
+      ...sharedFiles,
+      ...webFiles,
+      ...sourceFiles('e2e'),
+      ...sourceFiles('tests'),
+      'vite.config.ts',
+      'playwright.config.ts',
+      'playwright.dotnet.config.ts',
+    ]
+    const found = outside.filter((file) => importsOf(file).some(isSqlite))
+    expect(found, `importan better-sqlite3 fuera de tools/: ${found.join(', ')}`).toEqual([])
+    // Y el comprobador lo ve donde sí está.
+    expect(toolFiles.filter((file) => importsOf(file).some(isSqlite))).toContain('tools/sqlite/openSqlite.ts')
+
+    const pkg = JSON.parse(readFileSync(`${ROOT}package.json`, 'utf8')) as Record<'dependencies' | 'devDependencies', Record<string, string>>
+    expect(Object.keys(pkg.dependencies)).not.toContain('better-sqlite3')
+    expect(Object.keys(pkg.devDependencies)).toContain('better-sqlite3')
+    expect(Object.keys(pkg.dependencies)).toContain('mysql2')
   })
 
   it('los puertos de persistencia y la unidad de trabajo son async: todos sus métodos devuelven Promise', () => {

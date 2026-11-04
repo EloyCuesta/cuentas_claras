@@ -6,7 +6,7 @@ Estado: el esquema MySQL existe y está probado (MYSQL-01, `database/mysql/`), E
 
 El origen es el esquema resultante de las cinco migraciones de SQLite, que se conservan en [tools/sqlite](../../tools/sqlite). No basta leer la migración 001: 003 añade tickets, tracking y actividad; 004 añade `poco` y último repaso; 005 añade revisión segura, ajustes, incidencias, evidencia y nuevas claves de deduplicación.
 
-La copia JSON v1 de la aplicación contiene categorías, movimientos y recurrentes. No es la fuente para trasladar toda la instalación. El importador completo partirá de una copia consistente de SQLite, con sus tablas de aplicación y metadatos.
+La copia JSON v1 de la aplicación contiene categorías, movimientos y recurrentes. No es la fuente para trasladar toda la instalación: el importador parte de una copia consistente de `cuentas.db`, con sus doce tablas de aplicación y su historial de migraciones.
 
 ## Inventario que debe conservarse
 
@@ -58,7 +58,7 @@ Todas las tablas y columnas usan utf8mb4 con `utf8mb4_0900_bin`, que compara com
 - Conserva la unicidad de `fingerprint`, las parejas `(recurring_id, occurrence_date)` y `(ticket_id, position)` y la clave de equivalencias `(store, name_key)`.
 - `import_id` y `source_fingerprint` son nullable y únicos cuando tienen valor: en MySQL son índices únicos normales, que admiten varios NULL y rechazan un valor repetido (probado).
 - Conserva checks, límites, nulabilidad y acciones de claves foráneas del esquema final. Prueba su aplicación con el proveedor real.
-- `movements.recurring_id` carece deliberadamente de FK: al borrar una regla se conservan vencimientos realizados con su vínculo histórico. No añadas esa FK por convención de EF.
+- `movements.recurring_id` carece deliberadamente de FK: al borrar una regla se conservan vencimientos realizados con su vínculo histórico. No la añadas en .NET por convención.
 - Una persona con productos no se borra. Al borrar un producto, las líneas de tickets se conservan con la asociación anulada y sus equivalencias/eventos siguen las acciones previstas por el esquema.
 - Preserva IDs, fechas, estados, evidencia y versiones. Importar no es reproducir de nuevo los efectos de compra: no vuelvas a incrementar cantidades ni a aprender equivalencias a partir de tickets históricos.
 - No mezcles categorías iniciales sembradas con datos importados. Define explícitamente el modo base nueva frente al modo importación.
@@ -96,7 +96,7 @@ Corte de datos (DATA-02), que hace la persona con los pasos del README («Pasar 
 
 1. Para la app para que no haya escrituras y SQLite pase su `-wal` a `cuentas.db` (cierre limpio). No copies solo `cuentas.db` mientras la app escribe: el importador rechaza una copia con un `-wal` con cambios al lado, pero no puede saber si faltó copiarlo.
 2. Copia `cuentas.db` fuera del repositorio y consérvala.
-3. Importa en una base `cuentas_claras` vacía y revisa el informe: `válido`, todas las tablas iguales y las sumas iguales. Con diferencias o un rechazo no queda nada a medias: se corrige y se repite.
+3. Importa en una base `cuentas_claras` vacía (sin arrancar antes la app con MySQL, que sembraría las categorías iniciales) y revisa el informe: `válido`, todas las tablas iguales y las sumas iguales. Con diferencias o un rechazo no queda nada a medias: se corrige y se repite.
 4. Arranca la app con MySQL, comprueba los recorridos habituales y haz una copia completa de MySQL (Workbench *Data Export* o mysqldump, README «Copias de MySQL»). Registra en [STATUS.md](STATUS.md) la fecha y el resultado.
 
 Corte de backend (CUT-01): los recorridos React contra .NET y esa misma base, restauración financiera separada, una copia y recuperación completa de MySQL, y el cambio de configuración con un solo backend escritor. Se registra cuándo empezó a usarse.
