@@ -20,6 +20,8 @@ public sealed class HttpTests
     private const string Code = "codigo-de-prueba";
     private const string InvalidJson = "El cuerpo de la petición no es JSON válido.";
     private const string TooLarge = "Los datos enviados son demasiado grandes.";
+    private const string MissingBody = "Falta el cuerpo de la petición en JSON.";
+    private const string MissingCode = "Escribe el código de acceso.";
 
     [Fact]
     public async Task Reproduce_los_tres_escenarios_y_22_peticiones_del_corpus_auth_sin_regenerar_expectativas()
@@ -78,17 +80,18 @@ public sealed class HttpTests
     }
 
     [Theory]
-    [InlineData("{}")]
-    [InlineData("[]")]
-    [InlineData("{\"codigo\":42}")]
-    [InlineData("{\"codigo\":\"\"}")]
-    public async Task Cuerpo_sin_codigo_valido_no_cuenta_como_intento(string body)
+    [InlineData("{}", MissingCode)]
+    // Como readBody de Express: un array es JSON válido, pero no el objeto que se espera.
+    [InlineData("[]", MissingBody)]
+    [InlineData("{\"codigo\":42}", MissingCode)]
+    [InlineData("{\"codigo\":\"\"}", MissingCode)]
+    public async Task Cuerpo_sin_codigo_valido_no_cuenta_como_intento(string body, string message)
     {
         await using var api = await RunningApi.Start();
         for (var i = 0; i < 6; i++)
         {
             using var invalid = await api.Client.PostAsync("/api/auth/login", JsonContent(body), TestContext.Current.CancellationToken);
-            await AssertError(invalid, 400, "VALIDATION", "Escribe el código de acceso.");
+            await AssertError(invalid, 400, "VALIDATION", message);
         }
         using var login = await api.Login();
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
@@ -227,7 +230,8 @@ public sealed class HttpTests
             timeout.CancelAfter(TimeSpan.FromSeconds(15));
             await process.WaitForExitAsync(timeout.Token);
             Assert.Equal(1, process.ExitCode);
-            Assert.Contains("código", await error);
+            // En Windows el error sale en la página de códigos de la consola (850, 437…), no en UTF-8: se busca un texto ASCII.
+            Assert.Contains("CUENTAS_CODIGO", await error);
             Assert.DoesNotContain("Now listening", await output);
         }
         finally

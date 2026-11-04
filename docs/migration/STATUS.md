@@ -10,12 +10,12 @@
 | Referencia documental histórica | `91832a52b987b8e89f270ee86b4a95b8a4ddad15`, main del 30 de octubre de 2026 |
 | Backend ejecutable | Node.js + Express, en `server/`, sobre MySQL desde MYSQL-02 (mysql2, migraciones de `database/mysql/`); el servidor ya no abre SQLite |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |
-| Backend .NET | Host de acceso en `backend/` (BASE-02, implementado): compila con el SDK 10.0.114 y pasan sus cuatro E2E React/.NET; su proyecto de pruebas no se ha podido restaurar en el entorno del agente (registro BASE-02) |
+| Backend .NET | Host de acceso en `backend/` (BASE-02, verificado): en Windows con el SDK 10.0.102, restore con `--locked-mode`, compilación sin avisos, 68/68 pruebas y sus cuatro E2E React/.NET (registro BASE-02). Todavía sin MySQL ni rutas de negocio |
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | MYSQL-04 verificada: la app ya no necesita better-sqlite3, los E2E prueban también dos móviles a la vez sobre MySQL y el README tiene los pasos del corte. La importación de los datos reales es DATA-02 |
-| Pruebas de aplicación de esta entrega | Ver el registro MYSQL-04 |
+| Resultado de esta entrega | BASE-02 verificada: la prueba del login con `[]` espera ya el mensaje que dan Express y .NET («Falta el cuerpo de la petición en JSON.»), y pasan la suite .NET y los E2E de acceso. La aplicación no cambia. La entrega anterior, MYSQL-04, tiene su registro |
+| Pruebas de aplicación de esta entrega | Ver el registro BASE-02 del 4 de noviembre. Las regresiones Node quedan pendientes de un MySQL de pruebas |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
 
@@ -37,7 +37,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | --- | --- | --- | --- |
 | DOC-01 | Contexto para Codex, arquitectura, datos, módulos, tareas y prompts | — | verificado |
 | BASE-01 | Caracterización de contratos/fixtures, inventario confirmado y línea base ejecutada con resultados registrados | DOC-01 | verificado |
-| BASE-02 | Solución .NET, composición, host/configuración, acceso, envoltorios HTTP y pruebas de arquitectura | BASE-01 | implementado |
+| BASE-02 | Solución .NET, composición, host/configuración, acceso, envoltorios HTTP y pruebas de arquitectura | BASE-01 | verificado |
 | MYSQL-01 | Base: configuración, conexión, UnitOfWork asíncrono, esquema MySQL y ayudantes de prueba | BASE-01 | verificado |
 | MYSQL-02 | Finanzas, despensa y tickets sobre MySQL, con bloqueos. La API completa funciona y pasan los contratos de BASE-01 | MYSQL-01 | verificado |
 | MYSQL-03 | Importador SQLite→MySQL con informe | MYSQL-02 | verificado |
@@ -64,12 +64,12 @@ La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MyS
 
 | Elemento | Estado | Evidencia necesaria |
 | --- | --- | --- |
-| SDK .NET | `global.json` pide 10.0.102 con `rollForward: latestFeature`: vale 10.0.102 o una banda/parche posterior de 10.0 (comprobado con 10.0.114) | Restore y tests de `backend/` en un equipo con acceso a nuget.org |
+| SDK .NET | `global.json` pide 10.0.102 con `rollForward: latestFeature`: vale 10.0.102 o una banda/parche posterior de 10.0 (comprobado con 10.0.114 en Linux y con 10.0.102 en Windows) | Hecho en BASE-02, el 4 de noviembre en Windows con acceso a nuget.org: restore con `--locked-mode`, compilación y 68/68 pruebas |
 | Proveedor .NET para MySQL | Propuesta, sin autorizar: MySqlConnector con SQL explícito sobre `database/mysql/`. Pomelo.EntityFrameworkCore.MySql no tiene versión para EF Core 10 y AGENTS.md prohíbe los ORM | Autorización de la dependencia, versión estable exacta, restore/build y pruebas contra MySQL (DATA-01) |
 | MySQL de la instalación | Las pruebas del agente usan MySQL Server 8.4 de Ubuntu 26.04 en Linux (8.4.8 en MYSQL-01; 8.4.11, con el registro binario activo como en una instalación normal, desde MYSQL-02) | `npm run check` y `npm run test:e2e` en Windows con el MySQL Server 8.4 de la persona (allí `lower_case_table_names` vale 1; todos los nombres de tablas y bases son minúsculas) |
 | Textos de la web sobre SQLite | Pendiente de decisión de la persona: no se ha tocado el código de la web | `FinanceProvider.tsx`, `BackupPanel.tsx` y `SummaryPage.tsx` dicen que los datos están en «una base de datos SQLite» (y el panel, en `server/data/cuentas.db`). Cambiarlos es un cambio de textos de la interfaz que no se ha pedido. Con ellos, tres comentarios que dicen lo mismo: `src/Root.tsx`, `ApiFinanceRepository.ts` y `browserDataMigration.ts`. Ninguna prueba busca esos textos |
 | Documentación de `backend/` | Desfasada a propósito: esta fase no toca `backend/` | Su AGENTS.md dice que Express/SQLite es la aplicación de uso diario; actualizarlo en DATA-01 |
-| Cabecera de caché en errores del host | Diferencia actual registrada; corrección prevista en BASE-02 | Los errores 400/413 del lector JSON actual carecen de `Cache-Control: no-store`; probarla también en los errores de ASP.NET Core |
+| Cabecera de caché en errores del host | En el host .NET, comprobada en BASE-02: los 400 de JSON mal formado y los 413 llevan `Cache-Control: no-store` (pruebas HTTP, 68/68). Express conserva la diferencia | Los errores 400/413 del lector JSON de Express carecen de la cabecera hasta que .NET lo sustituya (CUT-01); entonces se actualizan la API y ARCHITECTURE.md |
 | OCR definitivo | Pendiente de ensayo | Mismos fixtures, reconocimiento real, arranque y dependencia Node si la hay |
 | Copia SQLite real | No disponible | Copia consistente, integridad y versión comprobadas |
 | Equivalencia de la importación real | No ejecutada (la hace la persona: DATA-02) | El informe de `npm run importar:sqlite` con su copia: `válido`, todas las tablas y las sumas iguales, y los recorridos funcionales |
@@ -132,6 +132,19 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 - `npm run build:dotnet`, `npm run test:dotnet` y `npm run test:e2e:dotnet`: no ejecutados, porque sin restaurar las pruebas no compila la solución entera.
 - Queda en «implementado». Para verificarla, en un equipo con nuget.org: `dotnet restore backend/CuentasClaras.slnx --locked-mode`, `npm run build:dotnet`, `npm run test:dotnet` y `npm run test:e2e:dotnet`.
 - Repetido el 4 de noviembre, al cerrar MYSQL-04 (`backend/` sin cambios): el restore da el mismo resultado (los cuatro proyectos de ejecución sí; CuentasClaras.Tests, NU1301, porque la política del proxy rechaza api.nuget.org con 403, y no se ha intentado rodearla); `dotnet build backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj --no-restore` correcto, 0 avisos y 0 errores; y `CUENTAS_E2E_CHANNEL=chrome npm run test:e2e:dotnet`, que solo necesita la API compilada, aprobado: 4/4 (acceso, error, recarga y cierre, en claro y oscuro, escritorio y móvil). `npm run build:dotnet` y `npm run test:dotnet` siguen sin poder ejecutarse.
+
+### BASE-02 — 4 de noviembre de 2026 (verificada)
+
+- Base: main en `18eeb272d9b28f2bcdd3a7f06643098380f5eff3`, igual que origin/main y sin cambios locales; trabajo en la rama base-02-acceso. Entorno: Windows 10 Pro (10.0.19045), SDK .NET 10.0.102 (el de `global.json`) con acceso a nuget.org, Node 24.13.0, npm 11.0.0, Playwright 1.63.0 y Chrome 156 instalado (`CUENTAS_E2E_CHANNEL=chrome`; no se descargó Chromium).
+- Antes de editar: `dotnet restore backend/CuentasClaras.slnx --locked-mode` restaura los cinco proyectos, también CuentasClaras.Tests (el NU1301 de antes era del proxy del entorno del agente); `npm run build:dotnet` correcto, 0 avisos y 0 errores; la prueba dirigida (`--filter "FullyQualifiedName~Cuerpo_sin_codigo_valido_no_cuenta_como_intento"`) da 3/4: con `[]` espera «Escribe el código de acceso.» y recibe 400 VALIDATION «Falta el cuerpo de la petición en JSON.».
+- Contrato contrastado en los dos hosts. .NET: `ReadCode`, en `backend/src/CuentasClaras.Api/Composition/ApiRouter.cs`, exige un objeto antes de mirar `codigo`. Express: `readBody`, en `server/common/http/request.ts`, probado a mano con `createApp` y una base falsa que lanza ante cualquier acceso (no se usó ninguna vez): `[]` da 400 VALIDATION «Falta el cuerpo de la petición en JSON.»; `{}`, `{"codigo":42}` y `{"codigo":""}` dan «Escribe el código de acceso.»; todas con `no-store`, y tras seis peticiones inválidas de cada tipo el código correcto da 200. La que discrepaba era la expectativa de la prueba; la aplicación no cambia.
+- Cambio en `backend/tests/CuentasClaras.Tests/HttpTests.cs`: el mensaje esperado pasa a ser un parámetro de cada caso (`[]` con el de cuerpo ausente; los otros tres, con el del código). Se conservan el 400, el sobre VALIDATION, `no-store`, el tipo de contenido y el login válido después de las seis peticiones.
+- Hallazgo en Windows: con esa corrección, la suite dio 65/68, porque `Proceso_real_rechaza_codigo_invalido_antes_de_escuchar` (tres casos) buscaba «código» en la salida de error del proceso. En Windows esa salida usa la página de códigos de la consola (aquí 850: la «ó» llega como el byte 0xA2, comprobado) y la prueba la lee como UTF-8. El programa es correcto para quien lo ve en su consola, así que se cambia la prueba: busca `CUENTAS_CODIGO`, que está en los tres mensajes. En Linux, todo en UTF-8, no se veía.
+- Validación final: `npm run build:dotnet` correcto (0 avisos y 0 errores); `npm run test:dotnet` aprobado, 68/68 (las mismas 68 de antes, 1 s); `$env:CUENTAS_E2E_CHANNEL = 'chrome'; npm run test:e2e:dotnet` aprobado, 4/4 (acceso, error, recarga y cierre; escritorio y móvil, claro y oscuro; 11 s); `git diff --check` sin errores.
+- Regresiones Node, bloqueadas por MySQL: `npm ci` correcto (el node_modules anterior no tenía mysql2). En `npm run check`, tipos y oxlint correctos; Vitest da 363/503, y las 140 que fallan dicen todas «Las pruebas necesitan MySQL: falta CUENTAS_DB_USER…», porque ni el entorno ni el .env tienen un usuario de pruebas (el .env no se ha leído). Las de documentación y arquitectura, que no usan MySQL, pasan. `npm run test:e2e` no arranca: «[e2e] Falta CUENTAS_DB_USER». El equipo tiene el servicio MySQL80 (MySQL Server 8.0), no un MySQL 8.4 de pruebas, y no se ha usado. Este cambio no toca código Node ni de la web.
+- Para repetirlas: MySQL Server 8.4 con un usuario limitado a `cuentas\_test\_%` y `cuentas_claras_e2e`, sus CUENTAS_DB_* en el entorno, y después `npm run check` y `$env:CUENTAS_E2E_CHANNEL = 'chrome'; npm run test:e2e`.
+- Queda en «verificado»: cumple la aceptación de BASE-02 (restore, compilación, suite .NET completa y los cuatro E2E de acceso, con el mensaje de `[]` y el login tras seis entradas inválidas comprobados). El host .NET sigue sin MySQL y sin rutas de negocio.
+- Siguiente tarea: **DATA-01**, la primera pendiente con sus dependencias verificadas, que antes necesita la autorización del proveedor MySQL de .NET (decisiones pendientes). Sin esa dependencia se puede avanzar **TIC-01**. DATA-02 sigue siendo de la persona.
 
 ### MYSQL-01 — 3 de noviembre de 2026 (verificada)
 
