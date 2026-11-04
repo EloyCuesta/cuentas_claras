@@ -21,7 +21,7 @@ const MODULES = subfolders('server/modules')
 const FEATURES = subfolders('src/features')
 
 /** Zonas con su propio AGENTS.md: la raíz, las carpetas principales, cada módulo y cada feature. */
-const ZONES = ['', 'backend/', 'database/mysql/', 'server/', 'shared/', 'src/', 'e2e/', 'tools/sqlite/', ...MODULES.map((m) => `server/modules/${m}/`), ...FEATURES.map((f) => `src/features/${f}/`)]
+const ZONES = ['', 'backend/', 'database/mysql/', 'server/', 'shared/', 'src/', 'e2e/', 'tools/sqlite/', 'tools/importer/', ...MODULES.map((m) => `server/modules/${m}/`), ...FEATURES.map((f) => `src/features/${f}/`)]
 
 const MODULE_SECTIONS = [
   'Qué hace',

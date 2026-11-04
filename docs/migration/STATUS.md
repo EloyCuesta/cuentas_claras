@@ -11,11 +11,11 @@
 | Backend ejecutable | Node.js + Express, en `server/`, sobre MySQL desde MYSQL-02 (mysql2, migraciones de `database/mysql/`); el servidor ya no abre SQLite |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |
 | Backend .NET | Host de acceso en `backend/` (BASE-02, implementado): compila con el SDK 10.0.114; sus pruebas no se han podido restaurar en el entorno del agente (registro BASE-02) |
-| Persistencia MySQL e importación | MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos, probados contra MySQL 8.4.11. El importador llega en MYSQL-03 |
+| Persistencia MySQL e importación | MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | MYSQL-02 verificada: la API completa sobre MySQL, contratos de BASE-01 sin tocar y E2E sobre `cuentas_claras_e2e` |
-| Pruebas de aplicación de esta entrega | Ver el registro MYSQL-02 |
+| Resultado de esta entrega | MYSQL-03 verificada: importador con informe, probado con copias sintéticas; la importación de los datos reales es DATA-02 |
+| Pruebas de aplicación de esta entrega | Ver el registro MYSQL-03 |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
 
@@ -40,7 +40,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | BASE-02 | Solución .NET, composición, host/configuración, acceso, envoltorios HTTP y pruebas de arquitectura | BASE-01 | implementado |
 | MYSQL-01 | Base: configuración, conexión, UnitOfWork asíncrono, esquema MySQL y ayudantes de prueba | BASE-01 | verificado |
 | MYSQL-02 | Finanzas, despensa y tickets sobre MySQL, con bloqueos. La API completa funciona y pasan los contratos de BASE-01 | MYSQL-01 | verificado |
-| MYSQL-03 | Importador SQLite→MySQL con informe | MYSQL-02 | pendiente |
+| MYSQL-03 | Importador SQLite→MySQL con informe | MYSQL-02 | verificado |
 | MYSQL-04 | E2E sobre MySQL, documentación, better-sqlite3 fuera del runtime y pasos del corte | MYSQL-02, MYSQL-03 | pendiente |
 | DATA-01 | Acceso de .NET al MySQL ya migrado: conexión, transacciones y bloqueos sobre `database/mysql/`, sin esquema propio, con pruebas de tipos/índices/JSON desde C# | BASE-02, MYSQL-04 | pendiente |
 | FIN-01 | Lectura de finanzas, categorías, presupuestos de categoría y metadatos; primer recorrido React | DATA-01 | pendiente |
@@ -72,8 +72,8 @@ La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MyS
 | Cabecera de caché en errores del host | Diferencia actual registrada; corrección prevista en BASE-02 | Los errores 400/413 del lector JSON actual carecen de `Cache-Control: no-store`; probarla también en los errores de ASP.NET Core |
 | OCR definitivo | Pendiente de ensayo | Mismos fixtures, reconocimiento real, arranque y dependencia Node si la hay |
 | Copia SQLite real | No disponible | Copia consistente, integridad y versión comprobadas |
-| Equivalencia de la importación real | No ejecutada | Informe sin diferencias por tabla/ID y comprobaciones funcionales |
-| Recuperación completa de MySQL | No ejecutada | Backup recuperado en otra base y datos comparados |
+| Equivalencia de la importación real | No ejecutada (la hace la persona: DATA-02) | El informe de `npm run importar:sqlite` con su copia: `válido`, todas las tablas y las sumas iguales, y los recorridos funcionales |
+| Recuperación completa de MySQL | Con mysqldump, comprobada en Linux con datos sintéticos (registro MYSQL-03); Data Export de Workbench sin probar | Una copia de la instalación recuperada en otra base y comparada (`CHECKSUM TABLE` de las 14 tablas) |
 | Cambio del backend usado a diario | No realizado | Requisitos CUT-01 cumplidos y fecha del corte registrada |
 
 ## Verificaciones según el tipo de cambio
@@ -161,6 +161,23 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 - Validación final: `npm run check` aprobado (494 pruebas en 41 archivos: las 487 de antes, menos las 9 de SQLite sustituidas y 16 nuevas; tipos y oxlint correctos); `npm run build` aprobado; `CUENTAS_E2E_CHANNEL=chrome npm run test:e2e` aprobado (46/46 sobre `cuentas_claras_e2e`, 1,8 min); `git diff --check` sin errores. Tras las pruebas no queda ninguna base `cuentas_test_*`.
 - Limitaciones: no se ha probado en Windows ni con el MySQL de la persona; no se ha leído `server/data` ni `.env`. Los textos de la web que hablan de SQLite siguen igual (decisiones pendientes).
 - Siguiente tarea: **MYSQL-03**.
+
+### MYSQL-03 — 4 de noviembre de 2026 (verificada)
+
+- Base: feat/mysql en `645d33e` (MYSQL-02). Mismo entorno: MySQL Server 8.4.11 con el registro binario activo y un usuario limitado; Node 22.23.4.
+- Alcance: el importador de una copia de `cuentas.db` a una base MySQL vacía, con informe y código de salida, y los pasos del corte en el README. Sin cambios en el servidor, la API ni la web, y sin dependencias nuevas (better-sqlite3 ya estaba; pasa a devDependencies en MYSQL-04).
+- Archivos: `tools/importer/` (`cli.ts`, `importSqlite.ts`, `source.ts`, `columns.ts`, `compare.ts`, `tables.ts`, `report.ts`, `syntheticCopy.ts`, sus pruebas, AGENTS.md y CLAUDE.md); el script `importar:sqlite` en `package.json`; `informe-importacion-*.json` en `.gitignore`; la regla del importador en `tests/architecture.test.ts` y su zona en `tests/docs.test.ts`.
+- Comando: `npm run importar:sqlite -- <copia de cuentas.db> [--informe <archivo.json>]`, con las `CUENTAS_DB_*` del entorno o de `.env` y sin `CUENTAS_CODIGO`. Salida: 0 válido, 1 con diferencias, 2 rechazado o fallido (nada importado) y 3 si no se pudo escribir el informe.
+- Comprobaciones antes de escribir: la copia existe, no tiene un `-wal` con cambios al lado, es SQLite, pasa `integrity_check`, su historial es 1–5, sus tablas y columnas son las del esquema creado con 001–005 y pasa `foreign_key_check`. El destino responde, aplica `database/mysql/` sin sembrar categorías y tiene las mismas columnas. Cada valor cabe tal cual en su columna de MySQL (longitud en caracteres, bytes de MEDIUMTEXT, rangos de enteros, decimales de DECIMAL, fechas que existen y nulos).
+- Carga: una transacción con los bloqueos `finance` y `tickets` que exige las doce tablas vacías, inserta en orden de claves foráneas (categorías principales primero) por lotes de 100 filas, vuelve a leer y compara; si algo no coincide o falla, la deshace entera. Tras confirmar, lo compara otra vez con otra conexión.
+- Decisiones: la copia se lee como archivo para su SHA-256 y SQLite abre un duplicado temporal en solo lectura, porque abrir en solo lectura una base WAL crea `-wal` y `-shm` a su lado (comprobado) y better-sqlite3 no admite URI con `immutable=1` (comprobado). Los enteros se leen con `safeIntegers` para no perder precisión en silencio. Los DECIMAL se comparan en milésimas, porque un REAL de SQLite puede traer ruido (0,1 + 0,2). Un error de MySQL se informa con su número, su código y la tabla, sin su texto, que puede llevar un valor.
+- Informe: archivo, bytes, SHA-256, versión, integridad y referencias de la copia; destino sin la contraseña y versión de MySQL; por tabla, filas, huella SHA-256 del JSON normalizado, nulos por columna, claves y diferencias (claves que faltan, que sobran o columnas distintas, sin valores); sumas de la copia y de MySQL; y los problemas, si se rechazó. Ni la consola ni el informe llevan conceptos, nombres o notas.
+- Pruebas nuevas, contra MySQL: `tools/importer/importSqlite.test.ts` (6: importación completa de una copia sintética con las doce tablas, y lo que ve después la API, incluida la huella antigua que sigue detectando el ticket repetido; base con categorías sembradas rechazada sin tocarla; copias de la versión 4, que no son SQLite o con `-wal` pendiente, rechazadas sin crear tablas; cuatro valores que MySQL no guardaría tal cual, con su sitio y sin el valor; fallo a mitad que deja la base vacía y se puede repetir; y diferencias a mitad, deshechas, con tabla, clave y columna) y `tools/importer/cli.test.ts` (2: el comando de verdad con el informe junto a la copia y sin textos de la copia, la segunda vez rechazado con 2, y uso y configuración incorrectos).
+- Copias de MySQL, a mano con la copia sintética importada: `mysqldump --single-transaction --no-tablespaces --result-file=…` con el usuario limitado (sin `--no-tablespaces` pide el permiso PROCESS: comprobado) y recuperación en otra base con `mysql … --execute="source …"`; `CHECKSUM TABLE` de las 14 tablas iguales. Comprobado también el comando del README que pasa un `-wal` pendiente a `cuentas.db` (`wal_checkpoint(TRUNCATE)`; sin él, cerrar sin leer no lo pasa).
+- Documentación: README («Pasar los datos de SQLite a MySQL» con los pasos del corte, y «Copias de MySQL»), DATA.md (importador implementado y corte por fases), AGENTS.md de la raíz y de `tools/importer/`, `docs/arquitectura.md` y `docs/pruebas.md`.
+- Validación final: `npm run check` aprobado (502 pruebas en 43 archivos: las 494 de antes y 8 nuevas; tipos y oxlint correctos); `npm run build` aprobado; `CUENTAS_E2E_CHANNEL=chrome npm run test:e2e` aprobado (46/46, 1,8 min); `git diff --check` sin errores.
+- Limitaciones: solo copias sintéticas; la copia real de la persona no se ha leído ni importado (DATA-02). Data Export de Workbench sin probar en este entorno.
+- Siguiente tarea: **MYSQL-04**.
 
 ### Plantilla para la siguiente tarea
 

@@ -191,6 +191,16 @@ const SERVER_RULES: Rule[] = [
     if (!file.startsWith('tools/sqlite/') || imp.target === null) return null
     return imp.target.startsWith('tools/sqlite/') || imp.target.startsWith('shared/') ? null : 'tools/sqlite/ solo importa librerías, shared/ y su propia carpeta'
   },
+  // tools/importer/: usa la conexión de MySQL del servidor (server/common/) y el esquema de antes, nunca los módulos.
+  (file, imp) => {
+    if (!file.startsWith('tools/importer/') || imp.target === null) return null
+    const allowed =
+      imp.target.startsWith('tools/importer/') ||
+      imp.target.startsWith('tools/sqlite/') ||
+      imp.target.startsWith('shared/') ||
+      (imp.target.startsWith('server/common/') && !imp.target.startsWith('server/common/testing/'))
+    return allowed ? null : 'el importador importa su carpeta, tools/sqlite/, server/common/ y shared/: ni los módulos ni app.ts (carga las tablas tal cual, sin casos de uso)'
+  },
   // app.ts e index.ts: la raíz de composición solo conoce el index.ts de cada módulo y common/.
   (file, imp) => {
     if ((file !== 'server/app.ts' && file !== 'server/index.ts') || imp.target === null) return null

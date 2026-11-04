@@ -23,6 +23,7 @@ CUENTAS_E2E_CHANNEL=chrome npm run test:e2e   # con el Chrome instalado, si no s
 | Servidor, API por HTTP | `server/app.test.ts` y `server/modules/*/<módulo>.test.ts` | El servidor de verdad en un puerto libre (`startApi`), con una base MySQL de pruebas y la cookie como un navegador. |
 | Servidor, arranque | `server/index.test.ts` y el arranque de `server/modules/auth/auth.test.ts` | `server/index.ts` en otro proceso: sin código no conecta, y sin MySQL o con la base o el usuario mal no arranca y lo explica. |
 | Esquema de antes | `tools/sqlite/migrations.test.ts` | Las migraciones 001–005 de SQLite y sus restricciones, contra archivos temporales: la base que lee el importador. |
+| Importador | `tools/importer/importSqlite.test.ts` y `tools/importer/cli.test.ts` | Copias sintéticas de cuentas.db pasadas a MySQL: carga completa comprobada, lo que ve después la API, rechazos, fallo y diferencias a mitad (se deshace todo) y el comando con sus códigos de salida, sin enseñar datos. |
 | Web | `src/features/**/*.test.ts` | El estado de la revisión de tickets, la preparación de imágenes y la migración del navegador (con IndexedDB en memoria). |
 | Arquitectura y documentación | `tests/architecture.test.ts` y `tests/docs.test.ts` | Las reglas de dependencia y que la documentación para agentes esté completa y al día. |
 | Navegador | `e2e/*.spec.ts` (Playwright) | La app entera, en escritorio y en móvil (`docs/frontend.md`). |
@@ -61,6 +62,8 @@ Nunca se usan los datos de `server/data/`. Los tickets de prueba están en `fixt
 - `fixtures/tickets/ocr-real/`: lo que leyó Tesseract de verdad de esas imágenes sintéticas (en varias resoluciones y como «foto»).
 
 Cada fixture lleva un campo `provenance` que dice de dónde sale. Si añades una, que sea inventada o sintética, y dilo en ese campo.
+
+Las copias de `cuentas.db` con las que se prueba el importador no son archivos: las crea `tools/importer/syntheticCopy.ts` en la carpeta temporal, con las migraciones 001–005 y datos inventados.
 
 ## Caracterización para la migración
 

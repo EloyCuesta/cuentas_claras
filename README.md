@@ -87,7 +87,37 @@ La aplicación no usa root ni crea bases de datos: solo trabaja dentro de `cuent
 
 ## Pasar los datos de SQLite a MySQL
 
-Si ya usabas la app con SQLite, tus datos siguen en `server/data/cuentas.db`: el servidor ya no lo abre, pero no lo borra. El importador que los pasa a una base `cuentas_claras` vacía llega en la siguiente entrega (MYSQL-03, en [el estado de la migración](docs/migration/STATUS.md)). Hasta entonces, conserva ese archivo y no uses la versión MySQL con datos de verdad.
+Si ya usabas la app con SQLite, tus datos siguen en `server/data/cuentas.db`: el servidor ya no lo abre, pero no lo borra. Se pasan una sola vez a una base `cuentas_claras` **vacía** con el importador, que copia las doce tablas tal cual (ids, versiones, tickets y lo aprendido; no siembra categorías ni repite lo que hizo cada ticket) y comprueba fila a fila que no se ha perdido nada. Lo haces tú, con tus datos:
+
+1. **Para la app** (Ctrl+C en la consola de `npm run dev` o de `npm run server`). Al cerrarse pasa a `cuentas.db` lo que quedaba en `cuentas.db-wal` y lo borra. Si en `server/data/` sigue habiendo un `cuentas.db-wal` (la app no se cerró bien), guarda aparte los tres archivos `cuentas.db*` y, desde la carpeta de la app, ejecuta `node -e "const db = require('better-sqlite3')('server/data/cuentas.db'); db.pragma('wal_checkpoint(TRUNCATE)'); db.close()"`: SQLite pasa el `-wal` al archivo y lo borra.
+2. **Copia `cuentas.db`** a una carpeta fuera del repositorio, por ejemplo `C:\copias\cuentas-2026-11-04.db`. Guárdala: es tu vuelta atrás.
+3. **Crea la base vacía** como en «Preparar MySQL». Si ya arrancaste la app con MySQL, la base tiene las categorías iniciales y el importador no la usará: si no tiene nada tuyo, bórrala y créala otra vez en Workbench (`DROP DATABASE cuentas_claras;` y el `CREATE DATABASE` de arriba).
+4. **Importa**, con las `CUENTAS_DB_*` de tu `.env`:
+
+   ```bash
+   npm run importar:sqlite -- "C:\copias\cuentas-2026-11-04.db"
+   ```
+
+5. **Revisa el informe**, que se guarda junto a la copia (`informe-importacion-AAAAMMDD-HHMMSS.json`; con `--informe <archivo>`, donde digas). Tiene que decir `"resultado": "válido"`, cada tabla `"iguales": true` y `"sumas"` con `"iguales": true`; las sumas (céntimos por mes, movimientos, tickets…) sirven para compararlas con lo que conoces. Ni la consola ni el informe enseñan tus conceptos, nombres o notas: solo claves, recuentos, huellas y sumas. El comando sale con 0 si todo coincide; con 1 si algo no coincide; con 2 si no se ha podido importar (la copia no vale, MySQL no responde o la base no está vacía). En los dos últimos casos se deshace todo y la base queda vacía, así que puedes corregirlo y repetir. Con 3, se importó y comprobó pero no se pudo escribir el informe.
+6. **Arranca la app** (`npm run dev`) y mira el resumen del mes, los movimientos, la despensa y los últimos tickets.
+7. **Haz una copia completa de MySQL** (ver «Copias de MySQL»).
+
+Mientras no escribas nada nuevo en MySQL, volver atrás es usar otra vez la copia de `cuentas.db` con la versión anterior de la app. Después, esa copia ya no tiene lo nuevo.
+
+## Copias de MySQL
+
+La copia JSON de *Ajustes* solo guarda las finanzas. La copia completa (finanzas, despensa, tickets y lo aprendido) es la de la base `cuentas_claras`:
+
+- **MySQL Workbench**: *Server › Data Export*, marca `cuentas_claras`, elige *Export to Self-Contained File* e *Include Create Schema*, y *Start Export*. Para recuperarla: *Server › Data Import*, en una base vacía.
+- **mysqldump** (en Windows está en `C:\Program Files\MySQL\MySQL Server 8.4\bin`):
+
+  ```bash
+  mysqldump -u cuentas -p --single-transaction --no-tablespaces --result-file=copia-cuentas_claras.sql cuentas_claras
+  ```
+
+  `--no-tablespaces` evita que pida un permiso que el usuario de la app no tiene, y `--result-file` escribe el archivo tal cual (en PowerShell, `>` lo guardaría en UTF-16). Para recuperarla en una base vacía (creada como en «Preparar MySQL»): `mysql -u cuentas -p cuentas_claras --execute="source copia-cuentas_claras.sql"`.
+
+Guarda las copias fuera del equipo de vez en cuando: si el disco falla, se van con él.
 
 ## Pruebas
 
@@ -197,7 +227,7 @@ Cómo está hecha por dentro, cómo se prueba y por qué es así:
 - Los datos están en la base MySQL `cuentas_claras`, **en este equipo**.
   - No hay cuentas de usuario ni sincronización, y el servidor solo escucha en `127.0.0.1` (el móvil llega a través de Vite con `--host`).
   - Si borras la base (o desinstalas MySQL borrando sus datos), se pierden, salvo que tengas una copia. Por eso la app recuerda hacer copias y muestra la fecha de la última.
-  - La copia JSON de *Ajustes* solo guarda las finanzas y se puede descargar en cualquier momento. La copia completa (también la Despensa y los tickets) se hace con MySQL Workbench (*Server › Data Export*).
+  - La copia JSON de *Ajustes* solo guarda las finanzas y se puede descargar en cualquier momento. La copia completa (también la Despensa y los tickets) se hace con MySQL Workbench o mysqldump: ver «Copias de MySQL».
 - No está conectada al banco: el resultado del mes **no es un saldo**, es la diferencia entre lo que entra y lo que sale.
 - Una sola moneda (euro).
 - Los recurrentes solo crean vencimientos (que se pueden pagar o editar) hasta el final del mes siguiente. En meses más lejanos la previsión los proyecta con el importe de la regla: si sabes que un recibo cambiará, ajústalo cuando se cree.

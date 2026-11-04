@@ -43,6 +43,7 @@ Cada módulo de `server/modules/` tiene:
 | `server/common/` | `server/common/`, `shared/` y librerías | módulos y `server/app.ts` |
 | todo `server/` | lo de arriba | `tools/` y better-sqlite3: el servidor no depende de SQLite |
 | `tools/sqlite/` | librerías (better-sqlite3), `shared/` y su propia carpeta | lo demás, también `server/` |
+| `tools/importer/` | su carpeta, `tools/sqlite/`, `server/common/`, `shared/` y librerías | los módulos y `server/app.ts`: carga las tablas tal cual, sin casos de uso |
 | `server/app.ts` · `server/index.ts` | el `index.ts` de cada módulo y `server/common/` | el interior de los módulos |
 | `src/` | lo de la web y `shared/` | nada de `server/` |
 
@@ -111,6 +112,7 @@ server/
 └── data/                          cuentas.db de antes de MySQL (fuera de git)
 database/mysql/                    schema_migrations.sql y migrations/005…
 tools/sqlite/                      las migraciones 001…005 de SQLite (las lee el importador)
+tools/importer/                    el importador de una copia de cuentas.db a MySQL
 shared/{common,finance,pantry,tickets,testing}/
 src/
 ├── main.tsx · Root.tsx · App.tsx · GuestApp.tsx · styles.css
