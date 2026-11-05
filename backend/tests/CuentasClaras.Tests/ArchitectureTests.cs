@@ -123,8 +123,29 @@ public sealed class ArchitectureTests
     [InlineData("CuentasClaras.Infrastructure.Finance.Store", "MySqlConnector.MySqlConnection", true)]
     [InlineData("CuentasClaras.Infrastructure.Common.MySql.MySqlMigrations", "CuentasClaras.Infrastructure.Finance.DefaultCategorySeed", false)]
     [InlineData("CuentasClaras.Infrastructure.Finance.DefaultCategorySeed", "CuentasClaras.Infrastructure.Common.MySql.MySqlCommands", true)]
+    [InlineData("CuentasClaras.Domain.Tickets.TicketMatcher", "CuentasClaras.Domain.Pantry.PantryItem", false)]
+    [InlineData("CuentasClaras.Domain.Tickets.TicketText", "CuentasClaras.Domain.Common.JsCase", true)]
+    [InlineData("CuentasClaras.Application.Tickets.TicketRequests", "CuentasClaras.Domain.Tickets.TicketText", true)]
+    [InlineData("CuentasClaras.Application.Tickets.TicketRequests", "CuentasClaras.Domain.Pantry.PantryItem", false)]
+    [InlineData("CuentasClaras.Api.Tickets.Routes", "CuentasClaras.Domain.Tickets.TicketText", false)]
     public void La_politica_detecta_infracciones_aunque_el_modulo_aun_no_este_portado(
         string source, string target, bool allowed) => Assert.Equal(allowed, Violation(source, target) is null);
+
+    [Fact]
+    public void Las_reglas_de_tickets_no_leen_el_reloj_ni_el_azar()
+    {
+        // La fecha de hoy y los ids llegan como parámetro (TIC-01): nada de DateTime.Now, Random ni Guid.NewGuid.
+        string[] forbidden = ["System.DateTime", "System.DateTimeOffset", "System.TimeProvider", "System.Random", "System.Guid"];
+        var rules = typeof(CuentasClaras.Domain.Tickets.TicketParser).Assembly.GetTypes()
+            .Concat(typeof(CuentasClaras.Application.Tickets.TicketRequests).Assembly.GetTypes())
+            .Where(type => type.Namespace is "CuentasClaras.Domain.Tickets" or "CuentasClaras.Domain.Common" or "CuentasClaras.Application.Tickets")
+            .ToArray();
+        Assert.True(rules.Length >= 20, $"Solo se inspeccionaron {rules.Length} tipos.");
+        var uses = rules.SelectMany(type => CompiledDependencies.Of(type)
+            .Where(target => forbidden.Contains(target.FullName))
+            .Select(target => $"{type.FullName} → {target.FullName}")).ToArray();
+        Assert.True(uses.Length == 0, string.Join(Environment.NewLine, uses));
+    }
 
     [Fact]
     public void El_lector_encuentra_dependencias_que_no_aparecen_en_las_firmas_publicas()

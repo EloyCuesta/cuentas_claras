@@ -14,12 +14,6 @@ public sealed class TicketRulesCorpusTests
     private static readonly JsonDocument BaseRules = CorpusJson.Load("rules.json");
     private static readonly string[] Cultures = ["es-ES", ""];
 
-    /// <summary>Lo que aún no está portado (vacío cuando TIC-01 está terminada).</summary>
-    private static readonly string[] Pending = [
-        "priceFromLines", "quantityFromLines", "newItemUnit", "lineReviewStatus",
-        "aliasStoreOf", "fingerprintSource", "pastedTextSource", "imagesSource", "purchasesFromLines",
-    ];
-
     /// <summary>Las operaciones de tickets que ya tenía el corpus de reglas de BASE-01 (rules.json).</summary>
     private static readonly string[] BaseTicketOperations = ["roundRatio", "calculatedAmount", "canApplyLine"];
 
@@ -28,8 +22,7 @@ public sealed class TicketRulesCorpusTests
         var data = new TheoryData<string, string>();
         foreach (var culture in Cultures)
             foreach (var test in Corpus.RootElement.GetProperty("cases").EnumerateArray())
-                if (!Pending.Contains(test.GetProperty("operation").GetString()))
-                    data.Add(culture, test.GetProperty("id").GetString()!);
+                data.Add(culture, test.GetProperty("id").GetString()!);
         return data;
     }
 
@@ -54,8 +47,8 @@ public sealed class TicketRulesCorpusTests
         Assert.Equal(cases.Length, cases.Select(test => test.GetProperty("id").GetString()).Distinct().Count());
         var operations = root.GetProperty("operations").EnumerateArray().Select(op => op.GetString()!).ToArray();
         Assert.Equal(operations, cases.Select(test => test.GetProperty("operation").GetString()!).Distinct().Order(StringComparer.Ordinal));
-        // Cada operación del corpus está portada o pendiente, nunca las dos ni ninguna.
-        Assert.Equal(operations.Order(StringComparer.Ordinal), TicketRulesCorpus.Ported.Concat(Pending).Order(StringComparer.Ordinal));
+        // Cada operación del corpus tiene su regla en C#, y C# no tiene ninguna que el corpus no pruebe.
+        Assert.Equal(operations.Order(StringComparer.Ordinal), TicketRulesCorpus.Ported.Order(StringComparer.Ordinal));
         // Las reglas de tickets de rules.json siguen siendo diez y todas tienen su regla en C#.
         var baseCases = BaseRules.RootElement.GetProperty("cases").EnumerateArray()
             .Where(test => BaseTicketOperations.Contains(test.GetProperty("operation").GetString())).ToArray();

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using CuentasClaras.Application.Tickets;
@@ -64,7 +66,58 @@ internal static partial class TicketRulesCorpus
         // shared/tickets/ticketValidation.ts, en Application.Tickets
         ["validateTicketSave"] = input => Json(TicketRequests.ValidateTicketSave(BodyOf(input)), Json),
         ["validateLineUpdate"] = input => Json(TicketRequests.ValidateLineUpdate(BodyOf(input)), update => Object(("itemId", update.ItemId))),
+        // server/modules/tickets/domain/ticketPurchase.ts
+        ["priceFromLines"] = input => Number(TicketPurchaseRules.PriceFromLines([.. Items(input, "lines").Select(ReadSaveLine)], Text(input, "unit"))),
+        ["quantityFromLines"] = input => Number(TicketPurchaseRules.QuantityFromLines([.. Items(input, "lines").Select(ReadSaveLine)], Text(input, "unit"))),
+        ["newItemUnit"] = input => String(TicketPurchaseRules.NewItemUnit([.. Items(input, "lines").Select(ReadSaveLine)])),
+        ["lineReviewStatus"] = input => String(TicketPurchaseRules.LineReviewStatus(ReadSaveLine(Get(input, "line")))),
+        // server/modules/tickets/domain/ticketIdentity.ts: el texto o las partes y su SHA-256, como el Hasher
+        ["aliasStoreOf"] = input => String(TicketIdentity.AliasStoreOf(Text(input, "store"), Text(input, "storeName"))),
+        ["fingerprintSource"] = input =>
+        {
+            var source = TicketIdentity.FingerprintSource(ReadFingerprint(Get(input, "input")));
+            return Object(("source", source), ("sha256", Sha256([new FingerprintPart(source, null)])));
+        },
+        ["pastedTextSource"] = input =>
+        {
+            var source = TicketIdentity.PastedTextSource(Text(input, "text"));
+            return Object(("source", source), ("sha256", Sha256([new FingerprintPart(source, null)])));
+        },
+        ["imagesSource"] = input =>
+        {
+            byte[][] images = [
+                .. Items(input, "files").Select(path => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Fixtures", "tickets", Path.GetFileName(Text(path))))),
+                .. Items(input, "images").Select(image => Convert.FromBase64String(Text(image))),
+            ];
+            var parts = TicketIdentity.ImagesSource(images);
+            return Object(("parts", Array(parts.Select(part => part.Bytes is { } bytes
+                ? Object(("length", bytes.Length), ("sha256", Sha256([new FingerprintPart(null, bytes)])))
+                : String(part.Text)))), ("sha256", Sha256(parts)));
+        },
+        // server/modules/tickets/domain/purchaseHistory.ts
+        ["purchasesFromLines"] = input => Array(PurchaseHistory.PurchasesFromLines([.. Items(input, "lines").Select(line => new PurchaseLine(
+            Text(line, "ticketId"), Text(line, "itemId"), Long(line, "quantity"), LongOrNull(line, "amountCents"), Long(line, "discountCents"),
+            DoubleOrNull(line, "weightKg"), Text(line, "date"), Text(line, "store"), Text(line, "recordedAt")))]).Select(purchase => Object(
+            ("itemId", purchase.ItemId), ("date", purchase.Date), ("amount", purchase.Amount), ("measure", purchase.Measure), ("costCents", purchase.CostCents),
+            ("store", purchase.Store), ("ticketId", purchase.TicketId), ("recordedAt", purchase.RecordedAt)))),
     };
+
+    /// <summary>
+    /// SHA-256 de las partes como Sha256Hasher de Express (hash.update de Node): los textos en UTF-8 con
+    /// U+FFFD en lugar de un sustituto suelto (Encoding.UTF8 hace lo mismo) y los bytes tal cual.
+    /// </summary>
+    private static string Sha256(IEnumerable<FingerprintPart> parts)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var part in parts) hash.AppendData(part.Bytes ?? Encoding.UTF8.GetBytes(part.Text!));
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
+    }
+
+    private static FingerprintInput ReadFingerprint(JsonElement input) => new(
+        Text(input, "store"), Text(input, "storeName"), Text(input, "date"), TextOrNull(input, "time"), LongOrNull(input, "totalCents"),
+        [.. Items(input, "lines").Select(line => new FingerprintLine(Text(line, "rawName"), Long(line, "quantity"), LongOrNull(line, "unitPriceCents"),
+            LongOrNull(line, "amountCents"), Long(line, "discountCents"), DoubleOrNull(line, "weightKg"), LongOrNull(line, "pricePerKgCents")))],
+        Has(input, "adjustments") ? [.. Items(input, "adjustments").Select(adjustment => new FingerprintAdjustment(Text(adjustment, "kind"), LongOrNull(adjustment, "amountCents")))] : null);
 
     /// <summary>Las operaciones de tickets de rules.json (BASE-01), que reciben la línea directamente.</summary>
     private static readonly Dictionary<string, Func<JsonElement, JsonNode?>> BaseOperations = new(StringComparer.Ordinal)
