@@ -72,8 +72,8 @@ add('fecha-componer-ano-corto', 'toISODate rellena el año a cuatro cifras', 'to
 
 for (const [id, text] of [
   ['tildes', 'Jamón serrano reser.'], ['enes', 'LASAÑA  BOLOÑESA'], ['vacio', ''], ['solo-signos', '¡¿!?·'],
-  ['expansiones', 'ß ﬁ ﬀ ﬃ ﬆ ŉ ẚ K Å'], ['sin-punto', 'ı ſ İ'], ['espacios-js', ' pan﻿de\u0085molde '],
-  ['ya-descompuesto', 'Jamón'], ['sustituto-suelto', 'PAN\uD800DE'], ['astral', '𝐀PAN 𝟏𝟐'], ['digrafos', 'Ǆ ǅ ǆ ĳ'],
+  ['expansiones', 'ß ﬁ ﬀ ﬃ ﬆ ŉ ẚ \u212A \u212B'], ['sin-punto', 'ı ſ İ'], ['espacios-js', ' pan\uFEFFde\u0085molde '],
+  ['ya-descompuesto', 'Jamo\u0301n'], ['sustituto-suelto', 'PAN\uD800DE'], ['astral', '𝐀PAN 𝟏𝟐'], ['digrafos', 'Ǆ ǅ ǆ ĳ'],
   ['cifras-otras', '٣ ３ 3'], ['griego', 'ΟΔΟΣ ΐ'],
 ] as const) add(`clave-${id}`, 'nameKey: NFD, sin marcas, mayúsculas de JS (que expanden) y solo A-Z 0-9', 'nameKey', { text })
 
@@ -96,7 +96,7 @@ for (const [id, raw] of [
   ['molde', 'PAN DE MOLDE INTEGRA'], ['tilde', 'PLÁTANO  CANARIO'], ['talla-l', 'HUEVOS CAMPEROS L'], ['talla-xl', 'CAMISETA XL'],
   ['y-a', 'PAN Y LECHE A GRANEL'], ['tallas', 'XL XXL XXXS M L PAN Y'], ['eszett', 'STRAßE'], ['eszett-inicial', 'ßÜ'],
   ['i-con-punto', 'İSTANBUL'], ['sigma-final', 'ΟΔΟΣ ΑΓΙΟΣ'], ['sigma-sola', 'Σ ΣΑ'], ['ligadura', 'ﬁNO'],
-  ['astral', '𐐀𐐁 PAN'], ['espacios-js', ' ﻿PAN\u0085DE  MOLDE\t'], ['digrafo', 'ǄEMAL'], ['n-apostrofo', 'ŉ'],
+  ['astral', '𐐀𐐁 PAN'], ['espacios-js', ' \uFEFFPAN\u0085DE  MOLDE\t'], ['digrafo', 'ǄEMAL'], ['n-apostrofo', 'ŉ'],
 ] as const) add(`bonito-${id}`, 'prettyName: minúsculas de es con contexto (sigma final, İ) y la primera unidad UTF-16 en mayúscula', 'prettyName', { raw })
 
 const cased: string[] = []
@@ -366,9 +366,9 @@ const traps: [string, string, OcrLine[][]][] = [
   ['cifras-unicode', '\\d de JS solo es ASCII: cifras árabes y anchas no son importes', [lidl('PAN ٣,٩٥ A', 'LECHE １,００ A', 'SAL 0,40 A', 'TOTAL ٠,٤٠')]],
   ['limite-palabra', '\\b de JS es ASCII: Á, É y Ñ no son letras de palabra', [ocr('ÁLIDLÉ SUPERMERCADOS', 'EUR', 'PAN 1,00 A', 'Descñ -0,10', 'TOTAL 0,90', 'HORAÑ19:24')]],
   ['limite-palabra-otra', '\\b en otra tienda: «S.L.» detrás de Ñ y una fecha detrás de Ñ', [ocr('ALMACENES ÑS.L.', 'Ñ28/10/2026 19:24', 'PAN 1,00', 'TOTAL 1,00')]],
-  ['espacios', '\\s de JS incluye U+FEFF y no U+0085', [ocr('LIDL', 'EUR', 'PAN﻿1,00﻿A', 'SAL\u00850,40 A', '﻿', ' \u0085 ', 'TOTAL﻿1,40')]],
-  ['punto-fin-de-linea', '«.» de JS no pasa por \\r ni U+2028', [ocr('LIDL', 'EUR', 'LOMO 3,67 B', '0,544 kg x 6,75 EUR/kg', 'FILETE 4,15 B', '0,547 kg\rx 7,58 EUR/kg', 'TOTAL 7,82')]],
-  ['kelvin', 'la i de JS sin u no iguala k con el signo Kelvin', [ocr('LIDL', 'EUR', 'LOMO 3,67 B', '0,544 Kg x 6,75 EUR/kg', 'TOTAL 3,67')]],
+  ['espacios', '\\s de JS incluye U+FEFF y no U+0085', [ocr('LIDL', 'EUR', 'PAN\uFEFF1,00\uFEFFA', 'SAL\u00850,40 A', '\uFEFF', ' \u0085 ', 'TOTAL\uFEFF1,40')]],
+  ['punto-fin-de-linea', '«.» de JS no pasa por \\r ni U+2028', [ocr('LIDL', 'EUR', 'LOMO 3,67 B', '0,544 kg\u2028x 6,75 EUR/kg', 'FILETE 4,15 B', '0,547 kg\rx 7,58 EUR/kg', 'TOTAL 7,82')]],
+  ['kelvin', 'la i de JS sin u no iguala k con el signo Kelvin', [ocr('LIDL', 'EUR', 'LOMO 3,67 B', '0,544 \u212Ag x 6,75 EUR/kg', 'TOTAL 3,67')]],
   ['letras-astrales', '\\p{L} con u: una letra fuera del BMP es una letra', [ocr('LIDL SUPERMERCADOS', '39001𝐀Santander', 'EUR', '𝐀𝐁 1,00 A', 'PAN 𝐀1,O9 A', 'PATATA 4,95X 2 9,𝐀0 A', 'SAL 1𝐀', 'TOTAL 1,00')]],
   ['iva-simbolos', 'las letras del IVA leídas como €, ¢ o (', [lidl('CAFE 1,29 €', 'TE 1,29 ¢', 'PAN 1,29 (', 'SAL 1,29€', 'AGUA 1,15-', 'TOTAL 6,45')]],
   ['otra-tienda-mayusculas', 'el nombre de otra tienda en minúsculas de es (sigma final, İ, ß)', [ocr('ΚΑΦΕΣ ΟΔΟΣ S.A.', 'PAN 1,00', 'TOTAL 1,00')]],
@@ -489,7 +489,7 @@ const validBodies: [string, string, unknown][] = [
   ['pesos-redondeados', 'pesos redondeados a milésimas como Math.round (0,0005 → 0,001; 1,0005 → 1)', body({ acknowledged: true, totalCents: null,
     lines: [saveLine({ weightKg: 0.0005 }), saveLine({ rawName: 'SAL', weightKg: 1.0005 }), saveLine({ rawName: 'AZUCAR', weightKg: 0.0004 }), saveLine({ rawName: 'ARROZ', weightKg: 1000 })],
     decisions: { PAN: { kind: 'ignore' }, SAL: { kind: 'ignore' }, AZUCAR: { kind: 'ignore' }, ARROZ: { kind: 'ignore' } } })],
-  ['espacios-js', 'trim de JS: quita U+FEFF y no U+0085', body({ storeName: '﻿Lidl\u0085', lines: [saveLine({ rawName: '﻿PAN\u0085' })], decisions: { PAN: { kind: 'ignore' } } })],
+  ['espacios-js', 'trim de JS: quita U+FEFF y no U+0085', body({ storeName: '\uFEFFLidl\u0085', lines: [saveLine({ rawName: '\uFEFFPAN\u0085' })], decisions: { PAN: { kind: 'ignore' } } })],
   ['eszett', 'la clave de la decisión con ß', body({ lines: [saveLine({ rawName: 'STRAßE' })], decisions: { STRASSE: { kind: 'ignore' } } })],
   ['propiedades-extra', 'propiedades desconocidas se ignoran', body({ extra: 1, lines: [saveLine({ extra: true, id: 'x', itemId: 'y' })] })],
 ]
@@ -639,8 +639,8 @@ for (const [id, golden] of [['huella-golden-texto', GOLDEN.pasted], ['huella-gol
   const found = cases.find((c) => c.id === id)!.expected as { sha256: string }
   if (found.sha256 !== golden) throw new Error(`${id}: ${found.sha256} no es la huella golden ${golden}`)
 }
-add('huella-texto-espacios', 'pastedTextSource: NFC y espacios de JS (U+FEFF sí, U+0085 no)', 'pastedTextSource', { text: '﻿ Jamón  serrano\u0085 \t' })
-add('huella-texto-sustituto', 'pastedTextSource: un sustituto suelto no rompe la normalización', 'pastedTextSource', { text: 'Pán \uD800 é \uDC00́' })
+add('huella-texto-espacios', 'pastedTextSource: NFC y espacios de JS (U+FEFF sí, U+0085 no)', 'pastedTextSource', { text: '\uFEFF Jamo\u0301n\u00A0\u2028serrano\u0085 \t' })
+add('huella-texto-sustituto', 'pastedTextSource: un sustituto suelto no rompe la normalización', 'pastedTextSource', { text: 'Pa\u0301n \uD800 e\u0301 \uDC00\u0301' })
 add('huella-imagenes-varias', 'imagesSource: varias imágenes, cada una con su tamaño delante', 'imagesSource', { images: ['AAEC', '', '/w=='] })
 add('huella-imagenes-ninguna', 'imagesSource sin imágenes', 'imagesSource', { images: [] })
 const fpLine = (rawName: string, overrides: Record<string, unknown> = {}) => ({ rawName, quantity: 1, unitPriceCents: null, amountCents: 100, discountCents: 0, weightKg: null, pricePerKgCents: null, ...overrides })
@@ -650,7 +650,7 @@ for (const [id, description, input] of [
     adjustments: [{ kind: 'other', amountCents: null }, { kind: 'Other', amountCents: -1 }, { kind: 'coupon', amountCents: -10 }, { kind: 'coupon', amountCents: -5 }, { kind: 'Coupon', amountCents: 5 }, { kind: 'discount', amountCents: 0 }] }],
   ['pesos', 'los pesos en gramos como Math.round, con mitades', { store: 'otra', storeName: 'Frutería Ñandú', date: '2026-10-28', time: '09:05', totalCents: -10,
     lines: [fpLine('A', { weightKg: 0.5625 }), fpLine('B', { weightKg: 0.0025 }), fpLine('C', { weightKg: -0.0035 }), fpLine('D', { weightKg: -0.0025 }), fpLine('E', { weightKg: 1.0005 }), fpLine('F', { weightKg: 1e18 }), fpLine('G', { weightKg: 123456789.123 })] }],
-  ['escapes', 'JSON.stringify de JS: comillas, barras, controles, U+2028, sustitutos sueltos y no ASCII', { store: 'otra', storeName: 'STRAßE "Ñ" <&>', date: '2026-10-28"\\\u0001\b\f\n\r\t\u001f\u007f', time: '  𐀀😀</>&\'+é',
+  ['escapes', 'JSON.stringify de JS: comillas, barras, controles, U+2028, sustitutos sueltos y no ASCII', { store: 'otra', storeName: 'STRAßE "Ñ" <&>', date: '2026-10-28"\\\u0001\b\f\n\r\t\u001f\u007f', time: '\u2028\u2029𐀀😀</>&\'+é',
     totalCents: 0, lines: [fpLine('"PAN"\\')], adjustments: [{ kind: '"\\\u0000', amountCents: 1 }] }],
 ] as const) add(`huella-${id}`, `fingerprintSource: ${description}`, 'fingerprintSource', { input })
 

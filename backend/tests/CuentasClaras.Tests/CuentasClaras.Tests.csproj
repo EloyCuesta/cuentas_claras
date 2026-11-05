@@ -15,5 +15,8 @@
     <Using Include="Xunit" />
     <None Include="../../../fixtures/migration/http-auth.json" Link="Fixtures/http-auth.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../fixtures/migration/http-testing.json" Link="Fixtures/http-testing.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/migration/rules.json" Link="Fixtures/rules.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/migration/rules-tickets.json" Link="Fixtures/rules-tickets.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/tickets/ticket-lidl-ejemplo.png" Link="Fixtures/tickets/ticket-lidl-ejemplo.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
