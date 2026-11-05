@@ -4,7 +4,7 @@
 
 ## Qué hace
 
-El host .NET que sustituirá a Express. BASE-02 aporta el acceso; DATA-01, la conexión con el MySQL que ya usa Express: las mismas migraciones de `../database/mysql/`, el mismo historial, transacciones y bloqueos. Todavía no tiene finanzas, despensa ni tickets: la aplicación de uso diario sigue siendo Express sobre MySQL, y la web no se dirige a este host. El arranque y las pruebas están en [pruebas](../docs/pruebas.md).
+El host .NET que sustituirá a Express. BASE-02 aporta el acceso; DATA-01, la conexión con el MySQL que ya usa Express: las mismas migraciones de `../database/mysql/`, el mismo historial, transacciones y bloqueos. TIC-01 añade las reglas puras de los tickets, sin rutas: en `src/CuentasClaras.Domain/Tickets/` (lectura del OCR, evidencia, emparejamiento, compra, huellas e historial), con lo común en `src/CuentasClaras.Domain/Common/`, y la validación del cuerpo en `src/CuentasClaras.Application/Tickets/TicketRequests.cs`. Todavía no tiene finanzas, despensa ni rutas de tickets: la aplicación de uso diario sigue siendo Express sobre MySQL, y la web no se dirige a este host. El arranque y las pruebas están en [pruebas](../docs/pruebas.md).
 
 ## Acceso
 
@@ -54,7 +54,8 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 
 `tests/CuentasClaras.Tests/AuthTests.cs`: política, casos de uso y adaptadores de acceso.
 `tests/CuentasClaras.Tests/HttpTests.cs`: Kestrel real sin base de datos, corpus HTTP compartido, límites, errores, proxy y proceso de arranque.
-`tests/CuentasClaras.Tests/ArchitectureTests.cs`: referencias de proyectos/ensamblados, paquetes y dependencias de tipos e IL entre capas y módulos, incluido el driver.
+`tests/CuentasClaras.Tests/ArchitectureTests.cs`: referencias de proyectos/ensamblados, paquetes y dependencias de tipos e IL entre capas y módulos, incluido el driver; que Domain.Tickets no usa Domain.Pantry y que las reglas de tickets no leen el reloj ni el azar.
+`tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs`: las reglas de tickets dan exactamente el corpus de TypeScript (`../fixtures/migration/rules-tickets.json`, 510 casos) y las reglas de tickets de `../fixtures/migration/rules.json`, en es-ES y en la invariante. El ejecutor y los mapeos a JSON están en `TicketRulesCorpus.cs` y `CorpusJson.cs`.
 `tests/CuentasClaras.Tests/MySqlMigrationTests.cs`, `MySqlUnitOfWorkTests.cs`, `MySqlSchemaTests.cs` y `MySqlHostTests.cs`: contra MySQL real (categoría MySql), con bases `cuentas_test_*` de `TestDatabase.cs` que se borran al terminar.
 `../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos.
 
@@ -70,6 +71,9 @@ Los comandos y el alcance exacto están en [pruebas](../docs/pruebas.md). Los re
 - La salud lee schema_migrations en cada petición, también para comprobar que MySQL responde.
 - La página e2e monta solo acceso: no demuestra finanzas ni despensa sobre .NET.
 - Los mensajes históricos que mencionan npm run dev o .env se conservan por compatibilidad. El arranque .NET se configura como indica la documentación de pruebas.
+- Reglas portadas de TypeScript: usa `src/CuentasClaras.Domain/Common/` y no lo de .NET por defecto. Math.round es JsNumber.Round (Math.Round va al par); String(x) y toFixed, JsNumber; trim y \s, JsText (string.Trim quita U+0085 y deja U+FEFF); mayúsculas y minúsculas, JsCase (ToUpperInvariant no expande «ß» ni pasa «ı» a «I»; sus tablas salen de Node con `../tests/generateJsCaseData.ts`); JSON.stringify, JsJson (System.Text.Json escapa comillas y lo que no es ASCII); las expresiones regulares, JsRegex (\d, \b, \s, «.», «$» y la bandera i). Ordena con StringComparer.Ordinal y OrderBy (estable); recorre en orden de inserción con una lista, no con Dictionary ni HashSet; suma dobles en un bucle; InvariantCulture siempre.
+- El cuerpo de las rutas de tickets (TIC-02 y TIC-03) se pasa a TicketRequests como JsonElement, sin cuerpo = Undefined. JsonInput lee los sustitutos sueltos que GetString rechaza. Al responder, ojo: un objeto de JavaScript (Record) pone primero las claves que son índices enteros.
+- El Hasher de las huellas (TIC-02) tiene que pasar los textos a UTF-8 con U+FFFD en los sustitutos sueltos, como Node: Encoding.UTF8, no un codificador que lance.
 
 ## Si cambias este módulo
 

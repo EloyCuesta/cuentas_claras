@@ -64,6 +64,8 @@ Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql
 
 La lectura de las líneas se prueba en `shared/tickets/`. Solo estas: `npx vitest run server/modules/tickets`; sin OCR real, añade `-t "API de tickets"`.
 
+Las reglas de `domain/` (compra, identidad y huellas, historial) están portadas a C# (TIC-01) y fijadas, con las de `shared/tickets/`, en `fixtures/migration/rules-tickets.json`, incluidas las tres huellas golden.
+
 ## Trampas y decisiones
 - Qué líneas cuentan para el ritmo (con producto, verificadas y no «para una ocasión») se filtra en el SQL de `purchaseLinesSince`, para no leer todas las líneas. Las devoluciones y la agrupación por ticket y producto están en `domain/purchaseHistory.ts`.
 - `findDuplicate` devuelve el ticket entero (con líneas) cuando lo encuentra comparando contenido, y solo el resumen en los demás casos. Así era antes y la web lo acepta.
@@ -75,3 +77,4 @@ La lectura de las líneas se prueba en `shared/tickets/`. Solo estas: `npx vites
 - Rutas o mensajes: `docs/api.md`, la web (`src/features/tickets/` y el `api.ts` de `src/features/pantry/`) y `e2e/tickets.spec.ts`.
 - Lo que usa de la despensa: PantryGateway y la API pública de pantry, a la vez.
 - La huella: no la cambies; si no queda más remedio, hace falta una migración que recalcule las guardadas.
+- Una regla de `domain/`: regenera y revisa el corpus de reglas de tickets y porta el cambio a `backend/src/CuentasClaras.Domain/Tickets/` (`docs/pruebas.md`).

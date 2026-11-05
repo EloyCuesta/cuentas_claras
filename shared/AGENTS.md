@@ -27,6 +27,8 @@ Lógica pura en TypeScript, sin React, sin Express, sin base de datos y sin Node
 
 Cada archivo tiene su `*.test.ts` al lado. Los de tickets leen `fixtures/tickets/` (de dónde sale cada fixture: `docs/pruebas.md`). Solo estas: `npx vitest run shared`, o un área: `npx vitest run shared/tickets`.
 
+Las reglas de `shared/tickets/` (y las de `server/modules/tickets/domain/`) tienen además su versión en C#, en `backend/src/CuentasClaras.Domain/Tickets/` (TIC-01). Las dos dan lo mismo con el corpus `fixtures/migration/rules-tickets.json`: lo comprueban `tests/migrationTicketRules.test.ts` (TypeScript) y `backend/tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs` (C#, en es-ES y en la invariante).
+
 ## Trampas
 
 - Hay dos ValidationResult: el genérico de `shared/common/validation.ts`, con un mensaje (lo que llega a la API), y el de los formularios de finanzas, en `shared/finance/validation.ts`, con errores por campo.
@@ -36,3 +38,5 @@ Cada archivo tiene su `*.test.ts` al lado. Los de tickets leen `fixtures/tickets
 ## Si cambias algo aquí
 
 Los tests de su área, quien lo usa en la web (`src/features/`) y en el servidor (`server/modules/`), y `docs/glosario.md` si cambia un término.
+
+Cambiar una regla de `shared/tickets/` (o de `shared/common/` que usen los tickets: fechas y `formatEuros`) obliga a tres cosas a la vez: regenerar el corpus con `npx tsx tests/generateTicketRules.ts --escribir`, revisar su diff caso a caso y portar el cambio a C#. Si no, falla `tests/migrationTicketRules.test.ts` o la prueba de C#. Cómo se hace: `docs/pruebas.md`, «Caracterización para la migración».

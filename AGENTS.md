@@ -112,6 +112,7 @@ Las pruebas necesitan MySQL en marcha y las `CUENTAS_DB_*` de un usuario que pue
 | un término | `docs/glosario.md` |
 | una decisión de diseño | `docs/decisiones.md` |
 | cómo se prueba | `docs/pruebas.md` |
+| una regla de `shared/tickets/` o de `server/modules/tickets/domain/` | el corpus `fixtures/migration/rules-tickets.json` (con `tests/generateTicketRules.ts`) y su versión en C# (`shared/AGENTS.md`) |
 | lo que hace la app para las personas | `README.md` |
 | un módulo o una feature nuevos | su AGENTS.md y su CLAUDE.md, la tabla «Si vas a tocar… lee…» y `tests/architecture.test.ts` |
 
