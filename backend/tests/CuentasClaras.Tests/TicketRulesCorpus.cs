@@ -38,6 +38,22 @@ internal static partial class TicketRulesCorpus
         ["printedDigits"] = input => String(TicketEvidenceRules.PrintedDigits(Long(input, "cents"))),
         ["assessUnits"] = input => Json(TicketEvidenceRules.AssessUnits(ReadAmountEvidence(Get(input, "input")), Long(Get(input, "input"), "unitCents"), Long(Get(input, "input"), "quantity"))),
         ["assessWeight"] = input => Json(TicketEvidenceRules.AssessWeight(ReadAmountEvidence(Get(input, "input")), Long(Get(input, "input"), "grams"), Long(Get(input, "input"), "pricePerKgCents"))),
+        // shared/tickets/ticketParse.ts
+        ["linesFromText"] = input => Array(TicketParser.LinesFromText(Text(input, "text")).Select(Json)),
+        ["mergePages"] = input => Array(TicketParser.MergePages(ReadPages(input)).Select(Json)),
+        ["parseTicket"] = input => Json(TicketParser.ParseTicket(ReadPages(input))),
+        ["readTaxGroups"] = input => Array(TicketParser.ReadTaxGroups([.. Items(input, "lines").Select(ReadOcrLine)]).Select(Json)),
+        ["checkTaxGroups"] = input => Json(TicketParser.CheckTaxGroups(
+            [.. Items(input, "lines").Select(line => new TaxLine(LongOrNull(line, "amountCents"), Long(line, "discountCents"), TextOrNull(line, "taxCode")))],
+            Has(input, "groups") ? [.. Items(input, "groups").Select(ReadTaxGroup)] : null,
+            Has(input, "adjustments") ? [.. Items(input, "adjustments").Select(adjustment => LongOrNull(adjustment, "amountCents"))] : null)),
+        ["checkTicket"] = input => Json(TicketParser.CheckTicket(
+            [.. Items(input, "lines").Select(line => new CheckLine(LongOrNull(line, "amountCents"), Long(line, "discountCents"), BoolOrNull(line, "pending") == true))],
+            LongOrNull(input, "totalCents"),
+            Has(input, "adjustments") ? [.. Items(input, "adjustments").Select(adjustment => LongOrNull(adjustment, "amountCents"))] : null,
+            BoolOrNull(Get(input, "options"), "incomplete") == true)),
+        ["endsProducts"] = input => JsonValue.Create(TicketParser.EndsProducts(Text(input, "text"))),
+        ["checkLabels"] = _ => Object([.. TicketParser.CheckLabels.Select(label => (label.Key, (object?)label.Value))]),
     };
 
     /// <summary>Las operaciones de tickets de rules.json (BASE-01), que reciben la línea directamente.</summary>
@@ -98,6 +114,9 @@ internal static partial class TicketRulesCorpus
         Has(evidence, "options") ? [.. Items(evidence, "options").Select(option => new TicketAmountOption(Long(option, "cents"), Text(option, "origin")))] : null,
         ReadSource(Get(evidence, "source")));
 
+    private static TicketTaxGroup ReadTaxGroup(JsonElement group) => new(
+        Text(group, "code"), Long(group, "rateBasisPoints"), Long(group, "baseCents"), Long(group, "taxCents"), Long(group, "grossCents"));
+
     private static AmountReading ReadAmountReading(JsonElement reading) =>
         new(Long(reading, "cents"), Text(reading, "rawDigits"), BoolOrNull(reading, "malformed") ?? false, TextOrNull(reading, "printed"));
 
@@ -135,6 +154,33 @@ internal static partial class TicketRulesCorpus
         ("discrepancy", evidence.Discrepancy is null ? Omit : Json(evidence.Discrepancy)!),
         ("options", evidence.Options is null ? Omit : Array(evidence.Options.Select(option => Object(("cents", option.Cents), ("origin", option.Origin))))),
         ("source", evidence.Source is null ? Omit : Json(evidence.Source)));
+
+    private static JsonObject Json(TicketAdjustment adjustment) => Object(
+        ("id", adjustment.Id), ("label", adjustment.Label), ("kind", adjustment.Kind), ("amountCents", adjustment.AmountCents),
+        ("needsReview", adjustment.NeedsReview), ("originalText", OrOmit(adjustment.OriginalText)));
+
+    private static JsonObject Json(TicketCheck check) => Object(
+        ("status", check.Status), ("linesTotalCents", check.LinesTotalCents), ("differenceCents", check.DifferenceCents),
+        ("unreadable", check.Unreadable), ("pending", check.Pending));
+
+    private static JsonObject Json(TicketTaxGroup group) => Object(
+        ("code", group.Code), ("rateBasisPoints", group.RateBasisPoints), ("baseCents", group.BaseCents), ("taxCents", group.TaxCents), ("grossCents", group.GrossCents));
+
+    private static JsonObject Json(TaxGroupsCheck check) => Object(
+        ("conclusive", check.Conclusive), ("mismatches", check.Mismatches),
+        ("groups", Array(check.Groups.Select(group => Object(
+            ("code", group.Code), ("grossCents", group.GrossCents), ("linesCents", group.LinesCents), ("differenceCents", group.DifferenceCents))))));
+
+    private static JsonObject Json(ParsedTicketLine line) => Object(
+        ("position", line.Position), ("rawName", line.RawName), ("key", line.Key), ("quantity", line.Quantity), ("unitPriceCents", line.UnitPriceCents),
+        ("amountCents", line.AmountCents), ("discountCents", line.DiscountCents), ("weightKg", line.WeightKg), ("pricePerKgCents", line.PricePerKgCents),
+        ("taxCode", line.TaxCode), ("flags", Strings(line.Flags)), ("evidence", Json(line.Evidence)));
+
+    private static JsonObject Json(ParsedTicket ticket) => Object(
+        ("store", ticket.Store), ("storeName", ticket.StoreName), ("address", ticket.Address), ("date", ticket.Date), ("time", ticket.Time),
+        ("totalCents", ticket.TotalCents), ("lines", Array(ticket.Lines.Select(Json))), ("check", Json(ticket.Check)),
+        ("adjustments", Array(ticket.Adjustments.Select(Json))), ("issues", Strings(ticket.Issues)),
+        ("taxGroups", Array(ticket.TaxGroups.Select(Json))), ("paymentMethod", ticket.PaymentMethod));
 
     private static JsonObject Json(TicketSaveLine line) => Object(
         ("rawName", line.RawName), ("quantity", line.Quantity), ("unitPriceCents", line.UnitPriceCents), ("amountCents", line.AmountCents),

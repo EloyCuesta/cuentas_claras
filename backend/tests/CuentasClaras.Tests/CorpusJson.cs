@@ -21,8 +21,9 @@ internal static class CorpusJson
     public static bool Has(JsonElement element, string name) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out _);
 
+    /// <summary>La propiedad, o un elemento Undefined si no está (o si no es un objeto), como undefined en JavaScript.</summary>
     public static JsonElement Get(JsonElement element, string name) =>
-        element.TryGetProperty(name, out var value) ? value : default;
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) ? value : default;
 
     /// <summary>Un texto del JSON, también con sustitutos sueltos («\ud800»), que GetString no admite.</summary>
     public static string Text(JsonElement element)
