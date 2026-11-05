@@ -16,7 +16,6 @@ public sealed class TicketRulesCorpusTests
 
     /// <summary>Lo que aún no está portado (vacío cuando TIC-01 está terminada).</summary>
     private static readonly string[] Pending = [
-        "singleDigitEdit", "singleEditVariants", "printedDigits", "assessUnits", "assessWeight",
         "linesFromText", "mergePages", "parseTicket", "readTaxGroups", "checkTaxGroups", "checkTicket", "endsProducts", "checkLabels",
         "suggestForTicket", "validateTicketSave", "validateLineUpdate",
         "priceFromLines", "quantityFromLines", "newItemUnit", "lineReviewStatus",

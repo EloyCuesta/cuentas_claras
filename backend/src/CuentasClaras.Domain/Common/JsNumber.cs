@@ -26,6 +26,22 @@ public static class JsNumber
     public static bool IsSafeInteger(double value) =>
         double.IsFinite(value) && Math.Floor(value) == value && Math.Abs(value) <= MaxSafeInteger;
 
+    private static readonly System.Text.RegularExpressions.Regex DecimalLiteral =
+        new(@"^[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Number(texto) para un decimal: sin espacios de JavaScript alrededor, vacío es 0, ±Infinity, y lo
+    /// demás NaN. No es double.Parse, que depende de la cultura (en es-ES, «1.5» es 15) y acepta otras cosas.
+    /// </summary>
+    public static double Parse(string text)
+    {
+        var trimmed = JsText.Trim(text);
+        if (trimmed.Length == 0) return 0;
+        if (trimmed is "Infinity" or "+Infinity") return double.PositiveInfinity;
+        if (trimmed == "-Infinity") return double.NegativeInfinity;
+        return DecimalLiteral.IsMatch(trimmed) ? double.Parse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture) : double.NaN;
+    }
+
     /// <summary>String(x) de un entero: siempre con la cultura invariante.</summary>
     public static string ToString(long value) => value.ToString(CultureInfo.InvariantCulture);
 

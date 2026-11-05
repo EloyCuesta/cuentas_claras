@@ -32,6 +32,12 @@ internal static partial class TicketRulesCorpus
         ["calculatedAmount"] = input => Number(TicketArithmetic.CalculatedAmount(ReadSaveLine(Get(input, "line")))),
         ["lineProblems"] = input => Strings(TicketArithmetic.LineProblems(ReadSaveLine(Get(input, "line")))),
         ["canApplyLine"] = input => JsonValue.Create(TicketArithmetic.CanApplyLine(ReadSaveLine(Get(input, "line")))),
+        // shared/tickets/ticketEvidence.ts
+        ["singleDigitEdit"] = input => String(TicketEvidenceRules.SingleDigitEdit(Text(input, "read"), Text(input, "expected"))),
+        ["singleEditVariants"] = input => Strings(TicketEvidenceRules.SingleEditVariants(Text(input, "digits"))),
+        ["printedDigits"] = input => String(TicketEvidenceRules.PrintedDigits(Long(input, "cents"))),
+        ["assessUnits"] = input => Json(TicketEvidenceRules.AssessUnits(ReadAmountEvidence(Get(input, "input")), Long(Get(input, "input"), "unitCents"), Long(Get(input, "input"), "quantity"))),
+        ["assessWeight"] = input => Json(TicketEvidenceRules.AssessWeight(ReadAmountEvidence(Get(input, "input")), Long(Get(input, "input"), "grams"), Long(Get(input, "input"), "pricePerKgCents"))),
     };
 
     /// <summary>Las operaciones de tickets de rules.json (BASE-01), que reciben la línea directamente.</summary>
@@ -92,6 +98,14 @@ internal static partial class TicketRulesCorpus
         Has(evidence, "options") ? [.. Items(evidence, "options").Select(option => new TicketAmountOption(Long(option, "cents"), Text(option, "origin")))] : null,
         ReadSource(Get(evidence, "source")));
 
+    private static AmountReading ReadAmountReading(JsonElement reading) =>
+        new(Long(reading, "cents"), Text(reading, "rawDigits"), BoolOrNull(reading, "malformed") ?? false, TextOrNull(reading, "printed"));
+
+    private static AmountEvidence ReadAmountEvidence(JsonElement input) => new(
+        ReadAmountReading(Get(input, "recognized")), [.. Items(input, "readings").Select(ReadAmountReading)],
+        BoolOrNull(input, "inputsStable") ?? false, BoolOrNull(input, "amountStable") ?? false,
+        Get(input, "confidence") is { ValueKind: JsonValueKind.Object } confidence ? new OcrConfidence(DoubleOrNull(confidence, "amount"), DoubleOrNull(confidence, "inputs")) : null);
+
     private static TicketSaveLine ReadSaveLine(JsonElement line) => new(
         TextOrNull(line, "rawName") ?? "", Long(line, "quantity"), LongOrNull(line, "unitPriceCents"), LongOrNull(line, "amountCents"),
         LongOrNull(line, "discountCents") ?? 0, DoubleOrNull(line, "weightKg"), LongOrNull(line, "pricePerKgCents"), TextOrNull(line, "taxCode"),
@@ -110,7 +124,7 @@ internal static partial class TicketRulesCorpus
         ("words", line.Words is null ? Omit : Array(line.Words.Select(word => Object(("text", word.Text), ("confidence", word.Confidence), ("box", Json(word.Box)))))),
         ("source", line.Source is null ? Omit : Json(line.Source)));
 
-    private static JsonObject Json(TicketDiscrepancy discrepancy) => Object(
+    private static JsonObject? Json(TicketDiscrepancy? discrepancy) => discrepancy is null ? null : Object(
         ("kind", discrepancy.Kind), ("verdict", discrepancy.Verdict), ("recognizedCents", discrepancy.RecognizedCents),
         ("calculatedCents", discrepancy.CalculatedCents), ("explanation", discrepancy.Explanation), ("reasons", Strings(discrepancy.Reasons)));
 
@@ -118,7 +132,7 @@ internal static partial class TicketRulesCorpus
         ("text", evidence.Text), ("reread", evidence.Reread), ("normalized", OrOmit(evidence.Normalized)),
         ("recognizedCents", evidence.RecognizedCents), ("calculatedCents", evidence.CalculatedCents), ("selectedBy", evidence.SelectedBy),
         ("issues", Strings(evidence.Issues)),
-        ("discrepancy", evidence.Discrepancy is null ? Omit : Json(evidence.Discrepancy)),
+        ("discrepancy", evidence.Discrepancy is null ? Omit : Json(evidence.Discrepancy)!),
         ("options", evidence.Options is null ? Omit : Array(evidence.Options.Select(option => Object(("cents", option.Cents), ("origin", option.Origin))))),
         ("source", evidence.Source is null ? Omit : Json(evidence.Source)));
 
