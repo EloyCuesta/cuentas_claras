@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CuentasClaras.Application.Tickets;
 using CuentasClaras.Domain.Common;
 using CuentasClaras.Domain.Tickets;
 using static CuentasClaras.Tests.CorpusJson;
@@ -60,6 +61,9 @@ internal static partial class TicketRulesCorpus
             [.. Items(input, "aliases").Select(alias => new AliasRecord(Text(alias, "key"), TextOrNull(alias, "itemId")))],
             [.. Items(input, "items").Select(item => new CatalogItem(Text(item, "id"), Text(item, "name")))])
             .Select(entry => Array([String(entry.Key), Json(entry.Value)]))),
+        // shared/tickets/ticketValidation.ts, en Application.Tickets
+        ["validateTicketSave"] = input => Json(TicketRequests.ValidateTicketSave(BodyOf(input)), Json),
+        ["validateLineUpdate"] = input => Json(TicketRequests.ValidateLineUpdate(BodyOf(input)), update => Object(("itemId", update.ItemId))),
     };
 
     /// <summary>Las operaciones de tickets de rules.json (BASE-01), que reciben la línea directamente.</summary>
@@ -119,6 +123,14 @@ internal static partial class TicketRulesCorpus
         ReadDiscrepancy(Get(evidence, "discrepancy")),
         Has(evidence, "options") ? [.. Items(evidence, "options").Select(option => new TicketAmountOption(Long(option, "cents"), Text(option, "origin")))] : null,
         ReadSource(Get(evidence, "source")));
+
+    /// <summary>El cuerpo de una petición: «bodyJson» es el texto tal cual (JSON.parse), «body» ya es JSON y sin ninguno es undefined.</summary>
+    private static JsonElement BodyOf(JsonElement input)
+    {
+        if (TextOrNull(input, "bodyJson") is { } text)
+            return JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 256 }).RootElement;
+        return Get(input, "body");
+    }
 
     private static TicketTaxGroup ReadTaxGroup(JsonElement group) => new(
         Text(group, "code"), Long(group, "rateBasisPoints"), Long(group, "baseCents"), Long(group, "taxCents"), Long(group, "grossCents"));
@@ -195,6 +207,24 @@ internal static partial class TicketRulesCorpus
         NewSuggestion created => Object(("kind", created.Kind), ("name", created.Name), ("frequency", created.Frequency)),
         _ => throw new InvalidOperationException("Sugerencia desconocida."),
     };
+
+    private static JsonObject Json<T>(ValidationResult<T> result, Func<T, JsonNode> value) =>
+        result.Ok ? Object(("ok", true), ("value", value(result.Value!))) : Object(("ok", false), ("error", result.Error));
+
+    private static JsonObject Json(TicketDecision decision) => decision switch
+    {
+        ItemDecision item => Object(("kind", item.Kind), ("itemId", item.ItemId)),
+        NewItemDecision created => Object(("kind", created.Kind), ("name", created.Name), ("ownerId", created.OwnerId), ("frequency", created.Frequency)),
+        IgnoreDecision ignore => Object(("kind", ignore.Kind)),
+        _ => throw new InvalidOperationException("Decisión desconocida."),
+    };
+
+    private static JsonObject Json(TicketSaveInput input) => Object(
+        ("store", input.Store), ("storeName", input.StoreName), ("address", input.Address), ("date", input.Date), ("time", input.Time),
+        ("totalCents", input.TotalCents), ("lines", Array(input.Lines.Select(Json))),
+        ("decisions", Object([.. input.Decisions.Select(decision => (decision.Key, (object?)Json(decision.Value)))])),
+        ("adjustments", Array(input.Adjustments.Select(Json))), ("issues", Strings(input.Issues)), ("acknowledged", input.Acknowledged),
+        ("importId", OrOmit(input.ImportId)), ("sourceFingerprint", OrOmit(input.SourceFingerprint)), ("distinctPurchase", input.DistinctPurchase));
 
     private static JsonObject Json(TicketSaveLine line) => Object(
         ("rawName", line.RawName), ("quantity", line.Quantity), ("unitPriceCents", line.UnitPriceCents), ("amountCents", line.AmountCents),
