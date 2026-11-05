@@ -54,6 +54,12 @@ internal static partial class TicketRulesCorpus
             BoolOrNull(Get(input, "options"), "incomplete") == true)),
         ["endsProducts"] = input => JsonValue.Create(TicketParser.EndsProducts(Text(input, "text"))),
         ["checkLabels"] = _ => Object([.. TicketParser.CheckLabels.Select(label => (label.Key, (object?)label.Value))]),
+        // shared/tickets/ticketMatch.ts: el Map, como lista de pares en su orden
+        ["suggestForTicket"] = input => Array(TicketMatcher.SuggestForTicket(
+            [.. Items(input, "lines").Select(line => new SuggestionLine(Text(line, "key"), Text(line, "rawName")))],
+            [.. Items(input, "aliases").Select(alias => new AliasRecord(Text(alias, "key"), TextOrNull(alias, "itemId")))],
+            [.. Items(input, "items").Select(item => new CatalogItem(Text(item, "id"), Text(item, "name")))])
+            .Select(entry => Array([String(entry.Key), Json(entry.Value)]))),
     };
 
     /// <summary>Las operaciones de tickets de rules.json (BASE-01), que reciben la línea directamente.</summary>
@@ -181,6 +187,14 @@ internal static partial class TicketRulesCorpus
         ("totalCents", ticket.TotalCents), ("lines", Array(ticket.Lines.Select(Json))), ("check", Json(ticket.Check)),
         ("adjustments", Array(ticket.Adjustments.Select(Json))), ("issues", Strings(ticket.Issues)),
         ("taxGroups", Array(ticket.TaxGroups.Select(Json))), ("paymentMethod", ticket.PaymentMethod));
+
+    private static JsonObject Json(TicketSuggestion suggestion) => suggestion switch
+    {
+        ItemSuggestion item => Object(("kind", item.Kind), ("itemId", item.ItemId), ("how", item.How)),
+        IgnoreSuggestion ignore => Object(("kind", ignore.Kind), ("how", ignore.How)),
+        NewSuggestion created => Object(("kind", created.Kind), ("name", created.Name), ("frequency", created.Frequency)),
+        _ => throw new InvalidOperationException("Sugerencia desconocida."),
+    };
 
     private static JsonObject Json(TicketSaveLine line) => Object(
         ("rawName", line.RawName), ("quantity", line.Quantity), ("unitPriceCents", line.UnitPriceCents), ("amountCents", line.AmountCents),
