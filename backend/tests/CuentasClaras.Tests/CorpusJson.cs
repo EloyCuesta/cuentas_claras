@@ -60,6 +60,8 @@ internal static class CorpusJson
 
     public static JsonValue Number(double value) => JsonValue.Create(value);
 
+    public static JsonValue Number(long value) => JsonValue.Create((double)value);
+
     public static JsonNode? Number(long? value) => value is { } number ? JsonValue.Create((double)number) : null;
 
     public static JsonNode? Number(double? value) => value is { } number ? JsonValue.Create(number) : null;

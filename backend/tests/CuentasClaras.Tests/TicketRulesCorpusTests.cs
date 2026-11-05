@@ -11,11 +11,11 @@ namespace CuentasClaras.Tests;
 public sealed class TicketRulesCorpusTests
 {
     private static readonly JsonDocument Corpus = CorpusJson.Load("rules-tickets.json");
+    private static readonly JsonDocument BaseRules = CorpusJson.Load("rules.json");
     private static readonly string[] Cultures = ["es-ES", ""];
 
     /// <summary>Lo que aún no está portado (vacío cuando TIC-01 está terminada).</summary>
     private static readonly string[] Pending = [
-        "roundRatio", "calculatedAmount", "lineProblems", "canApplyLine",
         "singleDigitEdit", "singleEditVariants", "printedDigits", "assessUnits", "assessWeight",
         "linesFromText", "mergePages", "parseTicket", "readTaxGroups", "checkTaxGroups", "checkTicket", "endsProducts", "checkLabels",
         "suggestForTicket", "validateTicketSave", "validateLineUpdate",
@@ -23,12 +23,25 @@ public sealed class TicketRulesCorpusTests
         "aliasStoreOf", "fingerprintSource", "pastedTextSource", "imagesSource", "purchasesFromLines",
     ];
 
+    /// <summary>Las operaciones de tickets que ya tenía el corpus de reglas de BASE-01 (rules.json).</summary>
+    private static readonly string[] BaseTicketOperations = ["roundRatio", "calculatedAmount", "canApplyLine"];
+
     public static TheoryData<string, string> Cases()
     {
         var data = new TheoryData<string, string>();
         foreach (var culture in Cultures)
             foreach (var test in Corpus.RootElement.GetProperty("cases").EnumerateArray())
                 if (!Pending.Contains(test.GetProperty("operation").GetString()))
+                    data.Add(culture, test.GetProperty("id").GetString()!);
+        return data;
+    }
+
+    public static TheoryData<string, string> BaseCases()
+    {
+        var data = new TheoryData<string, string>();
+        foreach (var culture in Cultures)
+            foreach (var test in BaseRules.RootElement.GetProperty("cases").EnumerateArray())
+                if (BaseTicketOperations.Contains(test.GetProperty("operation").GetString()))
                     data.Add(culture, test.GetProperty("id").GetString()!);
         return data;
     }
@@ -46,6 +59,11 @@ public sealed class TicketRulesCorpusTests
         Assert.Equal(operations, cases.Select(test => test.GetProperty("operation").GetString()!).Distinct().Order(StringComparer.Ordinal));
         // Cada operación del corpus está portada o pendiente, nunca las dos ni ninguna.
         Assert.Equal(operations.Order(StringComparer.Ordinal), TicketRulesCorpus.Ported.Concat(Pending).Order(StringComparer.Ordinal));
+        // Las reglas de tickets de rules.json siguen siendo diez y todas tienen su regla en C#.
+        var baseCases = BaseRules.RootElement.GetProperty("cases").EnumerateArray()
+            .Where(test => BaseTicketOperations.Contains(test.GetProperty("operation").GetString())).ToArray();
+        Assert.Equal(10, baseCases.Length);
+        Assert.Equal(BaseTicketOperations.Order(StringComparer.Ordinal), TicketRulesCorpus.BasePorted.Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -65,13 +83,20 @@ public sealed class TicketRulesCorpusTests
     [MemberData(nameof(Cases))]
     public void CSharp_da_lo_mismo_que_TypeScript(string cultura, string caso) => Check(Find(Corpus, caso), cultura);
 
-    private static void Check(JsonElement test, string culture)
+    [Theory]
+    [MemberData(nameof(BaseCases))]
+    public void CSharp_da_lo_mismo_que_las_reglas_de_tickets_de_BASE_01(string cultura, string caso) =>
+        Check(Find(BaseRules, caso), cultura, TicketRulesCorpus.RunBase);
+
+    private static void Check(JsonElement test, string culture) => Check(test, culture, TicketRulesCorpus.Run);
+
+    private static void Check(JsonElement test, string culture, Func<string, JsonElement, System.Text.Json.Nodes.JsonNode?> run)
     {
         var previous = (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture);
         CultureInfo.CurrentCulture = CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
         try
         {
-            var actual = TicketRulesCorpus.Run(test.GetProperty("operation").GetString()!, test.GetProperty("input"));
+            var actual = run(test.GetProperty("operation").GetString()!, test.GetProperty("input"));
             var difference = CorpusJson.Difference(test.GetProperty("expected"), actual);
             Assert.True(difference is null, $"{test.GetProperty("id").GetString()} ({test.GetProperty("description").GetString()}): {difference}");
         }
