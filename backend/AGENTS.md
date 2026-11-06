@@ -55,7 +55,7 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 `tests/CuentasClaras.Tests/AuthTests.cs`: política, casos de uso y adaptadores de acceso.
 `tests/CuentasClaras.Tests/HttpTests.cs`: Kestrel real sin base de datos, corpus HTTP compartido, límites, errores, proxy y proceso de arranque.
 `tests/CuentasClaras.Tests/ArchitectureTests.cs`: referencias de proyectos/ensamblados, paquetes y dependencias de tipos e IL entre capas y módulos, incluido el driver; que Domain.Tickets no usa Domain.Pantry y que las reglas de tickets no leen el reloj ni el azar.
-`tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs`: las reglas de tickets dan exactamente el corpus de TypeScript (`../fixtures/migration/rules-tickets.json`, 510 casos) y las reglas de tickets de `../fixtures/migration/rules.json`, en es-ES y en la invariante. El ejecutor y los mapeos a JSON están en `TicketRulesCorpus.cs` y `CorpusJson.cs`.
+`tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs`: las reglas de tickets dan exactamente el corpus de TypeScript (`../fixtures/migration/rules-tickets.json`, 517 casos) y las reglas de tickets de `../fixtures/migration/rules.json`, en es-ES y en la invariante. El ejecutor y los mapeos a JSON están en `TicketRulesCorpus.cs` y `CorpusJson.cs`.
 `tests/CuentasClaras.Tests/MySqlMigrationTests.cs`, `MySqlUnitOfWorkTests.cs`, `MySqlSchemaTests.cs` y `MySqlHostTests.cs`: contra MySQL real (categoría MySql), con bases `cuentas_test_*` de `TestDatabase.cs` que se borran al terminar.
 `../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos.
 
