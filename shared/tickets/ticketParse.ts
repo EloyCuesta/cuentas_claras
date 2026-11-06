@@ -675,6 +675,9 @@ function selectLine(line: WorkLine): ParsedTicketLine {
     // medio), así que una lectura deformada no confirma el importe aunque otra lectura coincida.
     const deformed = [textToken, rereadToken].find(t => t && !t.clean && /\d/.test(t.glued))
     if (deformed) issues.push(`Una lectura del importe tiene cifras de más («${asReading(deformed).printed}»): confirma el importe`)
+    // «1,15-»: un «-» pegado detrás tampoco confirma nada; puede ser un descuento, una devolución o una mancha.
+    const hyphened = [textToken, rereadToken].find(t => t?.glued.startsWith('-'))
+    if (hyphened) issues.push(`Una lectura del importe tiene un «-» pegado detrás («${asReading(hyphened).printed}${hyphened.glued}»): confirma el importe`)
   }
   // Si el importe leído coincide con la multiplicación, esa coincidencia resuelve el desacuerdo entre lecturas.
 

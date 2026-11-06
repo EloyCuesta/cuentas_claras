@@ -47,4 +47,13 @@ describe('regresiones de seguridad de tickets', () => {
       ...linesFromText('TOTAL 2,00')]])
     expect(t.lines.every(l => l.flags.includes('dudoso'))).toBe(true)
   })
+  it('un «-» pegado detrás del importe no lo confirma, aunque la relectura coincida', () => {
+    const t = parseTicket([[...linesFromText('LIDL\nEUR'),
+      { text: 'AGUA 1,15-', reread: null }, { text: 'LECHE 0,89-', reread: '0,89 A' },
+      ...linesFromText('TOTAL 2,04')]])
+    expect(t.lines.map(l => l.amountCents)).toEqual([115, 89])
+    expect(t.lines.every(l => l.flags.includes('dudoso'))).toBe(true)
+    expect(t.lines[0].evidence?.issues).toContain('Una lectura del importe tiene un «-» pegado detrás («1,15-»): confirma el importe')
+    expect(t.lines[1].evidence?.issues).toContain('Una lectura del importe tiene un «-» pegado detrás («0,89-»): confirma el importe')
+  })
 })

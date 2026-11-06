@@ -41,10 +41,11 @@ public static class TicketRequests
 
     private static string Slice(JsonElement value, int max) => JsText.Slice(Text(value), 0, max);
 
-    /// <summary>[...].includes(String(value)): JavaScript convierte el valor a texto antes de comparar (docs/migration/STATUS.md, hallazgo de TIC-01).</summary>
+    /// <summary>Uno de los textos permitidos. Tiene que ser un texto: una lista como ["read"] no vale, aunque String() la convierta en «read».</summary>
     private static string? OneOf(JsonElement value, params string[] allowed)
     {
-        var text = JsString(value);
+        if (!IsString(value)) return null;
+        var text = Text(value);
         return allowed.Contains(text, StringComparer.Ordinal) ? text : null;
     }
 

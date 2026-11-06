@@ -30117,7 +30117,7 @@
             "weightKg": null,
             "pricePerKgCents": null,
             "taxCode": null,
-            "flags": [],
+            "flags": ["dudoso"],
             "evidence": {
               "text": "AGUA 1,15-",
               "reread": null,
@@ -30125,13 +30125,140 @@
               "recognizedCents": 115,
               "calculatedCents": null,
               "selectedBy": "read",
-              "issues": []
+              "issues": ["Una lectura del importe tiene un «-» pegado detrás («1,15-»): confirma el importe"]
             }
           }
         ],
         "adjustments": [],
         "issues": ["Los importes no cuadran con el total","No se ha reconocido la fecha de compra"],
-        "check": {"status":"no_cuadra","linesTotalCents":631,"differenceCents":14,"unreadable":0,"pending":4},
+        "check": {"status":"no_cuadra","linesTotalCents":631,"differenceCents":14,"unreadable":0,"pending":5},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "trampa-menos-pegado",
+      "description": "parseTicket: un «-» pegado detrás del importe no lo confirma, aunque la relectura coincida; si la multiplicación cuadra, sí",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"AGUA 1,15-","reread":null},
+            {"text":"LECHE 0,89-","reread":"0,89 A"},
+            {"text":"SAL 0,40-€","reread":null},
+            {"text":"HUEVOS 2,84X 2 5,68-","reread":null},
+            {"text":"TOTAL 8,12","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": null,
+        "time": null,
+        "totalCents": 812,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "AGUA",
+            "key": "AGUA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 115,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": null,
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "AGUA 1,15-",
+              "reread": null,
+              "normalized": "AGUA 1,15-",
+              "recognizedCents": 115,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["Una lectura del importe tiene un «-» pegado detrás («1,15-»): confirma el importe"]
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "LECHE",
+            "key": "LECHE",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 89,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "LECHE 0,89-",
+              "reread": "0,89 A",
+              "normalized": "LECHE 0,89-",
+              "recognizedCents": 89,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["Una lectura del importe tiene un «-» pegado detrás («0,89-»): confirma el importe"]
+            }
+          },
+          {
+            "position": 2,
+            "rawName": "SAL",
+            "key": "SAL",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 40,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "C",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "SAL 0,40-€",
+              "reread": null,
+              "normalized": "SAL 0,40-€",
+              "recognizedCents": 40,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": [
+                "Una lectura del importe tiene un «-» pegado detrás («0,40-€»): confirma el importe",
+                "La letra del IVA se ha leído como la cifra «€»: puede haber otra cifra confundida en el importe"
+              ]
+            }
+          },
+          {
+            "position": 3,
+            "rawName": "HUEVOS",
+            "key": "HUEVOS",
+            "quantity": 2,
+            "unitPriceCents": 284,
+            "amountCents": 568,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": null,
+            "flags": [],
+            "evidence": {
+              "text": "HUEVOS 2,84X 2 5,68-",
+              "reread": null,
+              "normalized": "HUEVOS 2,84X 2 5,68-",
+              "recognizedCents": 568,
+              "calculatedCents": 568,
+              "selectedBy": "read",
+              "issues": []
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": [
+          "La suma coincide con el total, pero hay líneas dudosas: dos errores pueden compensarse",
+          "No se ha reconocido la fecha de compra"
+        ],
+        "check": {"status":"pendiente","linesTotalCents":812,"differenceCents":0,"unreadable":0,"pending":3},
         "taxGroups": [],
         "paymentMethod": null
       }
@@ -36980,6 +37107,82 @@
       "expected": {"ok":false,"error":"Origen del importe no válido."}
     },
     {
+      "id": "guardar-mal-evidencia-origen-lista",
+      "description": "validateTicketSave: un cuerpo inválido y su mensaje",
+      "operation": "validateTicketSave",
+      "input": {
+        "body": {
+          "store": "lidl",
+          "storeName": "Lidl",
+          "address": "",
+          "date": "2026-10-28",
+          "time": "19:24",
+          "totalCents": 100,
+          "lines": [
+            {
+              "rawName": "PAN",
+              "quantity": 1,
+              "unitPriceCents": null,
+              "amountCents": 100,
+              "discountCents": 0,
+              "weightKg": null,
+              "pricePerKgCents": null,
+              "taxCode": "A",
+              "occasional": false,
+              "evidence": {
+                "text": "PAN 1,00 A",
+                "reread": null,
+                "recognizedCents": 100,
+                "calculatedCents": null,
+                "selectedBy": ["read"],
+                "issues": []
+              }
+            }
+          ],
+          "decisions": {"PAN":{"kind":"ignore"}}
+        }
+      },
+      "expected": {"ok":false,"error":"Origen del importe no válido."}
+    },
+    {
+      "id": "guardar-mal-evidencia-origen-lista-anidada",
+      "description": "validateTicketSave: un cuerpo inválido y su mensaje",
+      "operation": "validateTicketSave",
+      "input": {
+        "body": {
+          "store": "lidl",
+          "storeName": "Lidl",
+          "address": "",
+          "date": "2026-10-28",
+          "time": "19:24",
+          "totalCents": 100,
+          "lines": [
+            {
+              "rawName": "PAN",
+              "quantity": 1,
+              "unitPriceCents": null,
+              "amountCents": 100,
+              "discountCents": 0,
+              "weightKg": null,
+              "pricePerKgCents": null,
+              "taxCode": "A",
+              "occasional": false,
+              "evidence": {
+                "text": "PAN 1,00 A",
+                "reread": null,
+                "recognizedCents": 100,
+                "calculatedCents": null,
+                "selectedBy": [["manual"]],
+                "issues": []
+              }
+            }
+          ],
+          "decisions": {"PAN":{"kind":"ignore"}}
+        }
+      },
+      "expected": {"ok":false,"error":"Origen del importe no válido."}
+    },
+    {
       "id": "guardar-mal-evidencia-sin-incidencias",
       "description": "validateTicketSave: un cuerpo inválido y su mensaje",
       "operation": "validateTicketSave",
@@ -37281,6 +37484,84 @@
       "expected": {"ok":false,"error":"La discrepancia de lectura no es válida."}
     },
     {
+      "id": "guardar-mal-discrepancia-tipo-lista",
+      "description": "validateTicketSave: un cuerpo inválido y su mensaje",
+      "operation": "validateTicketSave",
+      "input": {
+        "body": {
+          "store": "lidl",
+          "storeName": "Lidl",
+          "address": "",
+          "date": "2026-10-28",
+          "time": "19:24",
+          "totalCents": 100,
+          "lines": [
+            {
+              "rawName": "PAN",
+              "quantity": 1,
+              "unitPriceCents": null,
+              "amountCents": 100,
+              "discountCents": 0,
+              "weightKg": null,
+              "pricePerKgCents": null,
+              "taxCode": "A",
+              "occasional": false,
+              "evidence": {
+                "text": "PAN 1,00 A",
+                "reread": null,
+                "recognizedCents": 100,
+                "calculatedCents": null,
+                "selectedBy": "read",
+                "issues": [],
+                "discrepancy": {"kind":["units"],"verdict":"read","recognizedCents":1,"calculatedCents":2,"reasons":[]}
+              }
+            }
+          ],
+          "decisions": {"PAN":{"kind":"ignore"}}
+        }
+      },
+      "expected": {"ok":false,"error":"La discrepancia de lectura no es válida."}
+    },
+    {
+      "id": "guardar-mal-discrepancia-veredicto-lista",
+      "description": "validateTicketSave: un cuerpo inválido y su mensaje",
+      "operation": "validateTicketSave",
+      "input": {
+        "body": {
+          "store": "lidl",
+          "storeName": "Lidl",
+          "address": "",
+          "date": "2026-10-28",
+          "time": "19:24",
+          "totalCents": 100,
+          "lines": [
+            {
+              "rawName": "PAN",
+              "quantity": 1,
+              "unitPriceCents": null,
+              "amountCents": 100,
+              "discountCents": 0,
+              "weightKg": null,
+              "pricePerKgCents": null,
+              "taxCode": "A",
+              "occasional": false,
+              "evidence": {
+                "text": "PAN 1,00 A",
+                "reread": null,
+                "recognizedCents": 100,
+                "calculatedCents": null,
+                "selectedBy": "read",
+                "issues": [],
+                "discrepancy": {"kind":"units","verdict":["read"],"recognizedCents":1,"calculatedCents":2,"reasons":[]}
+              }
+            }
+          ],
+          "decisions": {"PAN":{"kind":"ignore"}}
+        }
+      },
+      "expected": {"ok":false,"error":"La discrepancia de lectura no es válida."}
+    },
+    {
       "id": "guardar-mal-discrepancia-11-razones",
       "description": "validateTicketSave: un cuerpo inválido y su mensaje",
       "operation": "validateTicketSave",
@@ -37557,6 +37838,45 @@
                 "selectedBy": "read",
                 "issues": [],
                 "options": [{"cents":1,"origin":"manual"}]
+              }
+            }
+          ],
+          "decisions": {"PAN":{"kind":"ignore"}}
+        }
+      },
+      "expected": {"ok":false,"error":"Las opciones de importe no son válidas."}
+    },
+    {
+      "id": "guardar-mal-opcion-origen-lista",
+      "description": "validateTicketSave: un cuerpo inválido y su mensaje",
+      "operation": "validateTicketSave",
+      "input": {
+        "body": {
+          "store": "lidl",
+          "storeName": "Lidl",
+          "address": "",
+          "date": "2026-10-28",
+          "time": "19:24",
+          "totalCents": 100,
+          "lines": [
+            {
+              "rawName": "PAN",
+              "quantity": 1,
+              "unitPriceCents": null,
+              "amountCents": 100,
+              "discountCents": 0,
+              "weightKg": null,
+              "pricePerKgCents": null,
+              "taxCode": "A",
+              "occasional": false,
+              "evidence": {
+                "text": "PAN 1,00 A",
+                "reread": null,
+                "recognizedCents": 100,
+                "calculatedCents": null,
+                "selectedBy": "read",
+                "issues": [],
+                "options": [{"cents":1,"origin":["read"]}]
               }
             }
           ],
@@ -38396,6 +38716,37 @@
           ],
           "decisions": {"PAN":{"kind":"ignore"}},
           "adjustments": [{"id":"a","label":"x","kind":"regalo","amountCents":0}]
+        }
+      },
+      "expected": {"ok":false,"error":"Tipo de ajuste no válido."}
+    },
+    {
+      "id": "guardar-mal-ajuste-tipo-lista",
+      "description": "validateTicketSave: un cuerpo inválido y su mensaje",
+      "operation": "validateTicketSave",
+      "input": {
+        "body": {
+          "store": "lidl",
+          "storeName": "Lidl",
+          "address": "",
+          "date": "2026-10-28",
+          "time": "19:24",
+          "totalCents": 100,
+          "lines": [
+            {
+              "rawName": "PAN",
+              "quantity": 1,
+              "unitPriceCents": null,
+              "amountCents": 100,
+              "discountCents": 0,
+              "weightKg": null,
+              "pricePerKgCents": null,
+              "taxCode": "A",
+              "occasional": false
+            }
+          ],
+          "decisions": {"PAN":{"kind":"ignore"}},
+          "adjustments": [{"id":"a","label":"x","kind":["other"],"amountCents":0}]
         }
       },
       "expected": {"ok":false,"error":"Tipo de ajuste no válido."}

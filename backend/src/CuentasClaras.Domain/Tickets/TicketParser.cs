@@ -761,6 +761,9 @@ public static class TicketParser
             // lectura deformada no confirma el importe aunque otra lectura coincida.
             var deformed = new[] { textToken, rereadToken }.FirstOrDefault(token => token is not null && !token.Clean && AnyDigit.IsMatch(token.Glued));
             if (deformed is not null) issues.Add($"Una lectura del importe tiene cifras de más («{AsReading(deformed).Printed}»): confirma el importe");
+            // «1,15-»: un «-» pegado detrás tampoco confirma nada; puede ser un descuento, una devolución o una mancha.
+            var hyphened = new[] { textToken, rereadToken }.FirstOrDefault(token => token is not null && token.Glued.StartsWith('-'));
+            if (hyphened is not null) issues.Add($"Una lectura del importe tiene un «-» pegado detrás («{AsReading(hyphened).Printed}{hyphened.Glued}»): confirma el importe");
         }
 
         if (amount is null && discrepancy is null)

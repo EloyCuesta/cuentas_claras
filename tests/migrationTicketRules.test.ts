@@ -30,7 +30,7 @@ describe('reglas de tickets portables (TIC-01)', () => {
   it('identifica el corpus y no pierde casos ni operaciones', () => {
     expect(corpus.format).toBe('cuentas-claras-ticket-rules-v1')
     expect(corpus.provenance).toContain('Sin datos de la instalación')
-    expect(corpus.cases).toHaveLength(510)
+    expect(corpus.cases).toHaveLength(517)
     expect(new Set(corpus.cases.map((test) => test.id)).size).toBe(corpus.cases.length)
     expect(corpus.operations).toEqual(TICKET_OPERATIONS)
     expect([...new Set(corpus.cases.map((test) => test.operation))].sort()).toEqual(TICKET_OPERATIONS)

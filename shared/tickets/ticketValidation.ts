@@ -20,6 +20,8 @@ class InputError extends Error {}
 
 type Raw = Record<string, unknown>
 const isObject = (value: unknown): value is Raw => typeof value === 'object' && value !== null && !Array.isArray(value)
+/** Uno de los textos permitidos. Tiene que ser un texto: una lista como ["read"] no vale, aunque String() la convierta en «read». */
+const oneOf = (value: unknown, allowed: readonly string[]) => typeof value === 'string' && allowed.includes(value)
 
 function fail(message: string): never {
   throw new InputError(message)
@@ -74,7 +76,7 @@ const shortText = (value: unknown, max = 400) => typeof value === 'string' ? val
 function readEvidence(raw: unknown): TicketEvidence | undefined {
   if (raw === undefined || raw === null) return undefined
   if (!isObject(raw)) fail('La evidencia de lectura no es válida.')
-  if (!['read', 'reread', 'calculation', 'manual'].includes(String(raw.selectedBy))) fail('Origen del importe no válido.')
+  if (!oneOf(raw.selectedBy, ['read', 'reread', 'calculation', 'manual'])) fail('Origen del importe no válido.')
   if (!Array.isArray(raw.issues) || raw.issues.length > 20 || raw.issues.some(i => typeof i !== 'string' || i.length > 400)) fail('Incidencias de lectura no válidas.')
   const evidence: TicketEvidence = {
     text: typeof raw.text === 'string' ? raw.text.slice(0, 1000) : '',
@@ -87,7 +89,7 @@ function readEvidence(raw: unknown): TicketEvidence | undefined {
   // La discrepancia original se guarda con el ticket: así se puede saber después qué leyó el OCR y por qué se propuso otra cifra.
   if (raw.discrepancy !== undefined && raw.discrepancy !== null) {
     const d = raw.discrepancy
-    if (!isObject(d) || !['units', 'weight'].includes(String(d.kind)) || !['calculation', 'read', 'ambiguous'].includes(String(d.verdict)) ||
+    if (!isObject(d) || !oneOf(d.kind, ['units', 'weight']) || !oneOf(d.verdict, ['calculation', 'read', 'ambiguous']) ||
       !Array.isArray(d.reasons) || d.reasons.length > 10) fail('La discrepancia de lectura no es válida.')
     evidence.discrepancy = { kind: d.kind as TicketDiscrepancy['kind'], verdict: d.verdict as TicketDiscrepancy['verdict'],
       recognizedCents: int(d.recognizedCents, 'Importe leído', -MAX_LINE_CENTS, MAX_LINE_CENTS) as number,
@@ -97,7 +99,7 @@ function readEvidence(raw: unknown): TicketEvidence | undefined {
   if (raw.options !== undefined) {
     if (!Array.isArray(raw.options) || raw.options.length > 4) fail('Las opciones de importe no son válidas.')
     evidence.options = raw.options.map(o => {
-      if (!isObject(o) || !['read', 'reread', 'calculation'].includes(String(o.origin))) fail('Las opciones de importe no son válidas.')
+      if (!isObject(o) || !oneOf(o.origin, ['read', 'reread', 'calculation'])) fail('Las opciones de importe no son válidas.')
       return { cents: int(o.cents, 'Opción de importe', -MAX_LINE_CENTS, MAX_LINE_CENTS) as number, origin: o.origin as TicketAmountOption['origin'] }
     })
   }
@@ -112,7 +114,7 @@ function readAdjustments(raw: unknown): TicketAdjustment[] {
     if (!isObject(a) || typeof a.id !== 'string' || a.id.length === 0 || a.id.length > 100 || ids.has(a.id)) fail('Identificador de ajuste no válido o repetido.')
     ids.add(a.id)
     if (typeof a.label !== 'string' || !a.label.trim() || a.label.length > 120) fail('Escribe el concepto del ajuste.')
-    if (!['discount', 'coupon', 'promotion', 'other'].includes(String(a.kind))) fail('Tipo de ajuste no válido.')
+    if (!oneOf(a.kind, ['discount', 'coupon', 'promotion', 'other'])) fail('Tipo de ajuste no válido.')
     return { id: a.id, label: a.label.trim(), kind: a.kind as TicketAdjustment['kind'],
       amountCents: int(a.amountCents, 'Importe del ajuste', -MAX_LINE_CENTS, MAX_LINE_CENTS, true),
       needsReview: a.needsReview !== false, originalText: typeof a.originalText === 'string' ? a.originalText.slice(0, 1000) : undefined }

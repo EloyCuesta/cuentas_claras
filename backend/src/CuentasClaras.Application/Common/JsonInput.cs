@@ -1,15 +1,13 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using CuentasClaras.Domain.Common;
 
 namespace CuentasClaras.Application.Common;
 
 /// <summary>
 /// Un cuerpo JSON sin tipar leído como lo ve un validador de TypeScript después de JSON.parse:
 /// una propiedad que no está es undefined (un JsonElement Undefined), typeof distingue texto,
-/// número, booleano, objeto y lista, String(x) convierte cualquier valor y un número que desborda
-/// el doble es ±Infinity. Lo usan los validadores de los casos de uso que reciben el cuerpo de la
+/// número, booleano, objeto y lista, y un número que desborda el doble es ±Infinity. Lo usan los validadores de los casos de uso que reciben el cuerpo de la
 /// API, igual que ReadCode recibe el del login en el host.
 /// </summary>
 public static class JsonInput
@@ -63,19 +61,6 @@ public static class JsonInput
         if (value.TryGetDouble(out var number)) return number;
         return value.GetRawText().StartsWith('-') ? double.NegativeInfinity : double.PositiveInfinity;
     }
-
-    /// <summary>String(value) de JavaScript, para las comprobaciones que lo usan: una lista se une con comas, un objeto es «[object Object]».</summary>
-    public static string JsString(JsonElement value) => value.ValueKind switch
-    {
-        JsonValueKind.Undefined => "undefined",
-        JsonValueKind.Null => "null",
-        JsonValueKind.True => "true",
-        JsonValueKind.False => "false",
-        JsonValueKind.String => Text(value),
-        JsonValueKind.Number => JsNumber.ToString(Number(value)),
-        JsonValueKind.Array => string.Join(",", value.EnumerateArray().Select(item => IsNullish(item) ? "" : JsString(item))),
-        _ => "[object Object]",
-    };
 
     private static string Unescape(string raw)
     {
