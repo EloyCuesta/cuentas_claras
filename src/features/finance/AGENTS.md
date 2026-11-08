@@ -13,7 +13,7 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 | MovementsPage | `pages/MovementsPage.tsx` | Lista con búsqueda y filtros, exportar CSV | «exporta los movimientos a CSV…», «editar o eliminar…» |
 | RecurringPage | `pages/RecurringPage.tsx` | Recurrentes y financiaciones | «abrir varias veces la aplicación no duplica vencimientos» |
 | BudgetsPage | `pages/BudgetsPage.tsx` | Presupuestos por categoría | — |
-| SettingsPage | `pages/SettingsPage.tsx` | Copias (BackupPanel), categorías (CategoryEditor) y sesión | «exportar y restaurar una copia…», «rechaza una copia no válida…» |
+| SettingsPage | `pages/SettingsPage.tsx` | Copias (BackupPanel), categorías (CategoryEditor) y sesión | «exportar y restaurar una copia…», «rechaza una copia no válida…», «crea, renombra y elimina categorías…», «eliminar una categoría con movimientos…» |
 | MovementDialog, PaymentDialog, RecurringDialog | `components/` | Crear y editar un movimiento, confirmar un pago y editar un recurrente | «valida los campos obligatorios», «marcar un pago pendiente como pagado…» |
 | Resto de `components/` | | Piezas de las páginas: Ledger, CategoryChart, CategoryTable, CategoryMonthGrid, MonthlyTrendChart, BudgetSummary, DueList, MovementList, PeriodPicker y PeriodSwitch | las de su página |
 
@@ -28,6 +28,8 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
   - botones: «Añadir movimiento», «Añadir un gasto», «Guardar gasto», «Guardar cambios», «Marcar como pagado», «Eliminar movimiento», «Nuevo recurrente», «Guardar recurrente», «Descargar copia (JSON)», «Sustituir mis datos», «Exportar movimientos (CSV)» y «Descargar hoja de cálculo»;
   - diálogos: «Nuevo movimiento», «Editar movimiento», «Confirmar pago», «Eliminar movimiento», «Nuevo recurrente» y «Restaurar copia»;
   - títulos: «Empieza apuntando tu primer gasto» y «Todavía no has apuntado ningún movimiento».
+  - categorías (CategoryEditor, en la región «Categorías»): «Añadir categoría», «Añadir subcategoría a X», «Renombrar X» y «Eliminar X» (X es «Principal › Sub» en las subcategorías), los campos «Nueva categoría de gastos», «Nueva subcategoría de X» y «Nuevo nombre para «X»», el botón «Guardar», el diálogo «Eliminar «X»» con «Pasar a» y «Eliminar categoría», y los avisos «Categoría añadida», «Subcategoría añadida», «Categoría renombrada» y «Categoría «X» eliminada».
+- El almacenamiento se describe como «una base de datos MySQL de este equipo» (FinanceProvider, SummaryPage y BackupPanel); SQLite solo aparece en la importación de los datos de antes (`tools/importer/`).
 - `data-testid="restore-input"`, el selector de archivo de la copia, en `components/BackupPanel.tsx`.
 - Formularios con etiquetas y errores asociados, foco en el primer campo con error (`focusFirstError`) y ventanas `<dialog>` nativas.
 

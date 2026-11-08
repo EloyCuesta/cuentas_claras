@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext } from '@playwright/test'
+import { resetDotnetDatabase } from './dotnet/database.ts'
 
 /**
  * Código de acceso del servidor de pruebas (playwright.config.ts lo pasa en
@@ -16,9 +17,17 @@ export async function signIn(request: APIRequestContext): Promise<void> {
   expect(response.status()).toBe(200)
 }
 
-/** Vacía la base de datos de pruebas (finanzas y despensa). Exige sesión, como el resto de rutas de pruebas. */
+/**
+ * Vacía la base de datos de pruebas (finanzas y despensa) e inicia sesión en `request`. Contra Express, con
+ * POST /api/test/reset, que exige sesión. Contra .NET, que no tiene esa ruta, con SQL directo sobre la base de su
+ * ensayo (e2e/dotnet/database.ts), fuera de la API.
+ */
 export async function resetDatabase(request: APIRequestContext): Promise<void> {
   await signIn(request)
+  if (process.env.CUENTAS_E2E_BACKEND === 'dotnet') {
+    await resetDotnetDatabase()
+    return
+  }
   const reset = await request.post('/api/test/reset')
   expect(reset.ok()).toBe(true)
 }

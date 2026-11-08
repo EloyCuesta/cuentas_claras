@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
+import type { APIRequestContext } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './test.ts'
 import { resetDatabase } from './auth.ts'
 
 /** Lo que dice de verdad el ticket de ejemplo (para resolver las dudas del OCR como lo haría una persona mirando la imagen). */

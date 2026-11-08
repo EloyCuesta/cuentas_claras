@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './test.ts'
 import { E2E_CODE, resetDatabase } from './auth.ts'
 
 /**
@@ -235,7 +235,7 @@ test('si el portapapeles rechaza la copia, tampoco dice que se ha copiado', asyn
   await expect(dialog.getByLabel('Texto de la lista')).toBeFocused()
 })
 
-test('con el código se ve todo; al cerrar la sesión se vuelve a la despensa', async ({ page }) => {
+test('con el código se ve todo; al cerrar la sesión se vuelve a la despensa', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Tengo el código' }).click()
   const dialog = page.getByRole('dialog', { name: 'Código de acceso' })
@@ -272,7 +272,7 @@ test('con el código se ve todo; al cerrar la sesión se vuelve a la despensa', 
   expect((await page.request.get('/api/data')).status()).toBe(401)
 })
 
-test('si la sesión deja de valer mientras se usa la app, vuelve a la despensa', async ({ page }) => {
+test('si la sesión deja de valer mientras se usa la app, vuelve a la despensa', { tag: '@dotnet' }, async ({ page }) => {
   await page.request.post('/api/auth/login', { data: { codigo: E2E_CODE } })
   await page.goto('/#movimientos')
   await expect(page.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible()

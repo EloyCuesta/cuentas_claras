@@ -4,7 +4,7 @@
 
 ## Qué hace
 
-El host .NET que sustituirá a Express. BASE-02 aporta el acceso; DATA-01, la conexión con el MySQL que ya usa Express: las mismas migraciones de `../database/mysql/`, el mismo historial, transacciones y bloqueos. TIC-01 añade las reglas puras de los tickets, sin rutas: en `src/CuentasClaras.Domain/Tickets/` (lectura del OCR, evidencia, emparejamiento, compra, huellas e historial), con lo común en `src/CuentasClaras.Domain/Common/`, y la validación del cuerpo en `src/CuentasClaras.Application/Tickets/TicketRequests.cs`. Todavía no tiene finanzas, despensa ni rutas de tickets: la aplicación de uso diario sigue siendo Express sobre MySQL, y la web no se dirige a este host. El arranque y las pruebas están en [pruebas](../docs/pruebas.md).
+El host .NET que sustituirá a Express. BASE-02 aporta el acceso; DATA-01, la conexión con el MySQL que ya usa Express: las mismas migraciones de `../database/mysql/`, el mismo historial, transacciones y bloqueos. TIC-01 añade las reglas puras de los tickets: en `src/CuentasClaras.Domain/Tickets/` (lectura del OCR, evidencia, emparejamiento, compra, huellas e historial), con lo común en `src/CuentasClaras.Domain/Common/`, y la validación del cuerpo en `src/CuentasClaras.Application/Tickets/TicketRequests.cs`. Las funcionalidades llegan por ID (FIN-01, finanzas: lectura, categorías y metadatos; el estado de cada uno, en [STATUS](../docs/migration/STATUS.md)). La aplicación de uso diario sigue siendo Express sobre MySQL; la web React se dirige a este host solo en el ensayo. El arranque y las pruebas están en [pruebas](../docs/pruebas.md).
 
 ## Acceso
 
@@ -14,8 +14,12 @@ Mismo código, cookie, caducidad y bloqueo que [auth actual](../server/modules/a
 
 `src/CuentasClaras.Api/Composition/ApiHost.cs` compone a mano adaptadores y casos de uso:
 
-- `ApiHost.Create`: host sin base de datos, para el ensayo aislado del acceso; permite sustituir reloj y comprobación de almacenamiento.
+- `ApiHost.Create`: host sin base de datos, para el ensayo aislado del acceso; permite sustituir reloj y comprobación de almacenamiento. Sus rutas de datos existen, pero cualquier consulta da 500 (MySqlDatabase.Unconfigured), como la salud.
+- `ApiHost.CreateWithDatabase`: sobre una MySqlDatabase ya abierta, con reloj e ids sustituibles: las pruebas de integración y el corpus HTTP (como startApi en Express).
 - `ApiHost.CreateConfigured`: el arranque de Program. Valida el código; sin CUENTAS_DB_USER arranca solo con el acceso; con él abre MySQL, aplica las migraciones, siembra una base nueva y conecta la salud. Un fallo de almacenamiento llega como StartupException, con el mensaje en español y sin la contraseña.
+- `ApiHost.HostRoutes` y `ApiHost.ModuleRoutes`: el inventario de rutas, para las pruebas.
+
+Cada módulo registra sus rutas en una ApiRouteTable (`src/CuentasClaras.Api/Common/ApiRoutes.cs`) desde `Api/<Módulo>/`, con sus casos de uso ya compuestos; Composition (MapModules) los construye en el orden de `../server/app.ts`.
 
 ## Casos de uso y rutas
 
@@ -25,13 +29,17 @@ Mismo código, cookie, caducidad y bloqueo que [auth actual](../server/modules/a
 | GET /api/auth/me | CheckSession | admin o invitado; HEAD conserva cabeceras sin cuerpo |
 | POST /api/auth/logout | Logout | Siempre éxito; invalida token y cookie |
 | GET /api/health | CheckHealth | Con MySQL, la versión aplicada que dice `schema_migrations` en cada petición; sin almacenamiento responde 500, nunca inventa una versión |
-| Rutas financieras y desconocidas | CheckSession | Sin sesión 401; con sesión 404 mientras no se implemente la ruta |
+| GET /api/data | FinanceQueries.LoadAll | FIN-01. Categorías, movimientos y recurrentes, por id, en una transacción sin bloqueo |
+| PUT /api/categories/:id | SaveCategory | FIN-01. Valida el cuerpo (FinanceRequests) antes del id de la URL; un nivel de subcategorías del mismo tipo; 409 si cambia de tipo |
+| DELETE /api/categories/:id | DeleteCategory | FIN-01. `?replacementId` de un solo valor no vacío; reasignar y borrar en una transacción con el bloqueo finance |
+| GET/PUT /api/meta/:key | FinanceQueries.GetMeta, SetMeta | FIN-01. Solo lastBackupAt y browserImportAt (404); el valor, un texto de hasta 100 |
+| Rutas financieras pendientes y desconocidas | CheckSession | Sin sesión 401; con sesión 404 mientras no se implemente la ruta |
 
 Las rutas conocidas de despensa/tickets se reservan como públicas pero responden 404 hasta sus entregas. La lista actual sigue en [API](../docs/api.md).
 
 ## Puertos
 
-Application posee IClock, IIdGenerator, IUnitOfWork (con LockName: finance o tickets), ISessionStore, IAttemptStore, ICodeVerifier, ITokenGenerator e IStorageHealth, sin tipos del driver. Infrastructure implementa reloj UTC, UUID, memoria, SHA-256 con comparación constante, tokens aleatorios y, en `src/CuentasClaras.Infrastructure/Common/MySql/`, la conexión (MySqlDatabase), las migraciones (MySqlMigrations) y la unidad de trabajo (MySqlUnitOfWork). `src/CuentasClaras.Infrastructure/Health/` tiene la salud sobre MySQL y el fallo explícito sin configurar; `src/CuentasClaras.Infrastructure/Finance/` siembra las categorías iniciales de `src/CuentasClaras.Domain/Finance/DefaultCategories.cs`.
+Application posee IClock (NowMs, NowIso y Today, la fecha de reserva del servidor), IIdGenerator, IUnitOfWork (con LockName: finance o tickets), ISessionStore, IAttemptStore, ICodeVerifier, ITokenGenerator e IStorageHealth, sin tipos del driver, y cada módulo los suyos: IFinanceStore en `src/CuentasClaras.Application/Finance/FinancePorts.cs`. Infrastructure implementa reloj, UUID, memoria, SHA-256 con comparación constante, tokens aleatorios y, en `src/CuentasClaras.Infrastructure/Common/MySql/`, la conexión (MySqlDatabase), las migraciones (MySqlMigrations) y la unidad de trabajo (MySqlUnitOfWork). `src/CuentasClaras.Infrastructure/Health/` tiene la salud sobre MySQL y el fallo explícito sin configurar; `src/CuentasClaras.Infrastructure/Finance/` siembra las categorías iniciales de `src/CuentasClaras.Domain/Finance/DefaultCategories.cs` y guarda las finanzas con el SQL de Express (MySqlFinanceStore).
 
 ## Reglas que no se rompen
 
@@ -57,7 +65,10 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 `tests/CuentasClaras.Tests/ArchitectureTests.cs`: referencias de proyectos/ensamblados, paquetes y dependencias de tipos e IL entre capas y módulos, incluido el driver; que Domain.Tickets no usa Domain.Pantry y que las reglas de tickets no leen el reloj ni el azar.
 `tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs`: las reglas de tickets dan exactamente el corpus de TypeScript (`../fixtures/migration/rules-tickets.json`, 517 casos) y las reglas de tickets de `../fixtures/migration/rules.json`, en es-ES y en la invariante. El ejecutor y los mapeos a JSON están en `TicketRulesCorpus.cs` y `CorpusJson.cs`.
 `tests/CuentasClaras.Tests/MySqlMigrationTests.cs`, `MySqlUnitOfWorkTests.cs`, `MySqlSchemaTests.cs` y `MySqlHostTests.cs`: contra MySQL real (categoría MySql), con bases `cuentas_test_*` de `TestDatabase.cs` que se borran al terminar.
-`../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos.
+`tests/CuentasClaras.Tests/FinanceRulesCorpusTests.cs`: la validación de finanzas da exactamente el corpus de TypeScript (`../fixtures/migration/rules-finance.json`), en es-ES y en la invariante; el ejecutor, `FinanceRulesCorpus.cs`.
+`tests/CuentasClaras.Tests/FinanceHttpTests.cs` (MySql): las rutas de finanzas por HTTP sobre Kestrel y MySQL (`TestApi.cs`), con los mensajes y las rarezas de Express, y la sustitución de categorías deshecha entera si falla a mitad.
+`tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario; cada escenario se activa cuando están todas sus rutas.
+`../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos. La app completa contra .NET (los `../e2e/*.spec.ts` marcados @dotnet): `../e2e/AGENTS.md`.
 
 Los comandos y el alcance exacto están en [pruebas](../docs/pruebas.md). Los resultados de cada tarea van en [STATUS](../docs/migration/STATUS.md).
 
@@ -69,7 +80,10 @@ Los comandos y el alcance exacto están en [pruebas](../docs/pruebas.md). Los re
 - El pool de MySqlConnector reinicia la sesión al devolver cada conexión: por eso SESSION_SETUP se ejecuta en cada apertura. Dentro de una transacción las consultas van en serie (una conexión no admite dos a la vez).
 - MySqlConnector admite varias sentencias en un mismo texto: «una sentencia por llamada» se cumple por convención, y los valores siempre van como parámetros.
 - La salud lee schema_migrations en cada petición, también para comprobar que MySQL responde.
-- La página e2e monta solo acceso: no demuestra finanzas ni despensa sobre .NET.
+- La página e2e de `../e2e/dotnet/` monta solo acceso; la app completa contra .NET va en los proyectos app-* de `../playwright.dotnet.config.ts`.
+- Api no puede tocar tipos de Domain (ArchitectureTests): los casos de uso reciben el cuerpo como JsonElement y devuelven vistas de Application (FinanceViews), y los validadores que usan Domain.Common viven en Application (FinanceRequests, TicketRequests).
+- Como Express: un escape «%» mal formado en un parámetro de una ruta que coincide da 500 INTERNAL (decodeURIComponent, `src/CuentasClaras.Api/Common/UriText.cs`), y un parámetro de la query repetido no es un texto. Las restricciones de MySQL dan el 409 genérico por el clasificador que pasa Composition (MySqlErrors.IsConstraintViolation); las que tienen mensaje propio las traduce el adaptador.
+- Los double de las respuestas se escriben como JSON.stringify (JsDoubleConverter): 0.8 y no 0.800.
 - Los mensajes históricos que mencionan npm run dev o .env se conservan por compatibilidad. El arranque .NET se configura como indica la documentación de pruebas.
 - Reglas portadas de TypeScript: usa `src/CuentasClaras.Domain/Common/` y no lo de .NET por defecto. Math.round es JsNumber.Round (Math.Round va al par); String(x) y toFixed, JsNumber; trim y \s, JsText (string.Trim quita U+0085 y deja U+FEFF); mayúsculas y minúsculas, JsCase (ToUpperInvariant no expande «ß» ni pasa «ı» a «I»; sus tablas salen de Node con `../tests/generateJsCaseData.ts`); JSON.stringify, JsJson (System.Text.Json escapa comillas y lo que no es ASCII); las expresiones regulares, JsRegex (\d, \b, \s, «.», «$» y la bandera i). Ordena con StringComparer.Ordinal y OrderBy (estable); recorre en orden de inserción con una lista, no con Dictionary ni HashSet; suma dobles en un bucle; InvariantCulture siempre.
 - El cuerpo de las rutas de tickets (TIC-02 y TIC-03) se pasa a TicketRequests como JsonElement, sin cuerpo = Undefined. JsonInput lee los sustitutos sueltos que GetString rechaza. Al responder, ojo: un objeto de JavaScript (Record) pone primero las claves que son índices enteros.

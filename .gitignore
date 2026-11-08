@@ -43,3 +43,6 @@ backend/**/TestResults/
 *.njsproj
 *.sln
 *.sw?
+
+# Web construida para los E2E contra .NET (playwright.dotnet.config.ts)
+dist-dotnet

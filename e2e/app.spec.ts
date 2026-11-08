@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from './test.ts'
 import { DEFAULT_CATEGORIES } from '../shared/finance/categories.ts'
 import type { FinanceData, Movement } from '../shared/finance/types.ts'
 import { resetDatabase, signIn } from './auth.ts'
@@ -100,7 +100,7 @@ function browserStoredMovements(page: Page): Promise<number> {
   )
 }
 
-test('empieza vacía y explica cómo añadir el primer movimiento', async ({ page }) => {
+test('empieza vacía y explica cómo añadir el primer movimiento', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Empieza apuntando tu primer gasto' })).toBeVisible()
   await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('0,00 €')
@@ -129,7 +129,7 @@ test('registra un gasto en pocos pasos y se conserva después de recargar', asyn
   await expect(page.getByRole('button', { name: /Panadería/ })).toBeVisible()
 })
 
-test('valida los campos obligatorios', async ({ page }) => {
+test('valida los campos obligatorios', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await openNewMovement(page)
   const dialog = page.getByRole('dialog')
@@ -140,6 +140,71 @@ test('valida los campos obligatorios', async ({ page }) => {
   await expect(dialog.getByLabel('Importe')).toBeFocused()
   await expect(dialog.getByLabel('Importe')).toHaveAttribute('aria-invalid', 'true')
   expect(await storedMovements(page)).toBe(0)
+})
+
+/** Las categorías guardadas en el servidor (no lo que pinta la página). */
+async function storedCategories(page: Page): Promise<FinanceData['categories']> {
+  const response = await page.request.get('/api/data')
+  return ((await response.json()) as { data: FinanceData }).data.categories
+}
+
+test('crea, renombra y elimina categorías, y se guardan en el servidor', { tag: '@dotnet' }, async ({ page }) => {
+  await page.goto('/#ajustes')
+  const section = page.getByRole('region', { name: 'Categorías' })
+  await section.getByRole('button', { name: 'Añadir categoría' }).click()
+  await section.getByLabel('Nueva categoría de gastos').fill('Mascotas')
+  await section.getByRole('button', { name: 'Guardar' }).click()
+  await expect(page.getByText('Categoría añadida')).toBeVisible()
+  await section.getByRole('button', { name: 'Añadir subcategoría a Mascotas' }).click()
+  await section.getByLabel('Nueva subcategoría de Mascotas').fill('Veterinario')
+  await section.getByRole('button', { name: 'Guardar' }).click()
+  await expect(page.getByText('Subcategoría añadida')).toBeVisible()
+  await section.getByRole('button', { name: 'Renombrar Mascotas', exact: true }).click()
+  await section.getByLabel('Nuevo nombre para «Mascotas»').fill('Animales')
+  await section.getByRole('button', { name: 'Guardar' }).click()
+  await expect(page.getByText('Categoría renombrada')).toBeVisible()
+
+  // Siguen ahí al recargar: los guardó el servidor.
+  await page.reload()
+  await expect(section.getByRole('button', { name: 'Renombrar Animales › Veterinario' })).toBeVisible()
+  const parent = (await storedCategories(page)).find((category) => category.name === 'Animales')
+  expect(parent).toMatchObject({ type: 'gasto', parentId: null, budgetCents: null })
+  expect((await storedCategories(page)).find((category) => category.name === 'Veterinario')?.parentId).toBe(parent?.id)
+
+  // Sin movimientos se elimina con sus subcategorías, sin pedir destino.
+  await section.getByRole('button', { name: 'Eliminar Animales', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Eliminar «Animales»' })
+  await expect(dialog).toContainText('También se eliminarán sus subcategorías: Veterinario.')
+  await expect(dialog).toContainText('No tiene movimientos.')
+  await dialog.getByRole('button', { name: 'Eliminar categoría' }).click()
+  await expect(page.getByText('Categoría «Animales» eliminada')).toBeVisible()
+  await page.reload()
+  await expect(section.getByRole('button', { name: 'Renombrar Ocio' })).toBeVisible()
+  await expect(section.getByText('Animales')).toHaveCount(0)
+  const names = (await storedCategories(page)).map((category) => category.name)
+  expect(names).not.toContain('Animales')
+  expect(names).not.toContain('Veterinario')
+  expect(names).toHaveLength(DEFAULT_CATEGORIES.length)
+})
+
+test('eliminar una categoría con movimientos los pasa a la que se elija', async ({ page }) => {
+  await page.goto('/')
+  await addExpense(page, { amount: '12,00', concept: 'Entradas de cine', category: 'Ocio' })
+  await page.goto('/#ajustes')
+  const section = page.getByRole('region', { name: 'Categorías' })
+  await section.getByRole('button', { name: 'Eliminar Ocio', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Eliminar «Ocio»' })
+  await expect(dialog).toContainText('Tiene 1 movimiento. Elige a qué categoría pasan:')
+  await dialog.getByLabel('Pasar a').selectOption({ label: 'Otros' })
+  await dialog.getByRole('button', { name: 'Eliminar categoría' }).click()
+  await expect(page.getByText('Categoría «Ocio» eliminada')).toBeVisible()
+
+  await page.reload()
+  const response = await page.request.get('/api/data')
+  const { data } = (await response.json()) as { data: FinanceData }
+  expect(data.categories.map((category) => category.id)).not.toContain('g-ocio')
+  expect(data.movements).toHaveLength(1)
+  expect(data.movements[0]).toMatchObject({ concept: 'Entradas de cine', categoryId: 'g-otros' })
 })
 
 test('editar o eliminar un movimiento actualiza los totales', async ({ page }) => {
@@ -227,7 +292,7 @@ test('exportar y restaurar una copia conserva los datos', async ({ page, browser
 
   // Instalación nueva (base de datos vacía) y otro navegador: restaurar la copia pide
   // confirmación y deja los mismos datos.
-  expect((await page.request.post('/api/test/reset')).ok()).toBe(true)
+  await resetDatabase(page.request)
   const otherContext = await browser.newContext({ locale: 'es-ES', timezoneId: 'Europe/Madrid' })
   await signIn(otherContext.request)
   const other = await otherContext.newPage()

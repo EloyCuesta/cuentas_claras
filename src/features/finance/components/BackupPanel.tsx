@@ -82,12 +82,12 @@ export function BackupPanel() {
         <Icon name="info" />
         <div className="stack stack--tight">
           <p>
-            <strong>Los datos se guardan en una base de datos SQLite de este equipo</strong> (el archivo{' '}
-            <code>server/data/cuentas.db</code> de la aplicación). No se envían a internet.
+            <strong>Los datos se guardan en una base de datos MySQL de este equipo</strong>, que gestiona el servidor de
+            la aplicación. No se envían a internet.
           </p>
           <p>
-            Si borras ese archivo o cambias de equipo, no los verás. Descarga una copia de seguridad de vez en cuando y
-            guárdala en un lugar seguro.
+            Si borras esa base de datos o cambias de equipo, no los verás. Descarga una copia de seguridad de vez en cuando
+            y guárdala en un lugar seguro.
           </p>
         </div>
       </div>

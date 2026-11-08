@@ -98,7 +98,7 @@ export function SummaryPage({
             Pulsa «Añadir un gasto», escribe el importe y el concepto y elige una categoría. Para el alquiler, los recibos
             o las cuotas de un préstamo, crea un pago recurrente y la aplicación preparará cada vencimiento.
           </p>
-          <p>Tus datos se guardan en una base de datos SQLite de este equipo.</p>
+          <p>Tus datos se guardan en una base de datos MySQL de este equipo.</p>
         </EmptyState>
       )}
 

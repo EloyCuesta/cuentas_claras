@@ -8,8 +8,8 @@ import {
 } from './features/finance/index.ts'
 import { useAuth } from './features/auth/index.ts'
 
-// Único punto donde se elige el almacenamiento: la base de datos SQLite del
-// servidor (server/), a través de su API REST.
+// Único punto donde se elige el almacenamiento: la base de datos MySQL del
+// servidor (Express en server/ o, en el ensayo, .NET en backend/), a través de su API REST.
 const repository = new ApiFinanceRepository()
 
 // Antes de abrir por primera vez: pasar al servidor los datos que hubiera en el navegador.

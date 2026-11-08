@@ -6,7 +6,7 @@ import type { FinanceRepository } from './FinanceRepository.ts'
 import { apiRequest, segment } from '../../api/client.ts'
 
 /**
- * FinanceRepository que guarda en la base de datos SQLite del servidor a través
+ * FinanceRepository que guarda en la base de datos MySQL del servidor a través
  * de la API REST. Es el mismo contrato que usaba la app con IndexedDB: la
  * interfaz no cambia. Cada método es una petición, y el servidor la ejecuta
  * entera en una transacción.

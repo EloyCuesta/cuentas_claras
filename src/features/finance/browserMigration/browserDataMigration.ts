@@ -5,7 +5,7 @@ import type { ApiFinanceRepository } from '../ApiFinanceRepository.ts'
 
 /**
  * Paso único de las versiones anteriores (datos en IndexedDB, dentro del
- * navegador) a la base de datos SQLite del servidor.
+ * navegador) a la base de datos MySQL del servidor.
  *
  * - Solo se importa si el servidor todavía no tiene datos del usuario: nunca se
  *   mezclan ni se duplican (el servidor lo comprueba en la misma transacción).

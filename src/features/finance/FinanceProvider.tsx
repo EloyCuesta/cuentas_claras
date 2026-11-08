@@ -175,7 +175,7 @@ export function FinanceProvider({
         <div className="splash__card" role="alert">
           <h1>No se pueden abrir los datos</h1>
           {state.status === 'error' && <p>{state.message}</p>}
-          <p>Tus datos se guardan en una base de datos SQLite de este equipo, que gestiona el servidor de la aplicación.</p>
+          <p>Tus datos se guardan en una base de datos MySQL de este equipo, que gestiona el servidor de la aplicación.</p>
           <button type="button" className="btn btn--primary" onClick={() => void start()}>
             Reintentar
           </button>
