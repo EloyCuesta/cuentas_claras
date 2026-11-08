@@ -30,4 +30,36 @@ public static class IsoDates
 
     /// <summary>isValidISODate: un texto con una fecha que existe.</summary>
     public static bool IsValid(string? value) => value is not null && Parse(value) is not null;
+
+    private static (int Year, int Month, int Day) PartsOf(string value) =>
+        Parse(value) ?? throw new ArgumentException($"Fecha no válida: {value}", nameof(value));
+
+    /// <summary>shiftMonth: suma (o resta) meses a un año/mes.</summary>
+    public static (int Year, int Month) ShiftMonth(int year, int month, int delta)
+    {
+        var index = year * 12 + (month - 1) + delta;
+        // Math.floor e index % 12 de JavaScript: para los años válidos el índice nunca es negativo.
+        var shiftedYear = (int)Math.Floor(index / 12.0);
+        return (shiftedYear, index - shiftedYear * 12 + 1);
+    }
+
+    /// <summary>addMonthsClamped: conserva el día del mes y, si no existe en el de destino, usa el último (31/01 + 1 = 28/02).</summary>
+    public static string AddMonthsClamped(string value, int months)
+    {
+        var (year, month, day) = PartsOf(value);
+        var (targetYear, targetMonth) = ShiftMonth(year, month, months);
+        return ToIsoDate(targetYear, targetMonth, Math.Min(day, DaysInMonth(targetYear, targetMonth)));
+    }
+
+    /// <summary>monthBounds: el primer y el último día del mes.</summary>
+    public static (string Start, string End) MonthBounds(int year, int month) =>
+        (ToIsoDate(year, month, 1), ToIsoDate(year, month, DaysInMonth(year, month)));
+
+    /// <summary>endOfNextMonth: el último día del mes siguiente (el horizonte de los vencimientos).</summary>
+    public static string EndOfNextMonth(string value)
+    {
+        var (year, month, _) = PartsOf(value);
+        var (nextYear, nextMonth) = ShiftMonth(year, month, 1);
+        return MonthBounds(nextYear, nextMonth).End;
+    }
 }

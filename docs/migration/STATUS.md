@@ -45,7 +45,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | DATA-01 | Acceso de .NET al MySQL ya migrado: conexión, transacciones y bloqueos sobre `database/mysql/`, sin esquema propio, con pruebas de tipos/índices/JSON desde C# | BASE-02, MYSQL-04 | verificado |
 | FIN-01 | Lectura de finanzas, categorías, presupuestos de categoría y metadatos; primer recorrido React | DATA-01 | verificado |
 | FIN-02 | Movimientos, pagos, eliminación e IDs estables ante reintentos | FIN-01 | verificado |
-| FIN-03 | Recurrentes, exclusiones, cuotas y generación sin duplicados concurrentes | FIN-02 | pendiente |
+| FIN-03 | Recurrentes, exclusiones, cuotas y generación sin duplicados concurrentes | FIN-02 | verificado |
 | FIN-04 | Consultas de resumen mensual/anual y previsión, con integración React y equivalencia | FIN-03 | pendiente |
 | FIN-05 | Copia/restauración financiera y exportaciones conservadas, sin afectar despensa | FIN-03 | pendiente |
 | PAN-01 | Personas, catálogo y edición con expectedVersion y conflicto visible en React | DATA-01 | pendiente |
@@ -384,6 +384,25 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:e2e`: 56/56 (1,2 min).
   - `git diff --check` sin errores.
 - Siguiente: FIN-03.
+
+### FIN-03 — 9 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `e7b3efd` (FIN-02). Mismo entorno.
+- .NET: `PUT /api/recurring/:id` (SaveRecurring: `{ rule, horizon, markPaidBefore }` validados en el orden de Express, la categoría del mismo tipo, la regla y sus fechas excluidas, los pendientes rehechos y los pagados conservados, lo anterior a markPaidBefore creado ya pagado en su fecha; devuelve `{ created }`), `DELETE /api/recurring/:id` (la regla y sus pendientes; los pagados se quedan con su recurringId) y `POST /api/occurrences/generate` (GenerateOccurrences: por regla en orden de id y por fecha). Todo con el bloqueo finance. Reglas en `backend/src/CuentasClaras.Domain/Finance/RecurringRules.cs` (scheduleDates, planOccurrences, projectOccurrences para FIN-04, generationHorizon) y en IsoDates (shiftMonth, addMonthsClamped, monthBounds y endOfNextMonth), sin DateTime.
+- Pruebas nuevas:
+  - `RecurringHttpTests` (9, MySql): abrir varias veces y con dos conexiones no duplica (`[0, 0]`); dos conexiones que generan a la vez la primera vez dan `[0, 2]`; guardar un recurrente y generar a la vez desde dos conexiones no duplica ni da 409; pagar o borrar un vencimiento no lo regenera (y queda excluido); editar rehace los pendientes y conserva los pagados; un préstamo empezado con las cuotas pasadas pagadas y los ids en orden de fecha; borrar el recurrente conserva lo pagado con su vínculo; el día 31 en un año bisiesto (31/01, 29/02, 31/03, 30/04) con las cuotas numeradas; y los mensajes de cuerpo, regla, id y fechas.
+  - Mutación, restaurada después: sin el bloqueo finance en GenerateOccurrences, las dos pruebas de dos conexiones fallan con el 409 del índice único.
+  - `HttpContractTests`: activo también S2 («recurrentes del día 31, exclusiones, pagos y generación repetida», 10 pasos con los ids del escenario).
+  - Corpus `rules-finance.json`: 31 casos más (177 en total) de addMonthsClamped, generationHorizon, scheduleDates y planOccurrences; los 146 de antes no cambian. C# 355/355 y TypeScript 178/178.
+  - E2E: fuera el stub de generate (`e2e/dotnet/pending.ts`), y pasan a @dotnet «abrir varias veces la aplicación no duplica vencimientos», «exportar y restaurar una copia conserva los datos» y «la plantilla anual cuadra con la mensual…».
+- Comandos, en Windows con el usuario limitado (3307):
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 1564/1564; `--filter "Categoria=MySql"`: 64/64.
+  - `npm run check`: tipos y oxlint correctos; Vitest 1211/1211 en 47 archivos.
+  - `npm run test:e2e:dotnet`: 36/36 (acceso 4; app 16 × escritorio y móvil), 44,9 s.
+  - `npm run test:e2e` no se repite: FIN-03 no cambia la web ni Express (su última ejecución, 56/56, es la de FIN-02).
+  - `git diff --check` sin errores.
+- Siguiente: FIN-04 (y después FIN-05; los dos dependen de FIN-03).
 
 ### Plantilla para la siguiente tarea
 

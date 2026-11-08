@@ -1,5 +1,7 @@
+import { addMonthsClamped } from '../shared/common/dates.ts'
 import { validateCategory, validateFinanceData, validateMovement, validateRecurring } from '../shared/finance/backup.ts'
 import { withDescendants } from '../shared/finance/categories.ts'
+import { generationHorizon, planOccurrences, scheduleDates } from '../shared/finance/recurring.ts'
 import { corpusJson } from './ticketRules.ts'
 
 /**
@@ -24,6 +26,15 @@ const OPERATIONS: Record<string, (input: Input) => unknown> = {
   validateFinanceData: (i) => validateFinanceData(bodyOf(i)),
   // shared/finance/categories.ts
   withDescendants: (i) => withDescendants(i.categories, i.categoryId),
+  // shared/common/dates.ts y shared/finance/recurring.ts (FIN-03): vencimientos, día 31, cuotas y exclusiones
+  addMonthsClamped: (i) => addMonthsClamped(i.value, i.months),
+  generationHorizon: (i) => generationHorizon(i.today),
+  scheduleDates: (i) => scheduleDates(i.rule, i.until),
+  // Los ids nuevos, «id-1», «id-2»…, en el orden en que se piden.
+  planOccurrences: (i) => {
+    let next = 0
+    return planOccurrences(i.rule, i.existing, i.horizon, i.now, () => `id-${++next}`)
+  },
 }
 
 export const FINANCE_OPERATIONS = Object.keys(OPERATIONS).sort()

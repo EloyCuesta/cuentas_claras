@@ -13,7 +13,6 @@ export interface PendingRoute {
 }
 
 export const PENDING_DOTNET_ROUTES: readonly PendingRoute[] = [
-  { method: 'POST', path: '/api/occurrences/generate', until: 'FIN-03', data: { created: 0 } },
   { method: 'GET', path: '/api/despensa/personas', until: 'PAN-01', data: [] },
   { method: 'GET', path: '/api/despensa/productos', until: 'PAN-01', data: [] },
   { method: 'GET', path: '/api/despensa/presupuesto', until: 'PAN-03', data: { monthlyBudgetCents: null, lastReviewDate: null } },

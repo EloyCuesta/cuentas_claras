@@ -23,6 +23,21 @@ internal static class FinanceRulesCorpus
         ["validateFinanceData"] = input => Result(FinanceRequests.ValidateFinanceData(BodyOf(input)), DataJson),
         // shared/finance/categories.ts
         ["withDescendants"] = input => Strings(CategoryRules.WithDescendants([.. Items(input, "categories").Select(ReadCategory)], Text(input, "categoryId"))),
+        // shared/common/dates.ts y shared/finance/recurring.ts (FIN-03)
+        ["addMonthsClamped"] = input => String(IsoDates.AddMonthsClamped(Text(input, "value"), (int)Long(input, "months"))),
+        ["generationHorizon"] = input => String(RecurringRules.GenerationHorizon(Text(input, "today"))),
+        ["scheduleDates"] = input =>
+        {
+            var rule = Get(input, "rule");
+            return Strings(RecurringRules.ScheduleDates(Text(rule, "startDate"), TextOrNull(rule, "endDate"), (int?)LongOrNull(rule, "installments"),
+                Text(rule, "frequency"), Text(input, "until")));
+        },
+        ["planOccurrences"] = input =>
+        {
+            var next = 0;
+            return Array(RecurringRules.PlanOccurrences(ReadRule(Get(input, "rule")), [.. Items(input, "existing").Select(ReadMovement)],
+                Text(input, "horizon"), Text(input, "now"), () => $"id-{++next}").Select(MovementJson));
+        },
     };
 
     public static IReadOnlyCollection<string> Ported => Operations.Keys;
@@ -45,6 +60,17 @@ internal static class FinanceRulesCorpus
     private static Category ReadCategory(JsonElement category) => new(
         Text(category, "id"), Text(category, "name"), Text(category, "type"), TextOrNull(category, "parentId"),
         Double(category, "order"), LongOrNull(category, "budgetCents"));
+
+    private static Movement ReadMovement(JsonElement movement) => new(
+        Text(movement, "id"), Text(movement, "concept"), Long(movement, "amountCents"), Text(movement, "type"), Text(movement, "categoryId"),
+        Text(movement, "status"), TextOrNull(movement, "paidDate"), TextOrNull(movement, "dueDate"), Text(movement, "notes"),
+        TextOrNull(movement, "recurringId"), TextOrNull(movement, "occurrenceDate"), (int?)LongOrNull(movement, "installmentNumber"),
+        Text(movement, "createdAt"), Text(movement, "updatedAt"));
+
+    private static RecurringRule ReadRule(JsonElement rule) => new(
+        Text(rule, "id"), Text(rule, "concept"), Long(rule, "amountCents"), Text(rule, "type"), Text(rule, "categoryId"),
+        Text(rule, "frequency"), Text(rule, "startDate"), TextOrNull(rule, "endDate"), (int?)LongOrNull(rule, "installments"),
+        Text(rule, "notes"), [.. Items(rule, "excludedDates").Select(Text)], Text(rule, "createdAt"), Text(rule, "updatedAt"));
 
     public static JsonObject CategoryJson(Category category) => Object(
         ("id", category.Id), ("name", category.Name), ("type", category.Type), ("parentId", category.ParentId),

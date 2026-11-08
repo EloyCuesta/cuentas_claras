@@ -7,7 +7,8 @@ namespace CuentasClaras.Api.Finance;
 /// <summary>Los casos de uso de las finanzas que usan sus rutas.</summary>
 public sealed record FinanceUseCases(
     FinanceQueries Queries, RestoreBackup RestoreBackup, SaveMovement SaveMovement, DeleteMovement DeleteMovement,
-    SaveCategory SaveCategory, DeleteCategory DeleteCategory, SetMeta SetMeta);
+    SaveCategory SaveCategory, DeleteCategory DeleteCategory, SaveRecurring SaveRecurring, DeleteRecurring DeleteRecurring,
+    GenerateOccurrences GenerateOccurrences, SetMeta SetMeta);
 
 /// <summary>
 /// Las rutas financieras (server/modules/finance/adapters/http/), todas con sesión: solo traducen HTTP ⇄ caso de uso,
@@ -61,6 +62,27 @@ public static class FinanceRoutes
             }
             await useCases.DeleteCategory.Execute(request.Param("id"), replacementId);
             await ApiResponse.Data(request.Http, null);
+        });
+
+        // Guarda el recurrente y rehace sus vencimientos pendientes: { rule, horizon, markPaidBefore } → { created }.
+        routes.Map("PUT", "/api/recurring/:id", RouteAccess.Session, async request =>
+        {
+            var created = await useCases.SaveRecurring.Handle(request.Param("id"), request.Body);
+            await ApiResponse.Data(request.Http, new { created });
+        });
+
+        // Lo elimina con sus pendientes (los pagados se conservan).
+        routes.Map("DELETE", "/api/recurring/:id", RouteAccess.Session, async request =>
+        {
+            await useCases.DeleteRecurring.Execute(request.Param("id"));
+            await ApiResponse.Data(request.Http, null);
+        });
+
+        // Crea los vencimientos que falten hasta { horizon } → { created }.
+        routes.Map("POST", "/api/occurrences/generate", RouteAccess.Session, async request =>
+        {
+            var created = await useCases.GenerateOccurrences.Handle(request.Body);
+            await ApiResponse.Data(request.Http, new { created });
         });
 
         // Datos auxiliares (fecha de la última copia descargada…).

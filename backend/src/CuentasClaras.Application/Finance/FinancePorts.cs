@@ -26,13 +26,25 @@ public interface IFinanceStore
     Task DeleteCategories(IReadOnlyList<string> categoryIds);
 
     Task<Movement?> GetMovement(string id);
+    /// <summary>Movimientos de un recurrente (sus vencimientos), por id.</summary>
+    Task<IReadOnlyList<Movement>> MovementsOfRule(string ruleId);
+    /// <summary>Crea un vencimiento. Lanza AppError CONFLICT si ya existe (índice único recurrente + fecha).</summary>
+    Task InsertOccurrence(Movement movement);
     /// <summary>Crea o actualiza (mismo id). Lanza AppError CONFLICT si choca con un vencimiento que ya existe.</summary>
     Task UpsertMovement(Movement movement);
     Task DeleteMovement(string id);
+    Task DeletePendingOfRule(string ruleId);
 
+    /// <summary>Los recurrentes, por id, cada uno con sus fechas excluidas.</summary>
+    Task<IReadOnlyList<RecurringRule>> ListRules();
     Task<bool> HasRule(string id);
+    /// <summary>Crea o actualiza el recurrente, sin tocar sus fechas excluidas.</summary>
+    Task UpsertRule(RecurringRule rule);
+    /// <summary>Borra el recurrente; sus fechas excluidas se van con él (en cascada).</summary>
+    Task DeleteRule(string id);
     /// <summary>Si ya estaba, no hace nada.</summary>
     Task AddExcludedDate(string ruleId, string date);
+    Task ClearExcludedDates(string ruleId);
 
     Task<string?> GetMeta(string key);
     Task SetMeta(string key, string value);

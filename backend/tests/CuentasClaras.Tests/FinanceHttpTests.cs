@@ -258,10 +258,17 @@ public sealed class FinanceHttpTests
         public Task<FinanceData> ReadAll() => inner.ReadAll();
         public Task WriteAll(FinanceData data) => inner.WriteAll(data);
         public Task<Movement?> GetMovement(string id) => inner.GetMovement(id);
+        public Task<IReadOnlyList<Movement>> MovementsOfRule(string ruleId) => inner.MovementsOfRule(ruleId);
+        public Task InsertOccurrence(Movement movement) => inner.InsertOccurrence(movement);
         public Task UpsertMovement(Movement movement) => inner.UpsertMovement(movement);
         public Task DeleteMovement(string id) => inner.DeleteMovement(id);
+        public Task DeletePendingOfRule(string ruleId) => inner.DeletePendingOfRule(ruleId);
+        public Task<IReadOnlyList<RecurringRule>> ListRules() => inner.ListRules();
         public Task<bool> HasRule(string id) => inner.HasRule(id);
+        public Task UpsertRule(RecurringRule rule) => inner.UpsertRule(rule);
+        public Task DeleteRule(string id) => inner.DeleteRule(id);
         public Task AddExcludedDate(string ruleId, string date) => inner.AddExcludedDate(ruleId, date);
+        public Task ClearExcludedDates(string ruleId) => inner.ClearExcludedDates(ruleId);
         public Task<IReadOnlyList<Category>> ListCategories() => inner.ListCategories();
         public Task<Category?> GetCategory(string id) => inner.GetCategory(id);
         public Task<long> CountChildren(string categoryId) => inner.CountChildren(categoryId);

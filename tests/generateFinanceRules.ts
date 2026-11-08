@@ -195,6 +195,54 @@ add('descendientes-sin-hijas', 'Una categoría sin subcategorías', 'withDescend
 add('descendientes-no-existe', 'Una categoría que no está en la lista', 'withDescendants', { categories: DEFAULT_CATEGORIES, categoryId: 'g-no-existe' })
 
 // ---------------------------------------------------------------------------
+// Recurrentes (FIN-03): fechas, día 31, frecuencias, cuotas, fin y exclusiones
+
+for (const [id, value, months] of [
+  ['31-enero-mas-1', '2026-01-31', 1], ['31-enero-mas-2', '2026-01-31', 2], ['31-enero-bisiesto', '2028-01-31', 1],
+  ['cambio-de-ano', '2026-12-15', 1], ['menos-1', '2026-03-31', -1], ['menos-13', '2026-01-31', -13], ['mas-12', '2026-05-31', 12],
+  ['cero', '2999-12-31', 0], ['29-febrero-un-ano', '2028-02-29', 12], ['30-abril-mas-1', '2026-04-30', 1],
+] as const) add(`meses-${id}`, 'addMonthsClamped: conserva el día o usa el último del mes', 'addMonthsClamped', { value, months })
+for (const [id, today] of [['octubre', '2026-10-28'], ['diciembre', '2026-12-05'], ['31-enero', '2027-01-31'], ['bisiesto', '2028-01-15'], ['noviembre', '2026-11-30']] as const) {
+  add(`horizonte-${id}`, 'generationHorizon: el final del mes siguiente', 'generationHorizon', { today })
+}
+const schedule = { startDate: '2026-01-31', endDate: null, installments: null, frequency: 'mensual' }
+for (const [id, overrides, until] of [
+  ['mensual-31', {}, '2026-07-31'],
+  ['trimestral-31', { frequency: 'trimestral' }, '2027-01-31'],
+  ['semestral', { frequency: 'semestral', startDate: '2026-08-31' }, '2028-03-01'],
+  ['anual-29-febrero', { frequency: 'anual', startDate: '2028-02-29' }, '2033-01-01'],
+  ['cuotas', { installments: 3 }, '2027-12-31'],
+  ['fin-incluido', { endDate: '2026-04-30' }, '2027-12-31'],
+  ['fin-antes-del-siguiente', { endDate: '2026-04-29' }, '2027-12-31'],
+  ['hasta-incluido', {}, '2026-03-31'],
+  ['hasta-antes-del-inicio', {}, '2026-01-30'],
+  ['sin-fin-tope', { startDate: '2026-01-01' }, '2999-12-31'],
+  ['cuotas-de-mas', { installments: 5000, frequency: 'anual', startDate: '2026-06-15' }, '2999-12-31'],
+] as const) {
+  add(`calendario-${id}`, 'scheduleDates: fechas desde el inicio, con fin, cuotas y hasta incluidos', 'scheduleDates', { rule: { ...schedule, ...overrides }, until })
+}
+const plannedRule = { ...rule, id: 'regla-ensayo', startDate: '2026-01-31', installments: 6, excludedDates: ['2026-03-31'] }
+const done = (date: string, overrides: Record<string, unknown> = {}) => ({
+  ...pending, id: `hecho-${date}`, recurringId: 'regla-ensayo', occurrenceDate: date, dueDate: date, ...overrides,
+})
+add('planificar-vacio', 'planOccurrences: todo lo que falta hasta el horizonte, con su número de cuota', 'planOccurrences',
+  { rule: plannedRule, existing: [], horizon: '2026-06-30', now: '2026-06-01T10:00:00.000Z' })
+add('planificar-con-hechos-y-excluidos', 'Lo ya creado y lo excluido se salta; la cuota no se desplaza', 'planOccurrences', {
+  rule: plannedRule, horizon: '2026-06-30', now: '2026-06-01T10:00:00.000Z',
+  existing: [done('2026-01-31', { status: 'realizado', paidDate: '2026-01-31' }), done('2026-02-28'), { ...done('2026-04-30'), recurringId: 'otra-regla' }],
+})
+add('planificar-sin-cuotas', 'Sin número de cuotas, installmentNumber es null', 'planOccurrences',
+  { rule: { ...plannedRule, installments: null, excludedDates: [] }, existing: [], horizon: '2026-03-31', now: '2026-03-01T00:00:00.000Z' })
+add('planificar-vencimiento-movido', 'Un vencimiento con otra fecha prevista sigue ocupando su fecha programada', 'planOccurrences', {
+  rule: { ...plannedRule, excludedDates: [] }, horizon: '2026-02-28', now: '2026-02-01T00:00:00.000Z',
+  existing: [done('2026-02-28', { dueDate: '2026-03-05' })],
+})
+add('planificar-sin-fecha-programada', 'Un movimiento de la regla sin occurrenceDate no ocupa ninguna fecha', 'planOccurrences', {
+  rule: { ...plannedRule, excludedDates: [] }, horizon: '2026-01-31', now: '2026-01-01T00:00:00.000Z',
+  existing: [{ ...pending, id: 'suelto', recurringId: 'regla-ensayo', occurrenceDate: null }],
+})
+
+// ---------------------------------------------------------------------------
 
 const corpus = {
   format: 'cuentas-claras-finance-rules-v1',

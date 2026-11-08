@@ -113,6 +113,9 @@ public static class ApiHost
             new DeleteMovement(financeStore, unitOfWork),
             new SaveCategory(financeStore, unitOfWork),
             new DeleteCategory(financeStore, services.Clock, unitOfWork),
+            new SaveRecurring(financeStore, services.Clock, services.Ids, unitOfWork),
+            new DeleteRecurring(financeStore, unitOfWork),
+            new GenerateOccurrences(financeStore, services.Clock, services.Ids, unitOfWork),
             new SetMeta(financeStore, unitOfWork)));
     }
 

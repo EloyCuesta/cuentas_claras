@@ -304,7 +304,7 @@ test('marcar un pago pendiente como pagado no duplica el gasto', { tag: '@dotnet
   expect(await storedMovements(page)).toBe(1)
 })
 
-test('abrir varias veces la aplicación no duplica vencimientos', async ({ page, context }) => {
+test('abrir varias veces la aplicación no duplica vencimientos', { tag: '@dotnet' }, async ({ page, context }) => {
   await page.goto('/#recurrentes')
   await page.getByRole('button', { name: 'Nuevo recurrente' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' })
@@ -332,7 +332,7 @@ test('abrir varias veces la aplicación no duplica vencimientos', async ({ page,
   await expect(page.locator('.move--pending')).toHaveCount(created)
 })
 
-test('exportar y restaurar una copia conserva los datos', async ({ page, browser }) => {
+test('exportar y restaurar una copia conserva los datos', { tag: '@dotnet' }, async ({ page, browser }) => {
   await page.goto('/')
   await addExpense(page, { amount: '54,30', concept: 'Mercadona; compra «semanal»', category: 'Alimentación › Supermercado' })
   await addExpense(page, { amount: '386,40', concept: 'Seguro del coche', category: 'Seguros › Coche', pending: true })
@@ -396,7 +396,7 @@ test('exporta los movimientos a CSV con formato español', { tag: '@dotnet' }, a
   expect(lines[1]).toMatch(/^\d{2}\/\d{2}\/\d{4};Gasto;Ordenador;Otros;;-1234,56;Pagado;\d{2}\/\d{2}\/\d{4};;No;$/)
 })
 
-test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálculo', async ({ page }) => {
+test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálculo', { tag: '@dotnet' }, async ({ page }) => {
   // Los datos de ejemplo son de octubre de 2026: se fija el reloj para que la previsión no dependa del día.
   await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
   await page.goto('/#ajustes')

@@ -25,6 +25,8 @@ public sealed class HttpContractTests
         "salud pública y versión del esquema sin datos de la instalación",
         // FIN-01 y FIN-02 (con la restauración que usa de preparación).
         "categorías, pago con ID estable, sustitución y metadatos",
+        // FIN-03.
+        "recurrentes del día 31, exclusiones, pagos y generación repetida",
     };
 
     private static readonly Dictionary<string, JsonDocument> Fixtures =

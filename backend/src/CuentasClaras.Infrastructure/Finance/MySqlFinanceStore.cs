@@ -191,12 +191,28 @@ public sealed class MySqlFinanceStore(MySqlDatabase database) : IFinanceStore
 
     public Task DeleteMovement(string id) => database.Run("DELETE FROM movements WHERE id = ?", [id]);
 
+    public async Task<IReadOnlyList<Movement>> MovementsOfRule(string ruleId) =>
+        await database.Rows($"SELECT {MovementColumns} FROM movements WHERE recurring_id = ? ORDER BY id", [ruleId], ToMovement);
+
+    public Task InsertOccurrence(Movement movement) => TranslatingOccurrences(() => database.Run(InsertMovementSql, MovementValues(movement)));
+
+    public Task DeletePendingOfRule(string ruleId) =>
+        database.Run("DELETE FROM movements WHERE recurring_id = ? AND status = 'pendiente'", [ruleId]);
+
     /* Recurrentes ----------------------------------------------------------- */
+
+    public Task<IReadOnlyList<RecurringRule>> ListRules() => AllRules();
 
     public async Task<bool> HasRule(string id) =>
         (await database.Rows("SELECT id FROM recurring_rules WHERE id = ?", [id], row => MySqlRead.Text(row, "id"))).Count > 0;
 
+    public Task UpsertRule(RecurringRule rule) => database.Run(UpsertRuleSql, RuleValues(rule));
+
+    public Task DeleteRule(string id) => database.Run("DELETE FROM recurring_rules WHERE id = ?", [id]);
+
     public Task AddExcludedDate(string ruleId, string date) => database.Run(InsertExcludedSql, [ruleId, date]);
+
+    public Task ClearExcludedDates(string ruleId) => database.Run("DELETE FROM recurring_excluded_dates WHERE rule_id = ?", [ruleId]);
 
     /* Metadatos ------------------------------------------------------------- */
 
