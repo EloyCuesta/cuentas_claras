@@ -117,7 +117,8 @@ public static class ApiHost
             new DeleteRecurring(financeStore, unitOfWork),
             new GenerateOccurrences(financeStore, services.Clock, services.Ids, unitOfWork),
             new SetMeta(financeStore, unitOfWork),
-            new SummaryQueries(financeStore, unitOfWork)));
+            new SummaryQueries(financeStore, unitOfWork),
+            new ImportBrowserData(financeStore, services.Clock, unitOfWork)));
     }
 
     private static WebApplication Build(HostSettings settings, Sha256CodeVerifier verifier, HostServices services, string[]? args)

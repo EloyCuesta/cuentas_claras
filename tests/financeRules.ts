@@ -1,5 +1,5 @@
 import { addMonthsClamped } from '../shared/common/dates.ts'
-import { validateCategory, validateFinanceData, validateMovement, validateRecurring } from '../shared/finance/backup.ts'
+import { hasUserData, validateCategory, validateFinanceData, validateMovement, validateRecurring } from '../shared/finance/backup.ts'
 import { withDescendants } from '../shared/finance/categories.ts'
 import { generationHorizon, planOccurrences, scheduleDates } from '../shared/finance/recurring.ts'
 import { forecastMovements, monthView, yearView } from '../shared/finance/summaryViews.ts'
@@ -25,6 +25,8 @@ const OPERATIONS: Record<string, (input: Input) => unknown> = {
   validateMovement: (i) => validateMovement(bodyOf(i)),
   validateRecurring: (i) => validateRecurring(bodyOf(i)),
   validateFinanceData: (i) => validateFinanceData(bodyOf(i)),
+  // FIN-05: no importar los datos del navegador encima de los del usuario
+  hasUserData: (i) => hasUserData(i.data),
   // shared/finance/categories.ts
   withDescendants: (i) => withDescendants(i.categories, i.categoryId),
   // shared/common/dates.ts y shared/finance/recurring.ts (FIN-03): vencimientos, día 31, cuotas y exclusiones

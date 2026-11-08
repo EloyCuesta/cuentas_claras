@@ -431,7 +431,7 @@ test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálcu
   expect(await storedMovements(page)).toBe(stored)
 })
 
-test('pasa a la base de datos los datos que había en el navegador y conserva la copia', async ({ page }) => {
+test('pasa a la base de datos los datos que había en el navegador y conserva la copia', { tag: '@dotnet' }, async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Empieza apuntando tu primer gasto' })).toBeVisible()

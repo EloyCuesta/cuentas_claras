@@ -21,6 +21,7 @@ internal static class FinanceRulesCorpus
         ["validateMovement"] = input => Result(FinanceRequests.ValidateMovement(BodyOf(input)), MovementJson),
         ["validateRecurring"] = input => Result(FinanceRequests.ValidateRecurring(BodyOf(input)), RuleJson),
         ["validateFinanceData"] = input => Result(FinanceRequests.ValidateFinanceData(BodyOf(input)), DataJson),
+        ["hasUserData"] = input => JsonValue.Create(BackupRules.HasUserData(ReadData(Get(input, "data")))),
         // shared/finance/categories.ts
         ["withDescendants"] = input => Strings(CategoryRules.WithDescendants([.. Items(input, "categories").Select(ReadCategory)], Text(input, "categoryId"))),
         // shared/common/dates.ts y shared/finance/recurring.ts (FIN-03)

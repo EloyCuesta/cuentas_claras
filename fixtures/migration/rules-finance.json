@@ -6,6 +6,7 @@
     "compareNames",
     "forecastMovements",
     "generationHorizon",
+    "hasUserData",
     "monthView",
     "planOccurrences",
     "scheduleDates",
@@ -5865,6 +5866,2124 @@
           ]
         }
       }
+    },
+    {
+      "id": "datos-del-usuario-iniciales",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            }
+          ],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "datos-del-usuario-iniciales-en-otro-orden",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            }
+          ],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "datos-del-usuario-sin-categorias",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "datos-del-usuario-una-de-menos",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            }
+          ],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "datos-del-usuario-una-de-mas",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ensayo",
+              "name": "Categoría de ensayo",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1.5,
+              "budgetCents": 12345
+            }
+          ],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "datos-del-usuario-nombre-cambiado",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio y cultura",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            }
+          ],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "datos-del-usuario-presupuesto-puesto",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": 0
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            }
+          ],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "datos-del-usuario-orden-cambiado",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7.5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            }
+          ],
+          "movements": [],
+          "recurring": []
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "datos-del-usuario-un-movimiento",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            }
+          ],
+          "movements": [
+            {
+              "id": "mov-ensayo",
+              "concept": "Compra de ensayo",
+              "amountCents": 1234,
+              "type": "gasto",
+              "categoryId": "g-ensayo",
+              "status": "pendiente",
+              "paidDate": null,
+              "dueDate": "2026-11-15",
+              "notes": "",
+              "recurringId": null,
+              "occurrenceDate": null,
+              "installmentNumber": null,
+              "createdAt": "2026-11-01T08:00:00.000Z",
+              "updatedAt": "2026-11-01T08:00:00.000Z"
+            }
+          ],
+          "recurring": []
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "datos-del-usuario-un-recurrente",
+      "description": "hasUserData: movimientos, recurrentes o categorías distintas de las iniciales",
+      "operation": "hasUserData",
+      "input": {
+        "data": {
+          "categories": [
+            {
+              "id": "g-vivienda",
+              "name": "Vivienda",
+              "type": "gasto",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-alquiler",
+              "name": "Alquiler o hipoteca",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-luz",
+              "name": "Luz",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-agua",
+              "name": "Agua",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-gas",
+              "name": "Gas",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-vivienda-internet",
+              "name": "Internet",
+              "type": "gasto",
+              "parentId": "g-vivienda",
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-combustible",
+              "name": "Combustible",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-mantenimiento",
+              "name": "Mantenimiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-aparcamiento",
+              "name": "Aparcamiento",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-coche-impuestos",
+              "name": "Impuestos",
+              "type": "gasto",
+              "parentId": "g-coche",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion",
+              "name": "Alimentación",
+              "type": "gasto",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-supermercado",
+              "name": "Supermercado",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-alimentacion-comidas-fuera",
+              "name": "Comidas fuera",
+              "type": "gasto",
+              "parentId": "g-alimentacion",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros",
+              "name": "Seguros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-coche",
+              "name": "Coche",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-hogar",
+              "name": "Hogar",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 2,
+              "budgetCents": null
+            },
+            {
+              "id": "g-seguros-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": "g-seguros",
+              "order": 3,
+              "budgetCents": null
+            },
+            {
+              "id": "g-prestamos",
+              "name": "Préstamos y letras",
+              "type": "gasto",
+              "parentId": null,
+              "order": 4,
+              "budgetCents": null
+            },
+            {
+              "id": "g-suscripciones",
+              "name": "Suscripciones",
+              "type": "gasto",
+              "parentId": null,
+              "order": 5,
+              "budgetCents": null
+            },
+            {
+              "id": "g-salud",
+              "name": "Salud",
+              "type": "gasto",
+              "parentId": null,
+              "order": 6,
+              "budgetCents": null
+            },
+            {
+              "id": "g-ocio",
+              "name": "Ocio",
+              "type": "gasto",
+              "parentId": null,
+              "order": 7,
+              "budgetCents": null
+            },
+            {
+              "id": "g-otros",
+              "name": "Otros",
+              "type": "gasto",
+              "parentId": null,
+              "order": 8,
+              "budgetCents": null
+            },
+            {
+              "id": "i-nomina",
+              "name": "Nómina",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 0,
+              "budgetCents": null
+            },
+            {
+              "id": "i-extra",
+              "name": "Ingresos extra",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 1,
+              "budgetCents": null
+            },
+            {
+              "id": "i-otros",
+              "name": "Otros ingresos",
+              "type": "ingreso",
+              "parentId": null,
+              "order": 2,
+              "budgetCents": null
+            }
+          ],
+          "movements": [],
+          "recurring": [
+            {
+              "id": "regla-ensayo",
+              "concept": "Cuota de ensayo",
+              "amountCents": 5000,
+              "type": "gasto",
+              "categoryId": "g-ensayo",
+              "frequency": "mensual",
+              "startDate": "2026-01-31",
+              "endDate": null,
+              "installments": 3,
+              "notes": "Préstamo inventado",
+              "excludedDates": [
+                "2026-02-28"
+              ],
+              "createdAt": "2026-11-01T08:00:00.000Z",
+              "updatedAt": "2026-11-01T08:00:00.000Z"
+            }
+          ]
+        }
+      },
+      "expected": true
     },
     {
       "id": "descendientes-con-hijas",

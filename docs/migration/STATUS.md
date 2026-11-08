@@ -47,7 +47,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | FIN-02 | Movimientos, pagos, eliminación e IDs estables ante reintentos | FIN-01 | verificado |
 | FIN-03 | Recurrentes, exclusiones, cuotas y generación sin duplicados concurrentes | FIN-02 | verificado |
 | FIN-04 | Consultas de resumen mensual/anual y previsión, con integración React y equivalencia | FIN-03 | verificado |
-| FIN-05 | Copia/restauración financiera y exportaciones conservadas, sin afectar despensa | FIN-03 | pendiente |
+| FIN-05 | Copia/restauración financiera y exportaciones conservadas, sin afectar despensa | FIN-03 | verificado |
 | PAN-01 | Personas, catálogo y edición con expectedVersion y conflicto visible en React | DATA-01 | pendiente |
 | PAN-02 | Ajustes de cantidad, comprar y deshacer de forma atómica | PAN-01 | pendiente |
 | PAN-03 | Revisiones, actividad, ritmo, lista, presupuesto de despensa y repaso semanal | PAN-02 | pendiente |
@@ -423,6 +423,24 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:e2e`: 56/56 (1,2 min): las páginas reorganizadas calculan lo mismo contra Express.
   - `git diff --check` sin errores.
 - Siguiente: FIN-05.
+
+### FIN-05 — 9 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `2a2efac` (FIN-04). Mismo entorno.
+- .NET: `POST /api/import` (ImportBrowserData: `{ data, lastBackupAt }` validados como en Express, 201 con `{ categories, movements, recurring }`, 409 «La base de datos ya tiene datos…» si hay datos del usuario, la fecha de copia que ya hubiera se conserva y browserImportAt se anota con el reloj). La regla hasUserData, en `backend/src/CuentasClaras.Domain/Finance/BackupRules.cs` (la misma clave JSON de cada categoría que backup.ts, con JsJson). `PUT /api/data` (restaurar) ya estaba desde FIN-02. El JSON v1 y el CSV se generan y se leen en el navegador, igual contra los dos backends.
+- Pruebas nuevas:
+  - Corpus `rules-finance.json`: 10 casos de hasUserData (207 en total; C# 415/415 y TypeScript 208/208).
+  - `ImportHttpTests` (4, MySql): importa sin datos del usuario aunque haya despensa (y anota las fechas); no importa si ya hay un movimiento o una categoría cambiada; conserva la fecha de copia y valida el cuerpo; y restaurar e importar dejan iguales, con `CHECKSUM TABLE`, las siete tablas de la despensa y los tickets sembradas por SQL (y `GET /api/data` solo tiene finanzas). La restauración deshecha entera si falla a mitad ya la probaba MovementHttpTests.
+  - E2E: `e2e/app.spec.ts` entero contra .NET (15 pruebas @dotnet): copias JSON (exportar, restaurar en otro navegador y rechazar una no válida), CSV, plantilla anual y la migración de los datos del navegador.
+- El escenario S3 de `http-finance.json` sigue pendiente en HttpContractTests: usa las rutas de personas y productos (PAN-01).
+- Comandos, en Windows con el usuario limitado (3307):
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 1632/1632; `--filter "Categoria=MySql"`: 72/72.
+  - `npm run check`: tipos y oxlint correctos; Vitest 1244/1244 en 48 archivos.
+  - `npm run test:e2e:dotnet`: 40/40 (acceso 4; app 18 × escritorio y móvil), 52,3 s.
+  - `npm run test:e2e` no se repite: FIN-05 no cambia la web ni Express (la última, 56/56, es la de FIN-04).
+  - `git diff --check` sin errores.
+- Con esto las finanzas están completas en .NET (FIN-01 a FIN-05). Siguiente: PAN-01.
 
 ### Plantilla para la siguiente tarea
 

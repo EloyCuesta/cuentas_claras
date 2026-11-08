@@ -8,7 +8,7 @@ namespace CuentasClaras.Api.Finance;
 public sealed record FinanceUseCases(
     FinanceQueries Queries, RestoreBackup RestoreBackup, SaveMovement SaveMovement, DeleteMovement DeleteMovement,
     SaveCategory SaveCategory, DeleteCategory DeleteCategory, SaveRecurring SaveRecurring, DeleteRecurring DeleteRecurring,
-    GenerateOccurrences GenerateOccurrences, SetMeta SetMeta, SummaryQueries Summaries);
+    GenerateOccurrences GenerateOccurrences, SetMeta SetMeta, SummaryQueries Summaries, ImportBrowserData ImportBrowserData);
 
 /// <summary>
 /// Las rutas financieras (server/modules/finance/adapters/http/), todas con sesión: solo traducen HTTP ⇄ caso de uso,
@@ -28,6 +28,10 @@ public static class FinanceRoutes
             await useCases.RestoreBackup.Handle(request.Body);
             await ApiResponse.Data(request.Http, null);
         });
+
+        // Importa los datos que había en el navegador (solo si aquí no hay nada del usuario): 201 con los recuentos.
+        routes.Map("POST", "/api/import", RouteAccess.Session, async request =>
+            await ApiResponse.Data(request.Http, await useCases.ImportBrowserData.Handle(request.Body), 201));
 
         // Crea o actualiza un movimiento (marcar como pagado incluido).
         routes.Map("PUT", "/api/movements/:id", RouteAccess.Session, async request =>

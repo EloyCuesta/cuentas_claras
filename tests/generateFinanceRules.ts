@@ -187,6 +187,24 @@ add('datos-vencimientos-distintos', 'El mismo recurrente en dos fechas', 'valida
   body({ ...data, movements: [occurrence, { ...occurrence, id: 'mov-otro', occurrenceDate: '2026-03-31', dueDate: '2026-03-31' }] }))
 
 // ---------------------------------------------------------------------------
+// hasUserData (FIN-05): qué cuenta como datos del usuario antes de importar los del navegador
+
+const defaults = DEFAULT_CATEGORIES.map((c) => ({ ...c }))
+const changedDefault = (id: string, overrides: Record<string, unknown>) => defaults.map((c) => (c.id === id ? { ...c, ...overrides } : c))
+for (const [id, data] of [
+  ['iniciales', { categories: defaults, movements: [], recurring: [] }],
+  ['iniciales-en-otro-orden', { categories: [...defaults].reverse(), movements: [], recurring: [] }],
+  ['sin-categorias', { categories: [], movements: [], recurring: [] }],
+  ['una-de-menos', { categories: defaults.slice(1), movements: [], recurring: [] }],
+  ['una-de-mas', { categories: [...defaults, category], movements: [], recurring: [] }],
+  ['nombre-cambiado', { categories: changedDefault('g-ocio', { name: 'Ocio y cultura' }), movements: [], recurring: [] }],
+  ['presupuesto-puesto', { categories: changedDefault('g-ocio', { budgetCents: 0 }), movements: [], recurring: [] }],
+  ['orden-cambiado', { categories: changedDefault('g-ocio', { order: 7.5 }), movements: [], recurring: [] }],
+  ['un-movimiento', { categories: defaults, movements: [pending], recurring: [] }],
+  ['un-recurrente', { categories: defaults, movements: [], recurring: [rule] }],
+] as const) add(`datos-del-usuario-${id}`, 'hasUserData: movimientos, recurrentes o categorías distintas de las iniciales', 'hasUserData', { data })
+
+// ---------------------------------------------------------------------------
 // withDescendants
 
 add('descendientes-con-hijas', 'La categoría y sus subcategorías, en el orden de la lista', 'withDescendants',
