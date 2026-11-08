@@ -1,8 +1,6 @@
 import { useMemo } from 'react'
-import { categoryMonthMatrix, monthlySeries } from '#shared/finance/annual.ts'
 import { yearTemplateCsv } from '#shared/finance/csv.ts'
-import { periodBounds, yearPeriod, type YearMonth } from '#shared/finance/period.ts'
-import { budgetLines, periodSummary } from '#shared/finance/summary.ts'
+import { yearPeriod, type YearMonth } from '#shared/finance/period.ts'
 import { BudgetSummary } from '../components/BudgetSummary.tsx'
 import { CategoryMonthGrid } from '../components/CategoryMonthGrid.tsx'
 import { Icon } from '../../../ui/Icon.tsx'
@@ -12,7 +10,8 @@ import { PeriodPicker } from '../components/PeriodPicker.tsx'
 import { PeriodSwitch } from '../components/PeriodSwitch.tsx'
 import { Section } from '../../../ui/Section.tsx'
 import { useFinance } from '../financeContext.ts'
-import { useForecastMovements } from '../useForecastMovements.ts'
+import { SummaryPending } from '../components/SummaryPending.tsx'
+import { useYearView } from '../useSummaryView.ts'
 import { downloadFile } from '../../../ui/helpers.ts'
 
 /** Plantilla anual: las cuentas del año, su evolución mes a mes, cada categoría por meses y el presupuesto anual. */
@@ -28,20 +27,18 @@ export function YearPage({
   /** Abre la plantilla mensual de un mes de este año. */
   onOpenMonth: (month: number) => void
 }) {
-  const { data, today } = useFinance()
+  const { today } = useFinance()
   const year = month.year
   const period = useMemo(() => yearPeriod(year), [year])
-  const movements = useForecastMovements(periodBounds(period).end)
-  const summary = useMemo(() => periodSummary(movements, period), [movements, period])
-  const series = useMemo(() => monthlySeries(movements, year), [movements, year])
-  const income = useMemo(() => categoryMonthMatrix(movements, data.categories, year, 'ingreso'), [movements, data.categories, year])
-  const expense = useMemo(() => categoryMonthMatrix(movements, data.categories, year, 'gasto'), [movements, data.categories, year])
-  const budgets = useMemo(() => budgetLines(movements, data.categories, period), [movements, data.categories, period])
+  // La cuenta del año, la evolución mes a mes, las categorías por meses y el presupuesto anual (con lo proyectado).
+  const state = useYearView(year)
+  const view = state.status === 'ready' ? state.view : null
   const current = { year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }
   const currentMonth = year === current.year ? current.month : null
 
   const downloadTemplate = () => {
-    downloadFile(`﻿${yearTemplateCsv(income, expense, series)}`, `cuentas-claras-ano-${year}.csv`, 'text/csv;charset=utf-8')
+    if (!view) return
+    downloadFile(`﻿${yearTemplateCsv(view.income, view.expense, view.series)}`, `cuentas-claras-ano-${year}.csv`, 'text/csv;charset=utf-8')
   }
 
   return (
@@ -56,41 +53,47 @@ export function YearPage({
         </div>
       </header>
 
-      <div className="summary-grid">
-        <div className="summary-col">
-          <Ledger summary={summary} period={period} />
-        </div>
-        <div className="summary-col">
-          <Section id="trend" title="¿Cómo va el año?">
-            <MonthlyTrendChart
-              key={year}
-              series={series}
-              year={year}
-              initialMonth={month.month}
-              currentMonth={currentMonth}
-              onOpenMonth={onOpenMonth}
-            />
-          </Section>
-          <BudgetSummary id="budget" title="Presupuesto anual" lines={budgets} period={period} />
-        </div>
-      </div>
+      {view ? (
+        <>
+          <div className="summary-grid">
+            <div className="summary-col">
+              <Ledger summary={view.summary} period={period} />
+            </div>
+            <div className="summary-col">
+              <Section id="trend" title="¿Cómo va el año?">
+                <MonthlyTrendChart
+                  key={year}
+                  series={view.series}
+                  year={year}
+                  initialMonth={month.month}
+                  currentMonth={currentMonth}
+                  onOpenMonth={onOpenMonth}
+                />
+              </Section>
+              <BudgetSummary id="budget" title="Presupuesto anual" lines={view.budgetLines} period={period} />
+            </div>
+          </div>
 
-      <Section
-        id="grid"
-        title="Mes a mes por categoría"
-        aside={
-          <button type="button" className="btn btn--ghost btn--small" onClick={downloadTemplate}>
-            <Icon name="download" size={18} />
-            Descargar hoja de cálculo
-          </button>
-        }
-      >
-        <p className="section-sub">
-          Importes en euros. Cada celda suma lo cobrado o pagado y lo pendiente; en gris, las que incluyen algo pendiente
-          o proyectado.
-        </p>
-        <CategoryMonthGrid income={income} expense={expense} year={year} currentMonth={currentMonth} />
-      </Section>
+          <Section
+            id="grid"
+            title="Mes a mes por categoría"
+            aside={
+              <button type="button" className="btn btn--ghost btn--small" onClick={downloadTemplate}>
+                <Icon name="download" size={18} />
+                Descargar hoja de cálculo
+              </button>
+            }
+          >
+            <p className="section-sub">
+              Importes en euros. Cada celda suma lo cobrado o pagado y lo pendiente; en gris, las que incluyen algo
+              pendiente o proyectado.
+            </p>
+            <CategoryMonthGrid income={view.income} expense={view.expense} year={year} currentMonth={currentMonth} />
+          </Section>
+        </>
+      ) : (
+        <SummaryPending state={state} />
+      )}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { addMonthsClamped } from '../shared/common/dates.ts'
 import { validateCategory, validateFinanceData, validateMovement, validateRecurring } from '../shared/finance/backup.ts'
 import { withDescendants } from '../shared/finance/categories.ts'
 import { generationHorizon, planOccurrences, scheduleDates } from '../shared/finance/recurring.ts'
+import { forecastMovements, monthView, yearView } from '../shared/finance/summaryViews.ts'
 import { corpusJson } from './ticketRules.ts'
 
 /**
@@ -35,6 +36,12 @@ const OPERATIONS: Record<string, (input: Input) => unknown> = {
     let next = 0
     return planOccurrences(i.rule, i.existing, i.horizon, i.now, () => `id-${++next}`)
   },
+  // shared/finance/summaryViews.ts (FIN-04): lo que devuelven las consultas de resumen de .NET
+  forecastMovements: (i) => forecastMovements(i.data, i.today, i.until),
+  monthView: (i) => monthView(i.data, i.today, i.year, i.month),
+  yearView: (i) => yearView(i.data, i.today, i.year),
+  // localeCompare(…, 'es'), con que se ordenan categorías y totales: el signo de cada pareja (fila contra columna).
+  compareNames: (i) => (i.names as string[]).map((a) => (i.names as string[]).map((b) => Math.sign(a.localeCompare(b, 'es')))),
 }
 
 export const FINANCE_OPERATIONS = Object.keys(OPERATIONS).sort()

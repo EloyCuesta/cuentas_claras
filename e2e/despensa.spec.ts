@@ -12,7 +12,7 @@ test.beforeEach(async ({ request }) => {
 })
 
 /** Peticiones financieras que no deben salir nunca de la vista de invitado. */
-const FINANCE_REQUEST = /\/api\/(data|import|movements|categories|recurring|occurrences|meta)\b/
+const FINANCE_REQUEST = /\/api\/(data|import|movements|categories|recurring|occurrences|meta|summary)\b/
 
 function recordApiRequests(page: Page): string[] {
   const seen: string[] = []

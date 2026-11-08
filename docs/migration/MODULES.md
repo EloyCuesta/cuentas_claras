@@ -42,7 +42,7 @@ Las cifras financieras se guardan positivas y su tipo distingue ingreso/gasto. N
 
 La importación actual recibe `{ data, lastBackupAt }`, devuelve 201 con los recuentos de categorías, movimientos y recurrentes y responde 409 si ya hay datos del usuario. Su consumidor está en [browserMigration](../../src/features/finance/browserMigration); el invitado no ejecuta esa migración. No confundir este recorrido IndexedDB→servidor con el importador SQLite→MySQL ni con DATA-02.
 
-Reglas a leer: [recurring.ts](../../shared/finance/recurring.ts), [summary.ts](../../shared/finance/summary.ts), [annual.ts](../../shared/finance/annual.ts), [backup.ts](../../shared/finance/backup.ts) y [csv.ts](../../shared/finance/csv.ts). React aún calcula previsión en [useForecastMovements.ts](../../src/features/finance/useForecastMovements.ts); preserva esos consumidores durante el portado.
+Reglas a leer: [recurring.ts](../../shared/finance/recurring.ts), [summary.ts](../../shared/finance/summary.ts), [annual.ts](../../shared/finance/annual.ts), [backup.ts](../../shared/finance/backup.ts) y [csv.ts](../../shared/finance/csv.ts). Desde FIN-04 la previsión y los resúmenes se componen en [summaryViews.ts](../../shared/finance/summaryViews.ts): React los calcula con él contra Express y, con la web compilada para .NET, los pide a GET /api/summary/month y /api/summary/year ([useSummaryView.ts](../../src/features/finance/useSummaryView.ts)); el corpus de finanzas comprueba que C# da lo mismo.
 
 Validación: [pruebas del repositorio](../../server/modules/finance/finance.test.ts), pruebas `shared/finance/*.test.ts` y los recorridos financieros de `e2e/app.spec.ts`. Compara resultados C#/TypeScript con la misma fecha, IDs y casos, no con el reloj real de cada ejecución.
 

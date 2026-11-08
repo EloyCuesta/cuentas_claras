@@ -70,6 +70,20 @@ Los casos de uso lanzan `AppError(código, mensaje)` (`server/common/errors.ts`)
 
 El detalle está en `server/modules/health/AGENTS.md`, `server/modules/auth/AGENTS.md`, `server/modules/pantry/AGENTS.md`, `server/modules/tickets/AGENTS.md` y `server/modules/finance/AGENTS.md`.
 
+## Consultas de resumen (solo en el backend .NET, FIN-04)
+
+Lo que enseñan las plantillas mensual y anual, calculado en el servidor con las mismas reglas que la web (`shared/finance/summaryViews.ts`; lo comprueba el corpus `fixtures/migration/rules-finance.json`). Exigen sesión, como el resto de las finanzas, y no guardan nada: lo proyectado de los recurrentes se calcula al vuelo.
+
+| Método y ruta | Qué devuelve |
+| --- | --- |
+| GET /api/summary/month?year=AAAA&month=M&hoy=AAAA-MM-DD | `{ period, horizon, summary, expensesByCategory, budgetLines, breakdown }` (MonthView) |
+| GET /api/summary/year?year=AAAA&hoy=AAAA-MM-DD | `{ period, horizon, summary, series, income, expense, budgetLines }` (YearView) |
+
+- `hoy` es la fecha de hoy del navegador: decide el horizonte (el final del mes siguiente) y lo que se proyecta después.
+- Lo realizado cuenta en el mes de su fecha de pago, lo pendiente en el de su vencimiento y lo proyectado como pendiente; los importes, en céntimos enteros.
+- Los parámetros se comprueban en este orden, cada uno una sola vez (repetido no vale), con un 400 VALIDATION: «El parámetro «year» debe ser un año entre 1900 y 2999.», «El parámetro «month» debe ser un mes entre 1 y 12.» y «El parámetro «hoy» debe ser una fecha AAAA-MM-DD.»
+- La web solo las pide si se compila con `CUENTAS_BACKEND=dotnet` (el ensayo del backend .NET); contra Express calcula lo mismo en el navegador.
+
 ## Variables de entorno
 
-Están en el README, en «Cómo ejecutarla». La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber adónde envía Vite las peticiones a `/api`.
+Están en el README, en «Cómo ejecutarla». La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber adónde envía Vite las peticiones a `/api`, y `CUENTAS_BACKEND=dotnet` al compilar o arrancar Vite para el backend .NET (las consultas de resumen de arriba).

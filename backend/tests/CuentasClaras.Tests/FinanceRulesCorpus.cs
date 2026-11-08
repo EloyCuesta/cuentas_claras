@@ -38,7 +38,30 @@ internal static class FinanceRulesCorpus
             return Array(RecurringRules.PlanOccurrences(ReadRule(Get(input, "rule")), [.. Items(input, "existing").Select(ReadMovement)],
                 Text(input, "horizon"), Text(input, "now"), () => $"id-{++next}").Select(MovementJson));
         },
+        // shared/finance/summaryViews.ts (FIN-04): con la serialización de la API, como las responde GET /api/summary/*
+        ["forecastMovements"] = input => Api(FinanceSummaries.ForecastMovements(ReadData(Get(input, "data")), Text(input, "today"), Text(input, "until"))
+            .Select(MovementView.From).ToList()),
+        ["monthView"] = input => Api(FinanceSummaries.MonthView(ReadData(Get(input, "data")), Text(input, "today"), (int)Long(input, "year"), (int)Long(input, "month"))),
+        ["yearView"] = input => Api(FinanceSummaries.YearView(ReadData(Get(input, "data")), Text(input, "today"), (int)Long(input, "year"))),
+        ["compareNames"] = input =>
+        {
+            var names = Items(input, "names").Select(Text).ToArray();
+            return Array(names.Select(a => (JsonNode?)Array(names.Select(b => Number(JsCollator.Compare(a, b))))));
+        },
     };
+
+    /// <summary>Las opciones de la API (ApiResponse): camelCase y los double como JSON.stringify.</summary>
+    private static readonly JsonSerializerOptions ApiJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new CuentasClaras.Application.Common.JsDoubleConverter() },
+    };
+
+    private static JsonNode? Api<T>(T value) => JsonSerializer.SerializeToNode(value, ApiJson);
+
+    private static FinanceData ReadData(JsonElement data) => new(
+        [.. Items(data, "categories").Select(ReadCategory)], [.. Items(data, "movements").Select(ReadMovement)],
+        [.. Items(data, "recurring").Select(ReadRule)]);
 
     public static IReadOnlyCollection<string> Ported => Operations.Keys;
 

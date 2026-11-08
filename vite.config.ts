@@ -13,6 +13,9 @@ const apiProxy = {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // El backend al que va la web. Con CUENTAS_BACKEND=dotnet (el ensayo del backend .NET) los resúmenes mensual y anual
+  // los calcula el servidor (GET /api/summary/*, FIN-04); sin ella, la web los calcula como siempre contra Express.
+  define: { __CUENTAS_BACKEND__: JSON.stringify(process.env.CUENTAS_BACKEND === 'dotnet' ? 'dotnet' : 'express') },
   // Rutas relativas: el resultado de "npm run build" funciona en cualquier carpeta del servidor.
   base: './',
   server: { proxy: apiProxy },

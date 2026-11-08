@@ -46,7 +46,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | FIN-01 | Lectura de finanzas, categorías, presupuestos de categoría y metadatos; primer recorrido React | DATA-01 | verificado |
 | FIN-02 | Movimientos, pagos, eliminación e IDs estables ante reintentos | FIN-01 | verificado |
 | FIN-03 | Recurrentes, exclusiones, cuotas y generación sin duplicados concurrentes | FIN-02 | verificado |
-| FIN-04 | Consultas de resumen mensual/anual y previsión, con integración React y equivalencia | FIN-03 | pendiente |
+| FIN-04 | Consultas de resumen mensual/anual y previsión, con integración React y equivalencia | FIN-03 | verificado |
 | FIN-05 | Copia/restauración financiera y exportaciones conservadas, sin afectar despensa | FIN-03 | pendiente |
 | PAN-01 | Personas, catálogo y edición con expectedVersion y conflicto visible en React | DATA-01 | pendiente |
 | PAN-02 | Ajustes de cantidad, comprar y deshacer de forma atómica | PAN-01 | pendiente |
@@ -403,6 +403,26 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:e2e` no se repite: FIN-03 no cambia la web ni Express (su última ejecución, 56/56, es la de FIN-02).
   - `git diff --check` sin errores.
 - Siguiente: FIN-04 (y después FIN-05; los dos dependen de FIN-03).
+
+### FIN-04 — 9 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `17d5530` (FIN-03). Mismo entorno.
+- Contrato nuevo, solo en .NET y documentado en `docs/api.md` («Consultas de resumen»): `GET /api/summary/month?year&month&hoy` → MonthView `{ period, horizon, summary, expensesByCategory, budgetLines, breakdown }` y `GET /api/summary/year?year&hoy` → YearView `{ period, horizon, summary, series, income, expense, budgetLines }`, con sesión, parámetros comprobados en orden (año, mes, hoy; repetidos no valen) y sin guardar nada. Lo realizado cuenta por su fecha de pago, lo pendiente por su vencimiento y lo proyectado después del horizonte (`endOfNextMonth(hoy)`) como pendiente, sin persistir.
+- TypeScript: `shared/finance/summaryViews.ts` (forecastMovements, monthView y yearView) compone lo que ya calculaban las páginas, con sus pruebas (`shared/finance/summaryViews.test.ts`, 3: la previsión, el mes igual a las funciones sueltas y la columna del año igual a su mes).
+- C#: `backend/src/CuentasClaras.Application/Finance/FinanceSummaries.cs` (periodSummary, totalsByCategory, budgetLines, categoryBreakdown, monthlySeries, categoryMonthMatrix y las vistas, con mapas en orden de inserción, ordenación estable y los mismos empates), SummaryQueries y las dos rutas; `backend/src/CuentasClaras.Domain/Common/JsCollator.cs` para localeCompare('es') (y la sensibilidad base de PAN-01).
+- React: la bandera de compilación `__CUENTAS_BACKEND__` (`define` en `vite.config.ts` con `CUENTAS_BACKEND=dotnet`, declarada en `src/env.d.ts`); `src/features/finance/api.ts` (cliente de las consultas) y `src/features/finance/useSummaryView.ts` (useMonthView y useYearView: en el navegador con summaryViews contra Express; contra .NET, la consulta, pedida otra vez cuando cambian los datos, hoy o el periodo, sin que una respuesta tardía pise a la última). SummaryPage, YearPage y BudgetsPage los usan (presupuestos, con la categoría tal como está en los datos para el editor); `useForecastMovements.ts` desaparece. Textos nuevos solo con la web para .NET: «Calculando el resumen…» y «No se ha podido calcular el resumen: …» (`components/SummaryPending.tsx`).
+- Pruebas nuevas:
+  - Corpus `rules-finance.json`: 20 casos más (197): monthView (9), yearView (5), forecastMovements (2), los tres «api-*» con datos que se pueden restaurar y una matriz de localeCompare('es') de 38 nombres (ñ, tildes, mayúsculas, signos, cifras, vacíos). C# 395/395 con la serialización de la API (camelCase y JsDoubleConverter), en es-ES y en la invariante; pasó a la primera, también la matriz: el ICU de Windows y el de Node 24 ordenan igual esos nombres.
+  - `SummaryHttpTests` (4, MySql): restaurados los datos de los casos «api-*», GET /api/summary/* responde exactamente lo que calculó TypeScript y consultar no cambia los datos; acceso y mensajes de los parámetros.
+  - E2E: `e2e/dotnet/app/resumen.spec.ts` (solo .NET): el mes, el año y los presupuestos piden `/api/summary/*` con la fecha del navegador y enseñan las cifras de la copia de ejemplo; «la plantilla anual cuadra con la mensual…» (@dotnet) comprueba ahora las cifras calculadas por .NET; el control del invitado (`FINANCE_REQUEST`) incluye `/api/summary`.
+- Comandos, en Windows con el usuario limitado (3307):
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 1608/1608; `--filter "Categoria=MySql"`: 68/68.
+  - `npm run check`: tipos y oxlint correctos, sin avisos; Vitest 1234/1234 en 48 archivos.
+  - `npm run test:e2e:dotnet`: 38/38 (acceso 4; app 17 × escritorio y móvil), 57,9 s.
+  - `npm run test:e2e`: 56/56 (1,2 min): las páginas reorganizadas calculan lo mismo contra Express.
+  - `git diff --check` sin errores.
+- Siguiente: FIN-05.
 
 ### Plantilla para la siguiente tarea
 

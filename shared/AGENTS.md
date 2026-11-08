@@ -9,7 +9,7 @@ Lógica pura en TypeScript, sin React, sin Express, sin base de datos y sin Node
 | Carpeta | Qué contiene |
 | --- | --- |
 | `shared/common/` | `money.ts` (céntimos: leer y formatear), `dates.ts` (fechas `AAAA-MM-DD` y la regla del día 31), `ids.ts` (UUID e instantes), `types.ts` (ISODate) y `validation.ts` (ValidationResult y FieldErrors) |
-| `shared/finance/` | `types.ts`, `categories.ts`, `recurring.ts` (vencimientos, cuotas y proyección), `summary.ts`, `annual.ts`, `period.ts`, `filters.ts`, `suggestions.ts`, `backup.ts` (copias y validación de lo que llega a la API), `csv.ts`, `validation.ts` (formularios) y `meta.ts` |
+| `shared/finance/` | `types.ts`, `categories.ts`, `recurring.ts` (vencimientos, cuotas y proyección), `summary.ts`, `annual.ts`, `summaryViews.ts` (lo que enseñan las plantillas mensual y anual; también lo devuelve .NET en GET /api/summary/*), `period.ts`, `filters.ts`, `suggestions.ts`, `backup.ts` (copias y validación de lo que llega a la API), `csv.ts`, `validation.ts` (formularios) y `meta.ts` |
 | `shared/pantry/` | `types.ts`, `pantry.ts` (cantidades, lista y estimaciones), `pantryRhythm.ts` (cuánto dura cada producto), `pantryReview.ts` (repaso de la semana) y `pantryValidation.ts` |
 | `shared/tickets/` | `types.ts`, `ticketParse.ts` (del texto al ticket), `ticketEvidence.ts`, `ticketArithmetic.ts`, `ticketText.ts`, `ticketMatch.ts` (emparejar con productos) y `ticketValidation.ts` |
 | `shared/testing/` | `factories.ts`: movimientos y recurrentes de prueba |

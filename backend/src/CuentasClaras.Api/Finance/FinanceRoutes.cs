@@ -8,7 +8,7 @@ namespace CuentasClaras.Api.Finance;
 public sealed record FinanceUseCases(
     FinanceQueries Queries, RestoreBackup RestoreBackup, SaveMovement SaveMovement, DeleteMovement DeleteMovement,
     SaveCategory SaveCategory, DeleteCategory DeleteCategory, SaveRecurring SaveRecurring, DeleteRecurring DeleteRecurring,
-    GenerateOccurrences GenerateOccurrences, SetMeta SetMeta);
+    GenerateOccurrences GenerateOccurrences, SetMeta SetMeta, SummaryQueries Summaries);
 
 /// <summary>
 /// Las rutas financieras (server/modules/finance/adapters/http/), todas con sesión: solo traducen HTTP ⇄ caso de uso,
@@ -94,5 +94,13 @@ public static class FinanceRoutes
             await useCases.SetMeta.Handle(request.Param("key"), request.Body);
             await ApiResponse.Data(request.Http, null);
         });
+
+        // FIN-04, solo en .NET: lo que enseñan las plantillas mensual y anual, calculado aquí (shared/finance/summaryViews.ts).
+        routes.Map("GET", "/api/summary/month", RouteAccess.Session, async request =>
+            await ApiResponse.Data(request.Http, await useCases.Summaries.Month(
+                request.Query.Single("year"), request.Query.Single("month"), request.Query.Single("hoy"))));
+
+        routes.Map("GET", "/api/summary/year", RouteAccess.Session, async request =>
+            await ApiResponse.Data(request.Http, await useCases.Summaries.YearView(request.Query.Single("year"), request.Query.Single("hoy"))));
     }
 }

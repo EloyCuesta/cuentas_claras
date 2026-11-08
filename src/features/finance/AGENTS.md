@@ -20,8 +20,8 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 ## Estado y datos
 - `financeContext.ts` (useFinance) + `FinanceProvider.tsx`. Al abrir, genera los vencimientos hasta el final del mes siguiente (con la fecha de hoy del navegador) y lee todo. Tras cada escritura confirmada avisa a las otras pestañas (`tabSync.ts`) y vuelve a leer (`confirmedWrite.ts`): si falla la escritura, el diálogo muestra el error y sigue abierto; si lo que falla es la relectura, la acción no falla y se avisa de que la pantalla no está al día, para que nadie repita un alta que sí se guardó.
 - Las altas deciden su id al abrir el diálogo (MovementDialog, RecurringDialog y el formulario de CategoryEditor): reintentar tras un fallo envía el mismo registro y no lo duplica.
-- `FinanceRepository.ts` es el contrato asíncrono que conoce la interfaz, y `ApiFinanceRepository.ts`, su implementación. Es lo único que hace peticiones: /api/data, /movements, /categories, /recurring, /occurrences/generate, /meta e /import.
-- `useForecastMovements.ts`: los movimientos más los vencimientos proyectados de los recurrentes (no se guardan), para la previsión de meses lejanos.
+- `FinanceRepository.ts` es el contrato asíncrono que conoce la interfaz, y `ApiFinanceRepository.ts`, su implementación: /api/data, /movements, /categories, /recurring, /occurrences/generate, /meta e /import. `api.ts` hace las consultas de resumen de .NET (/api/summary/month y /api/summary/year). Son lo único que hace peticiones.
+- `useSummaryView.ts` (useMonthView y useYearView): lo que enseñan Resumen (mes y año) y Presupuestos, con los vencimientos proyectados de los recurrentes (no se guardan). Contra Express lo calcula el navegador con `shared/finance/summaryViews.ts`; con la web compilada para .NET (`CUENTAS_BACKEND=dotnet`), lo pide a GET /api/summary/* (`api.ts`, FIN-04) cada vez que cambian los datos, hoy o el periodo. Los pendientes que se pagan desde el resumen siguen siendo los guardados.
 - `browserMigration/`: el paso único de los datos de IndexedDB (versiones antiguas) al servidor, que Root ejecuta antes de abrir. Retirarlo está pendiente, en un PR aparte (`docs/decisiones.md`).
 
 ## Textos y accesibilidad
@@ -30,6 +30,7 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
   - diálogos: «Nuevo movimiento», «Editar movimiento», «Confirmar pago», «Eliminar movimiento», «Nuevo recurrente» y «Restaurar copia»;
   - títulos: «Empieza apuntando tu primer gasto» y «Todavía no has apuntado ningún movimiento».
   - categorías (CategoryEditor, en la región «Categorías»): «Añadir categoría», «Añadir subcategoría a X», «Renombrar X» y «Eliminar X» (X es «Principal › Sub» en las subcategorías), los campos «Nueva categoría de gastos», «Nueva subcategoría de X» y «Nuevo nombre para «X»», el botón «Guardar», el diálogo «Eliminar «X»» con «Pasar a» y «Eliminar categoría», y los avisos «Categoría añadida», «Subcategoría añadida», «Categoría renombrada» y «Categoría «X» eliminada».
+- Con la web para .NET, mientras llega el resumen: «Calculando el resumen…» (`role="status"`), y si falla: «No se ha podido calcular el resumen: …» (`role="alert"`), en `components/SummaryPending.tsx`.
 - Aviso (tono `warning`) de una escritura guardada cuya relectura falló: «Se ha guardado, pero la pantalla no se ha podido actualizar. No hace falta repetirlo: vuelve a cargar la página para verlo.»
 - El almacenamiento se describe como «una base de datos MySQL de este equipo» (FinanceProvider, SummaryPage y BackupPanel); SQLite solo aparece en la importación de los datos de antes (`tools/importer/`).
 - `data-testid="restore-input"`, el selector de archivo de la copia, en `components/BackupPanel.tsx`.

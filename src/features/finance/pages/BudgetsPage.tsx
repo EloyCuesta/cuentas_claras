@@ -1,14 +1,15 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { capitalize, formatMonthYear } from '#shared/common/dates.ts'
 import { centsToInput, formatEuros, parseAmount, sumCents } from '#shared/common/money.ts'
-import { monthPeriod, periodBounds, type YearMonth } from '#shared/finance/period.ts'
-import { budgetLines, type BudgetLine } from '#shared/finance/summary.ts'
+import type { YearMonth } from '#shared/finance/period.ts'
+import type { BudgetLine } from '#shared/finance/summary.ts'
 import { BudgetMeter } from '../../../ui/BudgetMeter.tsx'
 import { PeriodPicker } from '../components/PeriodPicker.tsx'
+import { SummaryPending } from '../components/SummaryPending.tsx'
 import { useFinance } from '../financeContext.ts'
 import { describeStorageError } from '../../../api/storageErrors.ts'
 import { useToast } from '../../../ui/toastContext.ts'
-import { useForecastMovements } from '../useForecastMovements.ts'
+import { useMonthView } from '../useSummaryView.ts'
 
 function BudgetEditor({ line, onDone }: { line: BudgetLine; onDone: () => void }) {
   const { actions } = useFinance()
@@ -98,9 +99,13 @@ export function BudgetsPage({
 }) {
   const { data, today } = useFinance()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const period = useMemo(() => monthPeriod(month.year, month.month), [month.year, month.month])
-  const movements = useForecastMovements(periodBounds(period).end)
-  const lines = useMemo(() => budgetLines(movements, data.categories, period), [movements, data.categories, period])
+  const state = useMonthView(month.year, month.month)
+  // Las líneas del resumen del mes, con cada categoría tal como está ahora en los datos: el editor guarda esa.
+  const lines = useMemo<BudgetLine[]>(() => {
+    if (state.status !== 'ready') return []
+    const byId = new Map(data.categories.map((category) => [category.id, category]))
+    return state.view.budgetLines.map((line) => ({ ...line, category: byId.get(line.category.id) ?? line.category }))
+  }, [state, data.categories])
   const withBudget = lines.filter((l) => l.budgetCents !== null)
   const totalBudget = sumCents(withBudget.map((l) => l.budgetCents as number))
   const totalSpent = sumCents(withBudget.map((l) => l.spentCents))
@@ -129,6 +134,8 @@ export function BudgetsPage({
           </p>
         </section>
       )}
+
+      {state.status !== 'ready' && <SummaryPending state={state} />}
 
       <ul className="budget-list">
         {lines.map((line) => (

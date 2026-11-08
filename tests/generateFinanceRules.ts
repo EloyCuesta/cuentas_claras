@@ -243,6 +243,79 @@ add('planificar-sin-fecha-programada', 'Un movimiento de la regla sin occurrence
 })
 
 // ---------------------------------------------------------------------------
+// Resúmenes mensual y anual y previsión (FIN-04)
+
+const summaryCategories = [
+  ...DEFAULT_CATEGORIES.map((c) =>
+    c.id === 'g-alimentacion' ? { ...c, budgetCents: 30000 } : c.id === 'g-ocio' ? { ...c, budgetCents: 0 } : c),
+  // Mismo orden que Alimentación: decide el nombre con localeCompare('es').
+  { id: 'g-abaco', name: 'Ábaco', type: 'gasto', parentId: null, order: 2, budgetCents: 5000 },
+  { id: 'g-nu', name: 'Ñu', type: 'gasto', parentId: null, order: 2, budgetCents: null },
+  { id: 'i-zz', name: 'Zz ingresos', type: 'ingreso', parentId: null, order: 0.5, budgetCents: null },
+]
+const m = (id: string, overrides: Record<string, unknown>) => ({ ...pending, id, concept: `Concepto ${id}`, categoryId: 'g-alimentacion', ...overrides })
+const paidOn = (date: string) => ({ status: 'realizado', paidDate: date, dueDate: null })
+const dueOn = (date: string) => ({ status: 'pendiente', paidDate: null, dueDate: date })
+const summaryData = {
+  categories: summaryCategories,
+  movements: [
+    m('a-super', { ...paidOn('2026-10-03'), amountCents: 4520, categoryId: 'g-alimentacion-supermercado' }),
+    m('b-fuera', { ...dueOn('2026-10-30'), amountCents: 3200, categoryId: 'g-alimentacion-comidas-fuera' }),
+    m('c-directo', { ...paidOn('2026-10-15'), amountCents: 1000, categoryId: 'g-alimentacion' }),
+    m('d-luz', { ...paidOn('2026-10-20'), amountCents: 6000, categoryId: 'g-vivienda-luz' }),
+    m('e-abaco', { ...paidOn('2026-10-21'), amountCents: 6000, categoryId: 'g-abaco' }),
+    m('f-nu', { ...dueOn('2026-11-04'), amountCents: 6000, categoryId: 'g-nu' }),
+    m('g-borrada', { ...paidOn('2026-10-09'), amountCents: 777, categoryId: 'g-borrada' }),
+    m('h-nomina', { ...paidOn('2026-10-01'), amountCents: 185000, type: 'ingreso', categoryId: 'i-nomina' }),
+    m('i-extra', { ...dueOn('2026-11-15'), amountCents: 12000, type: 'ingreso', categoryId: 'i-extra' }),
+    m('j-pagado-antes', { status: 'realizado', paidDate: '2026-09-28', dueDate: '2026-10-05', amountCents: 2500, categoryId: 'g-suscripciones' }),
+    m('k-alquiler-sep', { ...paidOn('2026-09-01'), amountCents: 65000, categoryId: 'g-vivienda-alquiler', recurringId: 'r-alquiler', occurrenceDate: '2026-09-01' }),
+    m('l-alquiler-oct', { ...paidOn('2026-10-01'), amountCents: 65000, categoryId: 'g-vivienda-alquiler', recurringId: 'r-alquiler', occurrenceDate: '2026-10-01' }),
+    m('n-alquiler-nov', { ...dueOn('2026-11-01'), amountCents: 66000, categoryId: 'g-vivienda-alquiler', recurringId: 'r-alquiler', occurrenceDate: '2026-11-01' }),
+    m('o-ingreso-zz', { ...paidOn('2026-12-10'), amountCents: 900, type: 'ingreso', categoryId: 'i-zz' }),
+  ],
+  recurring: [
+    { ...rule, id: 'r-alquiler', concept: 'Alquiler', amountCents: 65000, categoryId: 'g-vivienda-alquiler', startDate: '2026-09-01', installments: null, excludedDates: ['2027-02-01'], updatedAt: '2026-08-30T10:00:00.000Z' },
+    { ...rule, id: 'r-seguro', concept: 'Seguro', amountCents: 12000, categoryId: 'g-seguros-hogar', frequency: 'trimestral', startDate: '2026-03-31', installments: 6, excludedDates: [] },
+    { ...rule, id: 'r-cuota', concept: 'Cuota anual', amountCents: 3000, categoryId: 'g-ocio', frequency: 'anual', startDate: '2025-12-15', endDate: '2027-12-15', installments: null, excludedDates: [] },
+  ],
+}
+const emptyData = { categories: DEFAULT_CATEGORIES, movements: [], recurring: [] }
+for (const [id, today, year, month] of [
+  ['octubre', '2026-10-28', 2026, 10], ['noviembre', '2026-10-28', 2026, 11], ['diciembre-proyectado', '2026-10-28', 2026, 12],
+  ['marzo-trimestral', '2026-10-28', 2027, 3], ['febrero-excluido', '2026-10-28', 2027, 2], ['pasado-vacio', '2026-10-28', 2025, 6],
+  ['septiembre', '2026-10-28', 2026, 9], ['otro-hoy', '2026-12-31', 2027, 1],
+] as const) add(`mes-${id}`, 'monthView: cuenta, gastos por categoría, presupuestos y detalle', 'monthView', { data: summaryData, today, year, month })
+add('mes-sin-datos', 'monthView de una base nueva: todo a cero y las categorías iniciales', 'monthView', { data: emptyData, today: '2026-10-28', year: 2026, month: 10 })
+for (const [id, today, year] of [['2026', '2026-10-28', 2026], ['2027', '2026-10-28', 2027], ['2025', '2026-10-28', 2025], ['2027-otro-hoy', '2027-03-15', 2027]] as const) {
+  add(`ano-${id}`, 'yearView: cuenta, evolución, categorías por meses y presupuesto anual', 'yearView', { data: summaryData, today, year })
+}
+add('ano-sin-datos', 'yearView de una base nueva', 'yearView', { data: emptyData, today: '2026-10-28', year: 2026 })
+add('prevision-hasta-marzo', 'forecastMovements: los guardados y lo proyectado después del horizonte', 'forecastMovements', { data: summaryData, today: '2026-10-28', until: '2027-03-31' })
+add('prevision-hasta-el-horizonte', 'forecastMovements: hasta el horizonte no se proyecta nada', 'forecastMovements', { data: summaryData, today: '2026-10-28', until: '2026-11-30' })
+// Los mismos datos, tal como los guarda y los lee la API (sin categorías borradas y en orden de id): las pruebas HTTP
+// de .NET los restauran con PUT /api/data y comparan GET /api/summary/* con este resultado de TypeScript.
+const byId = <T extends { id: string }>(list: readonly T[]) => [...list].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+const storedSummaryData = {
+  categories: byId(summaryData.categories),
+  movements: byId(summaryData.movements.filter((movement) => movement.categoryId !== 'g-borrada')),
+  recurring: byId(summaryData.recurring),
+}
+add('api-mes-octubre', 'monthView de datos que se pueden restaurar: lo que debe responder GET /api/summary/month', 'monthView',
+  { data: storedSummaryData, today: '2026-10-28', year: 2026, month: 10 })
+add('api-mes-diciembre', 'monthView con proyecciones de datos que se pueden restaurar', 'monthView',
+  { data: storedSummaryData, today: '2026-10-28', year: 2026, month: 12 })
+add('api-ano-2026', 'yearView de datos que se pueden restaurar: lo que debe responder GET /api/summary/year', 'yearView',
+  { data: storedSummaryData, today: '2026-10-28', year: 2026 })
+add('comparar-nombres', 'localeCompare(…, «es»): ñ después de n, tildes y mayúsculas, signos y cifras', 'compareNames', {
+  names: [
+    'Alimentación', 'alimentación', 'Alimentacion', 'Ábaco', 'abaco', 'Abaco', 'Ñu', 'Nu', 'nu', 'Nube', 'Ocio', 'Otros',
+    'Otros ingresos', 'Préstamos', 'Préstamos y letras', 'Sin categoría', 'Sin subcategoría', 'co-op', 'coop', 'co op', 'a b',
+    'ab', 'a-b', '1', '10', '2', '', ' ', 'Çedilla', 'Cedilla', 'über', 'uber', 'Zz ingresos', 'zz', 'Ll', 'Lz', 'ch', 'cz',
+  ],
+})
+
+// ---------------------------------------------------------------------------
 
 const corpus = {
   format: 'cuentas-claras-finance-rules-v1',

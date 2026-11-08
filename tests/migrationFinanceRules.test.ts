@@ -23,7 +23,7 @@ describe('reglas de finanzas portables (FIN-01)', () => {
   it('identifica el corpus y no pierde casos ni operaciones', () => {
     expect(corpus.format).toBe('cuentas-claras-finance-rules-v1')
     expect(corpus.provenance).toContain('Sin datos de la instalación')
-    expect(corpus.cases).toHaveLength(177)
+    expect(corpus.cases).toHaveLength(197)
     expect(new Set(corpus.cases.map((test) => test.id)).size).toBe(corpus.cases.length)
     expect(corpus.operations).toEqual(FINANCE_OPERATIONS)
     expect([...new Set(corpus.cases.map((test) => test.operation))].sort()).toEqual(FINANCE_OPERATIONS)

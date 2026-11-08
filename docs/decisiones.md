@@ -98,6 +98,8 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Un alta no se repite por un fallo de red (FIN-02).** El id de un movimiento, un recurrente o una categoría nuevos se decide al abrir su formulario, así que reintentar después de un error envía el mismo registro (el servidor lo actualiza en lugar de crear otro). Y si la escritura se confirmó pero la relectura de los datos falla, la acción no se da por fallida: el diálogo se cierra y un aviso (tono `warning`) explica que se guardó y que basta con recargar la página. Vale igual con Express y con .NET.
 
+**Los resúmenes, en el servidor solo con .NET (FIN-04).** .NET añade GET /api/summary/month y /api/summary/year, que calculan lo que enseñan las plantillas (cuenta, gastos por categoría, presupuestos, detalle, evolución y categorías por meses, con lo proyectado de los recurrentes sin guardarlo). Express no las tiene: mientras sea el backend de uso diario, la web sigue calculando en el navegador. Para no duplicar reglas, las dos formas salen de `shared/finance/summaryViews.ts`: las páginas lo usan contra Express, el generador del corpus lo usa para las expectativas y C# lo reproduce. La web elige al compilarse (`CUENTAS_BACKEND=dotnet`, por `define` en `vite.config.ts`), no preguntando al servidor: así no hay peticiones que fallan a propósito. Siguen en el navegador la lista de pendientes guardados (se pagan desde ahí), los CSV, los filtros y el estado de los recurrentes.
+
 ## Pendiente
 
 **Retirar la migración de los datos del navegador** (IndexedDB → la base de datos del servidor), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:
