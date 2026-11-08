@@ -8,18 +8,27 @@ namespace CuentasClaras.Api.Common;
 public static class ApiResponse
 {
     public const string InternalMessage = "Error interno del servidor. Revisa la consola donde se ejecuta npm run dev.";
+
+    /// <summary>El 409 de una restricción de MySQL (clave repetida, clave foránea, CHECK o NOT NULL), como en Express.</summary>
+    public const string ConflictMessage = "Los datos no encajan con los que ya están guardados, así que no se ha cambiado nada.";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new JsDoubleConverter() },
     };
 
-    public static Task Data(HttpContext context, object? data) => Write(context, 200, new { ok = true, data });
+    public static Task Data(HttpContext context, object? data, int status = 200) => Write(context, status, new { ok = true, data });
 
     public static Task Error(HttpContext context, int status, string code, string message) =>
         Write(context, status, new { ok = false, error = new { code, message } });
 
-    public static Task Failure(HttpContext context, Exception error)
+    /// <summary>
+    /// Cualquier error en el sobre común. <paramref name="isConstraintViolation"/> reconoce las restricciones de la base de
+    /// datos sin que Api conozca el driver: lo pasa la composición.
+    /// </summary>
+    public static Task Failure(HttpContext context, Exception error, Func<Exception, bool>? isConstraintViolation = null)
     {
         if (error is BodyException body) return Error(context, body.Status, "VALIDATION", body.Message);
         if (error is AppError known)
@@ -35,6 +44,7 @@ public static class ApiResponse
         }
         if (error is BadHttpRequestException bad && bad.StatusCode == 413)
             return Error(context, 413, "VALIDATION", JsonBody.TooLargeMessage);
+        if (isConstraintViolation?.Invoke(error) == true) return Error(context, 409, "CONFLICT", ConflictMessage);
         context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Api")
             .LogError(error, "Error inesperado en la API");
         return Error(context, 500, "INTERNAL", InternalMessage);

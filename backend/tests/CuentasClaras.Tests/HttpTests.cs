@@ -287,6 +287,7 @@ public sealed class HttpTests
     {
         public long Now { get; set; } = now;
         public long NowMs() => Now;
+        public string Today() => Instants.ToIso(Now)[..10];
     }
 
     private sealed class StorageProbe : IStorageHealth

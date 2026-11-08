@@ -17,6 +17,17 @@ public static class MySqlErrors
     /// <summary>ER_LOCK_DEADLOCK: InnoDB ya ha deshecho la transacción entera, que se puede repetir.</summary>
     public static bool IsDeadlock(Exception error) => error is MySqlException { Number: 1213 };
 
+    private static readonly System.Text.RegularExpressions.Regex DuplicateKey =
+        new("for key '(?:[^'.]+\\.)?([^']+)'", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>El índice de un ER_DUP_ENTRY («… for key 'movements.movements_occurrence'» → «movements_occurrence»), o null.</summary>
+    public static string? DuplicateKeyName(Exception error)
+    {
+        if (error is not MySqlException { Number: 1062 } mysql) return null;
+        var match = DuplicateKey.Match(mysql.Message);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
     /// <summary>
     /// Por qué no se puede usar la base y qué revisar. Nunca incluye la contraseña (MySqlConnector tampoco la pone
     /// en sus mensajes). El host .NET no lee .env: la configuración llega por el entorno.

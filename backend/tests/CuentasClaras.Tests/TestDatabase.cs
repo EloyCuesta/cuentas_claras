@@ -92,6 +92,13 @@ internal sealed class TestDatabase : IAsyncDisposable
     public async Task<object?> Scalar(string sql, params object?[] parameters) =>
         (await Query(sql, reader => reader.IsDBNull(0) ? null : reader.GetValue(0), parameters))[0];
 
+    /// <summary>Una sentencia con otra conexión: preparar filas sintéticas sin pasar por la API.</summary>
+    public async Task<int> Execute(string sql, params object?[] parameters)
+    {
+        var connection = await Connect();
+        return await MySqlCommands.Execute(connection, null, sql, parameters, TestContext.Current.CancellationToken);
+    }
+
     public async Task<IReadOnlyList<string>> Tables() => await Query(
         "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME", reader => reader.GetString(0));
 
@@ -124,9 +131,14 @@ internal sealed class TestDatabase : IAsyncDisposable
     }
 }
 
-/// <summary>Reloj fijo de las pruebas: started_at y applied_at deterministas.</summary>
+/// <summary>
+/// Reloj fijo de las pruebas: started_at y applied_at deterministas. <see cref="TodayDate"/> es la fecha de reserva
+/// del servidor; si no se fija, la del instante en UTC.
+/// </summary>
 internal sealed class FixedClock(long now = 1_793_736_000_000) : IClock
 {
     public long Now { get; set; } = now;
+    public string? TodayDate { get; set; }
     public long NowMs() => Now;
+    public string Today() => TodayDate ?? Instants.ToIso(Now)[..10];
 }

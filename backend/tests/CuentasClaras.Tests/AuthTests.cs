@@ -266,6 +266,7 @@ public sealed class AuthTests
     {
         private long now = 1_793_606_400_000;
         public long NowMs() => Interlocked.Read(ref now);
+        public string Today() => Instants.ToIso(NowMs())[..10];
         public void Advance(long milliseconds) => Interlocked.Add(ref now, milliseconds);
     }
 }

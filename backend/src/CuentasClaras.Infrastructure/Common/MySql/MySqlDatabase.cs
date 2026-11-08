@@ -22,10 +22,20 @@ public sealed class MySqlDatabase : IDisposable, IAsyncDisposable
         "sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', " +
         "transaction_isolation = 'REPEATABLE-READ'";
 
-    private readonly MySqlDataSource source;
+    private const string UnconfiguredMessage = "El almacenamiento MySQL no está configurado: falta CUENTAS_DB_USER.";
+
+    private readonly MySqlDataSource? source;
     private readonly AsyncLocal<MySqlTransactionContext?> current = new();
 
     public MySqlSettings Settings { get; }
+
+    /// <summary>
+    /// El host de solo acceso (sin CUENTAS_DB_USER): sus rutas de datos existen, pero cualquier consulta falla con un
+    /// error interno, como la salud, en lugar de inventar datos o responder que la ruta no existe.
+    /// </summary>
+    public static MySqlDatabase Unconfigured() => new();
+
+    private MySqlDatabase() => Settings = new MySqlSettings(MySqlSettings.DefaultHost, MySqlSettings.DefaultPort, "", "", "");
 
     public MySqlDatabase(MySqlSettings settings)
     {
@@ -93,6 +103,7 @@ public sealed class MySqlDatabase : IDisposable, IAsyncDisposable
     /// <summary>Una conexión del pool con su sesión ya fijada.</summary>
     public async Task<MySqlConnection> OpenConnection(CancellationToken cancellationToken = default)
     {
+        if (source is null) throw new InvalidOperationException(UnconfiguredMessage);
         var connection = await source.OpenConnectionAsync(cancellationToken);
         try
         {
@@ -123,9 +134,9 @@ public sealed class MySqlDatabase : IDisposable, IAsyncDisposable
         }
     }
 
-    public void Dispose() => source.Dispose();
+    public void Dispose() => source?.Dispose();
 
-    public ValueTask DisposeAsync() => source.DisposeAsync();
+    public ValueTask DisposeAsync() => source?.DisposeAsync() ?? ValueTask.CompletedTask;
 
     private async Task<T> WithConnection<T>(Func<MySqlTransactionContext, Task<T>> action, CancellationToken cancellationToken)
     {

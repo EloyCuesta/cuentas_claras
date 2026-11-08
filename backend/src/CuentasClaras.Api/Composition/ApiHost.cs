@@ -1,13 +1,15 @@
 using System.Net;
+using CuentasClaras.Api.Common;
+using CuentasClaras.Api.Finance;
 using CuentasClaras.Application.Auth;
 using CuentasClaras.Application.Common;
+using CuentasClaras.Application.Finance;
 using CuentasClaras.Application.Health;
 using CuentasClaras.Infrastructure.Auth;
 using CuentasClaras.Infrastructure.Common;
 using CuentasClaras.Infrastructure.Common.MySql;
 using CuentasClaras.Infrastructure.Finance;
 using CuentasClaras.Infrastructure.Health;
-using CuentasClaras.Api.Common;
 
 namespace CuentasClaras.Api.Composition;
 
@@ -17,13 +19,29 @@ public sealed class StartupException(string message, Exception? inner = null) : 
 /// <summary>Compone adaptadores y casos de uso a mano, una vez por host. ASP.NET solo gestiona el transporte.</summary>
 public static class ApiHost
 {
-    /// <summary>Host sin base de datos: el ensayo aislado del acceso. Salud usa <paramref name="storage"/> o falla.</summary>
+    /// <summary>
+    /// Host sin base de datos: el ensayo aislado del acceso. Salud usa <paramref name="storage"/> o falla; las rutas de datos
+    /// existen, pero cualquier consulta da un error interno.
+    /// </summary>
     public static WebApplication Create(HostSettings settings, IClock? clock = null,
         IStorageHealth? storage = null, string[]? args = null)
     {
         // La validación precede incluso a la construcción del host y de sus recursos.
         var verifier = new Sha256CodeVerifier(settings.AccessCode);
-        return Build(settings, verifier, clock ?? new SystemClock(), storage ?? new UnconfiguredStorageHealth(), args);
+        return Build(settings, verifier, new HostServices(clock ?? new SystemClock(), new UuidGenerator(),
+            MySqlDatabase.Unconfigured(), storage ?? new UnconfiguredStorageHealth()), args);
+    }
+
+    /// <summary>
+    /// Host sobre una base ya abierta y migrada, para las pruebas de integración y el corpus HTTP: reloj e ids sustituibles,
+    /// como startApi en Express. Quien la abrió la cierra.
+    /// </summary>
+    public static WebApplication CreateWithDatabase(HostSettings settings, MySqlDatabase database, IClock? clock = null,
+        IIdGenerator? ids = null, string[]? args = null)
+    {
+        var verifier = new Sha256CodeVerifier(settings.AccessCode);
+        return Build(settings, verifier, new HostServices(clock ?? new SystemClock(), ids ?? new UuidGenerator(),
+            database, new MySqlStorageHealth(database)), args);
     }
 
     /// <summary>
@@ -40,7 +58,8 @@ public static class ApiHost
         if (database is null)
         {
             log.WriteLine("[api] Sin CUENTAS_DB_USER: solo acceso; /api/health responde 500 hasta configurar MySQL.");
-            return Build(settings, verifier, clock, new UnconfiguredStorageHealth(), args);
+            return Build(settings, verifier, new HostServices(clock, new UuidGenerator(), MySqlDatabase.Unconfigured(),
+                new UnconfiguredStorageHealth()), args);
         }
 
         MySqlDatabase opened;
@@ -55,7 +74,7 @@ public static class ApiHost
         }
         try
         {
-            var app = Build(settings, verifier, clock, new MySqlStorageHealth(opened), args);
+            var app = Build(settings, verifier, new HostServices(clock, new UuidGenerator(), opened, new MySqlStorageHealth(opened)), args);
             app.Lifetime.ApplicationStopped.Register(opened.Dispose);
             log.WriteLine($"[api] Base de datos MySQL: {database.Describe()} (esquema {version})");
             return app;
@@ -67,14 +86,43 @@ public static class ApiHost
         }
     }
 
-    private static WebApplication Build(HostSettings settings, Sha256CodeVerifier verifier, IClock clock,
-        IStorageHealth storage, string[]? args)
+    /// <summary>Las rutas que atiende el acceso y la salud antes que los módulos (ApiRouter).</summary>
+    public static IReadOnlyList<(string Method, string Pattern)> HostRoutes { get; } =
+        [("POST", "/api/auth/login"), ("POST", "/api/auth/logout"), ("GET", "/api/auth/me"), ("GET", "/api/health")];
+
+    /// <summary>La tabla de rutas de los módulos, sin base de datos: para el inventario de las pruebas, nunca se ejecuta.</summary>
+    public static ApiRouteTable ModuleRoutes()
+    {
+        var routes = new ApiRouteTable();
+        MapModules(routes, new HostServices(new SystemClock(), new UuidGenerator(), MySqlDatabase.Unconfigured(), new UnconfiguredStorageHealth()));
+        return routes;
+    }
+
+    /// <summary>Lo que comparten los módulos de un host: reloj, ids y la base de datos (abierta o sin configurar).</summary>
+    private sealed record HostServices(IClock Clock, IIdGenerator Ids, MySqlDatabase Database, IStorageHealth Storage);
+
+    /// <summary>Compone cada módulo con sus adaptadores y registra sus rutas, en el orden de server/app.ts.</summary>
+    private static void MapModules(ApiRouteTable routes, HostServices services)
+    {
+        var unitOfWork = new MySqlUnitOfWork(services.Database);
+        var financeStore = new MySqlFinanceStore(services.Database);
+        FinanceRoutes.Map(routes, new FinanceUseCases(
+            new FinanceQueries(financeStore, unitOfWork),
+            new SaveCategory(financeStore, unitOfWork),
+            new DeleteCategory(financeStore, services.Clock, unitOfWork),
+            new SetMeta(financeStore, unitOfWork)));
+    }
+
+    private static WebApplication Build(HostSettings settings, Sha256CodeVerifier verifier, HostServices services, string[]? args)
     {
         var sessions = new InMemorySessionStore();
-        var login = new Login(verifier, new RandomTokenGenerator(), sessions, new InMemoryAttemptStore(), clock);
+        var login = new Login(verifier, new RandomTokenGenerator(), sessions, new InMemoryAttemptStore(), services.Clock);
         var logout = new Logout(sessions);
-        var checkSession = new CheckSession(sessions, clock);
-        var health = new CheckHealth(storage);
+        var checkSession = new CheckSession(sessions, services.Clock);
+        var health = new CheckHealth(services.Storage);
+
+        var routes = new ApiRouteTable();
+        MapModules(routes, services);
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -89,7 +137,7 @@ public static class ApiHost
             options.Listen(IPAddress.Parse(settings.Host), settings.Port);
         });
         var app = builder.Build();
-        var router = new ApiRouter(login, logout, checkSession, health);
+        var router = new ApiRouter(login, logout, checkSession, health, routes, MySqlErrors.IsConstraintViolation);
         app.Run(router.Handle);
         return app;
     }

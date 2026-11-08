@@ -8,8 +8,12 @@ using Microsoft.AspNetCore.Http.Features;
 
 namespace CuentasClaras.Api.Composition;
 
-/// <summary>Ordena el transporte: JSON, rutas públicas, sesión y rutas privadas. No simula módulos aún sin migrar.</summary>
-public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSession, CheckHealth health)
+/// <summary>
+/// Ordena el transporte como server/app.ts: JSON, salud y acceso, las rutas públicas de la despensa y los tickets,
+/// la sesión y las rutas privadas. No simula módulos aún sin migrar.
+/// </summary>
+public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSession, CheckHealth health,
+    ApiRouteTable routes, Func<Exception, bool>? isConstraintViolation = null)
 {
     // Permite reconocer el acceso de las rutas pendientes sin fingir que sus datos ya existen en .NET.
     private static readonly (string Method, string Path)[] PendingPublicRoutes =
@@ -37,7 +41,8 @@ public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSess
             var request = context.Request;
             var originalUrl = context.Features.Get<IHttpRequestFeature>()?.RawTarget
                 ?? request.Path + request.QueryString;
-            var path = originalUrl.Split('?', 2)[0];
+            var pieces = originalUrl.Split('?', 2);
+            var path = pieces[0];
             using var body = await JsonBody.Read(request, path);
             // Express acepta una barra final y no distingue mayúsculas en los segmentos estáticos.
             if (path.EndsWith('/')) path = path[..^1];
@@ -72,9 +77,20 @@ public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSess
                 return;
             }
 
+            if (routes.Find(method, path) is { } route)
+            {
+                // Las finanzas van detrás de requireAdmin: sin sesión, 401 antes de mirar nada más.
+                if (route.Access == RouteAccess.Session && !checkSession.Execute(token))
+                    throw new AppError("UNAUTHORIZED", "Hace falta el código de acceso para ver esta sección.");
+                var parameters = route.Parameters(path);
+                var query = QueryValues.Parse(pieces.Length > 1 ? pieces[1] : null);
+                await route.Handler(new ApiRequest(context, body?.RootElement ?? default, parameters, query));
+                return;
+            }
+
             var isApi = path.Equals("/api", StringComparison.OrdinalIgnoreCase)
                 || path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase);
-            if (isApi && !PendingPublicRoutes.Any(route => Matches(method, path, route.Method, route.Path))
+            if (isApi && !PendingPublicRoutes.Any(pending => Matches(method, path, pending.Method, pending.Path))
                 && !checkSession.Execute(token))
                 throw new AppError("UNAUTHORIZED", "Hace falta el código de acceso para ver esta sección.");
 
@@ -86,7 +102,7 @@ public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSess
         }
         catch (Exception error)
         {
-            await ApiResponse.Failure(context, error);
+            await ApiResponse.Failure(context, error, isConstraintViolation);
         }
     }
 
