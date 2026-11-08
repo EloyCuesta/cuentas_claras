@@ -108,6 +108,9 @@ public static class ApiHost
         var financeStore = new MySqlFinanceStore(services.Database);
         FinanceRoutes.Map(routes, new FinanceUseCases(
             new FinanceQueries(financeStore, unitOfWork),
+            new RestoreBackup(financeStore, unitOfWork),
+            new SaveMovement(financeStore, unitOfWork),
+            new DeleteMovement(financeStore, unitOfWork),
             new SaveCategory(financeStore, unitOfWork),
             new DeleteCategory(financeStore, services.Clock, unitOfWork),
             new SetMeta(financeStore, unitOfWork)));

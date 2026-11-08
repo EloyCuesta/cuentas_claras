@@ -96,6 +96,8 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **La app real contra .NET en los E2E (FIN-01).** `playwright.dotnet.config.ts` ejecuta los mismos `e2e/*.spec.ts` de Express contra Kestrel y una base propia (`cuentas_test_e2e_dotnet`), con la web construida aparte. Como .NET no tiene la ruta de reinicio de pruebas (y no debe tenerla), la base se vacía con SQL directo desde `e2e/dotnet/database.ts`, que comprueba antes en qué base está. Las pruebas pasan a ir contra .NET con la etiqueta `@dotnet` cuando sus rutas existen; lo poco que la app pide al abrir y aún falta (generar vencimientos, la despensa) se responde en el navegador como con la base vacía (`e2e/dotnet/pending.ts`), y cada ID lo retira. Así cada entrega se comprueba con la interfaz real sin esperar a que esté todo.
 
+**Un alta no se repite por un fallo de red (FIN-02).** El id de un movimiento, un recurrente o una categoría nuevos se decide al abrir su formulario, así que reintentar después de un error envía el mismo registro (el servidor lo actualiza en lugar de crear otro). Y si la escritura se confirmó pero la relectura de los datos falla, la acción no se da por fallida: el diálogo se cierra y un aviso (tono `warning`) explica que se guardó y que basta con recargar la página. Vale igual con Express y con .NET.
+
 ## Pendiente
 
 **Retirar la migración de los datos del navegador** (IndexedDB → la base de datos del servidor), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:

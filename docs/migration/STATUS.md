@@ -44,7 +44,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | MYSQL-04 | E2E sobre MySQL, documentación, better-sqlite3 fuera del runtime y pasos del corte | MYSQL-02, MYSQL-03 | verificado |
 | DATA-01 | Acceso de .NET al MySQL ya migrado: conexión, transacciones y bloqueos sobre `database/mysql/`, sin esquema propio, con pruebas de tipos/índices/JSON desde C# | BASE-02, MYSQL-04 | verificado |
 | FIN-01 | Lectura de finanzas, categorías, presupuestos de categoría y metadatos; primer recorrido React | DATA-01 | verificado |
-| FIN-02 | Movimientos, pagos, eliminación e IDs estables ante reintentos | FIN-01 | pendiente |
+| FIN-02 | Movimientos, pagos, eliminación e IDs estables ante reintentos | FIN-01 | verificado |
 | FIN-03 | Recurrentes, exclusiones, cuotas y generación sin duplicados concurrentes | FIN-02 | pendiente |
 | FIN-04 | Consultas de resumen mensual/anual y previsión, con integración React y equivalencia | FIN-03 | pendiente |
 | FIN-05 | Copia/restauración financiera y exportaciones conservadas, sin afectar despensa | FIN-03 | pendiente |
@@ -365,6 +365,25 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:e2e`: 52/52 (las 48 de antes y las 2 nuevas en escritorio y móvil), 1,3 min.
 - Limitaciones: la generación de vencimientos y la despensa se responden en el navegador en los E2E .NET hasta FIN-03, PAN-01, PAN-03 y TIC-04 (`e2e/dotnet/pending.ts`). Express no cambia.
 - Siguiente: FIN-02.
+
+### FIN-02 — 9 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `a242c7c` (FIN-01). Mismo entorno (MySQL 8.4.13 de ensayo, Chrome 157).
+- .NET: `PUT /api/movements/:id` (SaveMovement: categoría que existe y del mismo tipo, con los mensajes de requireCategory; actualizar por id con las filas encontradas y, si no existía, insertar; el choque con `movements_occurrence` es el 409 «Ese vencimiento ya existe…»), `DELETE /api/movements/:id` (DeleteMovement: la fecha de un vencimiento queda excluida si su recurrente existe) y `PUT /api/data` (RestoreBackup, adelantado de FIN-05 porque los escenarios S1 y S2 del corpus lo usan de preparación; valida todo y escribe en una transacción, primero las categorías principales). IFinanceStore y MySqlFinanceStore con el SQL de Express para ello.
+- React (vale también con Express): cada alta decide su id al abrir el diálogo (MovementDialog, RecurringDialog y el formulario de CategoryEditor), y FinanceProvider separa «no se guardó» de «guardado, pero la relectura falló» con `src/features/finance/confirmedWrite.ts`: en el segundo caso la acción no falla y un aviso nuevo, de tono `warning` (tokens `--warning-*` en claro y oscuro), dice «Se ha guardado, pero la pantalla no se ha podido actualizar. No hace falta repetirlo: vuelve a cargar la página para verlo.»
+- Pruebas nuevas:
+  - `MovementHttpTests` (8, MySql): crear, reintentar y pagar con el mismo id (uno solo); categoría inexistente o de otro tipo, id distinto y cuerpo no válido; un movimiento que pasaría a ser un vencimiento que ya existe da 409 y no pisa ninguno; borrar un vencimiento lo excluye solo si su recurrente existe (y repetir el borrado no falla); céntimos de 1 a MAX_CENTS; restaurar sustituye las finanzas (también con las subcategorías antes que su principal) sin tocar los metadatos; restaurar valida antes de tocar nada; una restauración que falla a mitad (clave foránea) no cambia nada.
+  - `HttpContractTests`: activo también S1 de `http-finance.json` («categorías, pago con ID estable, sustitución y metadatos», 18 pasos sin cambiar expectativas).
+  - `src/features/finance/confirmedWrite.test.ts` (3).
+  - E2E nuevos en `e2e/app.spec.ts`, en los dos backends: la relectura de después de guardar falla (`page.route`), el diálogo se cierra con el aviso y queda un solo movimiento; y la respuesta del guardado se pierde después de llegar al servidor (`route.fetch()` y abortar), el diálogo muestra el error y reintentar no duplica. Pasan a @dotnet además «registra un gasto…», «editar o eliminar…», «marcar un pago pendiente…», «eliminar una categoría con movimientos…», «rechaza una copia no válida…» y «exporta los movimientos a CSV…».
+- Comandos, en Windows con el usuario limitado (3307):
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 1493/1493; `--filter "Categoria=MySql"`: 55/55.
+  - `npm run check`: tipos y oxlint correctos; Vitest 1180/1180 en 47 archivos.
+  - `npm run test:e2e:dotnet`: 30/30 (acceso 4; app 13 × escritorio y móvil), 47,2 s.
+  - `npm run test:e2e`: 56/56 (1,2 min).
+  - `git diff --check` sin errores.
+- Siguiente: FIN-03.
 
 ### Plantilla para la siguiente tarea
 

@@ -109,7 +109,7 @@ test('empieza vacía y explica cómo añadir el primer movimiento', { tag: '@dot
   expect(await storedMovements(page)).toBe(0)
 })
 
-test('registra un gasto en pocos pasos y se conserva después de recargar', async ({ page }) => {
+test('registra un gasto en pocos pasos y se conserva después de recargar', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Añadir un gasto' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
@@ -140,6 +140,62 @@ test('valida los campos obligatorios', { tag: '@dotnet' }, async ({ page }) => {
   await expect(dialog.getByLabel('Importe')).toBeFocused()
   await expect(dialog.getByLabel('Importe')).toHaveAttribute('aria-invalid', 'true')
   expect(await storedMovements(page)).toBe(0)
+})
+
+test('si se guarda pero la pantalla no se puede recargar, avisa y no hay que repetirlo', { tag: '@dotnet' }, async ({ page }) => {
+  await page.goto('/')
+  let failNextReload = false
+  // La relectura de después de guardar falla una vez (por ejemplo, un corte de red justo después).
+  await page.route('**/api/data', async (route) => {
+    if (route.request().method() === 'GET' && failNextReload) {
+      failNextReload = false
+      await route.abort('failed')
+      return
+    }
+    await route.fallback()
+  })
+  await openNewMovement(page)
+  const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+  await dialog.getByLabel('Importe').fill('12,50')
+  await dialog.getByLabel('Concepto').fill('Panadería')
+  await dialog.getByLabel('Categoría').selectOption({ label: 'Alimentación › Supermercado' })
+  failNextReload = true
+  await dialog.getByRole('button', { name: 'Guardar gasto' }).click()
+  // Se guardó: el diálogo se cierra y avisa de que la pantalla no está al día, sin pedir que se repita.
+  await expect(dialog).toBeHidden()
+  await expect(page.getByText(/Se ha guardado, pero la pantalla no se ha podido actualizar\. No hace falta repetirlo/)).toBeVisible()
+  expect(await storedMovements(page)).toBe(1)
+  await page.reload()
+  await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('12,50 €')
+})
+
+test('si se pierde la respuesta del guardado, reintentar no duplica el movimiento', { tag: '@dotnet' }, async ({ page }) => {
+  await page.goto('/')
+  let loseNextResponse = true
+  // El servidor recibe y guarda el alta, pero la respuesta no llega al navegador.
+  await page.route('**/api/movements/*', async (route) => {
+    if (route.request().method() === 'PUT' && loseNextResponse) {
+      loseNextResponse = false
+      await route.fetch()
+      await route.abort('failed')
+      return
+    }
+    await route.fallback()
+  })
+  await openNewMovement(page)
+  const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+  await dialog.getByLabel('Importe').fill('8')
+  await dialog.getByLabel('Concepto').fill('Fruta')
+  await dialog.getByLabel('Categoría').selectOption({ label: 'Alimentación › Supermercado' })
+  await dialog.getByRole('button', { name: 'Guardar gasto' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('No se puede conectar con el servidor de Cuentas claras.')
+  expect(await storedMovements(page)).toBe(1)
+  // Reintentar desde el mismo diálogo envía el mismo movimiento (mismo id): sigue habiendo uno.
+  await dialog.getByRole('button', { name: 'Guardar gasto' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.getByText('Gasto guardado')).toBeVisible()
+  expect(await storedMovements(page)).toBe(1)
+  await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('8,00 €')
 })
 
 /** Las categorías guardadas en el servidor (no lo que pinta la página). */
@@ -187,7 +243,7 @@ test('crea, renombra y elimina categorías, y se guardan en el servidor', { tag:
   expect(names).toHaveLength(DEFAULT_CATEGORIES.length)
 })
 
-test('eliminar una categoría con movimientos los pasa a la que se elija', async ({ page }) => {
+test('eliminar una categoría con movimientos los pasa a la que se elija', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '12,00', concept: 'Entradas de cine', category: 'Ocio' })
   await page.goto('/#ajustes')
@@ -207,7 +263,7 @@ test('eliminar una categoría con movimientos los pasa a la que se elija', async
   expect(data.movements[0]).toMatchObject({ concept: 'Entradas de cine', categoryId: 'g-otros' })
 })
 
-test('editar o eliminar un movimiento actualiza los totales', async ({ page }) => {
+test('editar o eliminar un movimiento actualiza los totales', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '10', concept: 'Café', category: 'Ocio' })
   await addExpense(page, { amount: '20,40', concept: 'Gasolina', category: 'Coche › Combustible' })
@@ -230,7 +286,7 @@ test('editar o eliminar un movimiento actualiza los totales', async ({ page }) =
   expect(await storedMovements(page)).toBe(1)
 })
 
-test('marcar un pago pendiente como pagado no duplica el gasto', async ({ page }) => {
+test('marcar un pago pendiente como pagado no duplica el gasto', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   // Pendiente con vencimiento hoy (la fecha prevista por defecto).
   await addExpense(page, { amount: '80', concept: 'Recibo del gas', category: 'Vivienda › Gas', pending: true })
@@ -312,7 +368,7 @@ test('exportar y restaurar una copia conserva los datos', async ({ page, browser
   await otherContext.close()
 })
 
-test('rechaza una copia no válida sin tocar los datos', async ({ page }) => {
+test('rechaza una copia no válida sin tocar los datos', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '5', concept: 'Pan', category: 'Alimentación › Supermercado' })
   await page.goto('/#ajustes')
@@ -326,7 +382,7 @@ test('rechaza una copia no válida sin tocar los datos', async ({ page }) => {
   expect(await storedMovements(page)).toBe(1)
 })
 
-test('exporta los movimientos a CSV con formato español', async ({ page }) => {
+test('exporta los movimientos a CSV con formato español', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '1.234,56', concept: 'Ordenador', category: 'Otros' })
   await page.goto('/#ajustes')

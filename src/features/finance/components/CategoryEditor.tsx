@@ -18,7 +18,8 @@ import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
 import { Segmented } from '../../../ui/forms.tsx'
 import { Icon } from '../../../ui/Icon.tsx'
 
-type Editing = { mode: 'rename'; category: Category } | { mode: 'add'; parentId: string | null } | null
+/** Al añadir, el id de la categoría nueva se decide al abrir el formulario: un reintento tras un fallo no la duplica. */
+type Editing = { mode: 'rename'; category: Category } | { mode: 'add'; parentId: string | null; id: string } | null
 
 /** Formulario en línea para el nombre de una categoría. */
 function NameForm({
@@ -203,7 +204,7 @@ export function CategoryEditor() {
   const add = async (parentId: string | null, name: string) => {
     try {
       await actions.saveCategory({
-        id: newId(),
+        id: editing?.mode === 'add' ? editing.id : newId(),
         name,
         type,
         parentId,
@@ -244,7 +245,7 @@ export function CategoryEditor() {
               className="icon-btn"
               aria-label={`Añadir subcategoría a ${category.name}`}
               title="Añadir subcategoría"
-              onClick={() => setEditing({ mode: 'add', parentId: category.id })}
+              onClick={() => setEditing({ mode: 'add', parentId: category.id, id: newId() })}
             >
               <Icon name="plus" />
             </button>
@@ -335,7 +336,7 @@ export function CategoryEditor() {
         />
       ) : (
         <div>
-          <button type="button" className="btn" onClick={() => setEditing({ mode: 'add', parentId: null })}>
+          <button type="button" className="btn" onClick={() => setEditing({ mode: 'add', parentId: null, id: newId() })}>
             <Icon name="plus" />
             Añadir categoría
           </button>

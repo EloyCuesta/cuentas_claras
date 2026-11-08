@@ -256,6 +256,12 @@ public sealed class FinanceHttpTests
     {
         public bool Reassigned { get; private set; }
         public Task<FinanceData> ReadAll() => inner.ReadAll();
+        public Task WriteAll(FinanceData data) => inner.WriteAll(data);
+        public Task<Movement?> GetMovement(string id) => inner.GetMovement(id);
+        public Task UpsertMovement(Movement movement) => inner.UpsertMovement(movement);
+        public Task DeleteMovement(string id) => inner.DeleteMovement(id);
+        public Task<bool> HasRule(string id) => inner.HasRule(id);
+        public Task AddExcludedDate(string ruleId, string date) => inner.AddExcludedDate(ruleId, date);
         public Task<IReadOnlyList<Category>> ListCategories() => inner.ListCategories();
         public Task<Category?> GetCategory(string id) => inner.GetCategory(id);
         public Task<long> CountChildren(string categoryId) => inner.CountChildren(categoryId);

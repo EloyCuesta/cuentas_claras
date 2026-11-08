@@ -11,6 +11,8 @@ public interface IFinanceStore
 {
     /// <summary>Todo, ordenado por id; cada recurrente con sus fechas excluidas.</summary>
     Task<FinanceData> ReadAll();
+    /// <summary>Borra las finanzas y escribe <paramref name="data"/>, sin transacción propia (la abre quien llama).</summary>
+    Task WriteAll(FinanceData data);
 
     Task<IReadOnlyList<Category>> ListCategories();
     Task<Category?> GetCategory(string id);
@@ -22,6 +24,15 @@ public interface IFinanceStore
     /// <summary>Pasa a otra categoría los movimientos y recurrentes de esas categorías.</summary>
     Task ReassignCategories(IReadOnlyList<string> categoryIds, string replacementId, string now);
     Task DeleteCategories(IReadOnlyList<string> categoryIds);
+
+    Task<Movement?> GetMovement(string id);
+    /// <summary>Crea o actualiza (mismo id). Lanza AppError CONFLICT si choca con un vencimiento que ya existe.</summary>
+    Task UpsertMovement(Movement movement);
+    Task DeleteMovement(string id);
+
+    Task<bool> HasRule(string id);
+    /// <summary>Si ya estaba, no hace nada.</summary>
+    Task AddExcludedDate(string ruleId, string date);
 
     Task<string?> GetMeta(string key);
     Task SetMeta(string key, string value);

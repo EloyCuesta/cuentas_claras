@@ -1110,6 +1110,12 @@ body:has(dialog[open]) {
   color: var(--on-negative);
 }
 
+.toast--warning {
+  border: 1px solid var(--warning-ink);
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}
+
 .toast__close {
   display: inline-grid;
   place-items: center;

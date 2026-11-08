@@ -1,3 +1,4 @@
+using CuentasClaras.Application.Common;
 using CuentasClaras.Application.Finance;
 using CuentasClaras.Domain.Finance;
 using CuentasClaras.Infrastructure.Common.MySql;
@@ -27,6 +28,29 @@ public sealed class MySqlFinanceStore(MySqlDatabase database) : IFinanceStore
     }
 
     private static readonly string UpsertCategorySql = UpsertSql("categories", CategoryColumns);
+    private static readonly string UpsertRuleSql = UpsertSql("recurring_rules", RuleColumns);
+    private static readonly string InsertMovementSql =
+        $"INSERT INTO movements ({MovementColumns}) VALUES ({Placeholders(MovementColumns.Split(", ").Length)})";
+    private static readonly string UpdateMovementSql =
+        $"UPDATE movements SET {string.Join(", ", MovementColumns.Split(", ").Where(name => name != "id").Select(name => $"{name} = ?"))} WHERE id = ?";
+    // INSERT OR IGNORE de SQLite: la clave repetida se queda como está. INSERT IGNORE no vale: también se traga un fallo de clave foránea.
+    private const string InsertExcludedSql = "INSERT INTO recurring_excluded_dates (rule_id, date) VALUES (?, ?) ON DUPLICATE KEY UPDATE rule_id = rule_id";
+
+    /// <summary>El índice único (recurring_id, occurrence_date) impide crear dos veces el mismo vencimiento.</summary>
+    private static AppError DuplicateOccurrence() => new("CONFLICT", "Ese vencimiento ya existe, así que no se ha creado otro.");
+
+    /// <summary>Traduce el choque con un vencimiento que ya existe; cualquier otro error sigue su camino (el 409 genérico o un 500).</summary>
+    private static async Task TranslatingOccurrences(Func<Task> write)
+    {
+        try
+        {
+            await write();
+        }
+        catch (Exception error) when (MySqlErrors.DuplicateKeyName(error) == "movements_occurrence")
+        {
+            throw DuplicateOccurrence();
+        }
+    }
 
     /// <summary>"?, ?, ?" con tantos parámetros como valores (para VALUES e IN (...)).</summary>
     private static string Placeholders(int count) => string.Join(", ", Enumerable.Repeat("?", count));
@@ -44,6 +68,19 @@ public sealed class MySqlFinanceStore(MySqlDatabase database) : IFinanceStore
 
     private static object?[] CategoryValues(Category category) =>
         [category.Id, category.Name, category.Type, category.ParentId, category.Order, category.BudgetCents];
+
+    private static object?[] MovementValues(Movement movement) =>
+    [
+        movement.Id, movement.Concept, movement.AmountCents, movement.Type, movement.CategoryId, movement.Status, movement.PaidDate,
+        movement.DueDate, movement.Notes, movement.RecurringId, movement.OccurrenceDate, movement.InstallmentNumber,
+        movement.CreatedAt, movement.UpdatedAt,
+    ];
+
+    private static object?[] RuleValues(RecurringRule rule) =>
+    [
+        rule.Id, rule.Concept, rule.AmountCents, rule.Type, rule.CategoryId, rule.Frequency, rule.StartDate, rule.EndDate,
+        rule.Installments, rule.Notes, rule.CreatedAt, rule.UpdatedAt,
+    ];
 
     /// <summary>Fechas excluidas de cada recurrente, en orden.</summary>
     private async Task<Dictionary<string, List<string>>> ExcludedByRule()
@@ -79,6 +116,24 @@ public sealed class MySqlFinanceStore(MySqlDatabase database) : IFinanceStore
         var movements = await database.Rows($"SELECT {MovementColumns} FROM movements ORDER BY id", [], ToMovement);
         var recurring = await AllRules();
         return new FinanceData(categories, movements, recurring);
+    }
+
+    public async Task WriteAll(FinanceData data)
+    {
+        // Una sentencia por llamada: primero lo que apunta a las categorías.
+        await database.Run("DELETE FROM movements", []);
+        await database.Run("DELETE FROM recurring_rules", []);
+        await database.Run("DELETE FROM categories", []);
+        // Primero las categorías principales, para que las subcategorías encuentren a su padre (ordenación estable).
+        foreach (var category in data.Categories.OrderBy(category => category.ParentId is null ? 0 : 1))
+            await database.Run(UpsertCategorySql, CategoryValues(category));
+        foreach (var rule in data.Recurring)
+        {
+            await database.Run(UpsertRuleSql, RuleValues(rule));
+            foreach (var date in rule.ExcludedDates) await database.Run(InsertExcludedSql, [rule.Id, date]);
+        }
+        // Un choque aquí es el 409 genérico, como en Express (no se traduce).
+        foreach (var movement in data.Movements) await database.Run(InsertMovementSql, MovementValues(movement));
     }
 
     /* Categorías ------------------------------------------------------------ */
@@ -119,6 +174,29 @@ public sealed class MySqlFinanceStore(MySqlDatabase database) : IFinanceStore
         if (categoryIds.Count == 0) return;
         await database.Run($"DELETE FROM categories WHERE id IN ({Placeholders(categoryIds.Count)})", [.. categoryIds]);
     }
+
+    /* Movimientos ----------------------------------------------------------- */
+
+    public async Task<Movement?> GetMovement(string id) =>
+        (await database.Rows($"SELECT {MovementColumns} FROM movements WHERE id = ?", [id], ToMovement)).FirstOrDefault();
+
+    public Task UpsertMovement(Movement movement) => TranslatingOccurrences(async () =>
+    {
+        var values = MovementValues(movement);
+        // Las filas encontradas, aunque no cambien (UseAffectedRows = false): 0 es que no existe ese id. Nunca ON DUPLICATE
+        // KEY UPDATE: con dos claves únicas, un vencimiento repetido sobrescribiría el otro movimiento en vez de dar 409.
+        var updated = await database.Run(UpdateMovementSql, [.. values[1..], values[0]]);
+        if (updated == 0) await database.Run(InsertMovementSql, values);
+    });
+
+    public Task DeleteMovement(string id) => database.Run("DELETE FROM movements WHERE id = ?", [id]);
+
+    /* Recurrentes ----------------------------------------------------------- */
+
+    public async Task<bool> HasRule(string id) =>
+        (await database.Rows("SELECT id FROM recurring_rules WHERE id = ?", [id], row => MySqlRead.Text(row, "id"))).Count > 0;
+
+    public Task AddExcludedDate(string ruleId, string date) => database.Run(InsertExcludedSql, [ruleId, date]);
 
     /* Metadatos ------------------------------------------------------------- */
 

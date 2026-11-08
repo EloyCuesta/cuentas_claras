@@ -4,6 +4,7 @@ import { generationHorizon } from '#shared/finance/recurring.ts'
 import type { ISODate } from '#shared/common/types.ts'
 import type { FinanceData } from '#shared/finance/types.ts'
 import { ServerUnavailableError } from '../../api/client.ts'
+import { writeThenReload } from './confirmedWrite.ts'
 import type { FinanceRepository } from './FinanceRepository.ts'
 import { FinanceContext, type FinanceActions, type FinanceContextValue } from './financeContext.ts'
 import { describeStorageError } from '../../api/storageErrors.ts'
@@ -27,6 +28,10 @@ async function openApp(repository: FinanceRepository): Promise<LoadState> {
   await repository.generateOccurrences(generationHorizon(today))
   return readAll(repository, today)
 }
+
+/** El aviso cuando una escritura se guardó en el servidor pero la pantalla no se pudo volver a leer. */
+const SAVED_BUT_NOT_RELOADED =
+  'Se ha guardado, pero la pantalla no se ha podido actualizar. No hace falta repetirlo: vuelve a cargar la página para verlo.'
 
 /** Aviso que puede devolver el paso previo a abrir la app (por ejemplo, la importación de datos). */
 export type OpenNotice = { message: string; tone: ToastTone } | null
@@ -105,53 +110,57 @@ export function FinanceProvider({
   useEffect(() => onOtherTabChange(() => void reload()), [reload])
 
   const actions = useMemo<FinanceActions>(() => {
-    /** Tras cada escritura: releer los datos y avisar a las otras pestañas. */
-    const afterWrite = async () => {
-      setState(await readAll(repository, todayISO()))
-      notifyOtherTabs()
-    }
+    /**
+     * Cada escritura: si se confirma, se avisa a las otras pestañas y se releen los datos. Si lo que falla es la relectura,
+     * lo guardado ya está en el servidor: la acción no falla (así nadie repite un alta que sí se guardó) y se avisa de que
+     * la pantalla no está al día (confirmedWrite.ts).
+     */
+    const write = <T,>(save: () => Promise<T>) =>
+      writeThenReload(
+        save,
+        async () => {
+          notifyOtherTabs()
+          setState(await readAll(repository, todayISO()))
+        },
+        () => notify(SAVED_BUT_NOT_RELOADED, 'warning'),
+      )
     return {
       async saveMovement(movement) {
-        await repository.saveMovement(movement)
-        await afterWrite()
+        await write(() => repository.saveMovement(movement))
       },
       async deleteMovement(id) {
-        await repository.deleteMovement(id)
-        await afterWrite()
+        await write(() => repository.deleteMovement(id))
       },
       async saveCategory(category) {
-        await repository.saveCategory(category)
-        await afterWrite()
+        await write(() => repository.saveCategory(category))
       },
       async deleteCategory(id, replacementId) {
-        await repository.deleteCategory(id, replacementId)
-        await afterWrite()
+        await write(() => repository.deleteCategory(id, replacementId))
       },
-      async saveRecurring(rule, { markPastAsPaid }) {
+      saveRecurring(rule, { markPastAsPaid }) {
         const today = todayISO()
-        const created = await repository.saveRecurring(rule, {
-          horizon: generationHorizon(today),
-          markPaidBefore: markPastAsPaid ? today : null,
-        })
-        await afterWrite()
-        return created
+        return write(() =>
+          repository.saveRecurring(rule, {
+            horizon: generationHorizon(today),
+            markPaidBefore: markPastAsPaid ? today : null,
+          }),
+        )
       },
       async deleteRecurring(id) {
-        await repository.deleteRecurring(id)
-        await afterWrite()
+        await write(() => repository.deleteRecurring(id))
       },
       async replaceAll(data) {
-        await repository.replaceAll(data)
-        // Como al abrir la app: se crean los vencimientos que falten desde la fecha de la copia.
-        await repository.generateOccurrences(generationHorizon(todayISO()))
-        await afterWrite()
+        await write(async () => {
+          await repository.replaceAll(data)
+          // Como al abrir la app: se crean los vencimientos que falten desde la fecha de la copia.
+          await repository.generateOccurrences(generationHorizon(todayISO()))
+        })
       },
       async registerBackup() {
-        await repository.setMeta('lastBackupAt', new Date().toISOString())
-        await afterWrite()
+        await write(() => repository.setMeta('lastBackupAt', new Date().toISOString()))
       },
     }
-  }, [repository])
+  }, [repository, notify])
 
   const value = useMemo<FinanceContextValue | null>(
     () =>

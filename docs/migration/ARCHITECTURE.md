@@ -64,7 +64,7 @@ Para los ajustes relativos de cantidad, calcula sobre el valor actual y usa una 
 
 Recurrentes y tickets requieren índices únicos, además de comprobaciones de aplicación. Prueba las carreras con dos conexiones MySQL; ejecutar una operación dos veces secuencialmente no demuestra ausencia de duplicados concurrentes.
 
-En movimientos financieros conserva el mismo ID cuando se reintenta la misma operación. En FIN-02 la interfaz deberá distinguir «guardado confirmado» de «recarga fallida» para evitar repetir un alta ya confirmada; no se da esa mejora por implementada en React.
+En movimientos financieros conserva el mismo ID cuando se reintenta la misma operación. Desde FIN-02 la interfaz lo hace: cada alta decide su id al abrir el diálogo (movimiento, recurrente y categoría) y FinanceProvider distingue «no se guardó» de «guardado, pero la recarga falló» (`src/features/finance/confirmedWrite.ts`), con un aviso que dice que no hace falta repetirlo.
 
 ## HTTP, acceso y configuración
 

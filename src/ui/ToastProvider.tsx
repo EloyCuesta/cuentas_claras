@@ -24,7 +24,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       notify(message, tone = 'success', options = {}) {
         const id = nextId.current++
         setToasts((list) => [...list.slice(-2), { id, message, tone, action: options.action }])
-        window.setTimeout(() => dismiss(id), options.action ? ACTION_MS : tone === 'error' ? 8000 : 4000)
+        window.setTimeout(() => dismiss(id), options.action ? ACTION_MS : tone === 'success' ? 4000 : 8000)
       },
     }),
     [dismiss],
@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast toast--${toast.tone}`}>
-            <Icon name={toast.tone === 'error' ? 'alert' : 'check'} />
+            <Icon name={toast.tone === 'success' ? 'check' : 'alert'} />
             <span>{toast.message}</span>
             {toast.action && (
               <button

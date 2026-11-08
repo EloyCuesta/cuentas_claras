@@ -66,6 +66,8 @@ export function MovementDialog({
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // El id de un alta se decide al abrir: si se reintenta tras un fallo, es el mismo movimiento y no se duplica.
+  const [newMovementId] = useState(newId)
 
   const isNew = movement === null
   const isExpense = draft.type === 'gasto'
@@ -122,7 +124,7 @@ export function MovementDialog({
     }
     setBusy(true)
     try {
-      const saved = buildMovement(result.value, movement, nowISO(), newId)
+      const saved = buildMovement(result.value, movement, nowISO(), () => newMovementId)
       await actions.saveMovement(saved)
       notify(isNew ? (saved.type === 'gasto' ? 'Gasto guardado' : 'Ingreso guardado') : 'Cambios guardados')
       onClose()

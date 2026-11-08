@@ -30,6 +30,9 @@ Cada módulo registra sus rutas en una ApiRouteTable (`src/CuentasClaras.Api/Com
 | POST /api/auth/logout | Logout | Siempre éxito; invalida token y cookie |
 | GET /api/health | CheckHealth | Con MySQL, la versión aplicada que dice `schema_migrations` en cada petición; sin almacenamiento responde 500, nunca inventa una versión |
 | GET /api/data | FinanceQueries.LoadAll | FIN-01. Categorías, movimientos y recurrentes, por id, en una transacción sin bloqueo |
+| PUT /api/data | RestoreBackup | FIN-02 (adelantado de FIN-05: los corpus lo usan para preparar). Valida todo y sustituye las finanzas en una transacción; no toca metadatos ni despensa |
+| PUT /api/movements/:id | SaveMovement | FIN-02. Actualizar por id (filas encontradas) y, si no existía, insertar; 409 propio si choca con un vencimiento que ya existe |
+| DELETE /api/movements/:id | DeleteMovement | FIN-02. Si era un vencimiento de un recurrente que sigue existiendo, su fecha queda excluida; sin el movimiento, nada |
 | PUT /api/categories/:id | SaveCategory | FIN-01. Valida el cuerpo (FinanceRequests) antes del id de la URL; un nivel de subcategorías del mismo tipo; 409 si cambia de tipo |
 | DELETE /api/categories/:id | DeleteCategory | FIN-01. `?replacementId` de un solo valor no vacío; reasignar y borrar en una transacción con el bloqueo finance |
 | GET/PUT /api/meta/:key | FinanceQueries.GetMeta, SetMeta | FIN-01. Solo lastBackupAt y browserImportAt (404); el valor, un texto de hasta 100 |
@@ -66,7 +69,7 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 `tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs`: las reglas de tickets dan exactamente el corpus de TypeScript (`../fixtures/migration/rules-tickets.json`, 517 casos) y las reglas de tickets de `../fixtures/migration/rules.json`, en es-ES y en la invariante. El ejecutor y los mapeos a JSON están en `TicketRulesCorpus.cs` y `CorpusJson.cs`.
 `tests/CuentasClaras.Tests/MySqlMigrationTests.cs`, `MySqlUnitOfWorkTests.cs`, `MySqlSchemaTests.cs` y `MySqlHostTests.cs`: contra MySQL real (categoría MySql), con bases `cuentas_test_*` de `TestDatabase.cs` que se borran al terminar.
 `tests/CuentasClaras.Tests/FinanceRulesCorpusTests.cs`: la validación de finanzas da exactamente el corpus de TypeScript (`../fixtures/migration/rules-finance.json`), en es-ES y en la invariante; el ejecutor, `FinanceRulesCorpus.cs`.
-`tests/CuentasClaras.Tests/FinanceHttpTests.cs` (MySql): las rutas de finanzas por HTTP sobre Kestrel y MySQL (`TestApi.cs`), con los mensajes y las rarezas de Express, y la sustitución de categorías deshecha entera si falla a mitad.
+`tests/CuentasClaras.Tests/FinanceHttpTests.cs` y `MovementHttpTests.cs` (MySql): las rutas de finanzas por HTTP sobre Kestrel y MySQL (`TestApi.cs`), con los mensajes y las rarezas de Express; la sustitución de categorías y la restauración, deshechas enteras si fallan a mitad.
 `tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario; cada escenario se activa cuando están todas sus rutas.
 `../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos. La app completa contra .NET (los `../e2e/*.spec.ts` marcados @dotnet): `../e2e/AGENTS.md`.
 

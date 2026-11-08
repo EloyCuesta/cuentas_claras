@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 
-export type ToastTone = 'success' | 'error'
+/** «warning»: algo salió a medias pero no hay que repetirlo (por ejemplo, guardado y sin poder recargar la pantalla). */
+export type ToastTone = 'success' | 'warning' | 'error'
 
 export interface ToastOptions {
   /** Botón dentro del aviso, por ejemplo «Deshacer». Al pulsarlo el aviso se cierra. */

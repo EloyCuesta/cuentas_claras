@@ -8,7 +8,7 @@ Pruebas de extremo a extremo con Playwright, en Chromium, en escritorio y en mó
 
 | Archivo | Qué prueba |
 | --- | --- |
-| `e2e/app.spec.ts` | Las finanzas, con sesión: primer gasto, validación, categorías (crear, renombrar, borrar y pasar sus movimientos a otra), editar y borrar, pagar sin duplicar, vencimientos sin duplicar, copias, CSV, plantilla anual y migración del navegador |
+| `e2e/app.spec.ts` | Las finanzas, con sesión: primer gasto, validación, guardado con la relectura fallida y reintento tras perder la respuesta (sin duplicar), categorías (crear, renombrar, borrar y pasar sus movimientos a otra), editar y borrar, pagar sin duplicar, vencimientos sin duplicar, copias, CSV, plantilla anual y migración del navegador |
 | `e2e/despensa.spec.ts` | El invitado y la despensa: no ve finanzas, personas y productos, lista y WhatsApp, + y −, comprar y deshacer, dos móviles con + a la vez (otro contexto del navegador; el servidor suma los dos), copiar sin portapapeles, entrar y cerrar sesión, sesión caducada |
 | `e2e/tickets.spec.ts` | Escanear un ticket con el OCR real, revisarlo y guardarlo, importes dudosos, «Dejar pendiente», lo que toca revisar días después y el repaso de la semana |
 | `e2e/auth.ts` | `E2E_CODE`, `signIn` y `resetDatabase` (contra Express, POST /api/test/reset; contra .NET, SQL directo) |

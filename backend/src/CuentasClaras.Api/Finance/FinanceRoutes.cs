@@ -5,7 +5,9 @@ using CuentasClaras.Application.Finance;
 namespace CuentasClaras.Api.Finance;
 
 /// <summary>Los casos de uso de las finanzas que usan sus rutas.</summary>
-public sealed record FinanceUseCases(FinanceQueries Queries, SaveCategory SaveCategory, DeleteCategory DeleteCategory, SetMeta SetMeta);
+public sealed record FinanceUseCases(
+    FinanceQueries Queries, RestoreBackup RestoreBackup, SaveMovement SaveMovement, DeleteMovement DeleteMovement,
+    SaveCategory SaveCategory, DeleteCategory DeleteCategory, SetMeta SetMeta);
 
 /// <summary>
 /// Las rutas financieras (server/modules/finance/adapters/http/), todas con sesión: solo traducen HTTP ⇄ caso de uso,
@@ -18,6 +20,27 @@ public static class FinanceRoutes
         // Todos los datos de una vez: categorías, movimientos y recurrentes.
         routes.Map("GET", "/api/data", RouteAccess.Session, async request =>
             await ApiResponse.Data(request.Http, await useCases.Queries.LoadAll()));
+
+        // Sustituye todo (restaurar una copia de seguridad).
+        routes.Map("PUT", "/api/data", RouteAccess.Session, async request =>
+        {
+            await useCases.RestoreBackup.Handle(request.Body);
+            await ApiResponse.Data(request.Http, null);
+        });
+
+        // Crea o actualiza un movimiento (marcar como pagado incluido).
+        routes.Map("PUT", "/api/movements/:id", RouteAccess.Session, async request =>
+        {
+            await useCases.SaveMovement.Handle(request.Param("id"), request.Body);
+            await ApiResponse.Data(request.Http, null);
+        });
+
+        // Lo elimina; si era un vencimiento, no se vuelve a generar.
+        routes.Map("DELETE", "/api/movements/:id", RouteAccess.Session, async request =>
+        {
+            await useCases.DeleteMovement.Execute(request.Param("id"));
+            await ApiResponse.Data(request.Http, null);
+        });
 
         // Crea o actualiza una categoría (nombre, orden, presupuesto…).
         routes.Map("PUT", "/api/categories/:id", RouteAccess.Session, async request =>

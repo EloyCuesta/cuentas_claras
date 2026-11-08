@@ -88,6 +88,8 @@ export function RecurringDialog({ rule, onClose }: { rule: RecurringRule | null;
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // El id de un alta se decide al abrir: si se reintenta tras un fallo, es el mismo recurrente y no se duplica.
+  const [newRuleId] = useState(newId)
   const isNew = rule === null
   const options = useMemo(() => categoryOptions(data.categories, draft.type), [data.categories, draft.type])
   const preview = schedulePreview(draft, today)
@@ -116,7 +118,7 @@ export function RecurringDialog({ rule, onClose }: { rule: RecurringRule | null;
     }
     setBusy(true)
     try {
-      const saved = buildRecurringRule(result.value, rule, nowISO(), newId)
+      const saved = buildRecurringRule(result.value, rule, nowISO(), () => newRuleId)
       const created = await actions.saveRecurring(saved, { markPastAsPaid: isNew && markPast })
       notify(isNew ? `Recurrente guardado: ${created} ${created === 1 ? 'vencimiento creado' : 'vencimientos creados'}` : 'Recurrente actualizado')
       onClose()
