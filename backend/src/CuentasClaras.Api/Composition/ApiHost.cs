@@ -1,15 +1,18 @@
 using System.Net;
 using CuentasClaras.Api.Common;
 using CuentasClaras.Api.Finance;
+using CuentasClaras.Api.Pantry;
 using CuentasClaras.Application.Auth;
 using CuentasClaras.Application.Common;
 using CuentasClaras.Application.Finance;
 using CuentasClaras.Application.Health;
+using CuentasClaras.Application.Pantry;
 using CuentasClaras.Infrastructure.Auth;
 using CuentasClaras.Infrastructure.Common;
 using CuentasClaras.Infrastructure.Common.MySql;
 using CuentasClaras.Infrastructure.Finance;
 using CuentasClaras.Infrastructure.Health;
+using CuentasClaras.Infrastructure.Pantry;
 
 namespace CuentasClaras.Api.Composition;
 
@@ -105,6 +108,19 @@ public static class ApiHost
     private static void MapModules(ApiRouteTable routes, HostServices services)
     {
         var unitOfWork = new MySqlUnitOfWork(services.Database);
+
+        // La despensa, pública (antes que requireAdmin en Express).
+        var pantryStore = new MySqlPantryStore(services.Database);
+        PantryRoutes.Map(routes, new PantryUseCases(
+            new PantryQueries(pantryStore),
+            new CreatePerson(pantryStore, services.Clock, services.Ids, unitOfWork),
+            new RenamePerson(pantryStore, unitOfWork),
+            new DeletePerson(pantryStore, unitOfWork),
+            new CreateItem(pantryStore, services.Clock, services.Ids, unitOfWork),
+            new UpdateItem(pantryStore, services.Clock, unitOfWork),
+            new DeleteItem(pantryStore, unitOfWork)));
+
+        // Las finanzas, con sesión.
         var financeStore = new MySqlFinanceStore(services.Database);
         FinanceRoutes.Map(routes, new FinanceUseCases(
             new FinanceQueries(financeStore, unitOfWork),

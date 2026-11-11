@@ -21,7 +21,7 @@ Sin el código es lo único que se ve.
 | SummaryBlock, BudgetBlock | `components/SummaryBlock.tsx`, `components/BudgetBlock.tsx` | Lo que falta, la estimación mensual y el presupuesto | — |
 | WeeklyReviewCard, WeeklyReviewDialog | `components/WeeklyReview.tsx` | El repaso de la semana, producto a producto | «repaso de la semana: «Hoy no»…» |
 | ShoppingListDialog | `components/ShoppingListDialog.tsx` | La lista de la compra: WhatsApp, compartir, copiar, descargar y comprar | «crea una persona y un producto…», «sin portapapeles…» |
-| PantryItemDialog, PeopleDialog, PantryBudgetDialog | `components/` | Crear y editar un producto, las personas y el presupuesto | «crea una persona y un producto…» |
+| PantryItemDialog, PeopleDialog, PantryBudgetDialog | `components/` | Crear y editar un producto (con la versión con que se abrió: `components/itemEdit.ts`), las personas y el presupuesto | «crea una persona y un producto…» y «dos móviles editan el mismo producto…» |
 | OwnerTabs, OwnerSelect, RhythmStatus | `components/owner.tsx`, `components/RhythmStatus.tsx` | Selector de persona y etiqueta del ritmo | los anteriores |
 
 ## Estado y datos
@@ -30,18 +30,20 @@ Sin el código es lo único que se ve.
 - Las acciones de tickets (TicketActions, de la feature tickets) también están en usePantry: guardar, cambiar o borrar un ticket recarga toda la despensa.
 - El ritmo, los avisos, la lista y el repaso se calculan en la web con `shared/pantry/`, a partir de la actividad (compras de los tickets y revisiones).
 - «Hoy no» del repaso se guarda solo en este navegador (localStorage), hasta mañana.
+- Editar un producto (PAN-01): PantryItemDialog guarda la versión del producto con que se abrió y `updateItem` la envía como `expectedVersion`. Si el servidor responde 409 (alguien lo cambió mientras tanto: otra edición, un + o una compra), el formulario conserva lo escrito y ofrece «Volver a cargar el producto»; `reloadItem` vuelve a leer los productos y el formulario pasa a mostrar el producto como está ahora, con su versión. Nunca se reintenta solo con una versión más nueva: eso pisaría el cambio del otro.
 
 ## Textos y accesibilidad
 Los e2e usan estos nombres; no los cambies sin cambiar el test:
-- botones: «Nuevo producto», «Personas», «Añadir persona», «Guardar producto», «Lista de la compra», «Enviar por WhatsApp», «Copiar», «Marcar todo como comprado», «Deshacer», «Añadir 0,5 kg a Arroz» y «Quitar 0,5 kg de Arroz», «Queda …», «Se acabó …», «Repasar ahora», «Hoy no» y «Terminar»;
-- diálogos: «Nuevo producto», «Personas de casa» y «Lista de la compra»;
-- campos y opciones: «Nombre», «De quién es», «Unidad», «Cada cuánto se compra», «Hay ahora», «Quiero tener», «Texto de la lista», «Por compras», «Contando» y «Todo»;
+- botones: «Nuevo producto», «Editar …» (el nombre del producto), «Personas», «Añadir persona», «Guardar producto», «Guardar cambios», «Lista de la compra», «Enviar por WhatsApp», «Copiar», «Marcar todo como comprado», «Deshacer», «Añadir 0,5 kg a Arroz» y «Quitar 0,5 kg de Arroz», «Queda …», «Se acabó …», «Repasar ahora», «Hoy no» y «Terminar»;
+- diálogos: «Nuevo producto», «Editar producto», «Personas de casa» y «Lista de la compra»;
+- edición en conflicto: el aviso del servidor («Este producto ha cambiado desde que lo abriste (quizá desde otro dispositivo), así que no se ha guardado. Vuelve a cargarlo para ver cómo está ahora.», con role="alert"), el botón «Volver a cargar el producto» y, después, «Este es el producto tal como está ahora. Repite tus cambios y guarda.» (role="status");
+- campos y opciones: «Nombre», «De quién es», «Unidad», «Cada cuánto se compra», «Hay ahora», «Quiero tener», «Notas», «Texto de la lista», «Por compras», «Contando» y «Todo»;
 - títulos: «Despensa» (h1) y «Empieza escaneando un ticket».
 
 El foco va al título al cambiar de sección, y las ventanas son `<dialog>` nativos.
 
 ## Pruebas
-Sin tests unitarios propios: las reglas están en `shared/pantry/` (con sus tests) y la API en `server/modules/pantry/`. En el navegador: `npx playwright test e2e/despensa.spec.ts e2e/tickets.spec.ts --project=escritorio`.
+`components/itemEdit.test.ts`: la versión que se envía al editar, qué error es un conflicto y lo que queda tras «Volver a cargar el producto». Las reglas están en `shared/pantry/` (con sus tests) y la API en `server/modules/pantry/`. En el navegador: `npx playwright test e2e/despensa.spec.ts e2e/tickets.spec.ts --project=escritorio`; contra .NET, los marcados con @dotnet (`e2e/AGENTS.md`).
 
 ## Trampas
 - La página es la misma para invitado y administrador: no puede usar nada de la feature finance.

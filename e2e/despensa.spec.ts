@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './test.ts'
+import { expect, newPhone, test, type Page } from './test.ts'
 import { E2E_CODE, resetDatabase } from './auth.ts'
 
 /**
@@ -58,7 +58,7 @@ async function addProduct(
 
 const item = (page: Page, name: string) => page.locator('.pantry-item', { has: page.getByRole('button', { name: `Editar ${name}` }) })
 
-test('el invitado solo ve la despensa y no pide datos financieros ni migra el navegador', async ({ page }) => {
+test('el invitado solo ve la despensa y no pide datos financieros ni migra el navegador', { tag: '@dotnet' }, async ({ page }) => {
   const requests = recordApiRequests(page)
   await page.goto('/')
   // Datos de una versión anterior guardados en este navegador: como invitado no se tocan.
@@ -99,7 +99,7 @@ test('el invitado solo ve la despensa y no pide datos financieros ni migra el na
   expect((await page.request.get('/api/data')).status()).toBe(401)
 })
 
-test('crea una persona y un producto que falta, y lo envía en la lista de WhatsApp', async ({ page }) => {
+test('crea una persona y un producto que falta, y lo envía en la lista de WhatsApp', { tag: '@dotnet' }, async ({ page }) => {
   await page.goto('/')
   await addPerson(page, 'Eloy')
   await addProduct(page, { name: 'Proteína', owner: 'Eloy', unit: 'bolsa', quantity: '0', target: '1', frequency: /Mensual/, price: '12' })
@@ -173,7 +173,7 @@ test('dos móviles pulsan + a la vez y el servidor suma los dos', async ({ page,
   await request.post('/api/despensa/productos', {
     data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 3, frequency: 'mensual', priceCents: 120, notes: '' },
   })
-  const otherContext = await browser.newContext({ locale: 'es-ES', timezoneId: 'Europe/Madrid' })
+  const otherContext = await newPhone(browser)
   const phones = [page, await otherContext.newPage()]
   await Promise.all(phones.map((phone) => phone.goto('/')))
   await Promise.all(phones.map((phone) => expect(item(phone, 'Arroz').locator('.stepper__value')).toHaveText('1 kg')))
@@ -193,6 +193,60 @@ test('dos móviles pulsan + a la vez y el servidor suma los dos', async ({ page,
 
   await Promise.all(phones.map((phone) => phone.reload()))
   await Promise.all(phones.map((phone) => expect(item(phone, 'Arroz').locator('.stepper__value')).toHaveText('2 kg')))
+  await otherContext.close()
+})
+
+test('dos móviles editan el mismo producto: el segundo no pisa el cambio, conserva lo escrito y lo vuelve a cargar', { tag: '@dotnet' }, async ({
+  page,
+  browser,
+  request,
+}) => {
+  await request.post('/api/despensa/productos', {
+    data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 2, frequency: 'mensual', priceCents: 120, notes: '' },
+  })
+  const otherContext = await newPhone(browser)
+  const phones = [page, await otherContext.newPage()]
+  // Los dos abren «Editar Arroz» cuando está en la versión 1.
+  const [first, second] = await Promise.all(
+    phones.map(async (phone) => {
+      await phone.goto('/')
+      await phone.getByRole('button', { name: 'Editar Arroz' }).click()
+      const dialog = phone.getByRole('dialog', { name: 'Editar producto' })
+      await expect(dialog.getByLabel('Quiero tener')).toHaveValue('2')
+      return dialog
+    }),
+  )
+  await first.getByLabel('Quiero tener').fill('3')
+  await first.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect(first).toBeHidden()
+
+  // El segundo lo abrió antes de ese cambio: no se guarda, se avisa y lo escrito sigue ahí.
+  await second.getByLabel('Quiero tener').fill('5')
+  await second.getByLabel(/^Notas/).fill('Integral')
+  await second.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect(second.getByRole('alert')).toHaveText(
+    'Este producto ha cambiado desde que lo abriste (quizá desde otro dispositivo), así que no se ha guardado. Vuelve a cargarlo para ver cómo está ahora.',
+  )
+  await expect(second.getByLabel('Quiero tener')).toHaveValue('5')
+  await expect(second.getByLabel(/^Notas/)).toHaveValue('Integral')
+  const unchanged = (await (await request.get('/api/despensa/productos')).json()) as { data: unknown[] }
+  expect(unchanged.data).toMatchObject([{ target: 3, notes: '', version: 2 }])
+
+  // Volver a cargar trae el producto como está ahora; guardar después ya no pisa nada.
+  await second.getByRole('button', { name: 'Volver a cargar el producto' }).click()
+  await expect(second.getByText('Este es el producto tal como está ahora. Repite tus cambios y guarda.')).toBeVisible()
+  await expect(second.getByRole('alert')).toHaveCount(0)
+  await expect(second.getByLabel('Quiero tener')).toHaveValue('3')
+  await expect(second.getByLabel(/^Notas/)).toHaveValue('')
+  await second.getByLabel(/^Notas/).fill('Integral')
+  await second.getByRole('button', { name: 'Guardar cambios' }).click()
+  await expect(second).toBeHidden()
+  const saved = (await (await request.get('/api/despensa/productos')).json()) as { data: unknown[] }
+  expect(saved.data).toMatchObject([{ name: 'Arroz', target: 3, notes: 'Integral', version: 3 }])
+
+  await phones[1].reload()
+  await phones[1].getByRole('button', { name: 'Editar Arroz' }).click()
+  await expect(phones[1].getByRole('dialog', { name: 'Editar producto' }).getByLabel(/^Notas/)).toHaveValue('Integral')
   await otherContext.close()
 })
 

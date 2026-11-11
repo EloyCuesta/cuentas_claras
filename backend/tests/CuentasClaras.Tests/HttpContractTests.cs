@@ -27,6 +27,8 @@ public sealed class HttpContractTests
         "categorías, pago con ID estable, sustitución y metadatos",
         // FIN-03.
         "recurrentes del día 31, exclusiones, pagos y generación repetida",
+        // FIN-05 con las personas y los productos de PAN-01.
+        "importación del navegador una sola vez y restauración aislada",
     };
 
     private static readonly Dictionary<string, JsonDocument> Fixtures =

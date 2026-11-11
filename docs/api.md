@@ -19,7 +19,7 @@ Las respuestas que atraviesan el router de la API llevan `Cache-Control: no-stor
 | `VALIDATION` | 413 | Cuerpo demasiado grande: más de 30 MB en `/api/despensa/tickets/leer` o de 20 MB en lo demás |
 | `UNAUTHORIZED` | 401 | Ruta financiera sin sesión, o código incorrecto |
 | `NOT_FOUND` | 404 | Ruta o dato que no existe |
-| `CONFLICT` | 409 | Vencimiento duplicado, categoría en uso, importación con datos ya existentes, persona con productos, ticket ya guardado o «Deshacer» tras otro cambio. También cualquier restricción de la base de datos que salte («Los datos no encajan con los que ya están guardados…») |
+| `CONFLICT` | 409 | Vencimiento duplicado, categoría en uso, importación con datos ya existentes, persona con productos, ticket ya guardado, «Deshacer» o la edición de un producto tras otro cambio. También cualquier restricción de la base de datos que salte («Los datos no encajan con los que ya están guardados…») |
 | `TOO_MANY_ATTEMPTS` | 429 | Demasiados códigos incorrectos desde este dispositivo (con `Retry-After`) |
 | `INTERNAL` | 500 | Error inesperado; el detalle sale en la consola del servidor |
 
@@ -44,7 +44,7 @@ Los casos de uso lanzan `AppError(código, mensaje)` (`server/common/errors.ts`)
 | GET, POST /api/despensa/personas | Lista o crea una persona (201) | pantry |
 | PUT, DELETE /api/despensa/personas/:id | Renombra o borra (409 si tiene productos) | pantry |
 | GET, POST /api/despensa/productos | Lista o crea un producto (201; el servidor pone id, versión y fechas; `tracking` es `cantidad` si no se indica) | pantry |
-| PUT, DELETE /api/despensa/productos/:id | Edita o borra un producto | pantry |
+| PUT, DELETE /api/despensa/productos/:id | Edita o borra un producto. Editar exige `expectedVersion`, la versión del producto con que se abrió el formulario: si ya no es la del servidor, 409 sin escribir nada (desde PAN-01, en Express y en .NET) | pantry |
 | POST /api/despensa/productos/:id/ajustar | `{ delta }`: botones + y − sobre el valor actual | pantry |
 | POST /api/despensa/productos/:id/revision | `{ kind, date }`, con `kind` = `queda`, `poco`, `se_acabo` o `comprado` (201) | pantry |
 | DELETE /api/despensa/revisiones/:id | Deshace una revisión | pantry |

@@ -9,10 +9,10 @@ Pruebas de extremo a extremo con Playwright, en Chromium, en escritorio y en mó
 | Archivo | Qué prueba |
 | --- | --- |
 | `e2e/app.spec.ts` | Las finanzas, con sesión: primer gasto, validación, guardado con la relectura fallida y reintento tras perder la respuesta (sin duplicar), categorías (crear, renombrar, borrar y pasar sus movimientos a otra), editar y borrar, pagar sin duplicar, vencimientos sin duplicar, copias, CSV, plantilla anual y migración del navegador |
-| `e2e/despensa.spec.ts` | El invitado y la despensa: no ve finanzas, personas y productos, lista y WhatsApp, + y −, comprar y deshacer, dos móviles con + a la vez (otro contexto del navegador; el servidor suma los dos), copiar sin portapapeles, entrar y cerrar sesión, sesión caducada |
+| `e2e/despensa.spec.ts` | El invitado y la despensa: no ve finanzas, personas y productos, lista y WhatsApp, + y −, comprar y deshacer, dos móviles con + a la vez (otro contexto del navegador; el servidor suma los dos), dos móviles editando el mismo producto (el segundo recibe el conflicto, conserva lo escrito y lo vuelve a cargar), copiar sin portapapeles, entrar y cerrar sesión, sesión caducada |
 | `e2e/tickets.spec.ts` | Escanear un ticket con el OCR real, revisarlo y guardarlo, importes dudosos, «Dejar pendiente», lo que toca revisar días después y el repaso de la semana |
 | `e2e/auth.ts` | `E2E_CODE`, `signIn` y `resetDatabase` (contra Express, POST /api/test/reset; contra .NET, SQL directo) |
-| `e2e/test.ts` | El `test` de las pruebas de la app: el de Playwright y, contra .NET, las rutas pendientes de `e2e/dotnet/pending.ts` |
+| `e2e/test.ts` | El `test` de las pruebas de la app: el de Playwright y, contra .NET, las rutas pendientes de `e2e/dotnet/pending.ts`; `newPhone(browser)` abre otro móvil (otro contexto) con lo mismo |
 | `e2e/prepareDatabase.ts` | Antes de arrancar el servidor de pruebas, crea la base `cuentas_claras_e2e` si falta (con las `CUENTAS_DB_*`) |
 | `e2e/dotnet/auth.spec.ts` | Acceso React real contra .NET: código erróneo, cookie, recarga y cierre, en claro y oscuro |
 | `e2e/dotnet/database.ts` | La base de la app contra .NET (`cuentas_test_e2e_dotnet`): crearla, vaciarla como el reinicio de Express y borrarla |
@@ -47,7 +47,7 @@ Las trazas de los fallos quedan en la carpeta test-results, fuera de git.
 - Los puertos 3101 y 4174 tienen que estar libres.
 - Si el servidor de pruebas no arranca (MySQL apagado, usuario o contraseña mal), Playwright enseña su mensaje en español, el mismo que daría `npm run server`.
 - Para el ensayo .NET tienen que estar libres 3202, 3203, 4175 y 4176; tampoco se reutilizan servidores abiertos.
-- Las pruebas de la app importan `test` y `expect` de `e2e/test.ts`, no de @playwright/test: así funcionan contra los dos backends.
+- Las pruebas de la app importan `test` y `expect` de `e2e/test.ts`, no de @playwright/test: así funcionan contra los dos backends. Un segundo contexto del navegador se abre con `newPhone(browser)`, no con `browser.newContext()`: si no, contra .NET no tendría las rutas pendientes.
 - `e2e/tickets.spec.ts` usa Tesseract de verdad: una lectura tarda unos segundos.
 - La zona horaria es Europe/Madrid y el idioma es-ES (`playwright.config.ts`).
 - Playwright transforma estos archivos al ejecutarlos; los tipos los comprueba `npm run typecheck` con `tsconfig.e2e.json`, que incluye la librería DOM porque el código de `page.evaluate` se ejecuta en el navegador.

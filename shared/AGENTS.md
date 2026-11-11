@@ -27,6 +27,8 @@ Lógica pura en TypeScript, sin React, sin Express, sin base de datos y sin Node
 
 Cada archivo tiene su `*.test.ts` al lado. Los de tickets leen `fixtures/tickets/` (de dónde sale cada fixture: `docs/pruebas.md`). Solo estas: `npx vitest run shared`, o un área: `npx vitest run shared/tickets`.
 
+La validación de `shared/pantry/pantryValidation.ts` que usa el servidor (personas, productos y la edición con `expectedVersion`, `validateItemUpdate`), `checkQuantity` y el orden de `sortPeople` y `sortItems` tienen su versión en C# desde PAN-01 (`backend/src/CuentasClaras.Application/Pantry/PantryRequests.cs` y `backend/src/CuentasClaras.Domain/Pantry/PantryRules.cs`), comprobada con el corpus `fixtures/migration/rules-pantry.json` (`tests/generatePantryRules.ts` lo regenera; mismas reglas que el de tickets, abajo).
+
 Las reglas de `shared/tickets/` (y las de `server/modules/tickets/domain/`) tienen además su versión en C#, en `backend/src/CuentasClaras.Domain/Tickets/` (TIC-01). Las dos dan lo mismo con el corpus `fixtures/migration/rules-tickets.json`: lo comprueban `tests/migrationTicketRules.test.ts` (TypeScript) y `backend/tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs` (C#, en es-ES y en la invariante).
 
 ## Trampas

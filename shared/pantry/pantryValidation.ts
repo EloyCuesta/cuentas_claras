@@ -17,6 +17,7 @@ import type {
   PantryEventKind,
   PantryFrequency,
   PantryItemInput,
+  PantryItemUpdate,
   PantryPerson,
   PantryPurchaseChange,
   PantryTracking,
@@ -117,6 +118,23 @@ export function validateItemInput(raw: unknown): ValidationResult<PantryItemInpu
       priceCents: readCents(body.priceCents, 'priceCents'),
       notes: notes.trim(),
     }
+  })
+}
+
+/**
+ * Edición de un producto: lo mismo que al crearlo y `expectedVersion`, la
+ * versión del producto que se abrió para editarlo. Se comprueba después del
+ * resto del cuerpo y antes de buscar el producto.
+ */
+export function validateItemUpdate(raw: unknown): ValidationResult<PantryItemUpdate> {
+  const input = validateItemInput(raw)
+  if (!input.ok) return input
+  return attempt(() => {
+    const { expectedVersion } = readObject(raw)
+    if (typeof expectedVersion !== 'number' || !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+      fail('El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0).')
+    }
+    return { ...input.value, expectedVersion }
   })
 }
 

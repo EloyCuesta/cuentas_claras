@@ -24,7 +24,7 @@ Todas bajo /api/despensa. Los ids que no existen dan 404 sin cambiar nada.
 | DELETE /personas/:id | DeletePerson | → `null` | 404 · 409 ««Eloy» tiene un producto…» |
 | GET /productos | `application/queries.ts` (listItems) | → productos, por frecuencia y nombre | — |
 | POST /productos | CreateItem | PantryItemInput → 201 y el producto (id, versión 1 y fechas del servidor) | 400, también si el dueño no existe |
-| PUT /productos/:id | UpdateItem | PantryItemInput → el producto (versión + 1) | 400 · 404 |
+| PUT /productos/:id | UpdateItem | PantryItemInput y `expectedVersion` (la versión con que se abrió el formulario) → el producto (versión + 1) | 400 (también sin `expectedVersion`) · 404 · 409 «Este producto ha cambiado desde que lo abriste…» |
 | POST /productos/:id/ajustar | AdjustItem | `{ delta }` → el producto | 400 (delta 0, decimales en unidades enteras) · 404 |
 | POST /productos/:id/revision | AddEvent | `{ kind, date }` → 201 y la revisión | 400 · 404 |
 | DELETE /revisiones/:id | DeleteEvent | → `null` | 404 |
@@ -47,6 +47,7 @@ Las comprobaciones que comparten varios casos de uso (la persona, el producto o 
 ## Reglas que no se rompen
 - Los botones + y − suman o restan sobre el valor actual del servidor y nunca bajan de cero. Solo `g`, `kg`, `ml` y `l` admiten decimales (hasta 3).
 - Cada escritura en un producto sube su `version`. «Deshacer» la compara y responde 409 si algo cambió; entonces no toca nada.
+- Editar exige `expectedVersion` (PAN-01, un cambio de contrato a propósito): un entero seguro desde 1, validado con el resto del cuerpo antes de buscar el producto. UpdateItem bloquea el producto y comprueba en este orden: 404, 409 si la versión ya no es esa (sin escribir nada) y el dueño. Así dos ediciones a la vez no se pisan: una guarda y la otra recibe 409.
 - Comprar nunca reduce lo que hay: los que ya tienen su objetivo (o más) se quedan igual.
 - Una persona con productos no se borra (409), y la base de datos lo impide también (ON DELETE RESTRICT).
 - Los ids y las fechas los pone el servidor. La fecha de hoy la manda el navegador (`date`); el servidor solo usa la suya si `comprado` llega sin ella.
@@ -63,7 +64,8 @@ Las comprobaciones que comparten varios casos de uso (la persona, el producto o 
 Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql`), que reúne las 002, 003 y 004 de SQLite: ver `docs/base-de-datos.md`. `quantity` y `target` son `DECIMAL(10,3)` (milésimas exactas).
 
 ## Pruebas
-- `pantry.test.ts`: la API por HTTP como invitado (personas, productos, validación, + y −, presupuesto, comprar y deshacer, y que no se mezcla con las finanzas), diez + a la vez desde dos conexiones, milésimas, céntimos y nombres con tildes.
+- `pantry.test.ts`: la API por HTTP como invitado (personas, productos, validación, la edición con `expectedVersion`, + y −, presupuesto, comprar y deshacer, y que no se mezcla con las finanzas), diez + a la vez y dos ediciones a la vez desde dos conexiones, milésimas, céntimos y nombres con tildes.
+- La validación y el orden de las listas también están en el corpus `fixtures/migration/rules-pantry.json`, que comprueba C# (`docs/pruebas.md`).
 - Las revisiones, «Queda poco» y el repaso se prueban con los tickets: `server/modules/tickets/tickets.test.ts`.
 - Las reglas puras (cantidades, ritmo y repaso) están en `shared/pantry/`.
 

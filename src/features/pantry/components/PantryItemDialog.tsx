@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react'
-import { centsToInput } from '#shared/common/money.ts'
 import {
   DECIMAL_UNITS,
   FREQUENCY_LABELS,
@@ -11,7 +10,7 @@ import {
   unitName,
 } from '#shared/pantry/pantry.ts'
 import { agoText, durationText, RHYTHM_LABELS, type ItemRhythm } from '#shared/pantry/pantryRhythm.ts'
-import { quantityToInput, validateItemDraft, type PantryItemDraft } from '#shared/pantry/pantryValidation.ts'
+import { validateItemDraft, type PantryItemDraft } from '#shared/pantry/pantryValidation.ts'
 import type {
   PantryItem,
   PantryItemInput,
@@ -25,6 +24,7 @@ import { focusFirstError } from '../../../ui/helpers.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../../../ui/Dialog.tsx'
 import { Field, Segmented } from '../../../ui/forms.tsx'
 import { Icon } from '../../../ui/Icon.tsx'
+import { isStaleEdit, reloadedEdit, toDraft } from './itemEdit.ts'
 
 const FIELD_IDS: [keyof PantryItemDraft, string][] = [
   ['name', 'pantry-name'],
@@ -34,18 +34,6 @@ const FIELD_IDS: [keyof PantryItemDraft, string][] = [
   ['price', 'pantry-price'],
   ['notes', 'pantry-notes'],
 ]
-
-const toDraft = (item: PantryItem): PantryItemDraft => ({
-  name: item.name,
-  ownerId: item.ownerId ?? '',
-  unit: item.unit,
-  tracking: item.tracking,
-  quantity: quantityToInput(item.quantity),
-  target: quantityToInput(item.target),
-  frequency: item.frequency,
-  price: item.priceCents === null ? '' : centsToInput(item.priceCents),
-  notes: item.notes,
-})
 
 /** Última compra y ritmo, en palabras. */
 function RhythmNotice({ rhythm }: { rhythm: ItemRhythm }) {
@@ -66,13 +54,18 @@ function RhythmNotice({ rhythm }: { rhythm: ItemRhythm }) {
   )
 }
 
-/** Crear o editar un producto de la despensa. Si falla al guardar, el formulario conserva lo escrito. */
+/**
+ * Crear o editar un producto de la despensa. Si falla al guardar, el formulario conserva lo escrito. Al editar se
+ * guarda con la versión del producto que se abrió: si alguien lo cambió mientras tanto, el servidor responde 409 y el
+ * formulario ofrece «Volver a cargar el producto» (itemEdit.ts).
+ */
 export function PantryItemDialog({
   item,
   people,
   defaultOwnerId,
   rhythm,
   onSave,
+  onReload,
   onDelete,
   onClose,
 }: {
@@ -81,7 +74,10 @@ export function PantryItemDialog({
   defaultOwnerId: string | null
   /** Ritmo de compra (si se sigue por compras). */
   rhythm?: ItemRhythm
-  onSave: (input: PantryItemInput) => Promise<void>
+  /** `opened`: el producto tal como se abrió (o se volvió a cargar) el formulario; null si es nuevo. */
+  onSave: (input: PantryItemInput, opened: PantryItem | null) => Promise<void>
+  /** El producto como está ahora en el servidor (null si ya no existe). */
+  onReload: (id: string) => Promise<PantryItem | null>
   onDelete: () => Promise<void>
   onClose: () => void
 }) {
@@ -104,6 +100,10 @@ export function PantryItemDialog({
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  // La versión con la que se guarda: la del producto abierto, hasta que la persona lo vuelva a cargar.
+  const [opened, setOpened] = useState(item)
+  const [stale, setStale] = useState(false)
+  const [reloaded, setReloaded] = useState(false)
   const isNew = item === null
 
   const set = <K extends keyof PantryItemDraft>(key: K, value: PantryItemDraft[K]) => {
@@ -145,10 +145,35 @@ export function PantryItemDialog({
     }
     setBusy(true)
     try {
-      await onSave(result.value)
+      await onSave(result.value, opened)
       onClose()
     } catch (error) {
       setSaveError(describeStorageError(error))
+      setStale(!isNew && isStaleEdit(error))
+      setReloaded(false)
+      setBusy(false)
+    }
+  }
+
+  /** Lo que se había escrito se sustituye por el producto como está ahora, con su versión. */
+  const reload = async () => {
+    if (!opened) return
+    setBusy(true)
+    try {
+      const outcome = reloadedEdit(await onReload(opened.id))
+      setStale(false)
+      if (outcome.ok) {
+        setOpened(outcome.opened)
+        setDraft(outcome.draft)
+        setErrors({})
+        setSaveError(null)
+        setReloaded(true)
+      } else {
+        setSaveError(outcome.error)
+      }
+    } catch (error) {
+      setSaveError(describeStorageError(error))
+    } finally {
       setBusy(false)
     }
   }
@@ -164,7 +189,7 @@ export function PantryItemDialog({
     }
   }
 
-  if (confirmingDelete && item) {
+  if (confirmingDelete && opened) {
     return (
       <ConfirmDialog
         title="Eliminar producto"
@@ -178,7 +203,7 @@ export function PantryItemDialog({
           setConfirmingDelete(false)
         }}
       >
-        <p>Vas a eliminar «{item.name}» de la despensa. No se puede deshacer.</p>
+        <p>Vas a eliminar «{opened.name}» de la despensa. No se puede deshacer.</p>
       </ConfirmDialog>
     )
   }
@@ -347,7 +372,18 @@ export function PantryItemDialog({
               />
             )}
           </Field>
+          {reloaded && (
+            <p className="notice" role="status">
+              <Icon name="info" />
+              <span>Este es el producto tal como está ahora. Repite tus cambios y guarda.</span>
+            </p>
+          )}
           <DialogError message={saveError} />
+          {stale && (
+            <button type="button" className="btn" disabled={busy} onClick={() => void reload()}>
+              Volver a cargar el producto
+            </button>
+          )}
         </div>
         <div className="dialog__footer">
           {!isNew && (

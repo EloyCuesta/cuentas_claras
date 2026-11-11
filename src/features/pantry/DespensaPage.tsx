@@ -13,6 +13,7 @@ import { BudgetBlock } from './components/BudgetBlock.tsx'
 import { OwnerTabs } from './components/owner.tsx'
 import { encodeOwner, ownerName, parseOwner } from './components/ownerFilter.ts'
 import { PantryBudgetDialog } from './components/PantryBudgetDialog.tsx'
+import { itemUpdate } from './components/itemEdit.ts'
 import { PantryItemDialog } from './components/PantryItemDialog.tsx'
 import { PantryRow } from './components/PantryRow.tsx'
 import { PeopleDialog } from './components/PeopleDialog.tsx'
@@ -350,10 +351,12 @@ export function DespensaPage() {
               people={people}
               defaultOwnerId={defaultOwnerId}
               rhythm={editing.item ? rhythms.get(editing.item.id) : undefined}
-              onSave={async (input) => {
-                await actions.saveItem(editing.item?.id ?? null, input)
-                notify(editing.item ? 'Cambios guardados' : 'Producto añadido')
+              onSave={async (input, opened) => {
+                if (opened) await actions.updateItem(opened.id, itemUpdate(opened, input))
+                else await actions.createItem(input)
+                notify(opened ? 'Cambios guardados' : 'Producto añadido')
               }}
+              onReload={actions.reloadItem}
               onDelete={async () => {
                 if (!editing.item) return
                 await actions.deleteItem(editing.item.id)

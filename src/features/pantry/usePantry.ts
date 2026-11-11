@@ -8,6 +8,7 @@ import type {
   PantryEventKind,
   PantryItem,
   PantryItemInput,
+  PantryItemUpdate,
   PantryPerson,
   PantryPurchaseChange,
   PantrySettings,
@@ -36,8 +37,11 @@ export interface PantryActions extends TicketActions {
   createPerson(name: string): Promise<void>
   renamePerson(id: string, name: string): Promise<void>
   deletePerson(id: string): Promise<void>
-  /** id null = producto nuevo. */
-  saveItem(id: string | null, input: PantryItemInput): Promise<void>
+  createItem(input: PantryItemInput): Promise<void>
+  /** Con la versión con que se abrió el formulario: 409 si alguien lo cambió mientras tanto (no se reintenta solo). */
+  updateItem(id: string, update: PantryItemUpdate): Promise<void>
+  /** Vuelve a leer los productos y devuelve ese como está ahora (null si ya no existe). */
+  reloadItem(id: string): Promise<PantryItem | null>
   deleteItem(id: string): Promise<void>
   /** Botones + y −: el servidor suma o resta sobre su valor actual y devuelve el resultado. */
   adjustItem(id: string, delta: number): Promise<void>
@@ -130,8 +134,16 @@ export function usePantry(): { state: PantryState; actions: PantryActions } {
         await pantryApi.deletePerson(id)
         update(({ people }) => ({ people: people.filter((p) => p.id !== id) }))
       },
-      async saveItem(id, input) {
-        putItem(id === null ? await pantryApi.createItem(input) : await pantryApi.updateItem(id, input))
+      async createItem(input) {
+        putItem(await pantryApi.createItem(input))
+      },
+      async updateItem(id, update) {
+        putItem(await pantryApi.updateItem(id, update))
+      },
+      async reloadItem(id) {
+        const items = await pantryApi.listItems()
+        update(() => ({ items }))
+        return items.find((item) => item.id === id) ?? null
       },
       async deleteItem(id) {
         await pantryApi.deleteItem(id)

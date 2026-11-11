@@ -4,6 +4,7 @@ import {
   validateDeltaInput,
   validateEventInput,
   validateItemInput,
+  validateItemUpdate,
   validatePersonInput,
   validatePurchaseInput,
   validateReviewInput,
@@ -56,7 +57,7 @@ export interface PantryRouteDeps {
  * Productos
  * - GET    /api/despensa/productos           lista ordenada por frecuencia y nombre
  * - POST   /api/despensa/productos           PantryItemInput → 201 con el producto (id, versión y fechas del servidor)
- * - PUT    /api/despensa/productos/:id       PantryItemInput → el producto actualizado
+ * - PUT    /api/despensa/productos/:id       PantryItemInput y expectedVersion → el producto actualizado (409 si cambió)
  * - POST   /api/despensa/productos/:id/ajustar  { delta } → suma o resta a la cantidad actual (botones + y −)
  * - POST   /api/despensa/productos/:id/revision { kind: 'queda' | 'poco' | 'se_acabo' | 'comprado', date } → 201 con la revisión
  * - DELETE /api/despensa/revisiones/:id        deshace una revisión
@@ -101,7 +102,8 @@ export function pantryRoutes(deps: PantryRouteDeps): Router {
   })
 
   router.put('/despensa/productos/:id', async (req, res) => {
-    sendData(res, await deps.updateItem.execute(req.params.id, valid(validateItemInput(req.body))))
+    const { expectedVersion, ...input } = valid(validateItemUpdate(req.body))
+    sendData(res, await deps.updateItem.execute(req.params.id, input, expectedVersion))
   })
 
   router.post('/despensa/productos/:id/ajustar', async (req, res) => {

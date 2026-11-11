@@ -213,7 +213,8 @@
               "target": 2,
               "frequency": "semanal",
               "priceCents": 0,
-              "notes": ""
+              "notes": "",
+              "expectedVersion": 1
             }
           },
           "expected": {
@@ -234,6 +235,73 @@
                 "version": 2,
                 "createdAt": "2026-11-01T08:00:00.000Z",
                 "updatedAt": "2026-11-01T08:00:00.000Z"
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "editar con la versión que ya cambió da 409 sin escribir",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002",
+            "body": {
+              "name": "Leche de ensayo",
+              "ownerId": null,
+              "unit": "l",
+              "quantity": 0.125,
+              "target": 2,
+              "frequency": "semanal",
+              "priceCents": 5,
+              "notes": "",
+              "expectedVersion": 1
+            }
+          },
+          "expected": {
+            "status": 409,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "CONFLICT",
+                "message": "Este producto ha cambiado desde que lo abriste (quizá desde otro dispositivo), así que no se ha guardado. Vuelve a cargarlo para ver cómo está ahora."
+              }
+            },
+            "headers": {
+              "cache-control": "no-store",
+              "content-type": "application/json; charset=utf-8",
+              "set-cookie": null,
+              "retry-after": null
+            }
+          }
+        },
+        {
+          "name": "editar sin la versión que se abrió da 400",
+          "request": {
+            "method": "PUT",
+            "path": "/api/despensa/productos/00000000-0000-4000-8000-000000000002",
+            "body": {
+              "name": "Leche de ensayo",
+              "ownerId": null,
+              "unit": "l",
+              "quantity": 0.125,
+              "target": 2,
+              "frequency": "semanal",
+              "priceCents": 5,
+              "notes": ""
+            }
+          },
+          "expected": {
+            "status": 400,
+            "body": {
+              "ok": false,
+              "error": {
+                "code": "VALIDATION",
+                "message": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
               }
             },
             "headers": {

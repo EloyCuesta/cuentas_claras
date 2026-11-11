@@ -1,0 +1,2210 @@
+{
+  "format": "cuentas-claras-pantry-rules-v1",
+  "provenance": "Datos inventados para la migración a .NET (PAN-01 y siguientes). Sin datos de la instalación: personas, productos y cantidades de ensayo; las salidas son las de TypeScript.",
+  "operations": [
+    "checkQuantity",
+    "sortItems",
+    "sortPeople",
+    "validateItemInput",
+    "validateItemUpdate",
+    "validatePersonInput"
+  ],
+  "cases": [
+    {
+      "id": "persona-valida",
+      "description": "Nombre con espacios a los lados: se recortan",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": "  Persona de ensayo "
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Persona de ensayo"
+        }
+      }
+    },
+    {
+      "id": "persona-sin-cuerpo",
+      "description": "Sin cuerpo",
+      "operation": "validatePersonInput",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "persona-cuerpo-null",
+      "description": "El cuerpo es null",
+      "operation": "validatePersonInput",
+      "input": {
+        "bodyJson": "null"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "persona-cuerpo-lista",
+      "description": "El cuerpo es una lista",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": [
+          {
+            "name": "Ana"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "persona-sin-nombre",
+      "description": "Falta el nombre",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {}
+      },
+      "expected": {
+        "ok": false,
+        "error": "La persona: falta el nombre."
+      }
+    },
+    {
+      "id": "persona-nombre-numero",
+      "description": "El nombre no es texto",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": 5
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "La persona: falta el nombre."
+      }
+    },
+    {
+      "id": "persona-nombre-vacio",
+      "description": "Nombre vacío",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "La persona: el nombre está vacío."
+      }
+    },
+    {
+      "id": "persona-nombre-espacios",
+      "description": "Solo espacios, también los de no separación y el BOM, que trim quita",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": "  ﻿  "
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "La persona: el nombre está vacío."
+      }
+    },
+    {
+      "id": "persona-40",
+      "description": "Cuarenta letras con tildes caben",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": "ÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑ"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "ÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑ"
+        }
+      }
+    },
+    {
+      "id": "persona-41",
+      "description": "Cuarenta y una no",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": "ÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑÑ"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "La persona: el nombre puede tener como máximo 40 caracteres."
+      }
+    },
+    {
+      "id": "persona-emojis",
+      "description": "El límite cuenta unidades UTF-16, como length: 20 emojis son 40",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+        }
+      }
+    },
+    {
+      "id": "persona-emojis-21",
+      "description": "21 emojis son 42 unidades UTF-16",
+      "operation": "validatePersonInput",
+      "input": {
+        "body": {
+          "name": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "La persona: el nombre puede tener como máximo 40 caracteres."
+      }
+    },
+    {
+      "id": "persona-clave-repetida",
+      "description": "Con el nombre repetido vale el último, como JSON.parse",
+      "operation": "validatePersonInput",
+      "input": {
+        "bodyJson": "{\"name\":\"Primera\",\"name\":\"Segunda\"}"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Segunda"
+        }
+      }
+    },
+    {
+      "id": "persona-sustituto-suelto",
+      "description": "Un sustituto suelto se conserva",
+      "operation": "validatePersonInput",
+      "input": {
+        "bodyJson": "{\"name\":\"A\\ud800b\"}"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "A\ud800b"
+        }
+      }
+    },
+    {
+      "id": "producto-valido",
+      "description": "Un producto que se cuenta (tracking por defecto)",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-recorta",
+      "description": "Nombre y notas sin espacios a los lados",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "  Leche  ",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "  entera  "
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "entera"
+        }
+      }
+    },
+    {
+      "id": "producto-de-una-persona",
+      "description": "De una persona",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": "persona-1",
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": "persona-1",
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-por-compras",
+      "description": "Por compras, a 0",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 0,
+          "target": 0,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "tracking": "compras"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "compras",
+          "quantity": 0,
+          "target": 0,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-tracking-null",
+      "description": "tracking null cuenta como «cantidad» (??)",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "tracking": null
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-sin-opcionales",
+      "description": "Sin ownerId, tracking, notas ni precio",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": null,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-precio-cero",
+      "description": "Precio 0: gratis, distinto de desconocido",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 0,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 0,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-precio-maximo",
+      "description": "Precio máximo de la despensa",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 10000000,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 10000000,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-milesimas",
+      "description": "Restos binarios tolerados: 0,1 + 0,2 se guarda como 0,3",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "kg",
+          "quantity": 0.30000000000000004,
+          "target": 0.001,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "kg",
+          "tracking": "cantidad",
+          "quantity": 0.3,
+          "target": 0.001,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-cantidad-maxima",
+      "description": "Un millón exacto cabe",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "g",
+          "quantity": 1000000,
+          "target": 999999.999,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "g",
+          "tracking": "cantidad",
+          "quantity": 1000000,
+          "target": 999999.999,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-menos-cero",
+      "description": "-0 es una cantidad válida",
+      "operation": "validateItemInput",
+      "input": {
+        "bodyJson": "{\"name\":\"Sal\",\"ownerId\":null,\"unit\":\"paquete\",\"quantity\":-0,\"target\":1,\"frequency\":\"mensual\",\"priceCents\":null,\"notes\":\"\"}"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Sal",
+          "ownerId": null,
+          "unit": "paquete",
+          "tracking": "cantidad",
+          "quantity": 0,
+          "target": 1,
+          "frequency": "mensual",
+          "priceCents": null,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-sin-cuerpo",
+      "description": "Sin cuerpo",
+      "operation": "validateItemInput",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "producto-cuerpo-texto",
+      "description": "El cuerpo es un texto",
+      "operation": "validateItemInput",
+      "input": {
+        "body": "Leche"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "producto-sin-nombre",
+      "description": "Falta el nombre",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El producto: falta el nombre."
+      }
+    },
+    {
+      "id": "producto-nombre-vacio",
+      "description": "Nombre de espacios",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "   ",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El producto: el nombre está vacío."
+      }
+    },
+    {
+      "id": "producto-nombre-largo",
+      "description": "Nombre de 81 caracteres",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El producto: el nombre puede tener como máximo 80 caracteres."
+      }
+    },
+    {
+      "id": "producto-nombre-80",
+      "description": "Nombre de 80 caracteres",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      }
+    },
+    {
+      "id": "producto-dueno-vacio",
+      "description": "ownerId vacío",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": "",
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «ownerId» debe ser el id de una persona o null (Compartido)."
+      }
+    },
+    {
+      "id": "producto-dueno-numero",
+      "description": "ownerId que no es texto",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": 7,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «ownerId» debe ser el id de una persona o null (Compartido)."
+      }
+    },
+    {
+      "id": "producto-unidad-desconocida",
+      "description": "Unidad desconocida",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "barril",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «unit» debe ser «ud», «g», «kg», «ml», «l», «paquete», «lata», «botella», «bolsa», «docena»."
+      }
+    },
+    {
+      "id": "producto-unidad-mayusculas",
+      "description": "La unidad distingue mayúsculas",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "UD",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «unit» debe ser «ud», «g», «kg», «ml», «l», «paquete», «lata», «botella», «bolsa», «docena»."
+      }
+    },
+    {
+      "id": "producto-sin-unidad",
+      "description": "Sin unidad",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «unit» debe ser «ud», «g», «kg», «ml», «l», «paquete», «lata», «botella», «bolsa», «docena»."
+      }
+    },
+    {
+      "id": "producto-frecuencia",
+      "description": "Frecuencia desconocida",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "diaria",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «frequency» debe ser «semanal», «mensual», «ocasional»."
+      }
+    },
+    {
+      "id": "producto-cantidad-negativa",
+      "description": "Cantidad negativa",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": -1,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: La cantidad no puede ser negativa."
+      }
+    },
+    {
+      "id": "producto-cantidad-texto",
+      "description": "Cantidad en texto",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": "2",
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: Escribe una cantidad."
+      }
+    },
+    {
+      "id": "producto-cantidad-null",
+      "description": "Cantidad null",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": null,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: Escribe una cantidad."
+      }
+    },
+    {
+      "id": "producto-cantidad-infinita",
+      "description": "Un número que desborda es Infinity",
+      "operation": "validateItemInput",
+      "input": {
+        "bodyJson": "{\"name\":\"Agua\",\"unit\":\"l\",\"quantity\":1e400,\"target\":1,\"frequency\":\"semanal\"}"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: Escribe una cantidad."
+      }
+    },
+    {
+      "id": "producto-cantidad-enorme",
+      "description": "Por encima del millón",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 1000000.001,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: La cantidad es demasiado grande."
+      }
+    },
+    {
+      "id": "producto-cuatro-decimales",
+      "description": "Cuatro decimales en kg",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "kg",
+          "quantity": 1.0005,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: Usa como máximo 3 decimales."
+      }
+    },
+    {
+      "id": "producto-decimales-ud",
+      "description": "Decimales en unidades",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "ud",
+          "quantity": 1.5,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: En «ud» la cantidad tiene que ser un número entero."
+      }
+    },
+    {
+      "id": "producto-decimales-paquete",
+      "description": "El mensaje nombra la unidad",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "docena",
+          "quantity": 1,
+          "target": 0.5,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Objetivo: En «docena» la cantidad tiene que ser un número entero."
+      }
+    },
+    {
+      "id": "producto-objetivo-negativo",
+      "description": "Objetivo negativo",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": -2,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Objetivo: La cantidad no puede ser negativa."
+      }
+    },
+    {
+      "id": "producto-objetivo-maximo",
+      "description": "Objetivo enorme",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 1.7976931348623157e+308,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Objetivo: La cantidad es demasiado grande."
+      }
+    },
+    {
+      "id": "producto-tracking",
+      "description": "tracking desconocido",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "tracking": "a ojo"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «tracking» debe ser «compras» o «cantidad»."
+      }
+    },
+    {
+      "id": "producto-tracking-numero",
+      "description": "tracking que no es texto",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "tracking": 1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «tracking» debe ser «compras» o «cantidad»."
+      }
+    },
+    {
+      "id": "producto-notas-numero",
+      "description": "Notas que no son texto",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": 5
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «notes» debe ser texto."
+      }
+    },
+    {
+      "id": "producto-notas-largas",
+      "description": "Notas de 121 caracteres",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Las notas pueden tener como máximo 120 caracteres."
+      }
+    },
+    {
+      "id": "producto-notas-recortadas",
+      "description": "120 caracteres más espacios: el límite es tras recortar",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  "
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      }
+    },
+    {
+      "id": "producto-precio-decimal",
+      "description": "Precio con decimales",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 1.5,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «priceCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "producto-precio-negativo",
+      "description": "Precio negativo",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": -5,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «priceCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "producto-precio-enorme",
+      "description": "Precio por encima del máximo",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 10000001,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «priceCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "producto-precio-texto",
+      "description": "Precio en texto",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": "95",
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «priceCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "producto-precio-booleano",
+      "description": "Precio booleano",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": true,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «priceCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "producto-orden-nombre-unidad",
+      "description": "Primero el nombre, después la unidad",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "",
+          "ownerId": null,
+          "unit": "barril",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El producto: el nombre está vacío."
+      }
+    },
+    {
+      "id": "producto-orden-dueno-unidad",
+      "description": "El dueño antes que la unidad",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": "",
+          "unit": "barril",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «ownerId» debe ser el id de una persona o null (Compartido)."
+      }
+    },
+    {
+      "id": "producto-orden-unidad-frecuencia",
+      "description": "La unidad antes que la frecuencia",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "barril",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "diaria",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «unit» debe ser «ud», «g», «kg», «ml», «l», «paquete», «lata», «botella», «bolsa», «docena»."
+      }
+    },
+    {
+      "id": "producto-orden-frecuencia-cantidad",
+      "description": "La frecuencia antes que la cantidad",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": -1,
+          "target": 6,
+          "frequency": "diaria",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «frequency» debe ser «semanal», «mensual», «ocasional»."
+      }
+    },
+    {
+      "id": "producto-orden-cantidad-objetivo",
+      "description": "La cantidad antes que el objetivo",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": -1,
+          "target": -1,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Cantidad actual: La cantidad no puede ser negativa."
+      }
+    },
+    {
+      "id": "producto-orden-objetivo-tracking",
+      "description": "El objetivo antes que tracking",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": -1,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "tracking": "x"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Objetivo: La cantidad no puede ser negativa."
+      }
+    },
+    {
+      "id": "producto-orden-tracking-notas",
+      "description": "tracking antes que las notas",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": 5,
+          "tracking": "x"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «tracking» debe ser «compras» o «cantidad»."
+      }
+    },
+    {
+      "id": "producto-orden-notas-precio",
+      "description": "Las notas antes que el precio",
+      "operation": "validateItemInput",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": -1,
+          "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Las notas pueden tener como máximo 120 caracteres."
+      }
+    },
+    {
+      "id": "edicion-valida",
+      "description": "La versión con que se abrió",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": 3
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": 3
+        }
+      }
+    },
+    {
+      "id": "edicion-version-maxima",
+      "description": "El mayor entero seguro",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": 9007199254740991
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "tracking": "cantidad",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": 9007199254740991
+        }
+      }
+    },
+    {
+      "id": "edicion-sin-version",
+      "description": "Sin expectedVersion",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-null",
+      "description": "expectedVersion null",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-cero",
+      "description": "expectedVersion 0",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-negativa",
+      "description": "expectedVersion negativa",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": -1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-decimal",
+      "description": "expectedVersion con decimales",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": 1.5
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-texto",
+      "description": "expectedVersion en texto",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": "1"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-booleana",
+      "description": "expectedVersion booleana",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "l",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": true
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-insegura",
+      "description": "2^53 ya no es un entero seguro",
+      "operation": "validateItemUpdate",
+      "input": {
+        "bodyJson": "{\"name\":\"Leche de ensayo\",\"ownerId\":null,\"unit\":\"l\",\"quantity\":2,\"target\":6,\"frequency\":\"semanal\",\"priceCents\":95,\"notes\":\"\",\"expectedVersion\":9007199254740992}"
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-version-infinita",
+      "description": "Una versión que desborda",
+      "operation": "validateItemUpdate",
+      "input": {
+        "bodyJson": "{\"name\":\"Leche de ensayo\",\"ownerId\":null,\"unit\":\"l\",\"quantity\":2,\"target\":6,\"frequency\":\"semanal\",\"priceCents\":95,\"notes\":\"\",\"expectedVersion\":1e400}"
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0)."
+      }
+    },
+    {
+      "id": "edicion-orden",
+      "description": "El resto del cuerpo se comprueba antes que la versión",
+      "operation": "validateItemUpdate",
+      "input": {
+        "body": {
+          "name": "Leche de ensayo",
+          "ownerId": null,
+          "unit": "barril",
+          "quantity": 2,
+          "target": 6,
+          "frequency": "semanal",
+          "priceCents": 95,
+          "notes": "",
+          "expectedVersion": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «unit» debe ser «ud», «g», «kg», «ml», «l», «paquete», «lata», «botella», «bolsa», «docena»."
+      }
+    },
+    {
+      "id": "edicion-sin-cuerpo",
+      "description": "Sin cuerpo",
+      "operation": "validateItemUpdate",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "cantidad-entero-ud",
+      "description": "Unidades enteras",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 3,
+        "unit": "ud"
+      },
+      "expected": {
+        "ok": true,
+        "value": 3
+      }
+    },
+    {
+      "id": "cantidad-decimal-kg",
+      "description": "Decimales en kg",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 1.5,
+        "unit": "kg"
+      },
+      "expected": {
+        "ok": true,
+        "value": 1.5
+      }
+    },
+    {
+      "id": "cantidad-tres-decimales-g",
+      "description": "Tres decimales en g",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 0.125,
+        "unit": "g"
+      },
+      "expected": {
+        "ok": true,
+        "value": 0.125
+      }
+    },
+    {
+      "id": "cantidad-resto-binario",
+      "description": "0,1 + 0,2 sin restos",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 0.30000000000000004,
+        "unit": "ml"
+      },
+      "expected": {
+        "ok": true,
+        "value": 0.3
+      }
+    },
+    {
+      "id": "cantidad-resto-binario-l",
+      "description": "1,1 × 3 sin restos",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 3.3000000000000003,
+        "unit": "l"
+      },
+      "expected": {
+        "ok": true,
+        "value": 3.3
+      }
+    },
+    {
+      "id": "cantidad-cero",
+      "description": "Cero",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 0,
+        "unit": "bolsa"
+      },
+      "expected": {
+        "ok": true,
+        "value": 0
+      }
+    },
+    {
+      "id": "cantidad-millon",
+      "description": "El máximo",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 1000000,
+        "unit": "botella"
+      },
+      "expected": {
+        "ok": true,
+        "value": 1000000
+      }
+    },
+    {
+      "id": "cantidad-mas-del-millon",
+      "description": "Por encima del máximo",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 1000000.5,
+        "unit": "kg"
+      },
+      "expected": {
+        "ok": false,
+        "error": "La cantidad es demasiado grande."
+      }
+    },
+    {
+      "id": "cantidad-negativa",
+      "description": "Negativa",
+      "operation": "checkQuantity",
+      "input": {
+        "body": -0.5,
+        "unit": "kg"
+      },
+      "expected": {
+        "ok": false,
+        "error": "La cantidad no puede ser negativa."
+      }
+    },
+    {
+      "id": "cantidad-cuatro-decimales",
+      "description": "Cuatro decimales",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 0.0005,
+        "unit": "kg"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Usa como máximo 3 decimales."
+      }
+    },
+    {
+      "id": "cantidad-casi-entero",
+      "description": "Un resto que no es binario",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 2.0000001,
+        "unit": "ud"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Usa como máximo 3 decimales."
+      }
+    },
+    {
+      "id": "cantidad-medio-paquete",
+      "description": "Medio paquete",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 0.5,
+        "unit": "paquete"
+      },
+      "expected": {
+        "ok": false,
+        "error": "En «paquete» la cantidad tiene que ser un número entero."
+      }
+    },
+    {
+      "id": "cantidad-media-lata",
+      "description": "Lata",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 1.5,
+        "unit": "lata"
+      },
+      "expected": {
+        "ok": false,
+        "error": "En «lata» la cantidad tiene que ser un número entero."
+      }
+    },
+    {
+      "id": "cantidad-media-docena",
+      "description": "Docena",
+      "operation": "checkQuantity",
+      "input": {
+        "body": 0.5,
+        "unit": "docena"
+      },
+      "expected": {
+        "ok": false,
+        "error": "En «docena» la cantidad tiene que ser un número entero."
+      }
+    },
+    {
+      "id": "cantidad-texto",
+      "description": "Texto",
+      "operation": "checkQuantity",
+      "input": {
+        "body": "1",
+        "unit": "ud"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Escribe una cantidad."
+      }
+    },
+    {
+      "id": "cantidad-null",
+      "description": "null",
+      "operation": "checkQuantity",
+      "input": {
+        "body": null,
+        "unit": "ud"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Escribe una cantidad."
+      }
+    },
+    {
+      "id": "cantidad-booleano",
+      "description": "Booleano",
+      "operation": "checkQuantity",
+      "input": {
+        "body": true,
+        "unit": "ud"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Escribe una cantidad."
+      }
+    },
+    {
+      "id": "cantidad-sin-valor",
+      "description": "Sin valor (undefined)",
+      "operation": "checkQuantity",
+      "input": {
+        "unit": "ud"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Escribe una cantidad."
+      }
+    },
+    {
+      "id": "cantidad-infinita",
+      "description": "Infinity",
+      "operation": "checkQuantity",
+      "input": {
+        "bodyJson": "1e400",
+        "unit": "kg"
+      },
+      "expected": {
+        "ok": false,
+        "error": "Escribe una cantidad."
+      }
+    },
+    {
+      "id": "cantidad-menos-cero",
+      "description": "-0",
+      "operation": "checkQuantity",
+      "input": {
+        "bodyJson": "-0",
+        "unit": "kg"
+      },
+      "expected": {
+        "ok": true,
+        "value": 0
+      }
+    },
+    {
+      "id": "personas-por-nombre",
+      "description": "Personas por nombre: ñ después de n, minúsculas antes que mayúsculas, tildes después",
+      "operation": "sortPeople",
+      "input": {
+        "people": [
+          {
+            "id": "p-00",
+            "name": "Íñigo",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-01",
+            "name": "Iñigo",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-02",
+            "name": "iñigo",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-03",
+            "name": "Ana",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-04",
+            "name": "ana",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-05",
+            "name": "Álvaro",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-06",
+            "name": "alvaro",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-07",
+            "name": "Zoe",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-08",
+            "name": "Ñu",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-09",
+            "name": "Nuria",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-10",
+            "name": "nuria",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-11",
+            "name": "María",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-12",
+            "name": "Maria",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-13",
+            "name": "Mari Carmen",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-14",
+            "name": "Mari-Carmen",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-15",
+            "name": "mari carmen",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-16",
+            "name": "2 hermanos",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-17",
+            "name": "Óscar",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-18",
+            "name": "oscar",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-19",
+            "name": "Ñandú",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          }
+        ]
+      },
+      "expected": [
+        "p-16",
+        "p-06",
+        "p-05",
+        "p-04",
+        "p-03",
+        "p-02",
+        "p-01",
+        "p-00",
+        "p-15",
+        "p-13",
+        "p-14",
+        "p-12",
+        "p-11",
+        "p-10",
+        "p-09",
+        "p-19",
+        "p-08",
+        "p-18",
+        "p-17",
+        "p-07"
+      ]
+    },
+    {
+      "id": "personas-empate-por-id",
+      "description": "El mismo nombre: decide el id",
+      "operation": "sortPeople",
+      "input": {
+        "people": [
+          {
+            "id": "p-b",
+            "name": "Ana",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-a",
+            "name": "Ana",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          },
+          {
+            "id": "p-C",
+            "name": "Ana",
+            "createdAt": "2026-11-01T08:00:00.000Z"
+          }
+        ]
+      },
+      "expected": [
+        "p-a",
+        "p-b",
+        "p-C"
+      ]
+    },
+    {
+      "id": "productos-por-frecuencia-y-nombre",
+      "description": "Semanal, mensual y ocasional; dentro, por nombre",
+      "operation": "sortItems",
+      "input": {
+        "items": [
+          {
+            "id": "i-00",
+            "name": "pina",
+            "frequency": "ocasional"
+          },
+          {
+            "id": "i-01",
+            "name": "piña",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-02",
+            "name": "PINA",
+            "frequency": "mensual"
+          },
+          {
+            "id": "i-03",
+            "name": "Pan",
+            "frequency": "ocasional"
+          },
+          {
+            "id": "i-04",
+            "name": "pan",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-05",
+            "name": "Harina",
+            "frequency": "mensual"
+          },
+          {
+            "id": "i-06",
+            "name": "Ñame",
+            "frequency": "ocasional"
+          },
+          {
+            "id": "i-07",
+            "name": "Nata",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-08",
+            "name": "árbol",
+            "frequency": "mensual"
+          },
+          {
+            "id": "i-09",
+            "name": "Arroz",
+            "frequency": "ocasional"
+          },
+          {
+            "id": "i-10",
+            "name": "Leche",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-11",
+            "name": "leche",
+            "frequency": "mensual"
+          },
+          {
+            "id": "i-12",
+            "name": "Zumo",
+            "frequency": "ocasional"
+          },
+          {
+            "id": "i-13",
+            "name": "Agua",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-14",
+            "name": "Café",
+            "frequency": "mensual"
+          },
+          {
+            "id": "i-15",
+            "name": "Cafe",
+            "frequency": "ocasional"
+          }
+        ]
+      },
+      "expected": [
+        "i-13",
+        "i-10",
+        "i-07",
+        "i-04",
+        "i-01",
+        "i-08",
+        "i-14",
+        "i-05",
+        "i-11",
+        "i-02",
+        "i-09",
+        "i-15",
+        "i-06",
+        "i-03",
+        "i-00",
+        "i-12"
+      ]
+    },
+    {
+      "id": "productos-empate-por-id",
+      "description": "Mismo nombre y frecuencia: decide el id",
+      "operation": "sortItems",
+      "input": {
+        "items": [
+          {
+            "id": "i-2",
+            "name": "Leche",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-10",
+            "name": "Leche",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-1",
+            "name": "leche",
+            "frequency": "semanal"
+          },
+          {
+            "id": "i-0",
+            "name": "Leche",
+            "frequency": "mensual"
+          }
+        ]
+      },
+      "expected": [
+        "i-1",
+        "i-10",
+        "i-2",
+        "i-0"
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@
     <None Include="../../../fixtures/migration/rules.json" Link="Fixtures/rules.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../fixtures/migration/rules-tickets.json" Link="Fixtures/rules-tickets.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../fixtures/migration/rules-finance.json" Link="Fixtures/rules-finance.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/migration/rules-pantry.json" Link="Fixtures/rules-pantry.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../fixtures/tickets/ticket-lidl-ejemplo.png" Link="Fixtures/tickets/ticket-lidl-ejemplo.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

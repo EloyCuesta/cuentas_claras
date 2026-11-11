@@ -6,6 +6,7 @@ import type {
   PantryEventKind,
   PantryItem,
   PantryItemInput,
+  PantryItemUpdate,
   PantryPerson,
   PantryPurchaseChange,
   PantrySettings,
@@ -25,7 +26,8 @@ export const pantryApi = {
 
   listItems: () => apiRequest<PantryItem[]>('GET', '/despensa/productos'),
   createItem: (input: PantryItemInput) => apiRequest<PantryItem>('POST', '/despensa/productos', input),
-  updateItem: (id: string, input: PantryItemInput) => apiRequest<PantryItem>('PUT', `/despensa/productos/${segment(id)}`, input),
+  /** Con la versión del producto que se abrió para editarlo: 409 si ya no es la del servidor. */
+  updateItem: (id: string, update: PantryItemUpdate) => apiRequest<PantryItem>('PUT', `/despensa/productos/${segment(id)}`, update),
   adjustItem: (id: string, delta: number) => apiRequest<PantryItem>('POST', `/despensa/productos/${segment(id)}/ajustar`, { delta }),
   deleteItem: (id: string) => apiRequest<null>('DELETE', `/despensa/productos/${segment(id)}`),
 

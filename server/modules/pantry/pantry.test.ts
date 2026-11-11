@@ -72,12 +72,12 @@ describe('API de la despensa', () => {
     expect(created).toMatchObject({ ...milk, notes: 'entera', version: 1, createdAt: '2026-10-29T08:00:00.000Z' })
     expect(created.createdAt).toBe(created.updatedAt)
 
-    const edited = await guest(api).call('PUT', `/despensa/productos/${created.id}`, { ...milk, target: 8, priceCents: null })
+    const edited = await guest(api).call('PUT', `/despensa/productos/${created.id}`, { ...milk, target: 8, priceCents: null, expectedVersion: 1 })
     expect(edited.status).toBe(200)
     expect(edited.body.data).toMatchObject({ target: 8, priceCents: null, version: 2, createdAt: created.createdAt })
     expect((edited.body.data as PantryItem).updatedAt).not.toBe(created.updatedAt)
 
-    expect((await guest(api).call('PUT', '/despensa/productos/no-existe', milk)).status).toBe(404)
+    expect((await guest(api).call('PUT', '/despensa/productos/no-existe', { ...milk, expectedVersion: 1 })).status).toBe(404)
     expect((await guest(api).call('DELETE', `/despensa/productos/${created.id}`)).status).toBe(200)
     expect((await guest(api).call('DELETE', `/despensa/productos/${created.id}`)).status).toBe(404)
     expect(await items(api)).toEqual([])
@@ -111,8 +111,65 @@ describe('API de la despensa', () => {
     expect(ok).toMatchObject({ quantity: 9, target: 6, priceCents: 0, notes: '' })
     // Cambiar a una unidad entera con cantidades decimales se rechaza sin redondear.
     const kg = await createItem(api, { name: 'Arroz', unit: 'kg', quantity: 1.5, target: 2 })
-    expect((await g.call('PUT', `/despensa/productos/${kg.id}`, { ...milk, name: 'Arroz', unit: 'paquete', quantity: 1.5, target: 2 })).status).toBe(400)
+    expect(
+      (await g.call('PUT', `/despensa/productos/${kg.id}`, { ...milk, name: 'Arroz', unit: 'paquete', quantity: 1.5, target: 2, expectedVersion: 1 })).status,
+    ).toBe(400)
     expect((await items(api)).find((i) => i.id === kg.id)).toMatchObject({ unit: 'kg', quantity: 1.5 })
+  })
+
+  it('editar exige la versión con la que se abrió: 400 sin ella, 404 antes que 409 y 409 sin escribir nada', async () => {
+    const api = await startApi({ login: false })
+    const g = guest(api)
+    const created = await createItem(api)
+    const versionError = {
+      code: 'VALIDATION',
+      message: 'El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0).',
+    }
+    for (const expectedVersion of [undefined, null, 0, -1, 1.5, '1', Number.MAX_SAFE_INTEGER + 1]) {
+      const result = await g.call('PUT', `/despensa/productos/${created.id}`, { ...milk, target: 8, expectedVersion })
+      expect([expectedVersion, result.status, result.body.error]).toEqual([expectedVersion, 400, versionError])
+    }
+    // El resto del cuerpo se valida antes, y todo antes de buscar el producto.
+    expect((await g.call('PUT', '/despensa/productos/no-existe', { ...milk, unit: 'barril' })).body.error?.message).toMatch(/^El campo «unit»/)
+    expect((await g.call('PUT', '/despensa/productos/no-existe', milk)).body.error).toEqual(versionError)
+    expect((await g.call('PUT', '/despensa/productos/no-existe', { ...milk, expectedVersion: 7 })).status).toBe(404)
+
+    // Un + lo cambia (versión 2): la edición abierta con la versión 1 ya no se guarda, aunque el dueño tampoco exista.
+    await g.call('POST', `/despensa/productos/${created.id}/ajustar`, { delta: 1 })
+    for (const body of [{ ...milk, target: 8, expectedVersion: 1 }, { ...milk, ownerId: 'no-existe', expectedVersion: 1 }]) {
+      const stale = await g.call('PUT', `/despensa/productos/${created.id}`, body)
+      expect(stale.status).toBe(409)
+      expect(stale.body.error).toEqual({
+        code: 'CONFLICT',
+        message:
+          'Este producto ha cambiado desde que lo abriste (quizá desde otro dispositivo), así que no se ha guardado. Vuelve a cargarlo para ver cómo está ahora.',
+      })
+    }
+    expect((await items(api))[0]).toMatchObject({ quantity: 3, target: 6, version: 2 })
+    // Con la versión actual, sí; y la anterior deja de valer.
+    expect((await g.call('PUT', `/despensa/productos/${created.id}`, { ...milk, ownerId: 'no-existe', expectedVersion: 2 })).status).toBe(400)
+    expect((await g.call('PUT', `/despensa/productos/${created.id}`, { ...milk, target: 8, expectedVersion: 2 })).body.data).toMatchObject({
+      quantity: 2,
+      target: 8,
+      version: 3,
+    })
+    expect((await g.call('PUT', `/despensa/productos/${created.id}`, { ...milk, target: 9, expectedVersion: 2 })).status).toBe(409)
+  })
+
+  it('dos móviles que editan a la vez el mismo producto, desde dos conexiones: uno guarda y el otro recibe 409', async () => {
+    const api = await startApi({ login: false })
+    const other = await startApi({ database: api.database, login: false })
+    for (let round = 0; round < 5; round++) {
+      const opened = await createItem(api, { name: `Pan ${round}`, unit: 'ud', quantity: 2, target: 4 })
+      const [first, second] = await Promise.all([
+        guest(api).call('PUT', `/despensa/productos/${opened.id}`, { ...milk, name: `Pan ${round}`, unit: 'ud', target: 10, expectedVersion: 1 }),
+        guest(other).call('PUT', `/despensa/productos/${opened.id}`, { ...milk, name: `Pan ${round}`, unit: 'ud', target: 20, expectedVersion: 1 }),
+      ])
+      expect([first.status, second.status].sort()).toEqual([200, 409])
+      const saved = (first.status === 200 ? first : second).body.data as PantryItem
+      expect(saved.version).toBe(2)
+      expect((await items(api)).find((i) => i.id === opened.id)).toEqual(saved)
+    }
   })
 
   it('los botones + y − ajustan sobre el valor del servidor y nunca bajan de cero', async () => {

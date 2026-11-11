@@ -27,6 +27,7 @@ Lo que ve la persona en la interfaz, cómo se llama en el código y qué es.
 | Para revisar, «Revisar pronto», «Probablemente se acabó» | `RhythmStatus`: `revisar`, `probablemente_acabado`… | Los avisos del ritmo. |
 | Repaso de la semana | review (`pantryReview`, `lastReviewDate`) | Una vez a la semana, producto a producto, lo que puede acabarse. |
 | Lista de la compra | `shoppingListItems`, `listaCompraTexto` | Lo que falta, agrupado por persona, para WhatsApp. |
+| Versión de un producto, «Volver a cargar el producto» | `version`, `expectedVersion` (`PantryItemUpdate`) | Sube con cada cambio. Editar exige la versión con que se abrió: si ya es otra, el servidor no guarda (409) y la web ofrece volver a cargarlo. |
 | Marcar todo como comprado / Deshacer | `markPurchased` / `undoPurchase` (`PantryPurchaseChange`, `version`) | Comprar lo de la lista y deshacerlo, salvo que algo haya cambiado después. |
 | Presupuesto de la despensa | `monthlyBudgetCents` | Para comparar con la estimación mensual; no toca las finanzas. |
 | Ticket | `PantryTicket`, `PantryTicketLine` | Una compra guardada desde su ticket, con sus líneas. |

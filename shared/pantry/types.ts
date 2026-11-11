@@ -54,6 +54,13 @@ export type PantryItemInput = Pick<
   'name' | 'ownerId' | 'unit' | 'tracking' | 'quantity' | 'target' | 'frequency' | 'priceCents' | 'notes'
 >
 
+/**
+ * Lo que envía la interfaz al editar un producto: sus campos y la versión que
+ * tenía cuando se abrió el formulario. Si ya no es la misma, alguien lo cambió
+ * mientras tanto y el servidor responde 409 sin escribir nada.
+ */
+export type PantryItemUpdate = PantryItemInput & { expectedVersion: number }
+
 export interface PantrySettings {
   /** Presupuesto mensual estimado del hogar en céntimos. null = sin presupuesto. */
   monthlyBudgetCents: number | null

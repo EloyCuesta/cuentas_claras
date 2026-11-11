@@ -1,0 +1,117 @@
+using System.Text.Json;
+using CuentasClaras.Application.Common;
+using CuentasClaras.Domain.Common;
+using CuentasClaras.Domain.Pantry;
+using static CuentasClaras.Application.Common.JsonInput;
+
+namespace CuentasClaras.Application.Pantry;
+
+/// <summary>Una edición: los campos del producto y la versión con que se abrió el formulario.</summary>
+public sealed record PantryItemUpdate(PantryItemInput Input, long ExpectedVersion);
+
+/// <summary>
+/// Validación de lo que llega a la API de la despensa (shared/pantry/pantryValidation.ts): mismos campos, orden de
+/// comprobaciones y mensajes. Recibe el cuerpo sin tipar, como lo ve TypeScript después de JSON.parse.
+/// </summary>
+public static class PantryRequests
+{
+    private sealed class InputError(string message) : Exception(message);
+
+    /// <summary>validatePersonInput: { name }.</summary>
+    public static ValidationResult<string> ValidatePerson(JsonElement raw) =>
+        Attempt(() => ReadName(Get(ReadObject(raw), "name"), "La persona", PantryRules.PersonNameMax));
+
+    /// <summary>validateItemInput: lo que envía la interfaz al crear o editar un producto.</summary>
+    public static ValidationResult<PantryItemInput> ValidateItemInput(JsonElement raw) => Attempt(() => ReadItem(raw));
+
+    /// <summary>validateItemUpdate: lo mismo y, después, expectedVersion, la versión del producto que se abrió.</summary>
+    public static ValidationResult<PantryItemUpdate> ValidateItemUpdate(JsonElement raw) => Attempt(() =>
+    {
+        var input = ReadItem(raw);
+        var version = Get(raw, "expectedVersion");
+        if (!IsNumber(version) || !JsNumber.IsSafeInteger(Number(version)) || Number(version) < 1)
+            throw new InputError("El campo «expectedVersion» debe ser la versión del producto (un número entero mayor que 0).");
+        return new PantryItemUpdate(input, (long)Number(version));
+    });
+
+    /// <summary>valid() de los routers: el valor, o un 400 con el mensaje del validador.</summary>
+    public static T Valid<T>(ValidationResult<T> result) =>
+        result.Ok ? result.Value! : throw new AppError("VALIDATION", result.Error!);
+
+    private static ValidationResult<T> Attempt<T>(Func<T> read)
+    {
+        try
+        {
+            return ValidationResult<T>.Valid(read());
+        }
+        catch (InputError error)
+        {
+            return ValidationResult<T>.Invalid(error.Message);
+        }
+    }
+
+    private static JsonElement ReadObject(JsonElement raw) =>
+        IsObject(raw) ? raw : throw new InputError("Falta el cuerpo de la petición en JSON.");
+
+    private static string ReadName(JsonElement value, string label, int max)
+    {
+        if (!IsString(value)) throw new InputError($"{label}: falta el nombre.");
+        var name = JsText.Trim(Text(value));
+        if (name.Length == 0) throw new InputError($"{label}: el nombre está vacío.");
+        if (name.Length > max) throw new InputError($"{label}: el nombre puede tener como máximo {max} caracteres.");
+        return name;
+    }
+
+    private static long? ReadCents(JsonElement value, string field)
+    {
+        if (IsNullish(value)) return null;
+        var number = IsNumber(value) ? Number(value) : double.NaN;
+        // Number.isInteger: finito y sin decimales.
+        if (!double.IsFinite(number) || Math.Floor(number) != number || number < 0 || number > PantryRules.MaxPantryCents)
+            throw new InputError($"El campo «{field}» debe ser un número entero de céntimos entre 0 y {JsNumber.ToString(PantryRules.MaxPantryCents)}, o null.");
+        return (long)number;
+    }
+
+    /// <summary>Un campo que tiene que ser uno de esos textos (PANTRY_UNITS.includes: el mismo texto, sin convertir).</summary>
+    private static string ReadOneOf(JsonElement value, IReadOnlyList<string> allowed, string field)
+    {
+        if (IsString(value) && allowed.Contains(Text(value), StringComparer.Ordinal)) return Text(value);
+        throw new InputError($"El campo «{field}» debe ser {string.Join(", ", allowed.Select(option => $"«{option}»"))}.");
+    }
+
+    private static double ReadQuantity(JsonElement value, string unit, string label)
+    {
+        var checkedQuantity = PantryRules.CheckQuantity(IsNumber(value) ? Number(value) : double.NaN, unit);
+        return checkedQuantity.Ok ? checkedQuantity.Value : throw new InputError($"{label}: {checkedQuantity.Error}");
+    }
+
+    private static PantryItemInput ReadItem(JsonElement raw)
+    {
+        var body = ReadObject(raw);
+        var name = ReadName(Get(body, "name"), "El producto", PantryRules.PantryNameMax);
+
+        var ownerId = Get(body, "ownerId");
+        if (!IsNullish(ownerId) && (!IsString(ownerId) || Text(ownerId).Length == 0))
+            throw new InputError("El campo «ownerId» debe ser el id de una persona o null (Compartido).");
+
+        var unit = ReadOneOf(Get(body, "unit"), PantryRules.Units, "unit");
+        var frequency = ReadOneOf(Get(body, "frequency"), PantryRules.Frequencies, "frequency");
+        var quantity = ReadQuantity(Get(body, "quantity"), unit, "Cantidad actual");
+        var target = ReadQuantity(Get(body, "target"), unit, "Objetivo");
+
+        // body.tracking ?? 'cantidad'
+        var trackingValue = Get(body, "tracking");
+        var tracking = IsNullish(trackingValue) ? "cantidad" : IsString(trackingValue) ? Text(trackingValue) : null;
+        if (tracking is not ("cantidad" or "compras")) throw new InputError("El campo «tracking» debe ser «compras» o «cantidad».");
+
+        // body.notes ?? ''
+        var notesValue = Get(body, "notes");
+        if (!IsNullish(notesValue) && !IsString(notesValue)) throw new InputError("El campo «notes» debe ser texto.");
+        var notes = IsNullish(notesValue) ? "" : JsText.Trim(Text(notesValue));
+        if (notes.Length > PantryRules.PantryNotesMax)
+            throw new InputError($"Las notas pueden tener como máximo {PantryRules.PantryNotesMax} caracteres.");
+
+        return new PantryItemInput(name, IsNullish(ownerId) ? null : Text(ownerId), unit, tracking, quantity, target, frequency,
+            ReadCents(Get(body, "priceCents"), "priceCents"), notes);
+    }
+}

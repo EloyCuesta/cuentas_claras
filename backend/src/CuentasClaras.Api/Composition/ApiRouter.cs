@@ -18,10 +18,6 @@ public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSess
     // Permite reconocer el acceso de las rutas pendientes sin fingir que sus datos ya existen en .NET.
     private static readonly (string Method, string Path)[] PendingPublicRoutes =
     [
-        ("GET", "/api/despensa/personas"), ("POST", "/api/despensa/personas"),
-        ("PUT", "/api/despensa/personas/:id"), ("DELETE", "/api/despensa/personas/:id"),
-        ("GET", "/api/despensa/productos"), ("POST", "/api/despensa/productos"),
-        ("PUT", "/api/despensa/productos/:id"), ("DELETE", "/api/despensa/productos/:id"),
         ("POST", "/api/despensa/productos/:id/ajustar"), ("POST", "/api/despensa/productos/:id/revision"),
         ("DELETE", "/api/despensa/revisiones/:id"),
         ("GET", "/api/despensa/presupuesto"), ("PUT", "/api/despensa/presupuesto"),

@@ -58,7 +58,7 @@ Habrá una unidad de trabajo común con una conexión MySQL por operación, como
 
 `GuardarTicketRevisado` debe comprobar duplicados, consultar el catálogo vigente, calcular el plan, crear productos, guardar equivalencias, aplicar precios/cantidades e insertar cabecera/líneas dentro de una sola transacción. Todos los participantes comparten contexto y transacción. El OCR se ejecuta antes para no mantener bloqueos durante el reconocimiento. Un fallo debe revertir todos los efectos.
 
-La edición de productos incorporará `expectedVersion` en el DTO de actualización, tomado de la versión leída al abrir el formulario. La escritura debe condicionar por esa versión e incrementarla; un conflicto devuelve 409 y la UI conserva el borrador y permite recargar. Refrescar la versión a escondidas y reintentar sobrescribiendo elimina la protección. Esta es una mejora deliberada respecto al contrato actual y se entrega con `PAN-01` en ambos extremos.
+La edición de productos lleva `expectedVersion` en el DTO de actualización (desde `PAN-01`, en los dos backends), tomado de la versión leída al abrir el formulario. La escritura bloquea el producto, comprueba esa versión y la incrementa; un conflicto devuelve 409 y la UI conserva el borrador y permite recargar. Refrescar la versión a escondidas y reintentar sobrescribiendo eliminaría la protección. Es una mejora deliberada respecto al contrato anterior.
 
 Para los ajustes relativos de cantidad, calcula sobre el valor actual y usa una actualización atómica o un mecanismo equivalente verificado con dos conexiones. Comprar/deshacer debe conservar su protección frente a cambios posteriores y su comportamiento de todo o nada.
 
