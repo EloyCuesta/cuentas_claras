@@ -4,7 +4,7 @@ namespace CuentasClaras.Application.Pantry;
 
 /// <summary>
 /// Persistencia de la despensa (PantryRepository de server/modules/pantry/application/ports.ts): personas y productos
-/// (PAN-01), cantidades, compras y revisiones (PAN-02). Solo guarda y lee; las comprobaciones y los mensajes están en los casos de uso, que la llaman dentro de
+/// (PAN-01), cantidades, compras y revisiones (PAN-02), presupuesto y repaso (PAN-03). Solo guarda y lee; las comprobaciones y los mensajes están en los casos de uso, que la llaman dentro de
 /// IUnitOfWork.Run. Las listas salen sin ordenar: las ordena PantryQueries con PantryRules.
 /// </summary>
 public interface IPantryStore
@@ -40,4 +40,10 @@ public interface IPantryStore
     Task InsertEvent(PantryEvent pantryEvent);
     Task<PantryEvent?> GetEvent(string id);
     Task DeleteEvent(string id);
+    /// <summary>Revisiones desde una fecha, en orden (fecha, momento en que se apuntaron e id).</summary>
+    Task<IReadOnlyList<PantryEvent>> EventsSince(string date);
+
+    Task<PantrySettings> GetSettings();
+    Task SetBudget(long? monthlyBudgetCents);
+    Task SetReviewDate(string date);
 }

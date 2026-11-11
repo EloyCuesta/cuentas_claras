@@ -1,10 +1,14 @@
+import { addDays } from '../shared/common/dates.ts'
 import { checkQuantity, sortItems, sortPeople, stepQuantity } from '../shared/pantry/pantry.ts'
 import {
+  validateBudgetInput,
   validateDeltaInput,
+  validateEventInput,
   validateItemInput,
   validateItemUpdate,
   validatePersonInput,
   validatePurchaseInput,
+  validateReviewInput,
   validateUndoInput,
 } from '../shared/pantry/pantryValidation.ts'
 import { corpusJson } from './ticketRules.ts'
@@ -32,6 +36,11 @@ const OPERATIONS: Record<string, (input: Input) => unknown> = {
   validatePurchaseInput: (i) => validatePurchaseInput(bodyOf(i)),
   validateUndoInput: (i) => validateUndoInput(bodyOf(i)),
   stepQuantity: (i) => stepQuantity(i.quantity, i.delta),
+  // PAN-03: revisiones, presupuesto, repaso y la ventana de la actividad (hoy − 400 días)
+  validateEventInput: (i) => validateEventInput(bodyOf(i)),
+  validateBudgetInput: (i) => validateBudgetInput(bodyOf(i)),
+  validateReviewInput: (i) => validateReviewInput(bodyOf(i)),
+  addDays: (i) => addDays(i.value, i.days),
   // shared/pantry/pantry.ts: cantidades en milésimas y el orden de las listas (los ids, en el orden que quedan)
   checkQuantity: (i) => checkQuantity(bodyOf(i), i.unit),
   sortPeople: (i) => sortPeople(i.people).map((person) => person.id),

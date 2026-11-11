@@ -104,6 +104,8 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Los contratos de la despensa para los tickets (PAN-01).** Tickets solo puede usar de Pantry lo que está en `Application.Pantry.Contracts` (lo vigila ArchitectureTests): IPantryCatalog, con lo que hoy usa de PantryApi (bloquear, leer, crear y listar productos), y sus propios registros (PantryItemView, NewPantryItem), porque Domain.Pantry no es visible desde Tickets. Lo implementa PantryCatalog con los mismos casos de uso que las rutas; dentro de una transacción de tickets se une a ella. Desde PAN-02 también aplica lo que deja un ticket en precio y cantidad (ApplyTicketPurchase); las revisiones llegan con PAN-03.
 
+**La actividad es de la despensa, y las compras le llegan de los tickets (PAN-03).** En Express, GET /api/despensa/actividad está en el módulo tickets y pide las revisiones a la despensa. En .NET es al revés, como pide ARCHITECTURE.md: la consulta es de Pantry (PantryActivityQueries), con sus revisiones, y las compras le llegan por IPantryPurchaseHistory, un contrato de `Application.Pantry.Contracts` que implementa Tickets en Infrastructure (MySqlTicketPurchaseHistory, con el SQL de purchaseLinesSince y PurchaseHistory de Domain.Tickets). Así Pantry no conoce los tickets, y la respuesta es la misma.
+
 ## Pendiente
 
 **Retirar la migración de los datos del navegador** (IndexedDB → la base de datos del servidor), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:

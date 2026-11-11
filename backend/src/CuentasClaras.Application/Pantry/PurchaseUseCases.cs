@@ -30,10 +30,17 @@ public sealed class AdjustItem(IPantryStore store, IClock clock, IUnitOfWork uni
 /// <summary>
 /// Apuntar una revisión (AddEvent.ts): «Queda», «Queda poco», «Se acabó» o «Lo he comprado», con la fecha de hoy que manda
 /// el navegador. Bloquea el producto: si otro lo borra a la vez, espera y después da 404. La usa «Marcar todo como
-/// comprado» desde PAN-02; su ruta llega con PAN-03.
+/// comprado» y la ruta de las revisiones.
 /// </summary>
 public sealed class AddEvent(IPantryStore store, IClock clock, IIdGenerator ids, IUnitOfWork unitOfWork)
 {
+    /// <summary>POST /api/despensa/productos/:id/revision: { kind, date }; el cuerpo se valida antes de buscar el producto.</summary>
+    public Task<PantryEventView> Handle(string itemId, JsonElement body)
+    {
+        var (kind, date) = PantryRequests.Valid(PantryRequests.ValidateEvent(body));
+        return Execute(itemId, kind, date);
+    }
+
     public Task<PantryEventView> Execute(string itemId, string kind, string date) => unitOfWork.Run(async () =>
     {
         await store.LockItems([itemId]);

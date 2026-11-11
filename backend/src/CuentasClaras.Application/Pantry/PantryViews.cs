@@ -16,6 +16,15 @@ public sealed record PantryEventView(string Id, string ItemId, string Kind, stri
         new(pantryEvent.Id, pantryEvent.ItemId, pantryEvent.Kind, pantryEvent.Date, pantryEvent.CreatedAt);
 }
 
+/// <summary>GET y PUT /api/despensa/presupuesto y PUT /api/despensa/repaso: { monthlyBudgetCents, lastReviewDate }.</summary>
+public sealed record PantrySettingsView(long? MonthlyBudgetCents, string? LastReviewDate)
+{
+    public static PantrySettingsView From(PantrySettings settings) => new(settings.MonthlyBudgetCents, settings.LastReviewDate);
+}
+
+/// <summary>GET /api/despensa/actividad: las compras de los tickets y las revisiones, para el ritmo de compra.</summary>
+public sealed record PantryActivityView(IReadOnlyList<PantryPurchaseView> Purchases, IReadOnlyList<PantryEventView> Events);
+
 /// <summary>Un cambio de una compra, para deshacerla: el de un producto que se cuenta.</summary>
 public sealed record QuantityChangeView(string Id, double PreviousQuantity, long Version);
 

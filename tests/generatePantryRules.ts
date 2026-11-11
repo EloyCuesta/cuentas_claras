@@ -195,6 +195,47 @@ for (const [id, quantity, delta, description] of [
 }
 
 // ---------------------------------------------------------------------------
+// Revisiones, presupuesto, repaso y actividad (PAN-03)
+
+for (const kind of ['queda', 'poco', 'se_acabo', 'comprado']) {
+  add('revision-' + kind, 'Revisión «' + kind + '»', 'validateEventInput', body({ kind, date: '2026-10-31' }))
+}
+add('revision-tipo', 'Un tipo desconocido', 'validateEventInput', body({ kind: 'mucho', date: '2026-10-31' }))
+add('revision-tipo-mayusculas', 'El tipo distingue mayúsculas', 'validateEventInput', body({ kind: 'Queda', date: '2026-10-31' }))
+add('revision-sin-fecha', 'Sin fecha', 'validateEventInput', body({ kind: 'queda' }))
+add('revision-fecha-null', 'Fecha null', 'validateEventInput', body({ kind: 'queda', date: null }))
+add('revision-fecha-mala', 'Fecha con otro formato', 'validateEventInput', body({ kind: 'queda', date: '31/10/2026' }))
+add('revision-orden', 'El tipo se comprueba antes que la fecha', 'validateEventInput', body({ kind: 1, date: 'x' }))
+add('revision-sin-cuerpo', 'Sin cuerpo', 'validateEventInput', {})
+
+add('presupuesto-valido', 'Un presupuesto', 'validateBudgetInput', body({ monthlyBudgetCents: 30000 }))
+add('presupuesto-cero', '0 es un presupuesto de 0 €', 'validateBudgetInput', body({ monthlyBudgetCents: 0 }))
+add('presupuesto-null', 'null quita el presupuesto', 'validateBudgetInput', body({ monthlyBudgetCents: null }))
+add('presupuesto-maximo', 'El máximo', 'validateBudgetInput', body({ monthlyBudgetCents: 10_000_000 }))
+add('presupuesto-enorme', 'Por encima del máximo', 'validateBudgetInput', body({ monthlyBudgetCents: 10_000_001 }))
+add('presupuesto-negativo', 'Negativo', 'validateBudgetInput', body({ monthlyBudgetCents: -1 }))
+add('presupuesto-decimal', 'Con decimales', 'validateBudgetInput', body({ monthlyBudgetCents: 12.5 }))
+add('presupuesto-texto', 'En texto', 'validateBudgetInput', body({ monthlyBudgetCents: '300' }))
+add('presupuesto-sin-campo', 'Sin el campo', 'validateBudgetInput', body({}))
+add('presupuesto-sin-cuerpo', 'Sin cuerpo', 'validateBudgetInput', {})
+
+add('repaso-valido', 'El día del repaso', 'validateReviewInput', body({ date: '2026-10-31' }))
+add('repaso-sin-fecha', 'Sin fecha', 'validateReviewInput', body({}))
+add('repaso-fecha-imposible', 'Un 31 de abril', 'validateReviewInput', body({ date: '2026-04-31' }))
+add('repaso-sin-cuerpo', 'Sin cuerpo', 'validateReviewInput', {})
+
+for (const [id, value, days, description] of [
+  ['ventana', '2026-10-29', -400, 'La ventana de la actividad'],
+  ['bisiesto', '2025-02-28', 366, 'Un año y un día sin 29 de febrero'],
+  ['29-febrero', '2028-03-01', -1, 'Antes del 1 de marzo de un bisiesto'],
+  ['fin-de-ano', '2026-12-31', 1, 'Cambio de año'],
+  ['siglo', '2100-03-01', -1, '2100 no es bisiesto'],
+  ['cero', '2026-10-29', 0, 'Cero días'],
+] as const) {
+  add('dias-' + id, description, 'addDays', { value, days })
+}
+
+// ---------------------------------------------------------------------------
 // Cantidades
 
 const quantity = (value: unknown, unit: string) => ({ ...body(value), unit })

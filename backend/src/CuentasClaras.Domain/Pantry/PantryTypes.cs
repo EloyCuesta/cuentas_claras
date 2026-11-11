@@ -34,6 +34,9 @@ public sealed record PantryItem(
     string CreatedAt,
     string UpdatedAt);
 
+/// <summary>El presupuesto mensual de la despensa (null = sin presupuesto) y el día del último repaso de la semana.</summary>
+public sealed record PantrySettings(long? MonthlyBudgetCents, string? LastReviewDate);
+
 /// <summary>Una revisión: «queda», «poco», «se_acabo» o «comprado», con la fecha de hoy del navegador.</summary>
 public sealed record PantryEvent(string Id, string ItemId, string Kind, string Date, string CreatedAt);
 

@@ -36,6 +36,11 @@ internal static class PantryRulesCorpus
             _ => throw new InvalidOperationException(),
         })))),
         ["stepQuantity"] = input => Number(PantryRules.StepQuantity(Double(input, "quantity"), Double(input, "delta"))),
+        // PAN-03: revisiones, presupuesto, repaso y la ventana de la actividad
+        ["validateEventInput"] = input => Result(PantryRequests.ValidateEvent(BodyOf(input)), value => Object(("kind", value.Kind), ("date", value.Date))),
+        ["validateBudgetInput"] = input => Result(PantryRequests.ValidateBudget(BodyOf(input)), cents => Object(("monthlyBudgetCents", Number(cents)))),
+        ["validateReviewInput"] = input => Result(PantryRequests.ValidateReview(BodyOf(input)), date => Object(("date", date))),
+        ["addDays"] = input => String(IsoDates.AddDays(Text(input, "value"), (int)Long(input, "days"))),
         // shared/pantry/pantry.ts
         ["checkQuantity"] = input =>
         {

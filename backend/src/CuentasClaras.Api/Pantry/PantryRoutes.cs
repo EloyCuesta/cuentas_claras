@@ -7,7 +7,8 @@ namespace CuentasClaras.Api.Pantry;
 public sealed record PantryUseCases(
     PantryQueries Queries, CreatePerson CreatePerson, RenamePerson RenamePerson, DeletePerson DeletePerson,
     CreateItem CreateItem, UpdateItem UpdateItem, DeleteItem DeleteItem, AdjustItem AdjustItem, MarkPurchased MarkPurchased,
-    UndoPurchase UndoPurchase);
+    UndoPurchase UndoPurchase, AddEvent AddEvent, DeleteEvent DeleteEvent, SetBudget SetBudget, SetReviewDate SetReviewDate,
+    PantryActivityQueries Activity);
 
 /// <summary>
 /// Las rutas de la despensa (server/modules/pantry/adapters/http/routes.ts). Públicas a propósito: las usa cualquiera de
@@ -53,12 +54,37 @@ public static class PantryRoutes
         routes.Map("POST", "/api/despensa/productos/:id/ajustar", RouteAccess.Public, async request =>
             await ApiResponse.Data(request.Http, await useCases.AdjustItem.Handle(request.Param("id"), request.Body)));
 
+        // «Queda», «Queda poco», «Se acabó» o «Lo he comprado»: { kind, date } → 201 con la revisión.
+        routes.Map("POST", "/api/despensa/productos/:id/revision", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.AddEvent.Handle(request.Param("id"), request.Body), 201));
+
+        // Deshace una revisión.
+        routes.Map("DELETE", "/api/despensa/revisiones/:id", RouteAccess.Public, async request =>
+        {
+            await useCases.DeleteEvent.Execute(request.Param("id"));
+            await ApiResponse.Data(request.Http, null);
+        });
+
         // Lo borra con sus revisiones.
         routes.Map("DELETE", "/api/despensa/productos/:id", RouteAccess.Public, async request =>
         {
             await useCases.DeleteItem.Execute(request.Param("id"));
             await ApiResponse.Data(request.Http, null);
         });
+
+        // Presupuesto y repaso de la semana: { monthlyBudgetCents, lastReviewDate }.
+        routes.Map("GET", "/api/despensa/presupuesto", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.Activity.Settings()));
+
+        routes.Map("PUT", "/api/despensa/presupuesto", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.SetBudget.Handle(request.Body)));
+
+        routes.Map("PUT", "/api/despensa/repaso", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.SetReviewDate.Handle(request.Body)));
+
+        // Compras de los tickets y revisiones de los últimos 400 días, para el ritmo de compra (?hoy=AAAA-MM-DD del navegador).
+        routes.Map("GET", "/api/despensa/actividad", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.Activity.Activity(request.Query.Single("hoy"))));
 
         // «Marcar todo como comprado»: { ids, date? } → { changes, items }.
         routes.Map("POST", "/api/despensa/comprado", RouteAccess.Public, async request =>

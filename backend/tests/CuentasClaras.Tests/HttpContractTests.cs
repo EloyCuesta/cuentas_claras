@@ -29,6 +29,8 @@ public sealed class HttpContractTests
         "recurrentes del día 31, exclusiones, pagos y generación repetida",
         // FIN-05 con las personas y los productos de PAN-01.
         "importación del navegador una sola vez y restauración aislada",
+        // PAN-01, PAN-02 y PAN-03: la despensa entera.
+        "catálogo público, ajustes relativos, compras, deshacer y revisión",
     };
 
     private static readonly Dictionary<string, JsonDocument> Fixtures =

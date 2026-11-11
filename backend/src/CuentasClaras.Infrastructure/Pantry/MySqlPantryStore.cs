@@ -8,7 +8,7 @@ using MySqlConnector;
 namespace CuentasClaras.Infrastructure.Pantry;
 
 /// <summary>
-/// La despensa en MySQL (pantry_people, pantry_items y pantry_events), con el SQL de
+/// La despensa en MySQL (pantry_people, pantry_items, pantry_events y pantry_settings), con el SQL de
 /// server/modules/pantry/adapters/mysql/MysqlPantryRepository.ts. Solo SQL y conversión de filas: las comprobaciones,
 /// los mensajes, las transacciones y cuándo se bloquea están en los casos de uso. Todo con parámetros, también IN (...).
 /// quantity y target son DECIMAL(10,3): se leen y se escriben como el texto decimal exacto, sin restos binarios.
@@ -121,4 +121,24 @@ public sealed class MySqlPantryStore(MySqlDatabase database) : IPantryStore
         (await database.Rows($"SELECT {EventColumns} FROM pantry_events WHERE id = ?", [id], ToEvent)).FirstOrDefault();
 
     public Task DeleteEvent(string id) => database.Run("DELETE FROM pantry_events WHERE id = ?", [id]);
+
+    // El id deshace los empates de un mismo instante, que SQLite dejaba en el orden en que se apuntaron.
+    public async Task<IReadOnlyList<PantryEvent>> EventsSince(string date) => await database.Rows(
+        $"SELECT {EventColumns} FROM pantry_events WHERE event_date >= ? ORDER BY event_date, created_at, id", [date], ToEvent);
+
+    // Presupuesto y repaso de la semana ----------------------------------------------------------------------------
+
+    public async Task<PantrySettings> GetSettings() =>
+        (await database.Rows("SELECT monthly_budget_cents, last_review_date FROM pantry_settings WHERE id = 1", [],
+            row => new PantrySettings(MySqlRead.NullableInteger(row, "monthly_budget_cents"), MySqlRead.NullableDate(row, "last_review_date"))))
+        .FirstOrDefault() ?? new PantrySettings(null, null);
+
+    // pantry_settings solo tiene la clave primaria (id = 1): ON DUPLICATE KEY UPDATE no puede pisar otra fila.
+    public Task SetBudget(long? monthlyBudgetCents) => database.Run(
+        "INSERT INTO pantry_settings (id, monthly_budget_cents) VALUES (1, ?) AS new ON DUPLICATE KEY UPDATE monthly_budget_cents = new.monthly_budget_cents",
+        [monthlyBudgetCents]);
+
+    public Task SetReviewDate(string date) => database.Run(
+        "INSERT INTO pantry_settings (id, last_review_date) VALUES (1, ?) AS new ON DUPLICATE KEY UPDATE last_review_date = new.last_review_date",
+        [date]);
 }

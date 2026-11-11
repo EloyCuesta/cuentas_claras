@@ -2,15 +2,19 @@
   "format": "cuentas-claras-pantry-rules-v1",
   "provenance": "Datos inventados para la migración a .NET (PAN-01 y siguientes). Sin datos de la instalación: personas, productos y cantidades de ensayo; las salidas son las de TypeScript.",
   "operations": [
+    "addDays",
     "checkQuantity",
     "sortItems",
     "sortPeople",
     "stepQuantity",
+    "validateBudgetInput",
     "validateDeltaInput",
+    "validateEventInput",
     "validateItemInput",
     "validateItemUpdate",
     "validatePersonInput",
     "validatePurchaseInput",
+    "validateReviewInput",
     "validateUndoInput"
   ],
   "cases": [
@@ -10486,6 +10490,431 @@
         "delta": 100
       },
       "expected": 350
+    },
+    {
+      "id": "revision-queda",
+      "description": "Revisión «queda»",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "queda",
+          "date": "2026-10-31"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "kind": "queda",
+          "date": "2026-10-31"
+        }
+      }
+    },
+    {
+      "id": "revision-poco",
+      "description": "Revisión «poco»",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "poco",
+          "date": "2026-10-31"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "kind": "poco",
+          "date": "2026-10-31"
+        }
+      }
+    },
+    {
+      "id": "revision-se_acabo",
+      "description": "Revisión «se_acabo»",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "se_acabo",
+          "date": "2026-10-31"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "kind": "se_acabo",
+          "date": "2026-10-31"
+        }
+      }
+    },
+    {
+      "id": "revision-comprado",
+      "description": "Revisión «comprado»",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "comprado",
+          "date": "2026-10-31"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "kind": "comprado",
+          "date": "2026-10-31"
+        }
+      }
+    },
+    {
+      "id": "revision-tipo",
+      "description": "Un tipo desconocido",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "mucho",
+          "date": "2026-10-31"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «kind» debe ser «queda», «poco», «se_acabo» o «comprado»."
+      }
+    },
+    {
+      "id": "revision-tipo-mayusculas",
+      "description": "El tipo distingue mayúsculas",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "Queda",
+          "date": "2026-10-31"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «kind» debe ser «queda», «poco», «se_acabo» o «comprado»."
+      }
+    },
+    {
+      "id": "revision-sin-fecha",
+      "description": "Sin fecha",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "queda"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Falta el campo «date» (AAAA-MM-DD)."
+      }
+    },
+    {
+      "id": "revision-fecha-null",
+      "description": "Fecha null",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "queda",
+          "date": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "Falta el campo «date» (AAAA-MM-DD)."
+      }
+    },
+    {
+      "id": "revision-fecha-mala",
+      "description": "Fecha con otro formato",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": "queda",
+          "date": "31/10/2026"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «date» debe ser una fecha AAAA-MM-DD."
+      }
+    },
+    {
+      "id": "revision-orden",
+      "description": "El tipo se comprueba antes que la fecha",
+      "operation": "validateEventInput",
+      "input": {
+        "body": {
+          "kind": 1,
+          "date": "x"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «kind» debe ser «queda», «poco», «se_acabo» o «comprado»."
+      }
+    },
+    {
+      "id": "revision-sin-cuerpo",
+      "description": "Sin cuerpo",
+      "operation": "validateEventInput",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "presupuesto-valido",
+      "description": "Un presupuesto",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": 30000
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "monthlyBudgetCents": 30000
+        }
+      }
+    },
+    {
+      "id": "presupuesto-cero",
+      "description": "0 es un presupuesto de 0 €",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "monthlyBudgetCents": 0
+        }
+      }
+    },
+    {
+      "id": "presupuesto-null",
+      "description": "null quita el presupuesto",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": null
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "monthlyBudgetCents": null
+        }
+      }
+    },
+    {
+      "id": "presupuesto-maximo",
+      "description": "El máximo",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": 10000000
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "monthlyBudgetCents": 10000000
+        }
+      }
+    },
+    {
+      "id": "presupuesto-enorme",
+      "description": "Por encima del máximo",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": 10000001
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «monthlyBudgetCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "presupuesto-negativo",
+      "description": "Negativo",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": -1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «monthlyBudgetCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "presupuesto-decimal",
+      "description": "Con decimales",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": 12.5
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «monthlyBudgetCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "presupuesto-texto",
+      "description": "En texto",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {
+          "monthlyBudgetCents": "300"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «monthlyBudgetCents» debe ser un número entero de céntimos entre 0 y 10000000, o null."
+      }
+    },
+    {
+      "id": "presupuesto-sin-campo",
+      "description": "Sin el campo",
+      "operation": "validateBudgetInput",
+      "input": {
+        "body": {}
+      },
+      "expected": {
+        "ok": false,
+        "error": "Falta el campo «monthlyBudgetCents» (número de céntimos o null)."
+      }
+    },
+    {
+      "id": "presupuesto-sin-cuerpo",
+      "description": "Sin cuerpo",
+      "operation": "validateBudgetInput",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "repaso-valido",
+      "description": "El día del repaso",
+      "operation": "validateReviewInput",
+      "input": {
+        "body": {
+          "date": "2026-10-31"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "date": "2026-10-31"
+        }
+      }
+    },
+    {
+      "id": "repaso-sin-fecha",
+      "description": "Sin fecha",
+      "operation": "validateReviewInput",
+      "input": {
+        "body": {}
+      },
+      "expected": {
+        "ok": false,
+        "error": "Falta el campo «date» (AAAA-MM-DD)."
+      }
+    },
+    {
+      "id": "repaso-fecha-imposible",
+      "description": "Un 31 de abril",
+      "operation": "validateReviewInput",
+      "input": {
+        "body": {
+          "date": "2026-04-31"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": "El campo «date» debe ser una fecha AAAA-MM-DD."
+      }
+    },
+    {
+      "id": "repaso-sin-cuerpo",
+      "description": "Sin cuerpo",
+      "operation": "validateReviewInput",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "error": "Falta el cuerpo de la petición en JSON."
+      }
+    },
+    {
+      "id": "dias-ventana",
+      "description": "La ventana de la actividad",
+      "operation": "addDays",
+      "input": {
+        "value": "2026-10-29",
+        "days": -400
+      },
+      "expected": "2025-09-24"
+    },
+    {
+      "id": "dias-bisiesto",
+      "description": "Un año y un día sin 29 de febrero",
+      "operation": "addDays",
+      "input": {
+        "value": "2025-02-28",
+        "days": 366
+      },
+      "expected": "2026-03-01"
+    },
+    {
+      "id": "dias-29-febrero",
+      "description": "Antes del 1 de marzo de un bisiesto",
+      "operation": "addDays",
+      "input": {
+        "value": "2028-03-01",
+        "days": -1
+      },
+      "expected": "2028-02-29"
+    },
+    {
+      "id": "dias-fin-de-ano",
+      "description": "Cambio de año",
+      "operation": "addDays",
+      "input": {
+        "value": "2026-12-31",
+        "days": 1
+      },
+      "expected": "2027-01-01"
+    },
+    {
+      "id": "dias-siglo",
+      "description": "2100 no es bisiesto",
+      "operation": "addDays",
+      "input": {
+        "value": "2100-03-01",
+        "days": -1
+      },
+      "expected": "2100-02-28"
+    },
+    {
+      "id": "dias-cero",
+      "description": "Cero días",
+      "operation": "addDays",
+      "input": {
+        "value": "2026-10-29",
+        "days": 0
+      },
+      "expected": "2026-10-29"
     },
     {
       "id": "cantidad-entero-ud",

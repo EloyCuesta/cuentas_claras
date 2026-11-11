@@ -13,6 +13,7 @@ using CuentasClaras.Infrastructure.Common.MySql;
 using CuentasClaras.Infrastructure.Finance;
 using CuentasClaras.Infrastructure.Health;
 using CuentasClaras.Infrastructure.Pantry;
+using CuentasClaras.Infrastructure.Tickets;
 
 namespace CuentasClaras.Api.Composition;
 
@@ -123,7 +124,13 @@ public static class ApiHost
             new DeleteItem(pantryStore, unitOfWork),
             new AdjustItem(pantryStore, services.Clock, unitOfWork),
             new MarkPurchased(pantryStore, pantryQueries, addEvent, services.Clock, unitOfWork),
-            new UndoPurchase(pantryStore, pantryQueries, services.Clock, unitOfWork)));
+            new UndoPurchase(pantryStore, pantryQueries, services.Clock, unitOfWork),
+            addEvent,
+            new DeleteEvent(pantryStore, unitOfWork),
+            new SetBudget(pantryStore, unitOfWork),
+            new SetReviewDate(pantryStore, unitOfWork),
+            // Las compras de la actividad las da Tickets, por el contrato de la despensa.
+            new PantryActivityQueries(pantryStore, new MySqlTicketPurchaseHistory(services.Database), services.Clock)));
 
         // Las finanzas, con sesión.
         var financeStore = new MySqlFinanceStore(services.Database);

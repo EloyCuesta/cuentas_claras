@@ -62,4 +62,12 @@ public static class IsoDates
         var (nextYear, nextMonth) = ShiftMonth(year, month, 1);
         return MonthBounds(nextYear, nextMonth).End;
     }
+
+    /// <summary>addDays: la fecha de calendario tantos días después (o antes, con días negativos), sin horas ni zonas.</summary>
+    public static string AddDays(string value, int days)
+    {
+        var (year, month, day) = PartsOf(value);
+        var date = new DateOnly(year, month, day).AddDays(days);
+        return ToIsoDate(date.Year, date.Month, date.Day);
+    }
 }

@@ -94,6 +94,29 @@ public static class PantryRequests
         return (IReadOnlyList<PantryPurchaseChange>)result;
     });
 
+    /// <summary>validateBudgetInput: { monthlyBudgetCents: número de céntimos o null }; el campo tiene que estar.</summary>
+    public static ValidationResult<long?> ValidateBudget(JsonElement raw) => Attempt(() =>
+    {
+        var body = ReadObject(raw);
+        if (!Has(body, "monthlyBudgetCents")) throw new InputError("Falta el campo «monthlyBudgetCents» (número de céntimos o null).");
+        return ReadCents(Get(body, "monthlyBudgetCents"), "monthlyBudgetCents");
+    });
+
+    /// <summary>validateEventInput: { kind, date }, con la fecha de hoy del navegador.</summary>
+    public static ValidationResult<(string Kind, string Date)> ValidateEvent(JsonElement raw) => Attempt(() =>
+    {
+        var body = ReadObject(raw);
+        var kind = Get(body, "kind");
+        if (!IsString(kind) || !PantryRules.EventKinds.Contains(Text(kind), StringComparer.Ordinal))
+            throw new InputError("El campo «kind» debe ser «queda», «poco», «se_acabo» o «comprado».");
+        var date = ReadOptionalDate(Get(body, "date"), "date") ?? throw new InputError("Falta el campo «date» (AAAA-MM-DD).");
+        return (Text(kind), date);
+    });
+
+    /// <summary>validateReviewInput: { date }, el día en que se hizo el repaso de la semana.</summary>
+    public static ValidationResult<string> ValidateReview(JsonElement raw) => Attempt(() =>
+        ReadOptionalDate(Get(ReadObject(raw), "date"), "date") ?? throw new InputError("Falta el campo «date» (AAAA-MM-DD)."));
+
     /// <summary>readOptionalDate: undefined o null dan null; si no, una fecha AAAA-MM-DD real.</summary>
     private static string? ReadOptionalDate(JsonElement value, string field)
     {

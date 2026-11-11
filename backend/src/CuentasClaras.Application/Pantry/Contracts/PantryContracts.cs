@@ -38,8 +38,26 @@ public sealed record NewPantryItem(
 public sealed record PantryTicketPurchase(long? PriceCents, double? AddQuantity);
 
 /// <summary>
+/// Una compra de un producto sacada de un ticket (PantryPurchase de shared/pantry/types.ts), para el ritmo de compra:
+/// kilos (Measure «kg») o unidades («ud») o null, y lo que costó ya con descuentos, o null si no se sabe.
+/// </summary>
+public sealed record PantryPurchaseView(
+    string ItemId, string Date, double? Amount, string? Measure, long? CostCents, string? Store, string? TicketId, string RecordedAt);
+
+/// <summary>
+/// Las compras de los tickets desde una fecha, una por producto y ticket, en el orden del historial (PAN-03). La despensa
+/// las necesita para la actividad (GET /api/despensa/actividad) sin conocer los tickets: lo implementa Tickets en
+/// Infrastructure, con el SQL de purchaseLinesSince y PurchaseHistory.
+/// </summary>
+public interface IPantryPurchaseHistory
+{
+    Task<IReadOnlyList<PantryPurchaseView>> PurchasesSince(string date);
+}
+
+/// <summary>
 /// Lo que otros módulos pueden usar de la despensa (PantryApi de server/modules/pantry/index.ts): hoy, los tickets.
-/// Dentro de una transacción de otro módulo, todo se une a ella. Lo que falta de PantryApi (las revisiones) llega con PAN-03.
+/// Dentro de una transacción de otro módulo, todo se une a ella. Las revisiones (eventsSince) no están: la actividad que
+/// las usa es una consulta de la propia despensa (IPantryPurchaseHistory le da las compras).
 /// </summary>
 public interface IPantryCatalog
 {

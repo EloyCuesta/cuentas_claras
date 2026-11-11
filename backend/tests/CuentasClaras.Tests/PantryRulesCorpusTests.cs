@@ -29,7 +29,7 @@ public sealed class PantryRulesCorpusTests
         Assert.Equal("cuentas-claras-pantry-rules-v1", root.GetProperty("format").GetString());
         Assert.Contains("Sin datos de la instalación", root.GetProperty("provenance").GetString());
         var cases = root.GetProperty("cases").EnumerateArray().ToArray();
-        Assert.Equal(155, cases.Length);
+        Assert.Equal(186, cases.Length);
         Assert.Equal(cases.Length, cases.Select(test => test.GetProperty("id").GetString()).Distinct().Count());
         var operations = root.GetProperty("operations").EnumerateArray().Select(op => op.GetString()!).ToArray();
         Assert.Equal(operations, cases.Select(test => test.GetProperty("operation").GetString()!).Distinct().Order(StringComparer.Ordinal));
