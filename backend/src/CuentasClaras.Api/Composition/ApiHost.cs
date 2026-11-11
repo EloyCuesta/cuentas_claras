@@ -2,11 +2,13 @@ using System.Net;
 using CuentasClaras.Api.Common;
 using CuentasClaras.Api.Finance;
 using CuentasClaras.Api.Pantry;
+using CuentasClaras.Api.Tickets;
 using CuentasClaras.Application.Auth;
 using CuentasClaras.Application.Common;
 using CuentasClaras.Application.Finance;
 using CuentasClaras.Application.Health;
 using CuentasClaras.Application.Pantry;
+using CuentasClaras.Application.Tickets;
 using CuentasClaras.Infrastructure.Auth;
 using CuentasClaras.Infrastructure.Common;
 using CuentasClaras.Infrastructure.Common.MySql;
@@ -33,19 +35,22 @@ public static class ApiHost
         // La validación precede incluso a la construcción del host y de sus recursos.
         var verifier = new Sha256CodeVerifier(settings.AccessCode);
         return Build(settings, verifier, new HostServices(clock ?? new SystemClock(), new UuidGenerator(),
-            MySqlDatabase.Unconfigured(), storage ?? new UnconfiguredStorageHealth()), args);
+            MySqlDatabase.Unconfigured(), storage ?? new UnconfiguredStorageHealth(), OwnedReader(Environment.GetEnvironmentVariable), OwnsReader: true), args);
     }
 
+    /// <summary>El lector de tickets del host: el worker Node del OCR (CUENTAS_OCR_WORKER), que solo arranca al leer una imagen.</summary>
+    private static NodeTicketReader OwnedReader(Func<string, string?> read) => new(OcrWorkerSettings.FromEnvironment(read));
+
     /// <summary>
-    /// Host sobre una base ya abierta y migrada, para las pruebas de integración y el corpus HTTP: reloj e ids sustituibles,
-    /// como startApi en Express. Quien la abrió la cierra.
+    /// Host sobre una base ya abierta y migrada, para las pruebas de integración y el corpus HTTP: reloj, ids y lector de
+    /// tickets sustituibles, como startApi en Express. Quien abrió la base la cierra; un lector que se pasa, también.
     /// </summary>
     public static WebApplication CreateWithDatabase(HostSettings settings, MySqlDatabase database, IClock? clock = null,
-        IIdGenerator? ids = null, string[]? args = null)
+        IIdGenerator? ids = null, string[]? args = null, ITicketReader? reader = null)
     {
         var verifier = new Sha256CodeVerifier(settings.AccessCode);
         return Build(settings, verifier, new HostServices(clock ?? new SystemClock(), ids ?? new UuidGenerator(),
-            database, new MySqlStorageHealth(database)), args);
+            database, new MySqlStorageHealth(database), reader ?? OwnedReader(Environment.GetEnvironmentVariable), OwnsReader: reader is null), args);
     }
 
     /// <summary>
@@ -63,7 +68,7 @@ public static class ApiHost
         {
             log.WriteLine("[api] Sin CUENTAS_DB_USER: solo acceso; /api/health responde 500 hasta configurar MySQL.");
             return Build(settings, verifier, new HostServices(clock, new UuidGenerator(), MySqlDatabase.Unconfigured(),
-                new UnconfiguredStorageHealth()), args);
+                new UnconfiguredStorageHealth(), OwnedReader(read ?? Environment.GetEnvironmentVariable), OwnsReader: true), args);
         }
 
         MySqlDatabase opened;
@@ -78,7 +83,8 @@ public static class ApiHost
         }
         try
         {
-            var app = Build(settings, verifier, new HostServices(clock, new UuidGenerator(), opened, new MySqlStorageHealth(opened)), args);
+            var app = Build(settings, verifier, new HostServices(clock, new UuidGenerator(), opened, new MySqlStorageHealth(opened),
+                OwnedReader(read ?? Environment.GetEnvironmentVariable), OwnsReader: true), args);
             app.Lifetime.ApplicationStopped.Register(opened.Dispose);
             log.WriteLine($"[api] Base de datos MySQL: {database.Describe()} (esquema {version})");
             return app;
@@ -98,12 +104,17 @@ public static class ApiHost
     public static ApiRouteTable ModuleRoutes()
     {
         var routes = new ApiRouteTable();
-        MapModules(routes, new HostServices(new SystemClock(), new UuidGenerator(), MySqlDatabase.Unconfigured(), new UnconfiguredStorageHealth()));
+        MapModules(routes, new HostServices(new SystemClock(), new UuidGenerator(), MySqlDatabase.Unconfigured(), new UnconfiguredStorageHealth(),
+            OwnedReader(_ => null)));
         return routes;
     }
 
-    /// <summary>Lo que comparten los módulos de un host: reloj, ids y la base de datos (abierta o sin configurar).</summary>
-    private sealed record HostServices(IClock Clock, IIdGenerator Ids, MySqlDatabase Database, IStorageHealth Storage);
+    /// <summary>
+    /// Lo que comparten los módulos de un host: reloj, ids, la base de datos (abierta o sin configurar) y el lector de tickets
+    /// (OwnsReader: el host lo cierra al pararse).
+    /// </summary>
+    private sealed record HostServices(IClock Clock, IIdGenerator Ids, MySqlDatabase Database, IStorageHealth Storage, ITicketReader Reader,
+        bool OwnsReader = false);
 
     /// <summary>Compone cada módulo con sus adaptadores y registra sus rutas, en el orden de server/app.ts.</summary>
     private static void MapModules(ApiRouteTable routes, HostServices services)
@@ -114,12 +125,13 @@ public static class ApiHost
         var pantryStore = new MySqlPantryStore(services.Database);
         var pantryQueries = new PantryQueries(pantryStore);
         var addEvent = new AddEvent(pantryStore, services.Clock, services.Ids, unitOfWork);
+        var createItem = new CreateItem(pantryStore, services.Clock, services.Ids, unitOfWork);
         PantryRoutes.Map(routes, new PantryUseCases(
             pantryQueries,
             new CreatePerson(pantryStore, services.Clock, services.Ids, unitOfWork),
             new RenamePerson(pantryStore, unitOfWork),
             new DeletePerson(pantryStore, unitOfWork),
-            new CreateItem(pantryStore, services.Clock, services.Ids, unitOfWork),
+            createItem,
             new UpdateItem(pantryStore, services.Clock, unitOfWork),
             new DeleteItem(pantryStore, unitOfWork),
             new AdjustItem(pantryStore, services.Clock, unitOfWork),
@@ -131,6 +143,12 @@ public static class ApiHost
             new SetReviewDate(pantryStore, unitOfWork),
             // Las compras de la actividad las da Tickets, por el contrato de la despensa.
             new PantryActivityQueries(pantryStore, new MySqlTicketPurchaseHistory(services.Database), services.Clock)));
+
+        // Los tickets, públicos como la despensa: usan de ella solo su catálogo (Application.Pantry.Contracts).
+        var catalog = new PantryCatalog(pantryStore, pantryQueries, createItem, new ApplyTicketPurchase(pantryStore, services.Clock, unitOfWork));
+        var ticketStore = new MySqlTicketStore(services.Database);
+        TicketRoutes.Map(routes, new TicketUseCases(
+            new ReadTicket(ticketStore, catalog, services.Reader, new Sha256Hasher(), services.Clock, services.Ids)));
 
         // Las finanzas, con sesión.
         var financeStore = new MySqlFinanceStore(services.Database);
@@ -173,6 +191,9 @@ public static class ApiHost
             options.Listen(IPAddress.Parse(settings.Host), settings.Port);
         });
         var app = builder.Build();
+        // El worker del OCR se cierra con el host (si es suyo).
+        if (services.OwnsReader && services.Reader is IAsyncDisposable owned)
+            app.Lifetime.ApplicationStopping.Register(() => owned.DisposeAsync().AsTask().GetAwaiter().GetResult());
         var router = new ApiRouter(login, logout, checkSession, health, routes, MySqlErrors.IsConstraintViolation);
         app.Run(router.Handle);
         return app;

@@ -67,6 +67,8 @@ Variables de entorno del servidor. Los scripts `server` y `dev:server` también 
 
 La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber adónde enviar `/api`.
 
+El backend .NET de ensayo lee las mismas `CUENTAS_*` y, para leer tickets con imágenes, lanza el OCR de Express en un proceso Node aparte (necesita Node y `npm install`). Lo busca en `server/modules/tickets/adapters/tesseract/ocrWorker.ts`, desde la carpeta donde se arranca; `CUENTAS_OCR_WORKER` cambia esa ruta.
+
 ## Preparar MySQL
 
 Una vez, en el equipo donde se ejecuta la app (los pasos son para Windows; en otros sistemas, lo mismo con su instalador):

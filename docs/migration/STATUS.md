@@ -10,7 +10,7 @@
 | Referencia documental histórica | `91832a52b987b8e89f270ee86b4a95b8a4ddad15`, main del 30 de octubre de 2026 |
 | Backend ejecutable | Node.js + Express, en `server/`, sobre MySQL desde MYSQL-02 (mysql2, migraciones de `database/mysql/`); el servidor ya no abre SQLite |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |
-| Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, verificado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36 y aceptado en MySQL 8.4.13 (instancia de ensayo aislada). Reglas puras de tickets portadas (TIC-01, verificado): `backend/src/CuentasClaras.Domain/Tickets/`, `backend/src/CuentasClaras.Domain/Common/` y la validación en `backend/src/CuentasClaras.Application/Tickets/`, con el corpus `fixtures/migration/rules-tickets.json` reproducido entero en es-ES y en la invariante. Finanzas completas (FIN-01 a FIN-05, verificadas) y la despensa (PAN-01 a PAN-03, verificados), con la app React real contra .NET en los E2E (registros por ID) |
+| Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, verificado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36 y aceptado en MySQL 8.4.13 (instancia de ensayo aislada). Reglas puras de tickets portadas (TIC-01, verificado): `backend/src/CuentasClaras.Domain/Tickets/`, `backend/src/CuentasClaras.Domain/Common/` y la validación en `backend/src/CuentasClaras.Application/Tickets/`, con el corpus `fixtures/migration/rules-tickets.json` reproducido entero en es-ES y en la invariante. Finanzas completas (FIN-01 a FIN-05, verificadas) la despensa (PAN-01 a PAN-03, verificados) y la lectura de tickets con el OCR local (TIC-02, verificado), con la app React real contra .NET en los E2E (registros por ID) |
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
@@ -52,7 +52,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | PAN-02 | Ajustes de cantidad, comprar y deshacer de forma atómica | PAN-01 | verificado |
 | PAN-03 | Revisiones, actividad, ritmo, lista, presupuesto de despensa y repaso semanal | PAN-02 | verificado |
 | TIC-01 | Reglas puras de parsing, evidencia, emparejamiento y plan de guardado equivalentes | BASE-02 | verificado |
-| TIC-02 | Lectura OCR/texto/franjas mediante puerto local e integración de la revisión | TIC-01, PAN-01 | pendiente |
+| TIC-02 | Lectura OCR/texto/franjas mediante puerto local e integración de la revisión | TIC-01, PAN-01 | verificado |
 | TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | pendiente |
 | TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | pendiente |
 | DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03 y los pasos del README de MYSQL-04, revisa el informe y se registra el resultado | MYSQL-04 | pendiente |
@@ -513,6 +513,29 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:e2e:dotnet`: 54/54.
   - `npm run test:e2e` no se repite: PAN-03 no cambia la web ni Express (la última, 58/58, es la de PAN-01).
 - Con esto la despensa está completa en .NET. Siguiente: TIC-02 (lectura OCR y borrador revisable).
+
+### TIC-02 — 11 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `b33bb90` (PAN-03). Mismo entorno.
+- .NET, sin cambios de contrato ni en Express:
+  - Ruta `POST /api/despensa/tickets/leer` (pública), con su límite de 30 MB de antes. ReadTicket (`backend/src/CuentasClaras.Application/Tickets/ReadTicket.cs`): texto o imágenes, la huella del origen, TicketParser, lo aprendido de la tienda, las sugerencias (con IPantryCatalog) y los duplicados (TicketDuplicates: misma lectura u origen, misma huella, mismo contenido con una huella antigua, y el posible duplicado). No guarda nada ni toma bloqueos.
+  - TicketReadRequest: la validación y los límites de readTicketRequest con sus mensajes y su orden (texto, franjas o imágenes; 6 imágenes o 24 franjas; 8 MB, 20 MB y 40 Mpx), NodeBase64 (el decodificador de Node) e ImageInfo (cabecera PNG/JPEG).
+  - Vistas JSON del borrador con el orden y los campos de Express (`backend/src/CuentasClaras.Application/Tickets/TicketViews.cs`); lo que TypeScript deja undefined no se escribe.
+  - Infrastructure: MySqlTicketStore (lo aprendido, los resúmenes, los candidatos y el ticket entero, con el SQL de Express), Sha256Hasher (UTF-8 con U+FFFD) y NodeTicketReader.
+  - El OCR (decisión 4 del plan, en `docs/decisiones.md`): `server/modules/tickets/adapters/tesseract/ocrWorker.ts`, una entrada fina sobre el TesseractTicketReader de Express, lanzada con `node --import tsx` desde la raíz; NDJSON por stdin/stdout, una petición cada vez, 3 minutos como máximo, reinicio si muere y cierre con el host. `CUENTAS_OCR_WORKER` cambia la ruta.
+- Pruebas nuevas:
+  - Corpus `fixtures/migration/rules-ticket-read.json` (90 casos: el base64 de Node con sus rarezas, cabeceras PNG/JPEG y el cuerpo de la lectura): TypeScript 91/91 y C# 181/181.
+  - `TicketReadHttpTests` (6, MySql): el primer paso de `http-tickets.json` con la respuesta exacta de Express; el ticket de ejemplo con su OCR guardado (sugerencias, comprobación, huella de la imagen, sin guardar nada); validación con los mensajes de Express; límites de 8 MB, 20 MB y píxeles, JPEG y data URL; franjas (como Express, pueden solaparse si el desplazamiento crece); y duplicados.
+  - `OcrWorkerTests` (4, categoría Ocr): el worker real lee los dos tickets inventados como el OCR real de `tickets.test.ts`, una imagen ilegible falla sin tumbar el proceso, y sin el worker la causa sale en la consola.
+  - `server/modules/tickets/adapters/tesseract/ocrWorker.test.ts` (Vitest): el worker responde lo mismo que el lector de Express (con una franja), explica los errores y termina al cerrar stdin.
+  - `HttpTests`: en el límite de 30 MB, `/api/despensa/tickets/leer` responde ya 400 (la ruta existe) en lugar de 404.
+  - E2E: sin cambios. Leer un ticket en la web también lo guarda: `e2e/tickets.spec.ts` pasa a .NET con TIC-03 y TIC-04.
+- Comandos, en Windows con el usuario limitado (3307):
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 2216/2216 (con el OCR real); `--filter "Categoria=MySql"`: 97/97.
+  - `npm run check`: tipos y oxlint correctos; Vitest 1530/1530 en 52 archivos.
+  - `npm run test:e2e:dotnet` y `npm run test:e2e` no se repiten: TIC-02 no cambia la web ni Express (las últimas, 54/54 y 58/58).
+- Siguiente: TIC-03 (guardado atómico, deduplicación y efectos en la despensa).
 
 ### Plantilla para la siguiente tarea
 

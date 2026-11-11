@@ -32,7 +32,7 @@ Qué es un duplicado está en `application/duplicates.ts`, y la identidad de un 
 | Puerto | Para qué | Adaptador real | Falso en los tests |
 | --- | --- | --- | --- |
 | TicketRepository | Tickets, líneas y lo aprendido | `adapters/mysql/MysqlTicketRepository.ts` | una base MySQL de pruebas (`startApi`) |
-| TicketReader | OCR de las imágenes | `adapters/tesseract/TesseractTicketReader.ts` | `fakeReader()` en `tickets.test.ts`; sin imágenes, el `unusedReader` de `startApi` |
+| TicketReader | OCR de las imágenes (también para .NET, por `adapters/tesseract/ocrWorker.ts`) | `adapters/tesseract/TesseractTicketReader.ts` | `fakeReader()` en `tickets.test.ts`; sin imágenes, el `unusedReader` de `startApi` |
 | PantryGateway | Productos y revisiones de la despensa, y bloquear los productos que cambian | la API pública del módulo pantry | el módulo pantry de verdad |
 | Hasher | SHA-256 de las huellas | `adapters/crypto/Sha256Hasher.ts` | el real |
 | Clock, IdGenerator, UnitOfWork (comunes) | Fechas, ids e `importId`, transacciones con el bloqueo `tickets` | `server/common/` | el real |
@@ -62,6 +62,8 @@ Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql
 
 `ticketAtomicity.test.ts` provoca un fallo real de MySQL en la segunda línea (su id ya está ocupado) y compara todas las filas antes y después: rollback completo y reintento sin duplicados. Con dos conexiones, dos guardados iguales a la vez (un 201 y un 409, sin efectos dobles) y un ticket y un + a la vez sobre el mismo producto. Y la restauración financiera, sin alterar tickets ni despensa.
 
+`adapters/tesseract/ocrWorker.test.ts`: el worker del OCR que usa el backend .NET (TIC-02) responde por stdin/stdout lo mismo que el lector, explica los errores y termina al cerrar stdin.
+
 La lectura de las líneas se prueba en `shared/tickets/`. Solo estas: `npx vitest run server/modules/tickets`; sin OCR real, añade `-t "API de tickets"`.
 
 Las reglas de `domain/` (compra, identidad y huellas, historial) están portadas a C# (TIC-01) y fijadas, con las de `shared/tickets/`, en `fixtures/migration/rules-tickets.json`, incluidas las tres huellas golden.
@@ -71,6 +73,7 @@ Las reglas de `domain/` (compra, identidad y huellas, historial) están portadas
 - `findDuplicate` devuelve el ticket entero (con líneas) cuando lo encuentra comparando contenido, y solo el resumen en los demás casos. Así era antes y la web lo acepta.
 - Las consultas de varios tickets llevan un ORDER BY completo (al final, por id): SQLite los daba en el orden de su GROUP BY y MySQL no garantiza ninguno. «total IS ?» de SQLite es `total_cents <=> ?`.
 - `imageInfo` está en `server/common/imageInfo.ts` porque lo usan dos adaptadores: HTTP para validar y Tesseract para medir.
+- `adapters/tesseract/ocrWorker.ts` no lo usa Express: es la entrada del proceso que lanza el backend .NET para el OCR (mismo lector, una petición JSON por línea). Cambiar el lector cambia también lo que lee .NET.
 - Por qué el OCR es local y por compras en lugar de inventario: ver `docs/decisiones.md`.
 
 ## Si cambias este módulo

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using CuentasClaras.Api.Composition;
 using CuentasClaras.Application.Common;
+using CuentasClaras.Application.Tickets;
 using CuentasClaras.Infrastructure.Common.MySql;
 using Microsoft.AspNetCore.Builder;
 
@@ -29,10 +30,10 @@ internal sealed class TestApi : IAsyncDisposable
     }
 
     public static async Task<TestApi> Start(MySqlDatabase database, IClock? clock = null, IIdGenerator? ids = null,
-        bool login = true, string code = Code)
+        bool login = true, string code = Code, ITicketReader? reader = null)
     {
         var app = ApiHost.CreateWithDatabase(new HostSettings(code, Port: 0), database, clock, ids,
-            ["--Logging:LogLevel:Default=Critical"]);
+            ["--Logging:LogLevel:Default=Critical"], reader);
         try
         {
             await app.StartAsync(TestContext.Current.CancellationToken);

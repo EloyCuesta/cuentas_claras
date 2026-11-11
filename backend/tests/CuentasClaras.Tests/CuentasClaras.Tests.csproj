@@ -23,6 +23,12 @@
     <None Include="../../../fixtures/migration/rules-tickets.json" Link="Fixtures/rules-tickets.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../fixtures/migration/rules-finance.json" Link="Fixtures/rules-finance.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../fixtures/migration/rules-pantry.json" Link="Fixtures/rules-pantry.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/migration/rules-ticket-read.json" Link="Fixtures/rules-ticket-read.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/tickets/ticket-lidl-ejemplo.png" Link="Fixtures/tickets/ticket-lidl-ejemplo.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/tickets/ticket-lidl-ejemplo.ocr.json" Link="Fixtures/tickets/ticket-lidl-ejemplo.ocr.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/tickets/ticket-lidl-ejemplo.json" Link="Fixtures/tickets/ticket-lidl-ejemplo.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/tickets/ticket-torrelavega-sintetico.png" Link="Fixtures/tickets/ticket-torrelavega-sintetico.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../fixtures/tickets/ticket-torrelavega-sintetico.json" Link="Fixtures/tickets/ticket-torrelavega-sintetico.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../fixtures/tickets/ticket-lidl-ejemplo.png" Link="Fixtures/tickets/ticket-lidl-ejemplo.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

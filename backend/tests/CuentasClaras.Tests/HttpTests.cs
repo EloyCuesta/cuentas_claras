@@ -99,7 +99,7 @@ public sealed class HttpTests
 
     [Theory]
     [InlineData("/api/auth/login", 20, 400)]
-    [InlineData("/api/despensa/tickets/leer", 30, 404)]
+    [InlineData("/api/despensa/tickets/leer", 30, 400)]
     public async Task Limites_de_bytes_exactos_y_un_byte_mas_tambien_en_cuerpos_comprimidos(
         string path, int mib, int acceptedStatus)
     {
