@@ -8,7 +8,7 @@ using MySqlConnector;
 namespace CuentasClaras.Infrastructure.Pantry;
 
 /// <summary>
-/// La despensa en MySQL (pantry_people y pantry_items), con el SQL de
+/// La despensa en MySQL (pantry_people, pantry_items y pantry_events), con el SQL de
 /// server/modules/pantry/adapters/mysql/MysqlPantryRepository.ts. Solo SQL y conversión de filas: las comprobaciones,
 /// los mensajes, las transacciones y cuándo se bloquea están en los casos de uso. Todo con parámetros, también IN (...).
 /// quantity y target son DECIMAL(10,3): se leen y se escriben como el texto decimal exacto, sin restos binarios.
@@ -33,6 +33,12 @@ public sealed class MySqlPantryStore(MySqlDatabase database) : IPantryStore
     /// <summary>Un DECIMAL como número de JavaScript: el doble más cercano a su texto (parseFloat, como mysql2 con decimalNumbers).</summary>
     private static double Number(MySqlDataReader row, string column) =>
         double.Parse(MySqlRead.Decimal(row, column).ToString(CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture);
+
+    private const string EventColumns = "id, item_id, kind, event_date, created_at";
+
+    private static PantryEvent ToEvent(MySqlDataReader row) => new(
+        MySqlRead.Text(row, "id"), MySqlRead.Text(row, "item_id"), MySqlRead.Text(row, "kind"), MySqlRead.Date(row, "event_date"),
+        MySqlRead.Text(row, "created_at"));
 
     private static PantryPerson ToPerson(MySqlDataReader row) =>
         new(MySqlRead.Text(row, "id"), MySqlRead.Text(row, "name"), MySqlRead.Text(row, "created_at"));
@@ -84,5 +90,35 @@ public sealed class MySqlPantryStore(MySqlDatabase database) : IPantryStore
 
     public Task UpdateItem(string id, PantryItemInput input, string now) => database.Run(UpdateItemSql, [.. InputValues(input), now, id]);
 
+    public async Task<IReadOnlyList<PantryItem>> GetItems(IReadOnlyCollection<string> ids)
+    {
+        if (ids.Count == 0) return [];
+        return await database.Rows($"SELECT {ItemColumns} FROM pantry_items WHERE id IN ({Placeholders(ids.Count)}) ORDER BY id", [.. ids], ToItem);
+    }
+
+    public Task SetQuantity(string id, double quantity, string now) =>
+        database.Run("UPDATE pantry_items SET quantity = ?, version = version + 1, updated_at = ? WHERE id = ?", [Exact(quantity), now, id]);
+
+    public Task SetPrice(string id, long priceCents, string now) =>
+        database.Run("UPDATE pantry_items SET price_cents = ?, version = version + 1, updated_at = ? WHERE id = ?", [priceCents, now, id]);
+
+    public async Task FillToTarget(IReadOnlyCollection<string> ids, string now)
+    {
+        if (ids.Count == 0) return;
+        await database.Run(
+            $"UPDATE pantry_items SET quantity = target, version = version + 1, updated_at = ? WHERE quantity < target AND id IN ({Placeholders(ids.Count)})",
+            [now, .. ids]);
+    }
+
     public Task DeleteItem(string id) => database.Run("DELETE FROM pantry_items WHERE id = ?", [id]);
+
+    // Revisiones: «Queda», «Queda poco», «Se acabó», «Lo he comprado» ------------------------------------------------
+
+    public Task InsertEvent(PantryEvent pantryEvent) => database.Run($"INSERT INTO pantry_events ({EventColumns}) VALUES (?, ?, ?, ?, ?)",
+        [pantryEvent.Id, pantryEvent.ItemId, pantryEvent.Kind, pantryEvent.Date, pantryEvent.CreatedAt]);
+
+    public async Task<PantryEvent?> GetEvent(string id) =>
+        (await database.Rows($"SELECT {EventColumns} FROM pantry_events WHERE id = ?", [id], ToEvent)).FirstOrDefault();
+
+    public Task DeleteEvent(string id) => database.Run("DELETE FROM pantry_events WHERE id = ?", [id]);
 }

@@ -25,6 +25,17 @@ internal static class PantryRulesCorpus
             json["expectedVersion"] = Number(update.ExpectedVersion);
             return json;
         }),
+        // PAN-02: + y −, «Marcar todo como comprado» y «Deshacer»
+        ["validateDeltaInput"] = input => Result(PantryRequests.ValidateDelta(BodyOf(input)), Number),
+        ["validatePurchaseInput"] = input => Result(PantryRequests.ValidatePurchase(BodyOf(input)),
+            purchase => Object(("ids", Strings(purchase.Ids)), ("date", purchase.Date))),
+        ["validateUndoInput"] = input => Result(PantryRequests.ValidateUndo(BodyOf(input)), changes => Array(changes.Select(change => (JsonNode?)(change switch
+        {
+            QuantityChange quantity => Object(("id", quantity.Id), ("previousQuantity", Number(quantity.PreviousQuantity)), ("version", Number(quantity.Version))),
+            EventChange bought => Object(("id", bought.Id), ("eventId", bought.EventId)),
+            _ => throw new InvalidOperationException(),
+        })))),
+        ["stepQuantity"] = input => Number(PantryRules.StepQuantity(Double(input, "quantity"), Double(input, "delta"))),
         // shared/pantry/pantry.ts
         ["checkQuantity"] = input =>
         {

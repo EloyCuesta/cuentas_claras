@@ -32,9 +32,14 @@ public sealed record NewPantryItem(
     string Notes);
 
 /// <summary>
+/// Lo que deja un ticket guardado en un producto que ya existía (TicketPurchase de ApplyTicketPurchase.ts): el precio nuevo
+/// por unidad (o por kilo), o null si el ticket no permite saberlo, y cuánto se compró en la unidad del producto, o null.
+/// </summary>
+public sealed record PantryTicketPurchase(long? PriceCents, double? AddQuantity);
+
+/// <summary>
 /// Lo que otros módulos pueden usar de la despensa (PantryApi de server/modules/pantry/index.ts): hoy, los tickets.
-/// Dentro de una transacción de otro módulo, todo se une a ella. Lo que falta de PantryApi (lo que deja un ticket en
-/// precio y cantidad, y las revisiones) llega con PAN-02 y PAN-03.
+/// Dentro de una transacción de otro módulo, todo se une a ella. Lo que falta de PantryApi (las revisiones) llega con PAN-03.
 /// </summary>
 public interface IPantryCatalog
 {
@@ -48,4 +53,7 @@ public interface IPantryCatalog
 
     /// <summary>Todos los productos, por frecuencia y nombre.</summary>
     Task<IReadOnlyList<PantryItemView>> ListItems();
+
+    /// <summary>El precio nuevo y, si el producto se cuenta, lo comprado; cada cambio sube la versión (404 si ya no existe).</summary>
+    Task ApplyTicketPurchase(string id, PantryTicketPurchase purchase);
 }

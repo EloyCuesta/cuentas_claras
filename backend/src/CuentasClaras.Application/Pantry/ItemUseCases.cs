@@ -67,7 +67,7 @@ public sealed class DeleteItem(IPantryStore store, IUnitOfWork unitOfWork)
 /// La despensa para otros módulos (IPantryCatalog, la PantryApi de Express): los mismos casos de uso y lecturas que las
 /// rutas, que dentro de una transacción de los tickets se unen a ella.
 /// </summary>
-public sealed class PantryCatalog(IPantryStore store, PantryQueries queries, CreateItem createItem) : IPantryCatalog
+public sealed class PantryCatalog(IPantryStore store, PantryQueries queries, CreateItem createItem, ApplyTicketPurchase applyTicketPurchase) : IPantryCatalog
 {
     public Task LockItems(IReadOnlyCollection<string> ids) => store.LockItems(ids);
 
@@ -76,4 +76,6 @@ public sealed class PantryCatalog(IPantryStore store, PantryQueries queries, Cre
     public Task<PantryItemView> CreateItem(NewPantryItem input) => createItem.Execute(PantryViews.Input(input));
 
     public Task<IReadOnlyList<PantryItemView>> ListItems() => queries.ListItems();
+
+    public Task ApplyTicketPurchase(string id, PantryTicketPurchase purchase) => applyTicketPurchase.Execute(id, purchase);
 }

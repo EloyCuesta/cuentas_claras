@@ -10,7 +10,7 @@
 | Referencia documental histórica | `91832a52b987b8e89f270ee86b4a95b8a4ddad15`, main del 30 de octubre de 2026 |
 | Backend ejecutable | Node.js + Express, en `server/`, sobre MySQL desde MYSQL-02 (mysql2, migraciones de `database/mysql/`); el servidor ya no abre SQLite |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |
-| Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, verificado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36 y aceptado en MySQL 8.4.13 (instancia de ensayo aislada). Reglas puras de tickets portadas (TIC-01, verificado): `backend/src/CuentasClaras.Domain/Tickets/`, `backend/src/CuentasClaras.Domain/Common/` y la validación en `backend/src/CuentasClaras.Application/Tickets/`, con el corpus `fixtures/migration/rules-tickets.json` reproducido entero en es-ES y en la invariante. Finanzas completas (FIN-01 a FIN-05, verificadas) y personas y productos de la despensa (PAN-01, verificado), con la app React real contra .NET en los E2E (registros por ID) |
+| Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, verificado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36 y aceptado en MySQL 8.4.13 (instancia de ensayo aislada). Reglas puras de tickets portadas (TIC-01, verificado): `backend/src/CuentasClaras.Domain/Tickets/`, `backend/src/CuentasClaras.Domain/Common/` y la validación en `backend/src/CuentasClaras.Application/Tickets/`, con el corpus `fixtures/migration/rules-tickets.json` reproducido entero en es-ES y en la invariante. Finanzas completas (FIN-01 a FIN-05, verificadas) y la despensa salvo revisiones, presupuesto, repaso y actividad (PAN-01 y PAN-02, verificados), con la app React real contra .NET en los E2E (registros por ID) |
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
@@ -49,7 +49,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | FIN-04 | Consultas de resumen mensual/anual y previsión, con integración React y equivalencia | FIN-03 | verificado |
 | FIN-05 | Copia/restauración financiera y exportaciones conservadas, sin afectar despensa | FIN-03 | verificado |
 | PAN-01 | Personas, catálogo y edición con expectedVersion y conflicto visible en React | DATA-01 | verificado |
-| PAN-02 | Ajustes de cantidad, comprar y deshacer de forma atómica | PAN-01 | pendiente |
+| PAN-02 | Ajustes de cantidad, comprar y deshacer de forma atómica | PAN-01 | verificado |
 | PAN-03 | Revisiones, actividad, ritmo, lista, presupuesto de despensa y repaso semanal | PAN-02 | pendiente |
 | TIC-01 | Reglas puras de parsing, evidencia, emparejamiento y plan de guardado equivalentes | BASE-02 | verificado |
 | TIC-02 | Lectura OCR/texto/franjas mediante puerto local e integración de la revisión | TIC-01, PAN-01 | pendiente |
@@ -469,6 +469,29 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:e2e`: 58/58.
   - `git diff --check` sin errores.
 - Siguiente: PAN-02 (ajustar, comprar y deshacer). TIC-02 también es elegible (TIC-01 y PAN-01 verificados); va después, en el orden de la tabla.
+
+### PAN-02 — 11 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `9647e10` (PAN-01). Mismo entorno.
+- .NET, sin cambios de contrato ni en Express:
+  - Rutas `POST /api/despensa/productos/:id/ajustar`, `POST /api/despensa/comprado` y `POST /api/despensa/comprado/deshacer`.
+  - Casos de uso en `backend/src/CuentasClaras.Application/Pantry/PurchaseUseCases.cs`: AdjustItem, AddEvent (lo usa comprar; su ruta es de PAN-03), MarkPurchased, UndoPurchase y ApplyTicketPurchase. Todos bloquean sus productos antes de leer (FOR UPDATE, en orden de id).
+  - Domain: PantryEvent, los cambios de una compra (QuantityChange y EventChange) y stepQuantity. PantryRequests: validateDeltaInput, validatePurchaseInput y validateUndoInput.
+  - MySqlPantryStore: getItems, setQuantity, setPrice, fillToTarget (una sola escritura) y las revisiones (insertar, leer y borrar).
+  - IPantryCatalog añade ApplyTicketPurchase (el precio nuevo y lo comprado de un ticket) para TIC-03.
+- Pruebas nuevas:
+  - Corpus `rules-pantry.json`: 53 casos (delta, compra, deshacer y stepQuantity; 155 en total, los anteriores sin cambios). TypeScript 156/156 y C# 312/312 (con TicketVocabularyTests).
+  - `PantryPurchaseHttpTests` (8, MySql): + y − con los mensajes de Express, diez + desde dos conexiones (3…12, versión 11), comprar (orden de los cambios, la compra apuntada con la fecha del navegador o la del servidor, nada se reduce), listas no válidas sin escribir, deshacer (cantidades, compras apuntadas, persistencia en otro host, dos veces = 409), 409 sin revertir nada a medias, un deshacer y un + a la vez desde dos conexiones (cinco rondas: o deshacer y después +, o + y deshacer 409; nunca se pierde un cambio) y ApplyTicketPurchase.
+  - Mutación: sin el bloqueo de AdjustItem fallan las dos pruebas de concurrencia; sin el de UndoPurchase, la del deshacer a la vez falla 3 de 3. Se restauraron.
+  - E2E: «los botones + y −, marcar como comprado y deshacer», «dos móviles pulsan + a la vez…» y las dos del portapapeles de la lista pasan a @dotnet.
+  - El escenario de `http-pantry.json` sigue pendiente: le faltan revisiones, actividad, presupuesto y repaso (PAN-03).
+- Comandos, en Windows con el usuario limitado (3307):
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 1960/1960; `--filter "Categoria=MySql"`: 88/88.
+  - `npm run check`: tipos y oxlint correctos; Vitest 1407/1407 en 50 archivos.
+  - `npm run test:e2e:dotnet`: 54/54 (acceso 4; app 25 × escritorio y móvil).
+  - `npm run test:e2e` no se repite: PAN-02 no cambia la web ni Express, solo etiqueta pruebas (la última, 58/58, es la de PAN-01).
+- Siguiente: PAN-03 (revisiones, presupuesto, repaso y actividad).
 
 ### Plantilla para la siguiente tarea
 

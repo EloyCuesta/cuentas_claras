@@ -111,14 +111,19 @@ public static class ApiHost
 
         // La despensa, pública (antes que requireAdmin en Express).
         var pantryStore = new MySqlPantryStore(services.Database);
+        var pantryQueries = new PantryQueries(pantryStore);
+        var addEvent = new AddEvent(pantryStore, services.Clock, services.Ids, unitOfWork);
         PantryRoutes.Map(routes, new PantryUseCases(
-            new PantryQueries(pantryStore),
+            pantryQueries,
             new CreatePerson(pantryStore, services.Clock, services.Ids, unitOfWork),
             new RenamePerson(pantryStore, unitOfWork),
             new DeletePerson(pantryStore, unitOfWork),
             new CreateItem(pantryStore, services.Clock, services.Ids, unitOfWork),
             new UpdateItem(pantryStore, services.Clock, unitOfWork),
-            new DeleteItem(pantryStore, unitOfWork)));
+            new DeleteItem(pantryStore, unitOfWork),
+            new AdjustItem(pantryStore, services.Clock, unitOfWork),
+            new MarkPurchased(pantryStore, pantryQueries, addEvent, services.Clock, unitOfWork),
+            new UndoPurchase(pantryStore, pantryQueries, services.Clock, unitOfWork)));
 
         // Las finanzas, con sesión.
         var financeStore = new MySqlFinanceStore(services.Database);

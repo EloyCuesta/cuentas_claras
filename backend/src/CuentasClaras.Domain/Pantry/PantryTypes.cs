@@ -33,3 +33,16 @@ public sealed record PantryItem(
     long Version,
     string CreatedAt,
     string UpdatedAt);
+
+/// <summary>Una revisión: «queda», «poco», «se_acabo» o «comprado», con la fecha de hoy del navegador.</summary>
+public sealed record PantryEvent(string Id, string ItemId, string Kind, string Date, string CreatedAt);
+
+/// <summary>
+/// Lo que cambió al marcar productos como comprados, suficiente para deshacerlo (PantryPurchaseChange): en los que se
+/// cuentan, la cantidad anterior y la versión justo después de la compra; en los que van por compras, la compra apuntada.
+/// </summary>
+public abstract record PantryPurchaseChange(string Id);
+
+public sealed record QuantityChange(string Id, double PreviousQuantity, long Version) : PantryPurchaseChange(Id);
+
+public sealed record EventChange(string Id, string EventId) : PantryPurchaseChange(Id);

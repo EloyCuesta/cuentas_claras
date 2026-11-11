@@ -6,7 +6,8 @@ namespace CuentasClaras.Api.Pantry;
 /// <summary>Los casos de uso de la despensa que usan sus rutas.</summary>
 public sealed record PantryUseCases(
     PantryQueries Queries, CreatePerson CreatePerson, RenamePerson RenamePerson, DeletePerson DeletePerson,
-    CreateItem CreateItem, UpdateItem UpdateItem, DeleteItem DeleteItem);
+    CreateItem CreateItem, UpdateItem UpdateItem, DeleteItem DeleteItem, AdjustItem AdjustItem, MarkPurchased MarkPurchased,
+    UndoPurchase UndoPurchase);
 
 /// <summary>
 /// Las rutas de la despensa (server/modules/pantry/adapters/http/routes.ts). Públicas a propósito: las usa cualquiera de
@@ -48,11 +49,23 @@ public static class PantryRoutes
         routes.Map("PUT", "/api/despensa/productos/:id", RouteAccess.Public, async request =>
             await ApiResponse.Data(request.Http, await useCases.UpdateItem.Handle(request.Param("id"), request.Body)));
 
+        // Botones + y −: { delta } → suma o resta a la cantidad actual del servidor.
+        routes.Map("POST", "/api/despensa/productos/:id/ajustar", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.AdjustItem.Handle(request.Param("id"), request.Body)));
+
         // Lo borra con sus revisiones.
         routes.Map("DELETE", "/api/despensa/productos/:id", RouteAccess.Public, async request =>
         {
             await useCases.DeleteItem.Execute(request.Param("id"));
             await ApiResponse.Data(request.Http, null);
         });
+
+        // «Marcar todo como comprado»: { ids, date? } → { changes, items }.
+        routes.Map("POST", "/api/despensa/comprado", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.MarkPurchased.Handle(request.Body)));
+
+        // Deshacer la compra: { changes } → los productos, o 409 si algo cambió después.
+        routes.Map("POST", "/api/despensa/comprado/deshacer", RouteAccess.Public, async request =>
+            await ApiResponse.Data(request.Http, await useCases.UndoPurchase.Handle(request.Body)));
     }
 }

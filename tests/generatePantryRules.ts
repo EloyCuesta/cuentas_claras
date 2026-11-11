@@ -129,6 +129,72 @@ add('edicion-orden', 'El resto del cuerpo se comprueba antes que la versión', '
 add('edicion-sin-cuerpo', 'Sin cuerpo', 'validateItemUpdate', {})
 
 // ---------------------------------------------------------------------------
+// + y −, comprar y deshacer (PAN-02)
+
+add('delta-suma', 'Un + de 0,5', 'validateDeltaInput', body({ delta: 0.5 }))
+add('delta-resta', 'Un − de 100', 'validateDeltaInput', body({ delta: -100 }))
+add('delta-limite', 'Un millón exacto vale', 'validateDeltaInput', body({ delta: -1_000_000 }))
+add('delta-cero', 'Cero no', 'validateDeltaInput', body({ delta: 0 }))
+add('delta-menos-cero', '-0 tampoco', 'validateDeltaInput', bodyJson('{"delta":-0}'))
+add('delta-enorme', 'Más de un millón', 'validateDeltaInput', body({ delta: 1_000_000.5 }))
+add('delta-infinito', 'Infinity', 'validateDeltaInput', bodyJson('{"delta":1e400}'))
+add('delta-texto', 'En texto', 'validateDeltaInput', body({ delta: '1' }))
+add('delta-sin-valor', 'Sin delta', 'validateDeltaInput', body({}))
+add('delta-sin-cuerpo', 'Sin cuerpo', 'validateDeltaInput', {})
+
+add('compra-valida', 'Ids sin repetir y en el orden en que llegan, y la fecha', 'validatePurchaseInput', body({ ids: ['b', 'a', 'b', 'c', 'a'], date: '2026-10-31' }))
+add('compra-sin-fecha', 'Sin fecha: la pone el servidor', 'validatePurchaseInput', body({ ids: ['a'] }))
+add('compra-fecha-null', 'Fecha null', 'validatePurchaseInput', body({ ids: ['a'], date: null }))
+add('compra-fecha-imposible', 'Un 30 de febrero', 'validatePurchaseInput', body({ ids: ['a'], date: '2026-02-30' }))
+add('compra-fecha-numero', 'La fecha no es texto', 'validatePurchaseInput', body({ ids: ['a'], date: 20261031 }))
+add('compra-vacia', 'Lista vacía', 'validatePurchaseInput', body({ ids: [] }))
+add('compra-sin-lista', 'Sin ids', 'validatePurchaseInput', body({ date: '2026-10-31' }))
+add('compra-no-lista', 'ids no es una lista', 'validatePurchaseInput', body({ ids: 'a' }))
+add('compra-id-numero', 'Un id que no es texto', 'validatePurchaseInput', body({ ids: ['a', 42] }))
+add('compra-id-vacio', 'Un id vacío', 'validatePurchaseInput', body({ ids: [''] }))
+add('compra-id-largo', 'Un id de 201 caracteres', 'validatePurchaseInput', body({ ids: [long(201)] }))
+add('compra-id-200', 'Un id de 200 caracteres vale', 'validatePurchaseInput', body({ ids: [long(200)] }))
+add('compra-mil', 'Mil productos valen', 'validatePurchaseInput', body({ ids: Array.from({ length: 1000 }, (_, i) => 'p-' + i) }))
+add('compra-mil-uno', 'Mil uno no', 'validatePurchaseInput', body({ ids: Array.from({ length: 1001 }, () => 'p') }))
+add('compra-orden', 'La cantidad de ids se comprueba antes que cada id', 'validatePurchaseInput', body({ ids: Array.from({ length: 1001 }, () => 5) }))
+add('compra-sin-cuerpo', 'Sin cuerpo', 'validatePurchaseInput', {})
+
+add('deshacer-valido', 'Una cantidad anterior y una compra apuntada', 'validateUndoInput', body({
+  changes: [{ id: 'a', previousQuantity: 0.125, version: 2, extra: true }, { id: 'b', eventId: 'e-1', previousQuantity: 3 }],
+}))
+add('deshacer-vacio', 'Sin cambios', 'validateUndoInput', body({ changes: [] }))
+add('deshacer-no-lista', 'changes no es una lista', 'validateUndoInput', body({ changes: {} }))
+add('deshacer-mil-uno', 'Más de mil', 'validateUndoInput', body({ changes: Array.from({ length: 1001 }, (_, i) => ({ id: 'p-' + i, eventId: 'e' })) }))
+add('deshacer-no-objeto', 'Un cambio que no es un objeto', 'validateUndoInput', body({ changes: ['a'] }))
+add('deshacer-cambio-lista', 'Un cambio que es una lista', 'validateUndoInput', body({ changes: [['a']] }))
+add('deshacer-sin-id', 'Sin id', 'validateUndoInput', body({ changes: [{ eventId: 'e' }] }))
+add('deshacer-id-repetido', 'El mismo id dos veces', 'validateUndoInput', body({ changes: [{ id: 'a', eventId: 'e' }, { id: 'a', eventId: 'f' }] }))
+add('deshacer-evento-null', 'eventId null no es «sin eventId»', 'validateUndoInput', body({ changes: [{ id: 'a', eventId: null, previousQuantity: 1, version: 1 }] }))
+add('deshacer-evento-vacio', 'eventId vacío', 'validateUndoInput', body({ changes: [{ id: 'a', eventId: '' }] }))
+add('deshacer-evento-largo', 'eventId de 201 caracteres', 'validateUndoInput', body({ changes: [{ id: 'a', eventId: long(201) }] }))
+add('deshacer-cantidad-negativa', 'Cantidad anterior negativa', 'validateUndoInput', body({ changes: [{ id: 'a', previousQuantity: -1, version: 1 }] }))
+add('deshacer-cantidad-texto', 'Cantidad anterior en texto', 'validateUndoInput', body({ changes: [{ id: 'a', previousQuantity: '1', version: 1 }] }))
+add('deshacer-sin-cantidad', 'Sin cantidad anterior', 'validateUndoInput', body({ changes: [{ id: 'a', version: 1 }] }))
+add('deshacer-cantidad-infinita', 'Cantidad anterior infinita', 'validateUndoInput', bodyJson('{"changes":[{"id":"a","previousQuantity":1e400,"version":1}]}'))
+add('deshacer-version-cero', 'Versión 0', 'validateUndoInput', body({ changes: [{ id: 'a', previousQuantity: 1, version: 0 }] }))
+add('deshacer-version-decimal', 'Versión con decimales', 'validateUndoInput', body({ changes: [{ id: 'a', previousQuantity: 1, version: 1.5 }] }))
+add('deshacer-version-insegura', 'Versión 2^53', 'validateUndoInput', bodyJson('{"changes":[{"id":"a","previousQuantity":1,"version":9007199254740992}]}'))
+add('deshacer-sin-cuerpo', 'Sin cuerpo', 'validateUndoInput', {})
+
+for (const [id, quantity, delta, description] of [
+  ['mas-medio', 1, 0.5, '1 + 0,5'],
+  ['menos-bajo-cero', 0.3, -5, 'Nunca baja de cero'],
+  ['restos', 0.1, 0.2, '0,1 + 0,2 en milésimas'],
+  ['paso-diminuto', 2, 0.0004, 'Un paso de menos de media milésima no suma'],
+  ['paso-media-milesima', 2, 0.0005, 'Media milésima redondea hacia arriba'],
+  ['cantidad-no-valida', -3, 1, 'Una cantidad guardada no válida cuenta como 0'],
+  ['cantidad-enorme', 2_000_000, 1, 'Por encima del máximo también cuenta como 0'],
+  ['gramos', 250, 100, 'Cien gramos'],
+] as const) {
+  add('paso-' + id, description, 'stepQuantity', { quantity, delta })
+}
+
+// ---------------------------------------------------------------------------
 // Cantidades
 
 const quantity = (value: unknown, unit: string) => ({ ...body(value), unit })

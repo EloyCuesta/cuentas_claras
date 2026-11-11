@@ -1,5 +1,12 @@
-import { checkQuantity, sortItems, sortPeople } from '../shared/pantry/pantry.ts'
-import { validateItemInput, validateItemUpdate, validatePersonInput } from '../shared/pantry/pantryValidation.ts'
+import { checkQuantity, sortItems, sortPeople, stepQuantity } from '../shared/pantry/pantry.ts'
+import {
+  validateDeltaInput,
+  validateItemInput,
+  validateItemUpdate,
+  validatePersonInput,
+  validatePurchaseInput,
+  validateUndoInput,
+} from '../shared/pantry/pantryValidation.ts'
 import { corpusJson } from './ticketRules.ts'
 
 /**
@@ -20,6 +27,11 @@ const OPERATIONS: Record<string, (input: Input) => unknown> = {
   validatePersonInput: (i) => validatePersonInput(bodyOf(i)),
   validateItemInput: (i) => validateItemInput(bodyOf(i)),
   validateItemUpdate: (i) => validateItemUpdate(bodyOf(i)),
+  // PAN-02: + y −, «Marcar todo como comprado» y «Deshacer»
+  validateDeltaInput: (i) => validateDeltaInput(bodyOf(i)),
+  validatePurchaseInput: (i) => validatePurchaseInput(bodyOf(i)),
+  validateUndoInput: (i) => validateUndoInput(bodyOf(i)),
+  stepQuantity: (i) => stepQuantity(i.quantity, i.delta),
   // shared/pantry/pantry.ts: cantidades en milésimas y el orden de las listas (los ids, en el orden que quedan)
   checkQuantity: (i) => checkQuantity(bodyOf(i), i.unit),
   sortPeople: (i) => sortPeople(i.people).map((person) => person.id),

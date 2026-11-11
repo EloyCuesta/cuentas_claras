@@ -23,7 +23,7 @@ describe('reglas de la despensa portables (PAN-01)', () => {
   it('identifica el corpus y no pierde casos ni operaciones', () => {
     expect(corpus.format).toBe('cuentas-claras-pantry-rules-v1')
     expect(corpus.provenance).toContain('Sin datos de la instalación')
-    expect(corpus.cases).toHaveLength(102)
+    expect(corpus.cases).toHaveLength(155)
     expect(new Set(corpus.cases.map((test) => test.id)).size).toBe(corpus.cases.length)
     expect(corpus.operations).toEqual(PANTRY_OPERATIONS)
     expect([...new Set(corpus.cases.map((test) => test.operation))].sort()).toEqual(PANTRY_OPERATIONS)

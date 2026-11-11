@@ -281,7 +281,8 @@ public sealed class PantryHttpTests
         var store = new MySqlPantryStore(opened);
         var unitOfWork = new MySqlUnitOfWork(opened);
         var queries = new PantryQueries(store);
-        IPantryCatalog catalog = new PantryCatalog(store, queries, new CreateItem(store, clock, new UuidGenerator(), unitOfWork));
+        IPantryCatalog catalog = new PantryCatalog(store, queries, new CreateItem(store, clock, new UuidGenerator(), unitOfWork),
+            new ApplyTicketPurchase(store, clock, unitOfWork));
         var input = new NewPantryItem("Leche", null, "l", "compras", 0, 0, "semanal", null, "");
 
         var created = await unitOfWork.Run(async () =>

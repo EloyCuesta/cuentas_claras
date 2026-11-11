@@ -136,7 +136,7 @@ test('crea una persona y un producto que falta, y lo envía en la lista de Whats
   await expect(dialog.getByRole('button', { name: 'Enviar por WhatsApp' })).toBeDisabled()
 })
 
-test('los botones + y −, marcar como comprado y deshacer', async ({ page, request }) => {
+test('los botones + y −, marcar como comprado y deshacer', { tag: '@dotnet' }, async ({ page, request }) => {
   await request.post('/api/despensa/productos', {
     data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 2, frequency: 'mensual', priceCents: 120, notes: '' },
   })
@@ -169,7 +169,7 @@ test('los botones + y −, marcar como comprado y deshacer', async ({ page, requ
   await expect(item(page, 'Arroz').locator('.stepper__value')).toHaveText('0 kg')
 })
 
-test('dos móviles pulsan + a la vez y el servidor suma los dos', async ({ page, browser, request }) => {
+test('dos móviles pulsan + a la vez y el servidor suma los dos', { tag: '@dotnet' }, async ({ page, browser, request }) => {
   await request.post('/api/despensa/productos', {
     data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 3, frequency: 'mensual', priceCents: 120, notes: '' },
   })
@@ -250,7 +250,7 @@ test('dos móviles editan el mismo producto: el segundo no pisa el cambio, conse
   await otherContext.close()
 })
 
-test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', async ({ page, request }) => {
+test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', { tag: '@dotnet' }, async ({ page, request }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
   })
@@ -271,7 +271,7 @@ test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', as
   await expect(text).not.toHaveValue(/Total/)
 })
 
-test('si el portapapeles rechaza la copia, tampoco dice que se ha copiado', async ({ page, request }) => {
+test('si el portapapeles rechaza la copia, tampoco dice que se ha copiado', { tag: '@dotnet' }, async ({ page, request }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: () => Promise.reject(new DOMException('Denegado', 'NotAllowedError')) },

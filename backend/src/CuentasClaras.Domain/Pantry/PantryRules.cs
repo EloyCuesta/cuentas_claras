@@ -59,6 +59,17 @@ public static class PantryRules
         return ValidationResult<double>.Valid(milli / Milli);
     }
 
+    /// <summary>stepQuantity: la cantidad tras pulsar + (delta &gt; 0) o − (delta &lt; 0), en milésimas; restar nunca baja de cero.</summary>
+    public static double StepQuantity(double quantity, double delta)
+    {
+        var current = ToMilli(quantity) ?? 0;
+        var step = JsNumber.Round(delta * Milli);
+        return Math.Max(0, current + step) / Milli;
+    }
+
+    /// <summary>Los tipos de revisión: «Queda», «Queda poco», «Se acabó» y «Lo he comprado».</summary>
+    public static readonly IReadOnlyList<string> EventKinds = ["queda", "poco", "se_acabo", "comprado"];
+
     /// <summary>
     /// byName: por nombre sin mayúsculas ni tildes, después con ellas y, en empate, por id; con el comparador «es» de
     /// localeCompare. El id es un UUID del servidor: con «es» o con la colación por defecto de Node da el mismo orden.
