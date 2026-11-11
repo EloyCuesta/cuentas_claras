@@ -147,8 +147,10 @@ public static class ApiHost
         // Los tickets, públicos como la despensa: usan de ella solo su catálogo (Application.Pantry.Contracts).
         var catalog = new PantryCatalog(pantryStore, pantryQueries, createItem, new ApplyTicketPurchase(pantryStore, services.Clock, unitOfWork));
         var ticketStore = new MySqlTicketStore(services.Database);
+        var hasher = new Sha256Hasher();
         TicketRoutes.Map(routes, new TicketUseCases(
-            new ReadTicket(ticketStore, catalog, services.Reader, new Sha256Hasher(), services.Clock, services.Ids)));
+            new ReadTicket(ticketStore, catalog, services.Reader, hasher, services.Clock, services.Ids),
+            new SaveTicket(ticketStore, catalog, hasher, services.Clock, services.Ids, unitOfWork)));
 
         // Las finanzas, con sesión.
         var financeStore = new MySqlFinanceStore(services.Database);

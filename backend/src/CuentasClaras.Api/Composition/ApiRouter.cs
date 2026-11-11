@@ -19,7 +19,7 @@ public sealed class ApiRouter(Login login, Logout logout, CheckSession checkSess
     private static readonly (string Method, string Path)[] PendingPublicRoutes =
     [
         ("GET", "/api/despensa/tickets"),
-        ("POST", "/api/despensa/tickets"), ("GET", "/api/despensa/tickets/:id"),
+        ("GET", "/api/despensa/tickets/:id"),
         ("DELETE", "/api/despensa/tickets/:id"), ("PUT", "/api/despensa/tickets/:id/lineas/:lineId"),
     ];
 

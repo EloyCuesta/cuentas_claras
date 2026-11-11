@@ -22,9 +22,20 @@ public interface IHasher
     string Sha256Hex(IReadOnlyList<FingerprintPart> parts);
 }
 
+/// <summary>Un ticket nuevo, tal como se guarda (sin sus líneas): la huella del contenido impide guardarlo dos veces.</summary>
+public sealed record TicketToInsert(
+    string Id, string Store, string StoreName, string Address, string Date, string? Time, long? TotalCents, string Fingerprint, string CreatedAt,
+    IReadOnlyList<TicketAdjustment> Adjustments, IReadOnlyList<string> Issues, string? ImportId, string? SourceFingerprint);
+
+/// <summary>Una línea nueva, tal como venía en el ticket, con su producto (null = no se sigue) y lo que leyó el OCR.</summary>
+public sealed record LineToInsert(
+    string Id, string TicketId, int Position, string RawName, string NameKey, long Quantity, long? UnitPriceCents, long? AmountCents,
+    long DiscountCents, double? WeightKg, long? PricePerKgCents, string? TaxCode, string? ItemId, bool Occasional, string ReviewStatus, bool Confirmed,
+    TicketEvidence? Evidence);
+
 /// <summary>
 /// Tickets guardados y lo aprendido en cada tienda (TicketRepository de Express). Solo SQL y conversión de filas; qué es
-/// un duplicado está en TicketDuplicates. TIC-02 usa las lecturas; guardar, cambiar y borrar llegan con TIC-03 y TIC-04.
+/// un duplicado está en TicketDuplicates. Cambiar una línea y borrar llegan con TIC-04.
 /// </summary>
 public interface ITicketStore
 {
@@ -41,4 +52,11 @@ public interface ITicketStore
 
     /// <summary>Con sus líneas en orden, sus ajustes y sus avisos.</summary>
     Task<TicketView?> GetTicket(string id);
+
+    /// <summary>Lo aprendido de un nombre en una tienda: su producto, o null si no se sigue (ignored = 1).</summary>
+    Task UpsertAlias(string aliasStore, string nameKey, string? itemId, string now);
+
+    Task InsertTicket(TicketToInsert ticket);
+
+    Task InsertLine(LineToInsert line);
 }

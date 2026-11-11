@@ -51,3 +51,16 @@ public sealed class TicketReadCorpusTests
         }
     }
 }
+
+/// <summary>Las sugerencias del borrador salen de Object.fromEntries: las claves que son índices enteros van primero (como en Node 24).</summary>
+public sealed class TicketDraftOrderTests
+{
+    [Fact]
+    public void Las_claves_de_las_sugerencias_salen_en_el_orden_de_un_objeto_de_JavaScript()
+    {
+        // Object.keys(Object.fromEntries(...)) en Node con estas claves, en este orden.
+        string[] keys = ["B", "10", "A", "2", "01", "4294967295", "4294967294", "0", "-1", "1.5"];
+        Assert.Equal(new[] { "0", "2", "10", "4294967294", "B", "A", "01", "4294967295", "-1", "1.5" },
+            CuentasClaras.Application.Tickets.TicketDraftView.JsObjectKeyOrder(keys));
+    }
+}

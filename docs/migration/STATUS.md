@@ -10,7 +10,7 @@
 | Referencia documental histórica | `91832a52b987b8e89f270ee86b4a95b8a4ddad15`, main del 30 de octubre de 2026 |
 | Backend ejecutable | Node.js + Express, en `server/`, sobre MySQL desde MYSQL-02 (mysql2, migraciones de `database/mysql/`); el servidor ya no abre SQLite |
 | Frontend | React + TypeScript + Vite, en `src/`; reglas compartidas en `shared/` |
-| Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, verificado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36 y aceptado en MySQL 8.4.13 (instancia de ensayo aislada). Reglas puras de tickets portadas (TIC-01, verificado): `backend/src/CuentasClaras.Domain/Tickets/`, `backend/src/CuentasClaras.Domain/Common/` y la validación en `backend/src/CuentasClaras.Application/Tickets/`, con el corpus `fixtures/migration/rules-tickets.json` reproducido entero en es-ES y en la invariante. Finanzas completas (FIN-01 a FIN-05, verificadas) la despensa (PAN-01 a PAN-03, verificados) y la lectura de tickets con el OCR local (TIC-02, verificado), con la app React real contra .NET en los E2E (registros por ID) |
+| Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, verificado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36 y aceptado en MySQL 8.4.13 (instancia de ensayo aislada). Reglas puras de tickets portadas (TIC-01, verificado): `backend/src/CuentasClaras.Domain/Tickets/`, `backend/src/CuentasClaras.Domain/Common/` y la validación en `backend/src/CuentasClaras.Application/Tickets/`, con el corpus `fixtures/migration/rules-tickets.json` reproducido entero en es-ES y en la invariante. Finanzas completas (FIN-01 a FIN-05, verificadas) la despensa (PAN-01 a PAN-03, verificados) y la lectura y el guardado de tickets con el OCR local (TIC-02 y TIC-03, verificados), con la app React real contra .NET en los E2E (registros por ID) |
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
@@ -53,7 +53,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | PAN-03 | Revisiones, actividad, ritmo, lista, presupuesto de despensa y repaso semanal | PAN-02 | verificado |
 | TIC-01 | Reglas puras de parsing, evidencia, emparejamiento y plan de guardado equivalentes | BASE-02 | verificado |
 | TIC-02 | Lectura OCR/texto/franjas mediante puerto local e integración de la revisión | TIC-01, PAN-01 | verificado |
-| TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | pendiente |
+| TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | verificado |
 | TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | pendiente |
 | DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03 y los pasos del README de MYSQL-04, revisa el informe y se registra el resultado | MYSQL-04 | pendiente |
 | CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | pendiente |
@@ -536,6 +536,25 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run check`: tipos y oxlint correctos; Vitest 1530/1530 en 52 archivos.
   - `npm run test:e2e:dotnet` y `npm run test:e2e` no se repiten: TIC-02 no cambia la web ni Express (las últimas, 54/54 y 58/58).
 - Siguiente: TIC-03 (guardado atómico, deduplicación y efectos en la despensa).
+
+### TIC-03 — 12 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `13a51f6` (TIC-02). Mismo entorno.
+- .NET, sin cambios de contrato ni en Express:
+  - Ruta `POST /api/despensa/tickets` (pública): SaveTicket (`backend/src/CuentasClaras.Application/Tickets/SaveTicket.cs`) en una transacción con el bloqueo tickets, que bloquea antes de leer nada los productos que ya existían (IPantryCatalog.LockItems, en orden de id); después, los duplicados (409 «Este ticket ya está guardado (…)» o el posible duplicado sin `distinctPurchase`), un producto nuevo por nombre y persona (IPantryCatalog.CreateItem, por compras), lo aprendido de la tienda, el precio y lo comprado de los que ya existían (IPantryCatalog.ApplyTicketPurchase), la cabecera con su huella y las líneas, también las dudosas (pendientes, sin producto). Responde 201 con el ticket entero y los productos.
+  - Con las reglas de TIC-01 (canApplyLine, newItemUnit, priceFromLines, quantityFromLines, lineReviewStatus y la huella) y validateTicketSave en C#.
+  - MySqlTicketStore guarda lo aprendido, la cabecera y las líneas con el SQL de Express; la evidencia, como la deja validateTicketSave, y los ajustes y avisos, como JSON.
+  - Las sugerencias del borrador (TIC-02) salen ahora en el orden de un objeto de JavaScript: primero las claves que son índices enteros (TicketDraftView.JsObjectKeyOrder, comprobado con Node).
+- Pruebas nuevas:
+  - `TicketSaveHttpTests` (10, MySql): los guardados de `tickets.test.ts` (productos nuevos, lo aprendido y la siguiente lectura emparejada, precio y cantidad en los que se cuentan, decisiones que no encajan sin guardar nada, el importe mal leído pendiente con su evidencia, el 92,90 € forzado que sigue pendiente y las huellas golden) y los de `ticketAtomicity.test.ts` (un fallo real de MySQL en la segunda línea deja las 14 tablas iguales y admite un único reintento; dos guardados iguales a la vez dan 201 y 409; un ticket y un + a la vez no se pisan), más dos guardados iguales sin productos que ya existan.
+  - Mutación: sin bloquear los productos, «un ticket y un + a la vez» falla 3 de 3; sin el bloqueo tickets, los dos guardados sin productos fallan 3 de 3 (con un producto compartido, su bloqueo ya los ponía en serie). Se restauraron.
+  - `TicketDraftOrderTests`: el orden de las claves, igual que Node 24.
+  - E2E: sin cambios. `e2e/tickets.spec.ts` necesita también la lista y el detalle de tickets: pasa a .NET con TIC-04.
+- Comandos, en Windows con el usuario limitado (3307):
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 2227/2227; `--filter "Categoria=MySql"`: 107/107.
+  - `npm run check`, `npm run test:e2e:dotnet` y `npm run test:e2e` no se repiten: TIC-03 no cambia TypeScript, la web ni Express.
+- Siguiente: TIC-04 (historial, detalle, asociación, borrado y el inventario de rutas).
 
 ### Plantilla para la siguiente tarea
 

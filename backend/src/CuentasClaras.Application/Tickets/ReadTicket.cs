@@ -108,8 +108,10 @@ public sealed class ReadTicket(ITicketStore store, IPantryCatalog pantry, ITicke
         var possible = duplicate is null
             ? await TicketDuplicates.Possible(store, ticket.Store, ticket.StoreName, date, ticket.Time, ticket.TotalCents)
             : null;
+        // Object.fromEntries: un objeto de JavaScript pone primero las claves que son índices enteros.
         var byKey = new Dictionary<string, object>(StringComparer.Ordinal);
-        foreach (var (key, suggestion) in suggestions) byKey[key] = TicketDraftView.Suggestion(suggestion);
+        var values = suggestions.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        foreach (var key in TicketDraftView.JsObjectKeyOrder(suggestions.Select(pair => pair.Key))) byKey[key] = TicketDraftView.Suggestion(values[key]);
         return new TicketDraftView(ParsedTicketView.From(ticket), byKey, duplicate, possible, sourceFingerprint, ids.NewId());
     }
 }

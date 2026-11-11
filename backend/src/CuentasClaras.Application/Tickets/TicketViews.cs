@@ -114,6 +114,18 @@ public sealed record TicketDraftView(
     ParsedTicketView Ticket, IReadOnlyDictionary<string, object> Suggestions, object? Duplicate, TicketSummaryView? PossibleDuplicate,
     string SourceFingerprint, string ImportId)
 {
+    /// <summary>
+    /// El orden de las claves de un objeto de JavaScript: primero las que son índices de lista (un entero de 0 a 2^32 − 2 escrito
+    /// sin ceros delante), de menor a mayor; después las demás, en el orden en que se añadieron.
+    /// </summary>
+    public static IReadOnlyList<string> JsObjectKeyOrder(IEnumerable<string> keys)
+    {
+        static bool IsIndex(string key) =>
+            key.Length is > 0 and <= 10 && key.All(char.IsAsciiDigit) && (key == "0" || key[0] != '0') && ulong.Parse(key, System.Globalization.CultureInfo.InvariantCulture) < uint.MaxValue;
+        var list = keys.ToList();
+        return [.. list.Where(IsIndex).OrderBy(key => ulong.Parse(key, System.Globalization.CultureInfo.InvariantCulture)), .. list.Where(key => !IsIndex(key))];
+    }
+
     public static object Suggestion(TicketSuggestion suggestion) => suggestion switch
     {
         ItemSuggestion item => new ItemSuggestionView(item.Kind, item.ItemId, item.How),

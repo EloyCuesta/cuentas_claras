@@ -1,6 +1,10 @@
 using System.Globalization;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using CuentasClaras.Application.Common;
 using CuentasClaras.Application.Tickets;
+using CuentasClaras.Domain.Common;
 using CuentasClaras.Domain.Tickets;
 using CuentasClaras.Infrastructure.Common.MySql;
 using MySqlConnector;
@@ -28,6 +32,42 @@ public sealed class MySqlTicketStore(MySqlDatabase database) : ITicketStore
         $"SELECT {TicketColumns}, COUNT(l.id) AS lines_count, "
         + "COUNT(DISTINCT CASE WHEN l.review_status = 'verified' AND l.amount_cents >= 0 THEN l.item_id END) AS products_count "
         + "FROM pantry_tickets t LEFT JOIN pantry_ticket_lines l ON l.ticket_id = t.id";
+
+    private const string InsertTicketSql =
+        "INSERT INTO pantry_tickets (id, store, store_name, address, purchase_date, purchase_time, total_cents, fingerprint, created_at, adjustments_json, "
+        + "issues_json, import_id, source_fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private const string InsertLineSql = $"INSERT INTO pantry_ticket_lines ({LineColumns}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    // La clave de pantry_aliases es (store, name_key) y no tiene otra única: ON DUPLICATE KEY UPDATE no puede pisar otra fila.
+    private const string UpsertAliasSql =
+        "INSERT INTO pantry_aliases (store, name_key, item_id, ignored, updated_at) VALUES (?, ?, ?, ?, ?) AS new "
+        + "ON DUPLICATE KEY UPDATE item_id = new.item_id, ignored = new.ignored, updated_at = new.updated_at";
+
+    /// <summary>JSON.stringify: camelCase, los números como JavaScript y sin escapar las letras con tilde.</summary>
+    private static readonly JsonSerializerOptions StoredJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new JsDoubleConverter() },
+    };
+
+    /// <summary>La evidencia tal como la deja validateTicketSave (sin el origen de la imagen), en su orden.</summary>
+    private sealed record StoredEvidence(
+        string Text, string? Reread, long? RecognizedCents, long? CalculatedCents, string SelectedBy, IReadOnlyList<string> Issues,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Normalized,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] TicketDiscrepancyView? Discrepancy,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<TicketAmountOptionView>? Options);
+
+    private static string EvidenceJson(Domain.Tickets.TicketEvidence evidence) => JsonSerializer.Serialize(new StoredEvidence(
+        evidence.Text, evidence.Reread, evidence.RecognizedCents, evidence.CalculatedCents, evidence.SelectedBy, evidence.Issues, evidence.Normalized,
+        evidence.Discrepancy is { } discrepancy
+            ? new TicketDiscrepancyView(discrepancy.Kind, discrepancy.Verdict, discrepancy.RecognizedCents, discrepancy.CalculatedCents,
+                discrepancy.Explanation, discrepancy.Reasons)
+            : null,
+        evidence.Options?.Select(option => new TicketAmountOptionView(option.Cents, option.Origin)).ToList()), StoredJson);
+
+    /// <summary>Un peso para DECIMAL(7,3): el texto que escribiría JavaScript, como decimal exacto.</summary>
+    private static decimal? Exact(double? value) =>
+        value is { } number ? decimal.Parse(JsNumber.ToString(number), NumberStyles.Float, CultureInfo.InvariantCulture) : null;
 
     private static TicketSummaryView ToSummary(MySqlDataReader row) => new(
         MySqlRead.Text(row, "id"), MySqlRead.Text(row, "store"), MySqlRead.Text(row, "store_name"), MySqlRead.Text(row, "address"),
@@ -80,4 +120,22 @@ public sealed class MySqlTicketStore(MySqlDatabase database) : ITicketStore
         return new TicketView(summary.Id, summary.Store, summary.StoreName, summary.Address, summary.Date, summary.Time, summary.TotalCents,
             summary.LinesCount, summary.ProductsCount, summary.CreatedAt, lines, adjustments, issues);
     }
+
+    // `ignored` = 1 cuando el nombre se ha marcado como «no seguir» (sin producto).
+    public Task UpsertAlias(string aliasStore, string nameKey, string? itemId, string now) =>
+        database.Run(UpsertAliasSql, [aliasStore, nameKey, itemId, itemId is null ? 1 : 0, now]);
+
+    public Task InsertTicket(TicketToInsert ticket) => database.Run(InsertTicketSql,
+    [
+        ticket.Id, ticket.Store, ticket.StoreName, ticket.Address, ticket.Date, ticket.Time, ticket.TotalCents, ticket.Fingerprint, ticket.CreatedAt,
+        JsonSerializer.Serialize(ticket.Adjustments.Select(TicketAdjustmentView.From).ToList(), StoredJson),
+        JsonSerializer.Serialize(ticket.Issues, StoredJson), ticket.ImportId, ticket.SourceFingerprint,
+    ]);
+
+    public Task InsertLine(LineToInsert line) => database.Run(InsertLineSql,
+    [
+        line.Id, line.TicketId, line.Position, line.RawName, line.NameKey, line.Quantity, line.UnitPriceCents, line.AmountCents, line.DiscountCents,
+        Exact(line.WeightKg), line.PricePerKgCents, line.TaxCode, line.ItemId, line.Occasional ? 1 : 0, line.ReviewStatus, line.Confirmed ? 1 : 0,
+        line.Evidence is { } evidence ? EvidenceJson(evidence) : null,
+    ]);
 }
