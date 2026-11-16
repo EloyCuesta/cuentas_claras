@@ -31,6 +31,8 @@ public sealed class HttpContractTests
         "importación del navegador una sola vez y restauración aislada",
         // PAN-01, PAN-02 y PAN-03: la despensa entera.
         "catálogo público, ajustes relativos, compras, deshacer y revisión",
+        // TIC-02 a TIC-04: los tickets enteros.
+        "lectura, guardado, duplicado, historial, asociación y borrado públicos",
     };
 
     private static readonly Dictionary<string, JsonDocument> Fixtures =
@@ -59,6 +61,35 @@ public sealed class HttpContractTests
         Assert.Equal(6, names.Count);
         Assert.Equal(names.Count, names.Distinct(StringComparer.Ordinal).Count());
         Assert.All(Active, name => Assert.Contains(name, names));
+    }
+
+    /// <summary>Las dos consultas de resumen solo existen en .NET (FIN-04): las prueba SummaryHttpTests, no los contratos de Express.</summary>
+    private static readonly (string Method, string Pattern)[] DotnetOnly = [("GET", "/api/summary/month"), ("GET", "/api/summary/year")];
+
+    [Fact]
+    public void Atiende_exactamente_los_39_pares_de_Express_y_cada_uno_tiene_un_paso_2xx_en_los_contratos()
+    {
+        var routes = ApiHost.ModuleRoutes();
+        var all = ApiHost.HostRoutes.Concat(routes.Registered.Select(route => (route.Method, route.Pattern)))
+            .Except(DotnetOnly).Select(route => $"{route.Method} {route.Pattern}").ToHashSet(StringComparer.Ordinal);
+        Assert.Equal(39, all.Count);
+
+        // Cada paso de los contratos (también los del acceso) va a una ruta conocida; las que responden 2xx, apuntadas.
+        var withSuccess = new HashSet<string>(StringComparer.Ordinal);
+        using var auth = CorpusJson.Load("http-auth.json");
+        foreach (var fixture in Fixtures.Values.Append(auth))
+            foreach (var scenario in fixture.RootElement.GetProperty("scenarios").EnumerateArray())
+                foreach (var step in scenario.GetProperty("steps").EnumerateArray())
+                {
+                    var request = step.GetProperty("request");
+                    var method = request.GetProperty("method").GetString()!;
+                    var path = request.GetProperty("path").GetString()!.Split('?', 2)[0].TrimEnd('/');
+                    var pattern = ApiHost.HostRoutes.FirstOrDefault(route => route.Method == method && route.Pattern.Equals(path, StringComparison.OrdinalIgnoreCase)).Pattern
+                        ?? routes.Find(method, path)?.Pattern;
+                    var status = step.GetProperty("expected").GetProperty("status").GetInt32();
+                    if (pattern is not null && status is >= 200 and < 300) withSuccess.Add($"{method} {pattern}");
+                }
+        Assert.Equal(all.Order(StringComparer.Ordinal), withSuccess.Order(StringComparer.Ordinal));
     }
 
     [Theory]

@@ -69,6 +69,33 @@ La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber ad
 
 El backend .NET de ensayo lee las mismas `CUENTAS_*` y, para leer tickets con imágenes, lanza el OCR de Express en un proceso Node aparte (necesita Node y `npm install`). Lo busca en `server/modules/tickets/adapters/tesseract/ocrWorker.ts`, desde la carpeta donde se arranca; `CUENTAS_OCR_WORKER` cambia esa ruta.
 
+### Ensayo con el backend .NET
+
+El backend .NET (`backend/`) atiende las mismas rutas sobre la misma base. Mientras se ensaya, arráncalo en lugar de Express (nunca los dos a la vez sobre la misma base), en dos terminales de PowerShell desde la raíz del repositorio. Necesita el SDK de .NET 10, Node y `npm install` (para el OCR de los tickets).
+
+Terminal 1, la API .NET en el puerto 3201:
+
+```powershell
+npm run build:dotnet
+$env:CUENTAS_CODIGO = 'tu código de acceso'
+$env:CUENTAS_DB_HOST = '127.0.0.1'
+$env:CUENTAS_DB_PORT = '3306'
+$env:CUENTAS_DB_USER = 'cuentas'
+$env:CUENTAS_DB_PASSWORD = Read-Host 'Contraseña de MySQL'
+$env:CUENTAS_DB_NAME = 'cuentas_claras'
+dotnet run --no-build --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj
+```
+
+Terminal 2, la web apuntando a .NET:
+
+```powershell
+$env:CUENTAS_API_URL = 'http://127.0.0.1:3201'
+$env:CUENTAS_BACKEND = 'dotnet'
+npm run dev:web
+```
+
+Comprueba `http://localhost:5173/api/health` (responde `{ ok: true, data: { status: 'ok', schemaVersion: 5 } }`) y abre `http://localhost:5173`. Para volver a Express, cierra las dos terminales y arranca `npm run dev` como siempre. El cambio de la instalación de cada día está en `docs/migration/DATA.md` («Ensayo, corte y recuperación»).
+
 ## Preparar MySQL
 
 Una vez, en el equipo donde se ejecuta la app (los pasos son para Windows; en otros sistemas, lo mismo con su instalador):

@@ -15,7 +15,7 @@ test.beforeEach(async ({ request, page }) => {
 const ledgerValue = (page: Page, label: string) =>
   page.locator('.ledger__row', { has: page.locator('.ledger__label', { hasText: label }) }).locator('dd')
 
-test('el mes, el año y los presupuestos los calcula .NET con la fecha del navegador', { tag: '@dotnet' }, async ({ page }) => {
+test('el mes, el año y los presupuestos los calcula .NET con la fecha del navegador', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
   const summaries: string[] = []
   page.on('request', (request) => {

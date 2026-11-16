@@ -99,7 +99,15 @@ Corte de datos (DATA-02), que hace la persona con los pasos del README («Pasar 
 3. Importa en una base `cuentas_claras` vacía (sin arrancar antes la app con MySQL, que sembraría las categorías iniciales) y revisa el informe: `válido`, todas las tablas iguales y las sumas iguales. Con diferencias o un rechazo no queda nada a medias: se corrige y se repite.
 4. Arranca la app con MySQL, comprueba los recorridos habituales y haz una copia completa de MySQL (Workbench *Data Export* o mysqldump, README «Copias de MySQL»). Registra en [STATUS.md](STATUS.md) la fecha y el resultado.
 
-Corte de backend (CUT-01): los recorridos React contra .NET y esa misma base, restauración financiera separada, una copia y recuperación completa de MySQL, y el cambio de configuración con un solo backend escritor. Se registra cuándo empezó a usarse.
+Corte de backend (CUT-01): los recorridos React contra .NET y esa misma base, restauración financiera separada, una copia y recuperación completa de MySQL, y el cambio de configuración con un solo backend escritor. Se registra cuándo empezó a usarse. Los pasos, ensayados con datos sintéticos el 16 de noviembre de 2026 (registro «Ensayo técnico del corte» de [STATUS.md](STATUS.md)):
+
+1. **Parar las escrituras.** Cierra la web en todos los móviles y para Express (Ctrl+C en su terminal). Desde aquí no debe escribir nadie hasta el paso 5: nunca hay dos backends escribiendo en la misma base.
+2. **Copiar y comprobar la copia.** `mysqldump -u cuentas -p --single-transaction --no-tablespaces --result-file=antes-del-corte.sql cuentas_claras`. Recupérala en una base vacía de prueba (`mysql -u cuentas -p cuentas_test_copia --execute="source antes-del-corte.sql"`) y compara `CHECKSUM TABLE` de las 14 tablas en las dos bases: tienen que coincidir. Si no, no sigas.
+3. **Arrancar .NET** sobre `cuentas_claras` (terminal 1 del README, «Ensayo con el backend .NET») y comprobar `/api/health`.
+4. **Cambiar el destino de la web**: en la terminal 2, `CUENTAS_API_URL=http://127.0.0.1:3201` y `CUENTAS_BACKEND=dotnet` (las consultas de resumen las calcula .NET). Recorre lo habitual: resumen, un gasto, la despensa, + y −, leer y guardar un ticket.
+5. **Volver a Express si algo falla**: para .NET, quita esas dos variables y arranca Express y la web como siempre. Es la misma base y el mismo esquema, así que no hay que convertir nada; lo escrito con .NET se queda. Si lo que falla son los datos, recupera la copia del paso 2 en una base vacía y apunta `CUENTAS_DB_NAME` a ella.
+
+El ensayo (`node --import tsx` sobre una copia SQLite sintética, fuera del repositorio) importó la copia, sirvió la base con Express y con .NET con respuestas idénticas en 11 rutas (finanzas, despensa, actividad y cada ticket), la copió con mysqldump y la recuperó en otra base con el mismo `CHECKSUM TABLE` en las 14 tablas, y volvió a servirla con .NET y con Express.
 
 Antes de nuevas escrituras en MySQL se puede volver a la copia SQLite original con la versión anterior de la app. Después, volver atrás requiere reconciliar lo nuevo: una copia antigua no lo contiene. No presentes ese retorno como automático.
 

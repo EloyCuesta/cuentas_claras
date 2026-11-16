@@ -100,7 +100,7 @@ function browserStoredMovements(page: Page): Promise<number> {
   )
 }
 
-test('empieza vacía y explica cómo añadir el primer movimiento', { tag: '@dotnet' }, async ({ page }) => {
+test('empieza vacía y explica cómo añadir el primer movimiento', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Empieza apuntando tu primer gasto' })).toBeVisible()
   await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('0,00 €')
@@ -109,7 +109,7 @@ test('empieza vacía y explica cómo añadir el primer movimiento', { tag: '@dot
   expect(await storedMovements(page)).toBe(0)
 })
 
-test('registra un gasto en pocos pasos y se conserva después de recargar', { tag: '@dotnet' }, async ({ page }) => {
+test('registra un gasto en pocos pasos y se conserva después de recargar', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Añadir un gasto' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
@@ -129,7 +129,7 @@ test('registra un gasto en pocos pasos y se conserva después de recargar', { ta
   await expect(page.getByRole('button', { name: /Panadería/ })).toBeVisible()
 })
 
-test('valida los campos obligatorios', { tag: '@dotnet' }, async ({ page }) => {
+test('valida los campos obligatorios', async ({ page }) => {
   await page.goto('/')
   await openNewMovement(page)
   const dialog = page.getByRole('dialog')
@@ -142,7 +142,7 @@ test('valida los campos obligatorios', { tag: '@dotnet' }, async ({ page }) => {
   expect(await storedMovements(page)).toBe(0)
 })
 
-test('si se guarda pero la pantalla no se puede recargar, avisa y no hay que repetirlo', { tag: '@dotnet' }, async ({ page }) => {
+test('si se guarda pero la pantalla no se puede recargar, avisa y no hay que repetirlo', async ({ page }) => {
   await page.goto('/')
   let failNextReload = false
   // La relectura de después de guardar falla una vez (por ejemplo, un corte de red justo después).
@@ -169,7 +169,7 @@ test('si se guarda pero la pantalla no se puede recargar, avisa y no hay que rep
   await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('12,50 €')
 })
 
-test('si se pierde la respuesta del guardado, reintentar no duplica el movimiento', { tag: '@dotnet' }, async ({ page }) => {
+test('si se pierde la respuesta del guardado, reintentar no duplica el movimiento', async ({ page }) => {
   await page.goto('/')
   let loseNextResponse = true
   // El servidor recibe y guarda el alta, pero la respuesta no llega al navegador.
@@ -204,7 +204,7 @@ async function storedCategories(page: Page): Promise<FinanceData['categories']> 
   return ((await response.json()) as { data: FinanceData }).data.categories
 }
 
-test('crea, renombra y elimina categorías, y se guardan en el servidor', { tag: '@dotnet' }, async ({ page }) => {
+test('crea, renombra y elimina categorías, y se guardan en el servidor', async ({ page }) => {
   await page.goto('/#ajustes')
   const section = page.getByRole('region', { name: 'Categorías' })
   await section.getByRole('button', { name: 'Añadir categoría' }).click()
@@ -243,7 +243,7 @@ test('crea, renombra y elimina categorías, y se guardan en el servidor', { tag:
   expect(names).toHaveLength(DEFAULT_CATEGORIES.length)
 })
 
-test('eliminar una categoría con movimientos los pasa a la que se elija', { tag: '@dotnet' }, async ({ page }) => {
+test('eliminar una categoría con movimientos los pasa a la que se elija', async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '12,00', concept: 'Entradas de cine', category: 'Ocio' })
   await page.goto('/#ajustes')
@@ -263,7 +263,7 @@ test('eliminar una categoría con movimientos los pasa a la que se elija', { tag
   expect(data.movements[0]).toMatchObject({ concept: 'Entradas de cine', categoryId: 'g-otros' })
 })
 
-test('editar o eliminar un movimiento actualiza los totales', { tag: '@dotnet' }, async ({ page }) => {
+test('editar o eliminar un movimiento actualiza los totales', async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '10', concept: 'Café', category: 'Ocio' })
   await addExpense(page, { amount: '20,40', concept: 'Gasolina', category: 'Coche › Combustible' })
@@ -286,7 +286,7 @@ test('editar o eliminar un movimiento actualiza los totales', { tag: '@dotnet' }
   expect(await storedMovements(page)).toBe(1)
 })
 
-test('marcar un pago pendiente como pagado no duplica el gasto', { tag: '@dotnet' }, async ({ page }) => {
+test('marcar un pago pendiente como pagado no duplica el gasto', async ({ page }) => {
   await page.goto('/')
   // Pendiente con vencimiento hoy (la fecha prevista por defecto).
   await addExpense(page, { amount: '80', concept: 'Recibo del gas', category: 'Vivienda › Gas', pending: true })
@@ -304,7 +304,7 @@ test('marcar un pago pendiente como pagado no duplica el gasto', { tag: '@dotnet
   expect(await storedMovements(page)).toBe(1)
 })
 
-test('abrir varias veces la aplicación no duplica vencimientos', { tag: '@dotnet' }, async ({ page, context }) => {
+test('abrir varias veces la aplicación no duplica vencimientos', async ({ page, context }) => {
   await page.goto('/#recurrentes')
   await page.getByRole('button', { name: 'Nuevo recurrente' }).click()
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' })
@@ -332,7 +332,7 @@ test('abrir varias veces la aplicación no duplica vencimientos', { tag: '@dotne
   await expect(page.locator('.move--pending')).toHaveCount(created)
 })
 
-test('exportar y restaurar una copia conserva los datos', { tag: '@dotnet' }, async ({ page, browser }) => {
+test('exportar y restaurar una copia conserva los datos', async ({ page, browser }) => {
   await page.goto('/')
   await addExpense(page, { amount: '54,30', concept: 'Mercadona; compra «semanal»', category: 'Alimentación › Supermercado' })
   await addExpense(page, { amount: '386,40', concept: 'Seguro del coche', category: 'Seguros › Coche', pending: true })
@@ -368,7 +368,7 @@ test('exportar y restaurar una copia conserva los datos', { tag: '@dotnet' }, as
   await otherContext.close()
 })
 
-test('rechaza una copia no válida sin tocar los datos', { tag: '@dotnet' }, async ({ page }) => {
+test('rechaza una copia no válida sin tocar los datos', async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '5', concept: 'Pan', category: 'Alimentación › Supermercado' })
   await page.goto('/#ajustes')
@@ -382,7 +382,7 @@ test('rechaza una copia no válida sin tocar los datos', { tag: '@dotnet' }, asy
   expect(await storedMovements(page)).toBe(1)
 })
 
-test('exporta los movimientos a CSV con formato español', { tag: '@dotnet' }, async ({ page }) => {
+test('exporta los movimientos a CSV con formato español', async ({ page }) => {
   await page.goto('/')
   await addExpense(page, { amount: '1.234,56', concept: 'Ordenador', category: 'Otros' })
   await page.goto('/#ajustes')
@@ -396,7 +396,7 @@ test('exporta los movimientos a CSV con formato español', { tag: '@dotnet' }, a
   expect(lines[1]).toMatch(/^\d{2}\/\d{2}\/\d{4};Gasto;Ordenador;Otros;;-1234,56;Pagado;\d{2}\/\d{2}\/\d{4};;No;$/)
 })
 
-test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálculo', { tag: '@dotnet' }, async ({ page }) => {
+test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálculo', async ({ page }) => {
   // Los datos de ejemplo son de octubre de 2026: se fija el reloj para que la previsión no dependa del día.
   await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
   await page.goto('/#ajustes')
@@ -431,7 +431,7 @@ test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálcu
   expect(await storedMovements(page)).toBe(stored)
 })
 
-test('pasa a la base de datos los datos que había en el navegador y conserva la copia', { tag: '@dotnet' }, async ({ page }) => {
+test('pasa a la base de datos los datos que había en el navegador y conserva la copia', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Empieza apuntando tu primer gasto' })).toBeVisible()

@@ -33,9 +33,12 @@ public sealed record LineToInsert(
     long DiscountCents, double? WeightKg, long? PricePerKgCents, string? TaxCode, string? ItemId, bool Occasional, string ReviewStatus, bool Confirmed,
     TicketEvidence? Evidence);
 
+/// <summary>Una línea guardada y su nombre normalizado (para cambiar a la vez todas las iguales).</summary>
+public sealed record StoredLineRef(string Id, string NameKey);
+
 /// <summary>
 /// Tickets guardados y lo aprendido en cada tienda (TicketRepository de Express). Solo SQL y conversión de filas; qué es
-/// un duplicado está en TicketDuplicates. Cambiar una línea y borrar llegan con TIC-04.
+/// un duplicado está en TicketDuplicates.
 /// </summary>
 public interface ITicketStore
 {
@@ -59,4 +62,19 @@ public interface ITicketStore
     Task InsertTicket(TicketToInsert ticket);
 
     Task InsertLine(LineToInsert line);
+
+    /// <summary>Los últimos, por fecha y hora de compra (y momento de guardado e id).</summary>
+    Task<IReadOnlyList<TicketSummaryView>> ListSummaries(int limit);
+
+    Task<TicketSummaryView?> GetSummary(string id);
+
+    Task<StoredLineRef?> GetLine(string ticketId, string lineId);
+
+    /// <summary>Las líneas de un ticket, en orden.</summary>
+    Task<IReadOnlyList<StoredLineRef>> LinesOf(string ticketId);
+
+    Task SetLineItem(string lineId, string? itemId);
+
+    /// <summary>Sus líneas se borran en cascada.</summary>
+    Task DeleteTicket(string id);
 }

@@ -297,6 +297,48 @@ public sealed class TicketSaveHttpTests
             await database.Scalar("SELECT adjustments_json FROM pantry_tickets"));
     }
 
+    [Fact]
+    public async Task Cambia_el_producto_de_una_linea_guardada_y_de_sus_iguales_y_borra_tickets_sin_borrar_productos()
+    {
+        // TIC-04, como tickets.test.ts.
+        var (database, _, api) = await Start();
+        await using var _db = database;
+        await using var _api = api;
+        var draft = await ReadLidl(api);
+        var ticket = (await Save(api, SaveInput(draft))).Body.GetProperty("data").GetProperty("ticket");
+        var ticketId = ticket.GetProperty("id").GetString()!;
+        var list = await Items(api);
+        var pasta = ticket.GetProperty("lines").EnumerateArray().First(line => line.GetProperty("rawName").GetString() == "MACARRONES");
+        var rice = ByName(list, "Arroz redondo")!.Value.GetProperty("id").GetString();
+
+        var updated = await api.Data("PUT", $"/api/despensa/tickets/{ticketId}/lineas/{pasta.GetProperty("id").GetString()}", new { itemId = rice });
+        Assert.Equal(new[] { rice, rice }, updated.GetProperty("lines").EnumerateArray()
+            .Where(line => line.GetProperty("rawName").GetString() == "MACARRONES").Select(line => line.GetProperty("itemId").GetString()));
+        await api.Fails("PUT", $"/api/despensa/tickets/{ticketId}/lineas/{pasta.GetProperty("id").GetString()}", new { itemId = "no-existe" }, 400, "VALIDATION",
+            "Ese producto ya no existe. Elige otro.");
+        await api.Fails("PUT", $"/api/despensa/tickets/{ticketId}/lineas/otra", new { itemId = (string?)null }, 404, "NOT_FOUND", "Esa línea del ticket ya no existe.");
+        await api.Fails("PUT", $"/api/despensa/tickets/otro/lineas/otra", new { itemId = (string?)null }, 404, "NOT_FOUND", "Ese ticket ya no existe.");
+        await api.Fails("PUT", $"/api/despensa/tickets/{ticketId}/lineas/otra", new { }, 400, "VALIDATION", "Falta el campo «itemId» (id del producto o null).");
+        Assert.Equal($"{{\"kind\":\"item\",\"itemId\":\"{rice}\",\"how\":\"recordado\"}}",
+            (await ReadLidl(api)).GetProperty("suggestions").GetProperty("MACARRONES").GetRawText());
+        Assert.Equal(ticketId, Assert.Single((await api.Data("GET", "/api/despensa/tickets")).EnumerateArray()).GetProperty("id").GetString());
+
+        // Borrar un producto deja la línea sin producto; borrar el ticket quita sus compras pero no los productos ni sus cantidades.
+        await api.Data("DELETE", $"/api/despensa/productos/{ByName(list, "Yogur griego")!.Value.GetProperty("id").GetString()}");
+        var afterDelete = await api.Data("GET", $"/api/despensa/tickets/{ticketId}");
+        Assert.Equal(JsonValueKind.Null, afterDelete.GetProperty("lines").EnumerateArray()
+            .Single(line => line.GetProperty("rawName").GetString() == "YOGUR GRIEGO").GetProperty("itemId").ValueKind);
+        Assert.NotEmpty((await api.Data("GET", "/api/despensa/actividad?hoy=2026-10-30")).GetProperty("purchases").EnumerateArray());
+        var itemsBefore = (await api.Data("GET", "/api/despensa/productos")).GetRawText();
+        Assert.Equal(JsonValueKind.Null, (await api.Data("DELETE", $"/api/despensa/tickets/{ticketId}")).ValueKind);
+        await api.Fails("GET", $"/api/despensa/tickets/{ticketId}", null, 404, "NOT_FOUND", "Ese ticket ya no existe.");
+        await api.Fails("DELETE", $"/api/despensa/tickets/{ticketId}", null, 404, "NOT_FOUND", "Ese ticket ya no existe.");
+        Assert.Empty((await api.Data("GET", "/api/despensa/actividad?hoy=2026-10-30")).GetProperty("purchases").EnumerateArray());
+        Assert.Equal(itemsBefore, (await api.Data("GET", "/api/despensa/productos")).GetRawText());
+        Assert.Equal(list.Length - 1, (await Items(api)).Length);
+        Assert.Empty((await api.Data("GET", "/api/despensa/tickets")).EnumerateArray());
+    }
+
     // ---------------------------------------------------------------------------------------------------------------
     // Atomicidad (ticketAtomicity.test.ts)
 

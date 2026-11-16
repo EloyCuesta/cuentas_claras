@@ -14,8 +14,8 @@
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | TIC-01 y DATA-01 verificados en Windows con MySQL 8.4.13 (registro «TIC-01 y DATA-01 — verificación en MySQL 8.4»). Siguen las funcionalidades de .NET en la rama dotnet-modulos, por ID (registros siguientes) |
-| Pruebas de aplicación de esta entrega | En Windows, con MySQL 8.4.13 aislado en el 3307 y el usuario limitado cuentas_pruebas: .NET 1173/1173 (corpus de tickets 1056/1056, MySql 28/28, resto 1145/1145), `npm run test:e2e:dotnet` 4/4, `npm run check` (Vitest 1030/1030 en 45 archivos) y `npm run test:e2e` 48/48, con Chrome 157 instalado |
+| Resultado de esta entrega | En la rama dotnet-modulos (sin fusionar ni subir): TIC-01 y DATA-01 verificados en MySQL 8.4.13, y FIN-01…05, PAN-01…03 y TIC-02…04 verificados en .NET, con las 39 rutas de Express y la app React entera contra .NET en los E2E. Ensayo técnico del corte hecho con datos sintéticos. Quedan DATA-02 y CUT-01, de la persona (registros «Ensayo técnico del corte» y «Verificación final») |
+| Pruebas de aplicación de esta entrega | El 16 de noviembre, en Windows con MySQL 8.4.13 aislado en el 3307 y el usuario limitado cuentas_pruebas: .NET 2230/2230 (MySql 109/109, con el OCR real), `npm run check` (Vitest 1530/1530 en 52 archivos), `npm run test:e2e:dotnet` 64/64 y `npm run test:e2e` 58/58, con Chrome 157.0.8103.51 instalado |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
 
@@ -54,7 +54,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | TIC-01 | Reglas puras de parsing, evidencia, emparejamiento y plan de guardado equivalentes | BASE-02 | verificado |
 | TIC-02 | Lectura OCR/texto/franjas mediante puerto local e integración de la revisión | TIC-01, PAN-01 | verificado |
 | TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | verificado |
-| TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | pendiente |
+| TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | verificado |
 | DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03 y los pasos del README de MYSQL-04, revisa el informe y se registra el resultado | MYSQL-04 | pendiente |
 | CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | pendiente |
 
@@ -69,14 +69,14 @@ La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MyS
 | MySQL de la instalación | La de la persona es MySQL Server 8.0.36 en Windows (servicio MySQL80, puerto 3306, `lower_case_table_names` 1), no la 8.4 del README. BASE-02 y DATA-01 se probaron ahí, en bases `cuentas_test_*`, con el usuario limitado cuentas_pruebas (sin acceso a cuentas_claras). Desde el 8 de noviembre las pruebas del agente usan una instancia de ensayo MySQL 8.4.13 aislada (ZIP oficial con firma y MD5 comprobados, sin servicio, puerto 3307, solo 127.0.0.1, registro binario activo, `lower_case_table_names` 1), fuera del repositorio; MySQL80 no se ha tocado. Las pruebas del agente en Linux usaron 8.4 (8.4.8 en MYSQL-01; 8.4.11 desde MYSQL-02) | Repetir las suites con la 8.0.36 de la persona y su usuario de pruebas, porque su instalación diaria es esa (lo hace la persona; el agente no tiene su contraseña) |
 | Pruebas Node en Windows | Resuelto en la verificación de DATA-01: el importador cierra el duplicado antes de borrar su carpeta, y `runServer` pide el cierre por IPC en Windows. Vitest 503/503 con MySQL 8.0.36 | — |
 | Textos de la web sobre SQLite | Resuelto en FIN-01, a petición de la persona: `FinanceProvider.tsx`, `BackupPanel.tsx` y `SummaryPage.tsx` dicen ahora «una base de datos MySQL de este equipo» (el panel ya no cita `server/data/cuentas.db`), y los comentarios de `src/Root.tsx`, `ApiFinanceRepository.ts` y `browserDataMigration.ts`, igual. SQLite sigue en la importación de los datos de antes | — |
-| Chromium de Playwright | `npx playwright install chromium` sigue sin poder completarse en el equipo de la persona: la descarga de cdn.playwright.dev caduca a los 30 s, tres veces (en DATA-01 y otra vez en su verificación), y el 8 de noviembre falló otra vez («Download failure, code=1» al bajar Chrome for Testing 153.0.8010.12). Los E2E se ejecutan con Chrome instalado (156 hasta el 6 de noviembre, 157.0.8103.38 desde el 8; `CUENTAS_E2E_CHANNEL=chrome`) | Repetir la instalación con acceso a cdn.playwright.dev y los E2E sin el canal |
+| Chromium de Playwright | `npx playwright install chromium` sigue sin poder completarse en el equipo de la persona: la descarga de cdn.playwright.dev caduca a los 30 s, tres veces (en DATA-01 y otra vez en su verificación), y el 8 de noviembre falló otra vez («Download failure, code=1» al bajar Chrome for Testing 153.0.8010.12). Los E2E se ejecutan con Chrome instalado (156 hasta el 6 de noviembre, 157.0.8103.38 desde el 8 y 157.0.8103.51 el 16; `CUENTAS_E2E_CHANNEL=chrome`) | Repetir la instalación con acceso a cdn.playwright.dev y los E2E sin el canal |
 | Cabecera de caché en errores del host | En el host .NET, comprobada en BASE-02: los 400 de JSON mal formado y los 413 llevan `Cache-Control: no-store` (pruebas HTTP, 68/68). Express conserva la diferencia | Los errores 400/413 del lector JSON de Express carecen de la cabecera hasta que .NET lo sustituya (CUT-01); entonces se actualizan la API y ARCHITECTURE.md |
 | Comprobaciones con MySQL de TIC-01 | Hechas el 8 de noviembre en Windows con MySQL 8.4.13 (registro «TIC-01 y DATA-01 — verificación en MySQL 8.4»): TIC-01 verificado | — |
 | Hallazgos de TIC-01 en TypeScript | Resueltos el 6 de noviembre, en TypeScript y en C# | Registro «TIC-01 — hallazgos corregidos»: en validateTicketSave una lista ya no vale donde va un texto, y «1,15-» sin multiplicación queda dudosa |
-| OCR definitivo | Pendiente de ensayo | Mismos fixtures, reconocimiento real, arranque y dependencia Node si la hay |
+| OCR definitivo | Resuelto en TIC-02 y TIC-04: el de Express (tesseract.js) en un proceso Node aparte (ocrWorker.ts); el reconocimiento real con los fixtures en xUnit, Vitest y `e2e/tickets.spec.ts` contra .NET. Depende de Node y node_modules (README, «Ensayo con el backend .NET») | — |
 | Copia SQLite real | No disponible | Copia consistente, integridad y versión comprobadas |
 | Equivalencia de la importación real | No ejecutada (la hace la persona: DATA-02) | El informe de `npm run importar:sqlite` con su copia: `válido`, todas las tablas y las sumas iguales, y los recorridos funcionales |
-| Recuperación completa de MySQL | Con mysqldump, comprobada en Linux con datos sintéticos (registro MYSQL-03); Data Export de Workbench sin probar | Una copia de la instalación recuperada en otra base y comparada (`CHECKSUM TABLE` de las 14 tablas) |
+| Recuperación completa de MySQL | Con mysqldump, comprobada en Linux con datos sintéticos (registro MYSQL-03) y en Windows con MySQL 8.4.13 (registro «Ensayo técnico del corte»: las 14 tablas iguales y los dos backends sobre la copia); Data Export de Workbench sin probar | Una copia de la instalación recuperada en otra base y comparada (`CHECKSUM TABLE` de las 14 tablas) |
 | Cambio del backend usado a diario | No realizado | Requisitos CUT-01 cumplidos y fecha del corte registrada |
 
 ## Verificaciones según el tipo de cambio
@@ -356,14 +356,14 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - Corpus `fixtures/migration/rules-finance.json` (146 casos de 5 operaciones, datos inventados), generado con `tests/generateFinanceRules.ts` y `tests/financeRules.ts`: TypeScript `tests/migrationFinanceRules.test.ts` (147) y C# `FinanceRulesCorpusTests` (293: los 146 en es-ES y en la invariante, y la comprobación del corpus). Pasaron a la primera.
   - `FinanceHttpTests` (12, MySql, con `TestApi.cs`): datos iniciales y solo finanzas, orden fraccionario y presupuestos (0 y MAX_CENTS) con el JSON exacto, ids con mayúsculas/tildes/espacios en orden binario, un nivel de subcategorías del mismo tipo y sin cambio de tipo, validación antes del id, sustitución de movimientos y recurrentes con updated_at del reloj, destinos no válidos y replacementId vacío o repetido, borrar sin uso, un fallo a mitad de la sustitución deshecho entero (almacén que falla al borrar), categorías iniciales que no reaparecen, metadatos y el 500 de un escape mal formado.
   - `HttpContractTests` (7, MySql): los corpus HTTP de salud, finanzas, despensa y tickets sobre .NET, una base por escenario; activo: salud. Los de finanzas necesitan rutas de FIN-02, FIN-03 y FIN-05 (S1 y S2 empiezan restaurando con `PUT /api/data`) y la prueba lo comprueba.
-  - E2E: `playwright.dotnet.config.ts` con la app completa (Kestrel con MySQL en 3203 sobre `cuentas_test_e2e_dotnet` y la web compilada en dist-dotnet en 4176), `e2e/test.ts`, `e2e/dotnet/database.ts` (reinicio por SQL, comprobando la base) y `e2e/dotnet/pending.ts` (generate y los cinco GET de la despensa, con la respuesta de una base vacía). Dos pruebas nuevas en `e2e/app.spec.ts` (crear, renombrar y eliminar categorías; eliminar una con movimientos pasándolos a otra) y la llamada directa a `/api/test/reset` de «exportar y restaurar» pasa por `resetDatabase`. Contra .NET (@dotnet): «empieza vacía…», «valida los campos obligatorios», «crea, renombra y elimina categorías…», «con el código se ve todo…» y «si la sesión deja de valer…».
+  - E2E: `playwright.dotnet.config.ts` con la app completa (Kestrel con MySQL en 3203 sobre `cuentas_test_e2e_dotnet` y la web compilada en dist-dotnet en 4176), `e2e/test.ts`, `e2e/dotnet/database.ts` (reinicio por SQL, comprobando la base) y e2e/dotnet/pending.ts (retirado en TIC-04) (generate y los cinco GET de la despensa, con la respuesta de una base vacía). Dos pruebas nuevas en `e2e/app.spec.ts` (crear, renombrar y eliminar categorías; eliminar una con movimientos pasándolos a otra) y la llamada directa a `/api/test/reset` de «exportar y restaurar» pasa por `resetDatabase`. Contra .NET (@dotnet): «empieza vacía…», «valida los campos obligatorios», «crea, renombra y elimina categorías…», «con el código se ve todo…» y «si la sesión deja de valer…».
 - Comandos, en Windows con el usuario limitado (3307):
   - `npm run build:dotnet`: 0 avisos y 0 errores.
   - `npm run test:dotnet`: 1485/1485 (las 1173 de antes y 312 nuevas); `--filter "Categoria=MySql"`: 47/47.
   - `npm run check`: tipos y oxlint correctos; Vitest 1177/1177 en 46 archivos (las 1030 de antes y 147 del corpus).
   - `npm run test:e2e:dotnet`: 14/14 (acceso 4; app 5 × escritorio y móvil), 27,9 s. Al terminar no queda `cuentas_test_e2e_dotnet`.
   - `npm run test:e2e`: 52/52 (las 48 de antes y las 2 nuevas en escritorio y móvil), 1,3 min.
-- Limitaciones: la generación de vencimientos y la despensa se responden en el navegador en los E2E .NET hasta FIN-03, PAN-01, PAN-03 y TIC-04 (`e2e/dotnet/pending.ts`). Express no cambia.
+- Limitaciones: la generación de vencimientos y la despensa se responden en el navegador en los E2E .NET hasta FIN-03, PAN-01, PAN-03 y TIC-04 (e2e/dotnet/pending.ts (retirado en TIC-04)). Express no cambia.
 - Siguiente: FIN-02.
 
 ### FIN-02 — 9 de noviembre de 2026 (verificado)
@@ -394,7 +394,7 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - Mutación, restaurada después: sin el bloqueo finance en GenerateOccurrences, las dos pruebas de dos conexiones fallan con el 409 del índice único.
   - `HttpContractTests`: activo también S2 («recurrentes del día 31, exclusiones, pagos y generación repetida», 10 pasos con los ids del escenario).
   - Corpus `rules-finance.json`: 31 casos más (177 en total) de addMonthsClamped, generationHorizon, scheduleDates y planOccurrences; los 146 de antes no cambian. C# 355/355 y TypeScript 178/178.
-  - E2E: fuera el stub de generate (`e2e/dotnet/pending.ts`), y pasan a @dotnet «abrir varias veces la aplicación no duplica vencimientos», «exportar y restaurar una copia conserva los datos» y «la plantilla anual cuadra con la mensual…».
+  - E2E: fuera el stub de generate (e2e/dotnet/pending.ts (retirado en TIC-04)), y pasan a @dotnet «abrir varias veces la aplicación no duplica vencimientos», «exportar y restaurar una copia conserva los datos» y «la plantilla anual cuadra con la mensual…».
 - Comandos, en Windows con el usuario limitado (3307):
   - `npm run build:dotnet`: 0 avisos y 0 errores.
   - `npm run test:dotnet`: 1564/1564; `--filter "Categoria=MySql"`: 64/64.
@@ -460,7 +460,7 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `PantryHttpTests` (8, MySql): lo mismo en .NET, más personas, validación con los mensajes de Express, milésimas, céntimos, el orden «es» de productos y personas, e IPantryCatalog dentro de una transacción de tickets (se une a ella y se deshace con ella).
   - `itemEdit.test.ts` (5): la versión que se envía, qué error es un conflicto y lo que queda al volver a cargar.
   - HttpContractTests: el escenario S3 de `http-finance.json` (importación y restauración aislada, que usa personas y productos) pasa a estar activo y en verde. El de `http-pantry.json` sigue pendiente (ajustar, comprar, revisiones…: PAN-02 y PAN-03).
-  - E2E en los dos backends: «dos móviles editan el mismo producto…» (nuevo, con `newPhone` de `e2e/test.ts` para que el segundo contexto también tenga las rutas pendientes contra .NET), y «el invitado solo ve la despensa…» y «crea una persona y un producto…» pasan a @dotnet. Se quitan de `e2e/dotnet/pending.ts` las personas y los productos.
+  - E2E en los dos backends: «dos móviles editan el mismo producto…» (nuevo, con `newPhone` de `e2e/test.ts` para que el segundo contexto también tenga las rutas pendientes contra .NET), y «el invitado solo ve la despensa…» y «crea una persona y un producto…» pasan a @dotnet. Se quitan de e2e/dotnet/pending.ts (retirado en TIC-04) las personas y los productos.
 - Comandos, en Windows con el usuario limitado (3307):
   - `npm run build:dotnet`: 0 avisos y 0 errores.
   - `npm run test:dotnet`: 1846/1846; `--filter "Categoria=MySql"`: 80/80.
@@ -505,7 +505,7 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - Corpus `rules-pantry.json`: 31 casos (revisiones, presupuesto, repaso y addDays; 186 en total, los anteriores sin cambios). TypeScript 187/187 y C# 373/373.
   - `PantryReviewHttpTests` (3, MySql): revisiones con los mensajes de Express (validación antes del 404, deshacer, borrado en cascada con el producto), presupuesto (0 frente a null, una sola fila) y repaso, y la actividad con tickets sembrados por SQL (ventana de 400 días con su borde, orden por fecha, posición y guardado, líneas sumadas, kilos, importe desconocido, y sin devoluciones, «para una ocasión», pendientes ni líneas sin producto).
   - HttpContractTests: el escenario de `http-pantry.json` («catálogo público, ajustes relativos, compras, deshacer y revisión», con los pasos de PAN-01) se activa y pasa entero en .NET. Quedan pendientes solo los de tickets.
-  - E2E: se quitan de `e2e/dotnet/pending.ts` el presupuesto y la actividad (queda la lista de tickets, de TIC-04); las pruebas de la despensa los piden ya al host .NET. Las de revisiones y repaso de `e2e/tickets.spec.ts` guardan tickets: van con TIC-04.
+  - E2E: se quitan de e2e/dotnet/pending.ts (retirado en TIC-04) el presupuesto y la actividad (queda la lista de tickets, de TIC-04); las pruebas de la despensa los piden ya al host .NET. Las de revisiones y repaso de `e2e/tickets.spec.ts` guardan tickets: van con TIC-04.
 - Comandos, en Windows con el usuario limitado (3307):
   - `npm run build:dotnet`: 0 avisos y 0 errores.
   - `npm run test:dotnet`: 2025/2025; `--filter "Categoria=MySql"`: 91/91.
@@ -555,6 +555,47 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:dotnet`: 2227/2227; `--filter "Categoria=MySql"`: 107/107.
   - `npm run check`, `npm run test:e2e:dotnet` y `npm run test:e2e` no se repiten: TIC-03 no cambia TypeScript, la web ni Express.
 - Siguiente: TIC-04 (historial, detalle, asociación, borrado y el inventario de rutas).
+
+### TIC-04 — 16 de noviembre de 2026 (verificado)
+
+- Base: dotnet-modulos en `0121041` (TIC-03). Mismo entorno; Chrome 157.0.8103.51.
+- .NET, sin cambios de contrato ni en Express:
+  - Rutas `GET /api/despensa/tickets`, `GET /api/despensa/tickets/:id`, `PUT /api/despensa/tickets/:id/lineas/:lineId` y `DELETE /api/despensa/tickets/:id` (`backend/src/CuentasClaras.Application/Tickets/TicketUseCases.cs`: TicketQueries, SetLineItem y DeleteTicket, los dos últimos con el bloqueo tickets; SetLineItem bloquea antes el producto nuevo). Con el SQL de Express en MySqlTicketStore.
+  - Con esto .NET tiene las 39 rutas: ApiRouter ya no reserva rutas pendientes, y lo desconocido sin sesión da 401, como requireAdmin en Express.
+  - El worker del OCR se busca subiendo de carpeta desde la actual y desde la del ensamblado (`dotnet run --project` arranca el host en la carpeta del proyecto); `CUENTAS_OCR_WORKER` sigue mandando.
+- Pruebas nuevas:
+  - HttpContractTests: el escenario de `http-tickets.json` (lectura, guardado, duplicado, historial, asociación, borrado y actividad) pasa entero, sin tocar sus expectativas: los seis escenarios activos. Y el inventario: .NET atiende exactamente los 39 pares de Express (más las dos consultas de resumen, solo de .NET) y cada uno tiene un paso 2xx en los contratos.
+  - TicketSaveHttpTests: cambiar una línea (y sus iguales) y lo aprendido, sus 400 y 404, y borrar un ticket: fuera sus compras de la actividad, los productos y sus cantidades se quedan.
+  - OcrWorkerTests: el worker se encuentra desde la raíz y desde la carpeta del proyecto.
+  - E2E: fuera e2e/dotnet/pending.ts (retirado en TIC-04), las respuestas simuladas, las etiquetas @dotnet y el filtro: los proyectos app-* ejecutan todas las pruebas de la app contra .NET, `e2e/tickets.spec.ts` incluido, con el OCR real.
+- Comandos: los de la verificación final, abajo.
+- Con esto están todos los ID de código. Siguiente: DATA-02 y CUT-01, que hace la persona.
+
+### Ensayo técnico del corte — 16 de noviembre de 2026 (con datos sintéticos)
+
+- No es DATA-02 ni CUT-01. En Windows, con MySQL 8.4.13 de ensayo y el usuario limitado, bases `cuentas_test_corte` y `cuentas_test_corte_copia` (borradas al terminar). Un script fuera del repositorio, ejecutado con `node --import tsx` desde la raíz.
+- Pasos y resultados:
+  1. Copia SQLite sintética (`tools/importer/syntheticCopy.ts`) importada con el importador (`tools/importer/cli.ts`): «válido», 60 filas de 12 tablas, todas iguales fila a fila.
+  2. Express sirvió la base; se paró y .NET sirvió la misma: respuestas idénticas en 11 rutas (salud, `/api/data`, metadatos, personas, productos, presupuesto, actividad, la lista de tickets y los tres tickets). Servirla no la cambió (`CHECKSUM TABLE`).
+  3. `mysqldump --single-transaction --no-tablespaces --set-gtid-purged=OFF --result-file` y recuperación en otra base con `source`: `CHECKSUM TABLE` igual en las 14 tablas.
+  4. .NET sobre la base recuperada, las mismas respuestas; y la vuelta a Express sobre ella, también.
+- Los pasos para la persona (parar escrituras, copiar y comprobar la copia, cambiar el destino de la web y volver a Express) están en [DATA.md](DATA.md), «Ensayo, corte y recuperación», y el arranque en dos terminales, en el README («Ensayo con el backend .NET»).
+
+### Verificación final — 16 de noviembre de 2026
+
+- Rama dotnet-modulos, en Windows 10 Pro con SDK .NET 10.0.102, Node 24.13.0, MySQL 8.4.13 de ensayo (3307, usuario limitado cuentas_pruebas) y Chrome 157.0.8103.51 (`CUENTAS_E2E_CHANNEL=chrome`: el Chromium de Playwright sigue sin poder descargarse).
+- Comandos, desde la raíz:
+  - `npm ci`: correcto (208 paquetes).
+  - `dotnet restore backend/CuentasClaras.slnx --locked-mode`: correcto.
+  - `npm run build:dotnet`: 0 avisos y 0 errores.
+  - `npm run test:dotnet`: 2230/2230; `npm run test:dotnet -- --filter "Categoria=MySql"`: 109/109.
+  - `npm run check`: tipos y oxlint correctos; Vitest 1530/1530 en 52 archivos.
+  - `npm run build`: correcto.
+  - `npm run test:e2e:dotnet`: 64/64 (acceso 4; la app entera, 30 × escritorio y móvil).
+  - `npm run test:e2e`: 58/58.
+  - `git diff --check`: sin errores.
+- La primera pasada paró en `npm run check`: STATUS citaba e2e/dotnet/pending.ts (retirado en TIC-04) entre comillas invertidas; corregido, se repitió desde `npm run check` hasta el final.
+- Pendiente para la persona: DATA-02 (importar su copia real y revisar el informe), CUT-01 (el cambio de la instalación diaria, con los pasos de DATA.md), repetir las suites en su MySQL 8.0.36 con su usuario de pruebas, e instalar el Chromium de Playwright cuando la descarga funcione.
 
 ### Plantilla para la siguiente tarea
 

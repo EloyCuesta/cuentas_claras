@@ -58,7 +58,7 @@ async function addProduct(
 
 const item = (page: Page, name: string) => page.locator('.pantry-item', { has: page.getByRole('button', { name: `Editar ${name}` }) })
 
-test('el invitado solo ve la despensa y no pide datos financieros ni migra el navegador', { tag: '@dotnet' }, async ({ page }) => {
+test('el invitado solo ve la despensa y no pide datos financieros ni migra el navegador', async ({ page }) => {
   const requests = recordApiRequests(page)
   await page.goto('/')
   // Datos de una versión anterior guardados en este navegador: como invitado no se tocan.
@@ -99,7 +99,7 @@ test('el invitado solo ve la despensa y no pide datos financieros ni migra el na
   expect((await page.request.get('/api/data')).status()).toBe(401)
 })
 
-test('crea una persona y un producto que falta, y lo envía en la lista de WhatsApp', { tag: '@dotnet' }, async ({ page }) => {
+test('crea una persona y un producto que falta, y lo envía en la lista de WhatsApp', async ({ page }) => {
   await page.goto('/')
   await addPerson(page, 'Eloy')
   await addProduct(page, { name: 'Proteína', owner: 'Eloy', unit: 'bolsa', quantity: '0', target: '1', frequency: /Mensual/, price: '12' })
@@ -136,7 +136,7 @@ test('crea una persona y un producto que falta, y lo envía en la lista de Whats
   await expect(dialog.getByRole('button', { name: 'Enviar por WhatsApp' })).toBeDisabled()
 })
 
-test('los botones + y −, marcar como comprado y deshacer', { tag: '@dotnet' }, async ({ page, request }) => {
+test('los botones + y −, marcar como comprado y deshacer', async ({ page, request }) => {
   await request.post('/api/despensa/productos', {
     data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 2, frequency: 'mensual', priceCents: 120, notes: '' },
   })
@@ -169,7 +169,7 @@ test('los botones + y −, marcar como comprado y deshacer', { tag: '@dotnet' },
   await expect(item(page, 'Arroz').locator('.stepper__value')).toHaveText('0 kg')
 })
 
-test('dos móviles pulsan + a la vez y el servidor suma los dos', { tag: '@dotnet' }, async ({ page, browser, request }) => {
+test('dos móviles pulsan + a la vez y el servidor suma los dos', async ({ page, browser, request }) => {
   await request.post('/api/despensa/productos', {
     data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 3, frequency: 'mensual', priceCents: 120, notes: '' },
   })
@@ -196,7 +196,7 @@ test('dos móviles pulsan + a la vez y el servidor suma los dos', { tag: '@dotne
   await otherContext.close()
 })
 
-test('dos móviles editan el mismo producto: el segundo no pisa el cambio, conserva lo escrito y lo vuelve a cargar', { tag: '@dotnet' }, async ({
+test('dos móviles editan el mismo producto: el segundo no pisa el cambio, conserva lo escrito y lo vuelve a cargar', async ({
   page,
   browser,
   request,
@@ -250,7 +250,7 @@ test('dos móviles editan el mismo producto: el segundo no pisa el cambio, conse
   await otherContext.close()
 })
 
-test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', { tag: '@dotnet' }, async ({ page, request }) => {
+test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', async ({ page, request }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
   })
@@ -271,7 +271,7 @@ test('sin portapapeles, «Copiar» selecciona el texto para copiarlo a mano', { 
   await expect(text).not.toHaveValue(/Total/)
 })
 
-test('si el portapapeles rechaza la copia, tampoco dice que se ha copiado', { tag: '@dotnet' }, async ({ page, request }) => {
+test('si el portapapeles rechaza la copia, tampoco dice que se ha copiado', async ({ page, request }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: () => Promise.reject(new DOMException('Denegado', 'NotAllowedError')) },
@@ -289,7 +289,7 @@ test('si el portapapeles rechaza la copia, tampoco dice que se ha copiado', { ta
   await expect(dialog.getByLabel('Texto de la lista')).toBeFocused()
 })
 
-test('con el código se ve todo; al cerrar la sesión se vuelve a la despensa', { tag: '@dotnet' }, async ({ page }) => {
+test('con el código se ve todo; al cerrar la sesión se vuelve a la despensa', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Tengo el código' }).click()
   const dialog = page.getByRole('dialog', { name: 'Código de acceso' })
@@ -326,7 +326,7 @@ test('con el código se ve todo; al cerrar la sesión se vuelve a la despensa', 
   expect((await page.request.get('/api/data')).status()).toBe(401)
 })
 
-test('si la sesión deja de valer mientras se usa la app, vuelve a la despensa', { tag: '@dotnet' }, async ({ page }) => {
+test('si la sesión deja de valer mientras se usa la app, vuelve a la despensa', async ({ page }) => {
   await page.request.post('/api/auth/login', { data: { codigo: E2E_CODE } })
   await page.goto('/#movimientos')
   await expect(page.getByRole('heading', { name: 'Movimientos', level: 1 })).toBeVisible()

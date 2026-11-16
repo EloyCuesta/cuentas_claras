@@ -15,12 +15,28 @@ public sealed record OcrWorkerSettings(string Node, string Script, string Workin
 {
     public const string DefaultScript = "server/modules/tickets/adapters/tesseract/ocrWorker.ts";
 
-    /// <summary>CUENTAS_OCR_WORKER, o el worker del repositorio relativo a la carpeta actual (la raíz, con npm o dotnet run).</summary>
+    /// <summary>
+    /// CUENTAS_OCR_WORKER (relativa a la carpeta actual), o el worker del repositorio: se busca subiendo desde la carpeta actual
+    /// y desde la del ensamblado, porque <c>dotnet run --project</c> puede arrancar el host en la carpeta del proyecto.
+    /// </summary>
     public static OcrWorkerSettings FromEnvironment(Func<string, string?> read, string? currentDirectory = null)
     {
         var configured = read("CUENTAS_OCR_WORKER");
-        var script = Path.GetFullPath(string.IsNullOrWhiteSpace(configured) ? DefaultScript : configured, currentDirectory ?? Environment.CurrentDirectory);
+        var start = currentDirectory ?? Environment.CurrentDirectory;
+        var script = !string.IsNullOrWhiteSpace(configured)
+            ? Path.GetFullPath(configured, start)
+            : Find(start) ?? Find(AppContext.BaseDirectory) ?? Path.GetFullPath(DefaultScript, start);
         return new OcrWorkerSettings("node", script, PackageRoot(script) ?? Path.GetDirectoryName(script)!, TimeSpan.FromMinutes(3));
+    }
+
+    private static string? Find(string from)
+    {
+        for (var directory = Path.GetFullPath(from); directory is not null; directory = Path.GetDirectoryName(directory))
+        {
+            var candidate = Path.Combine(directory, DefaultScript);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
     }
 
     private static string? PackageRoot(string script)

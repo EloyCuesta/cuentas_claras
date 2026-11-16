@@ -148,9 +148,13 @@ public static class ApiHost
         var catalog = new PantryCatalog(pantryStore, pantryQueries, createItem, new ApplyTicketPurchase(pantryStore, services.Clock, unitOfWork));
         var ticketStore = new MySqlTicketStore(services.Database);
         var hasher = new Sha256Hasher();
+        var ticketQueries = new TicketQueries(ticketStore);
         TicketRoutes.Map(routes, new TicketUseCases(
             new ReadTicket(ticketStore, catalog, services.Reader, hasher, services.Clock, services.Ids),
-            new SaveTicket(ticketStore, catalog, hasher, services.Clock, services.Ids, unitOfWork)));
+            new SaveTicket(ticketStore, catalog, hasher, services.Clock, services.Ids, unitOfWork),
+            ticketQueries,
+            new SetLineItem(ticketStore, catalog, ticketQueries, services.Clock, unitOfWork),
+            new DeleteTicket(ticketStore, unitOfWork)));
 
         // Las finanzas, con sesión.
         var financeStore = new MySqlFinanceStore(services.Database);

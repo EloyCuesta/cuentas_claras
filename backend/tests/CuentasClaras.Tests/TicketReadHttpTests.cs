@@ -347,6 +347,20 @@ public sealed class OcrWorkerTests
     }
 
     [Fact]
+    public void Sin_CUENTAS_OCR_WORKER_encuentra_el_worker_aunque_el_host_arranque_en_la_carpeta_del_proyecto()
+    {
+        var root = RepositoryRoot();
+        var expected = Path.GetFullPath(Path.Combine(root, OcrWorkerSettings.DefaultScript));
+        foreach (var start in new[] { root, Path.Combine(root, "backend", "src", "CuentasClaras.Api") })
+        {
+            var settings = OcrWorkerSettings.FromEnvironment(_ => null, start);
+            Assert.Equal((expected, root), (Path.GetFullPath(settings.Script), settings.WorkingDirectory));
+        }
+        // Una ruta configurada manda, relativa a la carpeta actual.
+        Assert.Equal(Path.Combine(root, "otro.ts"), OcrWorkerSettings.FromEnvironment(name => name == "CUENTAS_OCR_WORKER" ? "otro.ts" : null, root).Script);
+    }
+
+    [Fact]
     public async Task Sin_el_worker_explica_la_causa_y_falla()
     {
         var log = new StringWriter();

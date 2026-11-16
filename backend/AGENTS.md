@@ -4,7 +4,7 @@
 
 ## Qué hace
 
-El host .NET que sustituirá a Express. BASE-02 aporta el acceso; DATA-01, la conexión con el MySQL que ya usa Express: las mismas migraciones de `../database/mysql/`, el mismo historial, transacciones y bloqueos. TIC-01 añade las reglas puras de los tickets: en `src/CuentasClaras.Domain/Tickets/` (lectura del OCR, evidencia, emparejamiento, compra, huellas e historial), con lo común en `src/CuentasClaras.Domain/Common/`, y la validación del cuerpo en `src/CuentasClaras.Application/Tickets/TicketRequests.cs`. Las funcionalidades llegan por ID (FIN-01…05, las finanzas; PAN-01 a PAN-03, la despensa entera; TIC-02 y TIC-03, leer y guardar tickets con el OCR local; el estado de cada uno, en [STATUS](../docs/migration/STATUS.md)). La aplicación de uso diario sigue siendo Express sobre MySQL; la web React se dirige a este host solo en el ensayo. El arranque y las pruebas están en [pruebas](../docs/pruebas.md).
+El host .NET que sustituirá a Express. BASE-02 aporta el acceso; DATA-01, la conexión con el MySQL que ya usa Express: las mismas migraciones de `../database/mysql/`, el mismo historial, transacciones y bloqueos. TIC-01 añade las reglas puras de los tickets: en `src/CuentasClaras.Domain/Tickets/` (lectura del OCR, evidencia, emparejamiento, compra, huellas e historial), con lo común en `src/CuentasClaras.Domain/Common/`, y la validación del cuerpo en `src/CuentasClaras.Application/Tickets/TicketRequests.cs`. Las funcionalidades llegan por ID (FIN-01…05, las finanzas; PAN-01 a PAN-03, la despensa entera; TIC-02 a TIC-04, los tickets enteros con el OCR local; desde TIC-04, las 39 rutas de Express; el estado de cada uno, en [STATUS](../docs/migration/STATUS.md)). La aplicación de uso diario sigue siendo Express sobre MySQL; la web React se dirige a este host solo en el ensayo. El arranque y las pruebas están en [pruebas](../docs/pruebas.md).
 
 ## Acceso
 
@@ -49,10 +49,12 @@ Cada módulo registra sus rutas en una ApiRouteTable (`src/CuentasClaras.Api/Com
 | GET/PUT /api/despensa/presupuesto, PUT /api/despensa/repaso | PantryActivityQueries.Settings, SetBudget, SetReviewDate | PAN-03. `{ monthlyBudgetCents, lastReviewDate }`; 0 es un presupuesto, null lo quita |
 | POST /api/despensa/tickets/leer | ReadTicket (TicketReadRequest, TicketDuplicates) | TIC-02, pública. `{ texto }`, `{ imagenes }` o `{ franjas }` y `hoy` → el borrador (no guarda nada); el OCR, por ITicketReader (el worker Node, abajo) |
 | POST /api/despensa/tickets | SaveTicket | TIC-03, pública. TicketSaveInput → 201 `{ ticket, items }`, todo o nada con el bloqueo tickets y los productos que cambian bloqueados antes de leer; 409 si ya estaba guardado o es un posible duplicado sin confirmar |
+| GET /api/despensa/tickets, GET /api/despensa/tickets/:id | TicketQueries | TIC-04. Los últimos 100 (resumen) y uno entero (404 «Ese ticket ya no existe.») |
+| PUT /api/despensa/tickets/:id/lineas/:lineId, DELETE /api/despensa/tickets/:id | SetLineItem, DeleteTicket | TIC-04, con el bloqueo tickets. Cambiar una línea cambia las iguales y lo aprende; borrar quita sus compras de la actividad y deja productos y cantidades |
 | GET /api/despensa/actividad | PantryActivityQueries.Activity | PAN-03. Compras de los tickets (por IPantryPurchaseHistory, que implementa `src/CuentasClaras.Infrastructure/Tickets/MySqlTicketPurchaseHistory.cs`) y revisiones de los últimos 400 días; `hoy` del navegador o, si falta o no vale, la del servidor |
-| Rutas financieras pendientes y desconocidas | CheckSession | Sin sesión 401; con sesión 404 mientras no se implemente la ruta |
+| Rutas desconocidas | CheckSession | Como requireAdmin en Express: sin sesión 401; con sesión 404 |
 
-Las rutas de tickets se reservan como públicas pero responden 404 hasta sus entregas. La lista actual sigue en [API](../docs/api.md).
+`tests/CuentasClaras.Tests/HttpContractTests.cs` comprueba que .NET atiende exactamente los 39 pares de Express (más las dos consultas de resumen) y que cada uno tiene un paso 2xx en los contratos.
 
 ## Puertos
 
@@ -88,11 +90,11 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 `tests/CuentasClaras.Tests/PantryPurchaseHttpTests.cs` (MySql): + y − (diez a la vez desde dos conexiones), comprar, deshacer (y un deshacer a la vez que un +), y lo que deja un ticket (IPantryCatalog.ApplyTicketPurchase).
 `tests/CuentasClaras.Tests/PantryReviewHttpTests.cs` (MySql): revisiones, presupuesto y repaso, y la actividad con tickets sembrados por SQL (ventana de 400 días, orden, líneas que no cuentan y el `hoy` que no vale).
 `tests/CuentasClaras.Tests/TicketReadHttpTests.cs` (MySql): la lectura con un lector falso (el OCR guardado del ticket de ejemplo), el primer paso de `../fixtures/migration/http-tickets.json` exacto, la validación y los límites de imágenes y franjas, y los duplicados por origen, por contenido y posibles. `tests/CuentasClaras.Tests/TicketReadCorpusTests.cs`: el corpus `../fixtures/migration/rules-ticket-read.json` (base64 de Node, cabeceras PNG/JPEG y el cuerpo de la lectura). `OcrWorkerTests` (categoría Ocr, en el mismo archivo que las HTTP): el worker real con las dos imágenes de `../fixtures/tickets/`; necesita Node y node_modules.
-`tests/CuentasClaras.Tests/TicketSaveHttpTests.cs` (MySql): guardar como `../server/modules/tickets/tickets.test.ts` (productos nuevos, lo aprendido, precio y cantidad, decisiones, líneas dudosas, huellas golden) y `../server/modules/tickets/ticketAtomicity.test.ts` (un fallo real de MySQL en la segunda línea no deja nada, dos guardados iguales a la vez dan 201 y 409, también sin productos que bloquear, y un ticket y un + a la vez no se pisan).
+`tests/CuentasClaras.Tests/TicketSaveHttpTests.cs` (MySql): guardar como `../server/modules/tickets/tickets.test.ts` (productos nuevos, lo aprendido, precio y cantidad, decisiones, líneas dudosas, huellas golden) y `../server/modules/tickets/ticketAtomicity.test.ts` (un fallo real de MySQL en la segunda línea no deja nada, dos guardados iguales a la vez dan 201 y 409, también sin productos que bloquear, y un ticket y un + a la vez no se pisan), y cambiar una línea y borrar tickets (TIC-04).
 `tests/CuentasClaras.Tests/ImportHttpTests.cs` (MySql): la importación del navegador, y que restaurar e importar dejan intactas (CHECKSUM TABLE) las tablas de la despensa y los tickets.
 `tests/CuentasClaras.Tests/SummaryHttpTests.cs` (MySql): las consultas de resumen responden exactamente lo que calculó TypeScript (los casos «api-*» del corpus de finanzas), restaurando sus datos.
-`tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario; cada escenario se activa cuando están todas sus rutas.
-`../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos. La app completa contra .NET (los `../e2e/*.spec.ts` marcados @dotnet): `../e2e/AGENTS.md`.
+`tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario (los seis activos desde TIC-04), y el inventario de rutas.
+`../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos. La app completa contra .NET (todos los `../e2e/*.spec.ts`): `../e2e/AGENTS.md`.
 
 Los comandos y el alcance exacto están en [pruebas](../docs/pruebas.md). Los resultados de cada tarea van en [STATUS](../docs/migration/STATUS.md).
 

@@ -43,7 +43,7 @@ Los e2e usan estos nombres; no los cambies sin cambiar el test:
 El foco va al título al cambiar de sección, y las ventanas son `<dialog>` nativos.
 
 ## Pruebas
-`components/itemEdit.test.ts`: la versión que se envía al editar, qué error es un conflicto y lo que queda tras «Volver a cargar el producto». Las reglas están en `shared/pantry/` (con sus tests) y la API en `server/modules/pantry/`. En el navegador: `npx playwright test e2e/despensa.spec.ts e2e/tickets.spec.ts --project=escritorio`; contra .NET, los marcados con @dotnet (`e2e/AGENTS.md`).
+`components/itemEdit.test.ts`: la versión que se envía al editar, qué error es un conflicto y lo que queda tras «Volver a cargar el producto». Las reglas están en `shared/pantry/` (con sus tests) y la API en `server/modules/pantry/`. En el navegador: `npx playwright test e2e/despensa.spec.ts e2e/tickets.spec.ts --project=escritorio`; contra .NET, las mismas con `npm run test:e2e:dotnet` (`e2e/AGENTS.md`).
 
 ## Trampas
 - La página es la misma para invitado y administrador: no puede usar nada de la feature finance.

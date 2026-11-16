@@ -11,7 +11,7 @@ import { DOTNET_E2E_CODE } from './e2e/dotnet/settings.ts'
  * - La app completa (proyectos app-*): el host .NET con MySQL (3203), sobre su propia base de ensayo
  *   (cuentas_test_e2e_dotnet, que se crea antes de arrancar, se vacÃ­a antes de cada prueba con SQL directo y se borra al
  *   terminar), y la web real construida con CUENTAS_BACKEND=dotnet en dist-dotnet y servida en 4176. Ejecuta los mismos
- *   e2e/*.spec.ts que Express (los marcados @dotnet, a medida que cada ID se migra) y los de e2e/dotnet/app/.
+ *   e2e/*.spec.ts que Express (todos desde TIC-04) y los de e2e/dotnet/app/.
  *
  * Nunca se reutiliza un servidor abierto ni se toca la base cuentas_claras. El servidor, el usuario y la contraseÃ±a de
  * MySQL son los de CUENTAS_DB_* (del entorno o de .env, como Vitest); el host .NET no lee .env, asÃ­ que se le pasan aquÃ­.
@@ -38,9 +38,9 @@ export default defineConfig({
   projects: [
     { name: 'acceso-escritorio', testDir: './e2e/dotnet', testMatch: '**/auth.spec.ts', use: { ...devices['Desktop Chrome'], baseURL: `http://127.0.0.1:${ACCESS.web}/` } },
     { name: 'acceso-movil', testDir: './e2e/dotnet', testMatch: '**/auth.spec.ts', use: { ...devices['Pixel 7'], baseURL: `http://127.0.0.1:${ACCESS.web}/` } },
-    // Las de Express que ya tienen todas sus rutas en .NET llevan la etiqueta @dotnet.
-    { name: 'app-escritorio', testDir: './e2e', testIgnore: '**/dotnet/auth.spec.ts', grep: /@dotnet/, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${APP.web}/` } },
-    { name: 'app-movil', testDir: './e2e', testIgnore: '**/dotnet/auth.spec.ts', grep: /@dotnet/, use: { ...devices['Pixel 7'], baseURL: `http://localhost:${APP.web}/` } },
+    // Todas las de Express: desde TIC-04, .NET tiene todas sus rutas.
+    { name: 'app-escritorio', testDir: './e2e', testIgnore: '**/dotnet/auth.spec.ts', use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${APP.web}/` } },
+    { name: 'app-movil', testDir: './e2e', testIgnore: '**/dotnet/auth.spec.ts', use: { ...devices['Pixel 7'], baseURL: `http://localhost:${APP.web}/` } },
   ],
   webServer: [
     {

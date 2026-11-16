@@ -121,6 +121,23 @@ public sealed class MySqlTicketStore(MySqlDatabase database) : ITicketStore
             summary.LinesCount, summary.ProductsCount, summary.CreatedAt, lines, adjustments, issues);
     }
 
+    public async Task<IReadOnlyList<TicketSummaryView>> ListSummaries(int limit) => await database.Rows(
+        $"{Summary} GROUP BY t.id ORDER BY t.purchase_date DESC, t.purchase_time DESC, t.created_at DESC, t.id LIMIT ?", [limit], ToSummary);
+
+    public Task<TicketSummaryView?> GetSummary(string id) => FirstSummary("t.id = ?", [id]);
+
+    public async Task<StoredLineRef?> GetLine(string ticketId, string lineId) =>
+        (await database.Rows("SELECT id, name_key FROM pantry_ticket_lines WHERE ticket_id = ? AND id = ?", [ticketId, lineId],
+            row => new StoredLineRef(MySqlRead.Text(row, "id"), MySqlRead.Text(row, "name_key")))).FirstOrDefault();
+
+    public async Task<IReadOnlyList<StoredLineRef>> LinesOf(string ticketId) => await database.Rows(
+        "SELECT id, name_key FROM pantry_ticket_lines WHERE ticket_id = ? ORDER BY position", [ticketId],
+        row => new StoredLineRef(MySqlRead.Text(row, "id"), MySqlRead.Text(row, "name_key")));
+
+    public Task SetLineItem(string lineId, string? itemId) => database.Run("UPDATE pantry_ticket_lines SET item_id = ? WHERE id = ?", [itemId, lineId]);
+
+    public Task DeleteTicket(string id) => database.Run("DELETE FROM pantry_tickets WHERE id = ?", [id]);
+
     // `ignored` = 1 cuando el nombre se ha marcado como «no seguir» (sin producto).
     public Task UpsertAlias(string aliasStore, string nameKey, string? itemId, string now) =>
         database.Run(UpsertAliasSql, [aliasStore, nameKey, itemId, itemId is null ? 1 : 0, now]);
