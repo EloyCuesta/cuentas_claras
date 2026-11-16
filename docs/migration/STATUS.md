@@ -14,7 +14,7 @@
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | En la rama dotnet-modulos (sin fusionar ni subir): TIC-01 y DATA-01 verificados en MySQL 8.4.13, y FIN-01…05, PAN-01…03 y TIC-02…04 verificados en .NET, con las 39 rutas de Express y la app React entera contra .NET en los E2E. Ensayo técnico del corte hecho con datos sintéticos. Quedan DATA-02 y CUT-01, de la persona (registros «Ensayo técnico del corte» y «Verificación final») |
+| Resultado de esta entrega | En main desde el 16 de noviembre (fusión en avance rápido de la rama dotnet-modulos, que se ha borrado): TIC-01 y DATA-01 verificados en MySQL 8.4.13, y FIN-01…05, PAN-01…03 y TIC-02…04 verificados en .NET, con las 39 rutas de Express y la app React entera contra .NET en los E2E. Ensayo técnico del corte hecho con datos sintéticos. Quedan DATA-02 y CUT-01, de la persona (registros «Ensayo técnico del corte» y «Verificación final») |
 | Pruebas de aplicación de esta entrega | El 16 de noviembre, en Windows con MySQL 8.4.13 aislado en el 3307 y el usuario limitado cuentas_pruebas: .NET 2230/2230 (MySql 109/109, con el OCR real), `npm run check` (Vitest 1530/1530 en 52 archivos), `npm run test:e2e:dotnet` 64/64 y `npm run test:e2e` 58/58, con Chrome 157.0.8103.51 instalado |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
@@ -595,6 +595,7 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run test:e2e`: 58/58.
   - `git diff --check`: sin errores.
 - La primera pasada paró en `npm run check`: STATUS citaba e2e/dotnet/pending.ts (retirado en TIC-04) entre comillas invertidas; corregido, se repitió desde `npm run check` hasta el final.
+- Después, a petición de la persona, dotnet-modulos se fusionó en main en avance rápido (`482f600`, sin commit de fusión) y se borraron las ramas locales ya contenidas en main (dotnet-modulos y tic-01-reglas). En el remoto solo existe main.
 - Pendiente para la persona: DATA-02 (importar su copia real y revisar el informe), CUT-01 (el cambio de la instalación diaria, con los pasos de DATA.md), repetir las suites en su MySQL 8.0.36 con su usuario de pruebas, e instalar el Chromium de Playwright cuando la descarga funcione.
 
 ### Plantilla para la siguiente tarea
