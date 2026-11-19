@@ -1,6 +1,6 @@
 # Estado y tareas de la migración
 
-Última actualización: 8 de noviembre de 2026. Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
+Última actualización: 19 de noviembre de 2026 (reglas de la lectura de tickets de Lidl Plus, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
 
 ## Estado comprobado
 
@@ -597,6 +597,32 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 - La primera pasada paró en `npm run check`: STATUS citaba e2e/dotnet/pending.ts (retirado en TIC-04) entre comillas invertidas; corregido, se repitió desde `npm run check` hasta el final.
 - Después, a petición de la persona, dotnet-modulos se fusionó en main en avance rápido (`482f600`, sin commit de fusión) y se borraron las ramas locales ya contenidas en main (dotnet-modulos y tic-01-reglas). En el remoto solo existe main.
 - Pendiente para la persona: DATA-02 (importar su copia real y revisar el informe), CUT-01 (el cambio de la instalación diaria, con los pasos de DATA.md), repetir las suites en su MySQL 8.0.36 con su usuario de pruebas, e instalar el Chromium de Playwright cuando la descarga funcione.
+
+### Tickets de Lidl Plus: reglas portadas de la lectura, 19 de noviembre de 2026 (no es un ID de la migración)
+
+- Base: main en `fba6550`; rama tickets-lidl-plus, sin fusionar. Es una mejora de la lectura de tickets que pidió la persona: Express sigue siendo el backend de uso diario y .NET tiene que dar lo mismo. La razón y las medidas están en `docs/decisiones.md`, «De la lectura de tickets de Lidl Plus».
+- Alcance portado a C#: cambian reglas de `shared/tickets/ticketParse.ts` y se portan a `backend/src/CuentasClaras.Domain/Tickets/TicketParser.cs`.
+  - «2,75X» deja de ser un importe, y una multiplicación ilegible marca la línea.
+  - Un importe sin coma nunca es fiable, y se descarta si sus cifras están en el nombre.
+  - Una línea de peso ilegible se une al producto de encima, marcada.
+  - Los productos sin «EUR» no se pierden tras la cabecera de Lidl.
+  - La PROMO sangrada pasa a ser un descuento sugerido.
+  - La unión de capturas por texto es tolerante y avisa.
+  - Hay `nonProducts` y el concepto de un ajuste va sin importe.
+  - La votación usa la nueva `OcrLine.rereads`.
+
+  Lo que se programa a mano por puntos de código (\p{L} con la bandera u): la cabecera de Lidl con el código postal y las mayúsculas de un producto.
+- Tipos: `OcrLine.Rereads` (TicketTypes.cs, NodeTicketReader.ReadLine y el corpus) y `ParsedTicket.NonProducts` (ParsedTicket.cs; ParsedTicketView no lo escribe si es null, como undefined en Express). El paso «PAN ENSAYO» de `fixtures/migration/http-tickets.json` no cambia.
+- Corpus: de 517 a 532 casos.
+  - 15 nuevos (`lidl-plus-*`), con las entradas de los tests nuevos de `shared/tickets/ticketSafety.test.ts`.
+  - Cambian 16, revisados uno a uno: 13 solo por el concepto del ajuste sin importe; seguridad-solape-ambiguo-ticket gana el aviso de solape; y trampa-punto-fin-de-linea y trampa-kelvin, cuyas líneas de peso ilegibles dejan de ser productos y marcan el producto de encima.
+  - Generado con Node 24.13 (bonito-cada-caracter no cambia). `tests/migrationTicketRules.test.ts` y TicketRulesCorpusTests esperan 532.
+- Comandos, en Windows con el MySQL 8.4.13 de ensayo:
+  - `npm run check`: Vitest 1586/1586 en 57 archivos.
+  - .NET: 2260/2260, con el corpus 1086/1086 en es-ES y en la invariante.
+
+  Un host .NET arrancado aparte con `dotnet run` bloqueaba `backend/src/CuentasClaras.Api/bin`. No se tocó: se compiló y probó con `--artifacts-path` en una carpeta fuera de git.
+- Sin ejecutar todavía en esta entrada: `npm run test:e2e:dotnet` (al terminar la interfaz).
 
 ### Plantilla para la siguiente tarea
 

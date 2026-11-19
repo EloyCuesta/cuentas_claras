@@ -34,7 +34,16 @@ Las reglas de `shared/tickets/` (y las de `server/modules/tickets/domain/`) tien
 ## Trampas
 
 - Hay dos ValidationResult: el genérico de `shared/common/validation.ts`, con un mensaje (lo que llega a la API), y el de los formularios de finanzas, en `shared/finance/validation.ts`, con errores por campo.
-- `shared/tickets/ticketParse.ts` está afinado para Lidl. El total del ticket nunca decide un importe: lo que no se puede asegurar se marca.
+- `shared/tickets/ticketParse.ts` está afinado para Lidl. El total del ticket nunca decide un importe: lo que no se puede asegurar se marca. En concreto:
+  - Un importe sin dudas necesita al menos dos lecturas iguales (texto, banda y `rereads`) y ninguna distinta, ni deformada ni sin coma.
+  - «2,75X» es un precio unitario, no un importe. Una multiplicación que no se lee («79X 2», «2,3% 2») marca la línea en vez de darla por 1 unidad.
+  - Un importe sin coma nunca es fiable, y se descarta si sus cifras están en el nombre («SERVILLETAS 100U»).
+  - Una línea de peso ilegible marca el producto de encima, sin crear otro.
+  - Pasada la cabecera de Lidl, una línea en mayúsculas es un producto aunque no tenga importe.
+  - La PROMO sangrada bajo un producto se le propone como descuento (por confirmar). Sin sangrar, es un ajuste.
+  - Lo que no parece un producto va a `nonProducts`.
+  - Las capturas sueltas se unen con tolerancia, y si no se solapan se avisa.
+  - Los casos están en `shared/tickets/ticketSafety.test.ts` y en el corpus (`lidl-plus-*`).
 - La huella de un ticket guardado no está aquí, sino en `server/modules/tickets/domain/ticketIdentity.ts`, y no debe cambiar.
 
 ## Si cambias algo aquí

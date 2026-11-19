@@ -356,6 +356,49 @@ for (const [id, description, pages] of safety) add(`seguridad-${id}`, `parseTick
 add('seguridad-solape-ambiguo', 'mergePages (ticketSafety): no elimina dos artículos repetidos', 'mergePages', { pages: [['EUR', 'LECHE 1,00 A', 'LECHE 1,00 A'], ['LECHE 1,00 A', 'LECHE 1,00 A', 'TOTAL 4,00']].map(p => linesFromText(p.join('\n'))) })
 add('seguridad-solape-ambiguo-ticket', 'parseTicket: el solape ambiguo se avisa', 'parseTicket', { pages: [['LIDL', 'EUR', 'LECHE 1,00 A', 'LECHE 1,00 A'], ['LECHE 1,00 A', 'LECHE 1,00 A', 'TOTAL 4,00']].map(p => linesFromText(p.join('\n'))) })
 
+// ticketSafety.test.ts: los errores silenciosos medidos con tickets de Lidl Plus (tickets-lidl-plus, fase 3).
+const lidlPlus = (...rows: (string | OcrLine)[]): OcrLine[][] => [[...linesFromText('LIDL SUPERMERCADOS S.A.U.\nEUR'),
+  ...rows.map(row => (typeof row === 'string' ? { text: row, reread: null } : row)), ...linesFromText('TOTAL 9,99\nFECHA: 28/10/26')]]
+const boxAt = (x0: number, y0: number, x1: number) => ({ imageIndex: 0, segmentIndex: 0, width: 900, height: 2000, box: { x0, y0, x1, y1: y0 + 26 } })
+const lidlPlusCases: [string, string, OcrLine[][]][] = [
+  ['x-pegada', '4a: «2,75X» es un precio unitario sin cantidad, no un importe', lidlPlus({ text: 'LASAÑA 5 QUESOS      2,75X', reread: '2,75X' })],
+  ['sin-coma-nombre', '4b: «100» de la relectura sale de «SERVILLETAS 100U»', lidlPlus({ text: 'SERVILLETAS 100U', reread: '100' })],
+  ['sin-coma-nombre-2', '4b: «2506» de la relectura sale de «MANTEQUILLA 250G»', lidlPlus({ text: 'MANTEQUILLA 250G', reread: '2506' })],
+  ['sin-coma', '4b: un importe sin coma nunca es fiable', lidlPlus({ text: 'DESODORANTE SPRAY                   2525 €', reread: '2525 C' })],
+  ['multiplicacion-ilegible', '4c: «O, 79X   2» no es una unidad', lidlPlus({ text: 'LENTEJAS COCIDAS     O, 79X   2     1,58 A', reread: '79X 2 1,58 A' })],
+  ['multiplicacion-ilegible-2', '4c: «1,1X 4» con relectura «1,155X 4»', lidlPlus({ text: 'GEL DUCHA 750ML     1,1X 4    4,60 C', reread: '750 1,155X 4 4,60 C' })],
+  ['multiplicacion-ilegible-3', '4c: «2,4xX 2»', lidlPlus('PIZZA BARBACOA        2,4xX 2     4,90 B')],
+  ['peso-ilegible', '4d: una línea de peso ilegible marca el producto de encima', lidlPlus('MANZANA GOLDEN 2,21 A', '34 kg     JO ER /La')],
+  ['votacion', 'tres lecturas: dos iguales y ninguna distinta, o una distinta o deformada', [[...linesFromText('LIDL\nEUR'),
+    { text: 'PAN BARRA RÚSTICA', reread: '0,65 A', rereads: ['0,65 A'] },
+    { text: 'ARROZ REDONDO 1KG                   1,22 A', reread: '1,22 A', rereads: ['1,29 A'] },
+    { text: 'ZANAHORIA BOLSA                     0,739 A', reread: '0,73 A', rereads: ['0,73 A'] },
+    { text: 'QUESO FUNDIDO BURGER                1,25 A', reread: '1,25 A', rereads: ['1,25 A'], confidence: 60 },
+    ...linesFromText('TOTAL 3,88')]]],
+  ['promo-sangrada', 'PROMO sangrada bajo un producto: descuento sugerido y el desglose de IVA, concluyente', [[...linesFromText('LIDL\nEUR'),
+    { text: 'COOKIES PEPITAS CHOC                1,29 B', reread: '1,29 B', source: boxAt(34, 100, 800) },
+    { text: 'PROMO LIDL PLUS                  -0,14', reread: '-0,14', source: boxAt(70, 148, 742) },
+    { text: 'ARROZ LARGO                         1,09 A', reread: '1,09 A', source: boxAt(34, 196, 800) },
+    ...linesFromText('TOTAL 2,24\nA 4% 1,05 0,04 1,09\nB 10% 1,05 0,10 1,15')]]],
+]
+for (const [id, description, pages] of lidlPlusCases) add(`lidl-plus-${id}`, `parseTicket (ticketSafety): ${description}`, 'parseTicket', { pages })
+add('lidl-plus-sin-eur', 'parseTicket: sin «EUR» ni importes, los productos tras la cabecera de Lidl entran marcados', 'parseTicket', {
+  pages: [linesFromText(['Copia', 'LIDL SUPERMERCADOS S.A.U.', 'Avda. del Ensayo s/n', '39300Torrelavega', 'PAN BARRA RÚSTICA', 'HUEVOS M DOCENA', 'LECHE ENTERA 0,95 A', 'TOTAL 4,15', 'FECHA: 03/11/26'].join('\n'))],
+})
+add('lidl-plus-promo-pegada', 'parseTicket: PROMO sangrada con espacios en un texto pegado, y sin sangrar', 'parseTicket', {
+  pages: [linesFromText('LIDL\nEUR\nCOOKIES PEPITAS CHOC 1,29 B\n  PROMO LIDL PLUS -0,14\nARROZ 1,09 A\nPROMO LIDL PLUS -0,10\nTOTAL 2,14')],
+})
+add('lidl-plus-no-productos', 'parseTicket: líneas sin importe que no parecen productos van aparte', 'parseTicket', {
+  pages: [linesFromText('LIDL\nEUR\nPAN 1,00 A\nTicket de compra\n18:51  5G  87 %\nLECHE 0,90 A\nTOTAL 1,90')],
+})
+const firstCapture = ['LIDL', 'EUR', 'PAN 1,00 A', 'LECHE ENTERA 0,95 A', 'HUEVOS M DOCENA 2,55 A', 'QUESO TIERNO 3,99 A', 'Inicio Ofertas Lidl Plus Tickets']
+add('lidl-plus-capturas', 'parseTicket: capturas sueltas con la app en los bordes y un solape con una cifra confundida', 'parseTicket', {
+  pages: [firstCapture, ['18:52 5G 87 %', 'Ticket de compra', 'HUEVOS M D0CENA 2,5S A', 'QUESO TIERNO 3,99 A', 'ARROZ 1,29 A', 'TOTAL 9,78']].map(p => linesFromText(p.join('\n'))),
+})
+add('lidl-plus-capturas-sin-solape', 'parseTicket: dos capturas que no se solapan se avisan', 'parseTicket', {
+  pages: [firstCapture.slice(0, 4), ['QUESO TIERNO 3,99 A', 'TOTAL 6,93']].map(p => linesFromText(p.join('\n'))),
+})
+
 // ticketFixtures.test.ts
 for (const value of ['3,95x 2', '3,95 x 2', '3,95 × 2']) {
   add(`multiplicacion-${value.replace(/\W+/g, '-')}`, `parseTicket (ticketFixtures): multiplicación ${value}`, 'parseTicket', { pages: [linesFromText(`LIDL\nEUR\nBURGER ${value} 7,90 B\nTOTAL 7,90`)] })

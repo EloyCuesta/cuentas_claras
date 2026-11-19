@@ -26,7 +26,7 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Un código para toda la casa, no usuarios.** Basta para que nadie vea las cuentas por la red de casa, sin altas ni contraseñas. Las sesiones viven en memoria (reiniciar el servidor obliga a escribir el código), y la cookie es HttpOnly y sin `Secure`, porque la app va por HTTP en casa. Por eso no debe exponerse a Internet.
 
-**Tickets con OCR local.** Los tickets se leen con tesseract.js y el modelo de español de `@tesseract.js-data/spa`, los dos en `node_modules`: no hace falta Internet ni una cuenta en ningún servicio, y las compras no salen de casa. Cada captura se lee dos veces: una para el texto y otra, solo con cifras, para la columna de importes. El total del ticket sirve de comprobación, nunca para decidir un importe: lo que no se puede asegurar se marca para revisar en lugar de inventarlo. El lector se abre la primera vez que se usa y se cierra tras 5 minutos sin uso. Las imágenes no se guardan.
+**Tickets con OCR local.** Los tickets se leen con tesseract.js y el modelo de español de `@tesseract.js-data/spa`, los dos en `node_modules`: no hace falta Internet ni una cuenta en ningún servicio, y las compras no salen de casa. Cada importe se lee varias veces: el texto, la banda de importes solo con cifras y, con imágenes de pantalla, esa banda a otra escala (ver «De la lectura de tickets de Lidl Plus»). El total del ticket sirve de comprobación, nunca para decidir un importe: lo que no se puede asegurar se marca para revisar en lugar de inventarlo. El lector se abre la primera vez que se usa y se cierra tras 5 minutos sin uso. Las imágenes no se guardan.
 
 **Por compras, no por inventario.** Contar lo que hay en casa es pesado y se desactualiza; con los tickets la app ya sabe qué se compró y cuándo. Por eso los productos nuevos se siguen por compras, y contar queda como opción.
 
@@ -164,6 +164,33 @@ Cuesta unos 3 s en todo el banco. Con la banda bien calculada llega a 685 de 696
 **PNG para las imágenes de pantalla.** Una captura o la imagen de la app tienen el fondo liso y van en PNG, sin las manchas del JPEG alrededor de las cifras. Las fotos van en JPEG, igual que una franja que no quepa en los límites. El cuerpo de la lectura (`franjas`) y sus límites no cambian.
 
 Lo que cuesta: la huella de origen sale de los bytes de las franjas, así que un ticket guardado con la preparación de antes y vuelto a escanear sale como **posible duplicado** (misma tienda, fecha, hora y total), no como repetido. Lo comprueba `server/modules/tickets/tickets.test.ts`.
+
+**Votar el importe: sin dudas solo si las lecturas coinciden.** Con la tercera lectura, el analizador da un importe por bueno sin marcarlo solo si al menos dos lecturas dan exactamente esa cifra y ninguna dice otra cosa. Cuentan como desacuerdo una lectura deformada («0,739») y una cifra sin coma.
+
+Cuando coinciden así, se quitan las marcas que solo eran sospechas:
+- «Lectura de baja confianza»;
+- «solo se lee en la relectura»;
+- la letra del IVA leída como cifra;
+- las letras leídas como cifras.
+
+Con solo dos lecturas (fotos en JPEG) todo sigue como antes. En el banco sintético, estas reglas no dejan ninguna cifra mal sin marcar (antes, 22). Se ha medido también releer cada línea sobre la banda ampliada, en lugar de a su escala: dejaba todas las líneas con la misma lectura y se descartó.
+
+**La PROMO sangrada es del producto de encima, por confirmar.** La decisión anterior era no asignar nunca una promoción por cercanía. Pero en el ticket de Lidl Plus, «PROMO LIDL PLUS -0,14» va en azul y sangrada justo debajo de su producto, como un «Desc.», y el desglose de IVA lo confirma: su grupo suma los artículos menos la promoción. Como ajuste general, además, impedía comprobar el desglose de IVA.
+
+Ahora una PROMO sangrada justo debajo de un producto se le propone como descuento:
+- sangrada quiere decir más a la derecha en la imagen o, en un texto pegado, con más espacios delante;
+- queda marcada para confirmarla;
+- el desglose de IVA, ya concluyente, comprueba el grupo.
+
+Sin indicios de sangrado (el texto de Tesseract sin posiciones), sigue siendo un ajuste general. Los cupones también siguen siéndolo.
+
+**Ningún producto desaparece sin decirlo.** Si Tesseract pierde la columna de importes o la línea «EUR», el analizador se quedaba en la cabecera y se saltaba los productos. Ahora, pasada la cabecera de Lidl (empresa, código postal o NIF), una línea en mayúsculas es un producto aunque no tenga importe, y entra marcado.
+
+Lo contrario también se cuida:
+- una línea sin importe que no parece un producto (texto de la app, restos) va aparte, a `nonProducts`, y la revisión la enseña plegada por si acaso;
+- una línea que empieza como una de peso («34 kg …», «0,544 …») pero no se lee marca el producto de encima, en vez de crear un producto «kg».
+
+**Unir capturas por texto, con tolerancia y avisando.** Cuando las capturas no se pudieron unir por la imagen, la unión por texto quita lo de la app de los bordes (barra de estado, «Ticket de compra», navegación). Después busca el solape aceptando una línea con una cifra confundida (mismo importe y nombre parecido) y una línea cortada al principio o al final. Si no lo encuentra, avisa («No se ha encontrado dónde se solapan las capturas 1 y 2…») en lugar de repetir líneas sin decir nada.
 
 ## Pendiente
 

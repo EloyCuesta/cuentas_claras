@@ -161,7 +161,8 @@ internal static partial class TicketRulesCorpus
     private static OcrLine ReadOcrLine(JsonElement line) => new(
         Text(line, "text"), TextOrNull(line, "reread"), DoubleOrNull(line, "confidence"),
         Has(line, "words") ? [.. Items(line, "words").Select(word => new OcrWord(Text(word, "text"), Double(word, "confidence"), ReadBox(Get(word, "box"))))] : null,
-        ReadSource(Get(line, "source")));
+        ReadSource(Get(line, "source")),
+        Has(line, "rereads") ? [.. Items(line, "rereads").Select(Text)] : null);
 
     private static IReadOnlyList<IReadOnlyList<OcrLine>> ReadPages(JsonElement input) =>
         [.. Items(input, "pages").Select(page => (IReadOnlyList<OcrLine>)[.. page.EnumerateArray().Select(ReadOcrLine)])];
@@ -212,7 +213,8 @@ internal static partial class TicketRulesCorpus
     private static JsonObject Json(OcrLine line) => Object(
         ("text", line.Text), ("reread", line.Reread), ("confidence", OrOmit(line.Confidence)),
         ("words", line.Words is null ? Omit : Array(line.Words.Select(word => Object(("text", word.Text), ("confidence", word.Confidence), ("box", Json(word.Box)))))),
-        ("source", line.Source is null ? Omit : Json(line.Source)));
+        ("source", line.Source is null ? Omit : Json(line.Source)),
+        ("rereads", line.Rereads is null ? Omit : Strings(line.Rereads)));
 
     private static JsonObject? Json(TicketDiscrepancy? discrepancy) => discrepancy is null ? null : Object(
         ("kind", discrepancy.Kind), ("verdict", discrepancy.Verdict), ("recognizedCents", discrepancy.RecognizedCents),
@@ -251,7 +253,9 @@ internal static partial class TicketRulesCorpus
         ("store", ticket.Store), ("storeName", ticket.StoreName), ("address", ticket.Address), ("date", ticket.Date), ("time", ticket.Time),
         ("totalCents", ticket.TotalCents), ("lines", Array(ticket.Lines.Select(Json))), ("check", Json(ticket.Check)),
         ("adjustments", Array(ticket.Adjustments.Select(Json))), ("issues", Strings(ticket.Issues)),
-        ("taxGroups", Array(ticket.TaxGroups.Select(Json))), ("paymentMethod", ticket.PaymentMethod));
+        ("taxGroups", Array(ticket.TaxGroups.Select(Json))), ("paymentMethod", ticket.PaymentMethod),
+        ("nonProducts", ticket.NonProducts is null ? Omit : Array(ticket.NonProducts.Select(line =>
+            Object(("text", line.Text), ("source", line.Source is null ? Omit : Json(line.Source)))))));
 
     private static JsonObject Json(TicketSuggestion suggestion) => suggestion switch
     {

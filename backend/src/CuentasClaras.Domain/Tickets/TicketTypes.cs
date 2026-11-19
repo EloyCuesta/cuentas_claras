@@ -14,8 +14,12 @@ public sealed record TicketSource(int ImageIndex, int SegmentIndex, TicketBox Bo
 /// <summary>Una palabra del OCR con su confianza (0 a 100).</summary>
 public sealed record OcrWord(string Text, double Confidence, TicketBox Box);
 
-/// <summary>Una línea leída de la imagen de un ticket. <see cref="Reread"/>: su parte final leída otra vez solo con cifras.</summary>
-public sealed record OcrLine(string Text, string? Reread, double? Confidence = null, IReadOnlyList<OcrWord>? Words = null, TicketSource? Source = null);
+/// <summary>
+/// Una línea leída de la imagen de un ticket. <see cref="Reread"/>: su banda de importes leída otra vez solo con cifras;
+/// <see cref="Rereads"/>: otras lecturas independientes de esa banda (a otra escala), para votar el importe.
+/// </summary>
+public sealed record OcrLine(string Text, string? Reread, double? Confidence = null, IReadOnlyList<OcrWord>? Words = null, TicketSource? Source = null,
+    IReadOnlyList<string>? Rereads = null);
 
 /// <summary>Por qué el importe leído no coincide con el calculado y qué indica cada evidencia.</summary>
 public sealed record TicketDiscrepancy(string Kind, string Verdict, long RecognizedCents, long CalculatedCents, string Explanation, IReadOnlyList<string> Reasons);

@@ -40,13 +40,18 @@ public static class TicketParser
     private static string? FirstUnit(string text) => text.Length == 0 ? null : text[..1];
 
     // Detrás del importe puede venir pegada la letra del IVA, una cifra mal leída o ambas («1,758»,
-    // «1,155A», «1,15-»). Con dos cifras pegadas («1,2398») ya no se interpreta.
-    private static readonly Regex AmountToken = JsRegex.Create(@"^(-?)(\d{1,4})[,.:;](\d{2})(\d?[A-Za-z€¢(]?|-[€¢]?)$");
+    // «1,155A», «1,15-»). Con dos cifras pegadas («1,2398») ya no se interpreta. Una x pegada no es
+    // una letra del IVA: «2,75X» es un precio unitario («2,75x 2»), no un importe.
+    private static readonly Regex AmountToken = JsRegex.Create(@"^(-?)(\d{1,4})[,.:;](\d{2})(\d?[A-WYZa-wyz€¢(]?|-[€¢]?)$");
     private static readonly Regex CleanGlue = JsRegex.Create(@"^[A-Za-z€¢(]$");
     // La relectura a veces duplica la x («3,95Xx»).
     private static readonly Regex UnitToken = JsRegex.Create(@"^(\d{1,4})[,.:;](\d{2})[xX×%*]{1,2}$");
     private static readonly Regex QtyToken = JsRegex.Create(@"^\d{1,3}$");
     private static readonly Regex LooseAmountToken = JsRegex.Create(@"^(\d{3,4})\D?$");
+    // Restos de una multiplicación que no se ha podido leer: «2,75X», «79X», «1,1X», «1,155X», «2,3%»
+    // (la x leída como %), «2,4xX» o una x suelta. «72%» o «0%» (sin coma) son parte de un nombre.
+    private static readonly Regex TimesRemnant = JsRegex.Create(@"^(\d{1,4}[,.:;]\d{1,3}[xX×%*]{1,2}|\d{1,4}[xX×]{1,2}|[xX×]{1,2})$");
+    private const string UnreadableTimes = "No se ha podido leer la cantidad o el precio unitario";
     private static readonly Regex NotDigit = JsRegex.Create(@"\D");
     private static readonly Regex DigitOrHyphen = JsRegex.Create(@"[\d-]");
     private static readonly Regex OneDigit = JsRegex.Create(@"^\d$");
@@ -284,6 +289,45 @@ public static class TicketParser
 
     private static readonly Regex Separator = JsRegex.Create(@"^[\s\-=*_.·•]*$");
     private static readonly Regex WeightLine = JsRegex.Create(@"(\d{1,3})\s?[,.]\s?(\d{3})\s*kg\b.*?[xX×*]\s*(\d{1,4})\s?[,.:;]\s?(\d{2})", ignoreCase: true);
+    /// <summary>Una línea que empieza como una de peso («34 kg …», «0,544 kg x», «0,544 …»), aunque no se pueda leer entera.</summary>
+    private static readonly Regex WeightLike = JsRegex.Create(@"^\s*(\d[\d\s.,]*\s*kg\b|\d{1,3}\s?[,.]\s?\d{3}(?![\d,.]))", ignoreCase: true);
+    private static readonly Regex LidlHeaderWords = JsRegex.Create(@"LIDL\s+SUPERMERCADOS|\bNIF\b", ignoreCase: true);
+    private static readonly Regex PostalCode = JsRegex.Create(@"^\s*\d{5}");
+
+    /// <summary>
+    /// LIDL_HEADER (/LIDL\s+SUPERMERCADOS|\bNIF\b|^\s*\d{5}\s?\p{L}/iu): lo que acaba la cabecera de Lidl, el nombre de la
+    /// empresa, el NIF o el código postal pegado (o no) al pueblo. La parte de \p{L} se programa por puntos de código.
+    /// </summary>
+    private static bool IsLidlHeader(string text)
+    {
+        if (LidlHeaderWords.IsMatch(text)) return true;
+        var postal = PostalCode.Match(text);
+        if (!postal.Success) return false;
+        var at = postal.Length;
+        if (at < text.Length && JsText.IsLetter(JsText.CodePointAt(text, at))) return true;
+        return at + 1 < text.Length && JsText.IsWhiteSpace(text[at]) && JsText.IsLetter(JsText.CodePointAt(text, at + 1));
+    }
+
+    /// <summary>
+    /// looksLikeProduct: un nombre de producto en un ticket de Lidl va en mayúsculas. Una línea sin importe que no lo
+    /// parece (texto de la app, restos) no es un producto. Al menos 3 letras y 7 de cada 10 en mayúsculas.
+    /// </summary>
+    private static bool LooksLikeProduct(string text)
+    {
+        var letters = JsText.CodePoints(text).Where(JsText.IsLetter).Select(char.ConvertFromUtf32).ToList();
+        if (letters.Count < 3) return false;
+        return (double)letters.Count(c => c == JsCase.ToUpper(c) && c != JsCase.ToLower(c)) / letters.Count >= 0.7;
+    }
+
+    /// <summary>Lo que pone la app alrededor del ticket en una captura: la barra de estado, la cabecera y la barra de navegación.</summary>
+    private static readonly Regex AppChrome = JsRegex.Create(
+        @"^\s*\d{1,2}[:.]\d{2}\b(?!\s*(?:EUR|€)).{0,24}$|^\s*(?:‹|<)?\s*Ticket de compra\b|^\s*(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl)(?:\s+(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl))+\s*$",
+        ignoreCase: true);
+    private static readonly Regex TrailingAdjustmentAmount = JsRegex.Create(@"\s+-?\d{1,4}\s?[,.:;]\s?\d{2}\S*\s*$");
+    private static readonly Regex Whitespace = JsRegex.Create(@"\s");
+
+    /// <summary>adjustmentLabel: el concepto de un ajuste, sin su importe («PROMO LIDL PLUS               -0,14» → «PROMO LIDL PLUS»).</summary>
+    private static string AdjustmentLabel(string text) => JsText.Slice(JsText.Trim(Spaces.Replace(TrailingAdjustmentAmount.Replace(text, "", 1), " ")), 0, 120);
     private static readonly Regex DiscountLine = JsRegex.Create(@"^\s*(desc\b|desc\.|desc,|dto\b|descuento|promo\b|cup[oó]n|ahorro)", ignoreCase: true);
     private static readonly Regex TotalLine = JsRegex.Create(@"^\s*TOTAL\b(?!\s*(oferta|desc|ahorro))", ignoreCase: true);
     private static readonly Regex HeaderWords = JsRegex.Create(@"^\s*(descripci[oó]n|cantidad|p\.?\s*unit|precio|importe|eur)\b", ignoreCase: true);
@@ -304,21 +348,44 @@ public static class TicketParser
     /// (al menos dos seguidas e iguales, para no borrar productos repetidos de verdad). Las franjas de
     /// una misma imagen se emparejan por su posición, nunca solo por el nombre.
     /// </summary>
-    public static IReadOnlyList<OcrLine> MergePages(IReadOnlyList<IReadOnlyList<OcrLine>> pages)
+    public static IReadOnlyList<OcrLine> MergePages(IReadOnlyList<IReadOnlyList<OcrLine>> pages) => MergePagesReport(pages).Lines;
+
+    /// <summary>withoutAppChrome: sin lo de la app en los bordes de una captura (barra de estado, cabecera y barra de navegación).</summary>
+    private static IReadOnlyList<OcrLine> WithoutAppChrome(IReadOnlyList<OcrLine> page)
+    {
+        var start = 0;
+        var end = page.Count;
+        while (start < Math.Min(3, end) && AppChrome.IsMatch(page[start].Text)) start++;
+        while (end > start && page.Count - end < 3 && AppChrome.IsMatch(page[end - 1].Text)) end--;
+        return start == 0 && end == page.Count ? page : [.. page.Skip(start).Take(end - start)];
+    }
+
+    /// <summary>
+    /// mergePagesReport: une las capturas y dice tras qué página (1, 2…) no se ha encontrado el solape. Con capturas sueltas
+    /// (sin la posición en la imagen) se quita lo de la app de los bordes y el solape se busca con tolerancia: dos líneas son la
+    /// misma si se leen igual o si tienen el mismo importe y casi el mismo nombre; puede sobrar una línea cortada (o dos) al
+    /// principio de la captura o al final de la anterior.
+    /// </summary>
+    private static (List<OcrLine> Lines, List<int> Unmatched) MergePagesReport(IReadOnlyList<IReadOnlyList<OcrLine>> pages)
     {
         var merged = new List<OcrLine>();
+        var unmatched = new List<int>();
         bool Same(OcrLine a, OcrLine b)
         {
             var x = ReadTail(TokensOf(CleanText(a.Text)));
             var y = ReadTail(TokensOf(CleanText(b.Text)));
-            return TicketText.NameKey(a.Text) != "" && TicketText.Similarity(a.Text, b.Text) >= 0.95 &&
-                x.Amount?.Cents == y.Amount?.Cents && x.Quantity == y.Quantity && x.UnitCents == y.UnitCents && x.Tax == y.Tax;
+            if (TicketText.NameKey(a.Text) == "") return false;
+            if (TicketText.Similarity(a.Text, b.Text) >= 0.95 &&
+                x.Amount?.Cents == y.Amount?.Cents && x.Quantity == y.Quantity && x.UnitCents == y.UnitCents && x.Tax == y.Tax) return true;
+            return x.Amount is not null && y.Amount is not null && x.Amount.Cents == y.Amount.Cents &&
+                TicketText.Similarity(string.Join(' ', x.NameTokens), string.Join(' ', y.NameTokens)) >= 0.85;
         }
-        foreach (var page in pages)
+        for (var p = 0; p < pages.Count; p++)
         {
-            if (page.Count > 0 && page[0].Source is { } first && merged.Any(line => line.Source?.ImageIndex == first.ImageIndex))
+            var original = pages[p];
+            if (original.Count > 0 && original[0].Source is { } first && merged.Any(line => line.Source?.ImageIndex == first.ImageIndex))
             {
-                foreach (var line in page)
+                foreach (var line in original)
                 {
                     var source = line.Source;
                     var duplicate = source is null ? -1 : merged.FindIndex(l => l.Source is { } other && other.ImageIndex == source.ImageIndex &&
@@ -331,20 +398,40 @@ public static class TicketParser
                 }
                 continue;
             }
-            var overlap = 0;
-            for (var k = Math.Min(Math.Min(merged.Count, page.Count), 40); k >= 2; k--)
+            var page = WithoutAppChrome(original);
+            if (merged.Count == 0)
             {
-                var all = true;
-                for (var j = 0; j < k && all; j++) all = Same(merged[merged.Count - k + j], page[j]);
-                if (all && page.Take(k).Select(l => TicketText.NameKey(l.Text)).Distinct(StringComparer.Ordinal).Count() >= 2)
+                merged.AddRange(page);
+                continue;
+            }
+            // El solape más largo; puede sobrar una línea cortada (o dos) al final de la anterior o al principio de esta.
+            (int Drop, int Skip, int Length)? found = null;
+            for (var length = Math.Min(Math.Min(merged.Count, page.Count), 40); length >= 2 && found is null; length--)
+            {
+                for (var drop = 0; drop <= 2 && found is null; drop++)
                 {
-                    overlap = k;
-                    break;
+                    for (var skip = 0; skip <= 2 && found is null; skip++)
+                    {
+                        if (merged.Count - drop - length < 0 || skip + length > page.Count) continue;
+                        var all = true;
+                        for (var j = 0; j < length && all; j++) all = Same(merged[merged.Count - drop - length + j], page[skip + j]);
+                        if (all && page.Skip(skip).Take(length).Select(l => TicketText.NameKey(l.Text)).Distinct(StringComparer.Ordinal).Count() >= 2)
+                            found = (drop, skip, length);
+                    }
                 }
             }
-            merged.AddRange(page.Skip(overlap));
+            if (found is { } at)
+            {
+                merged.RemoveRange(merged.Count - at.Drop, at.Drop);
+                merged.AddRange(page.Skip(at.Skip + at.Length));
+            }
+            else
+            {
+                unmatched.Add(p);
+                merged.AddRange(page);
+            }
         }
-        return merged;
+        return (merged, unmatched);
     }
 
     // -------------------------------------------------------------------------------------------
@@ -456,6 +543,10 @@ public static class TicketParser
         public required List<Candidate> Amount { get; init; }
         public required AmountTokenValue? TextReading { get; init; }
         public required AmountTokenValue? RereadReading { get; init; }
+        /// <summary>Las otras lecturas independientes de la banda (null si una no tiene importe).</summary>
+        public required IReadOnlyList<AmountTokenValue?> ExtraReadings { get; init; }
+        /// <summary>Las cifras sin coma que se han tomado como candidatas («2525»).</summary>
+        public required IReadOnlyList<string> Loose { get; init; }
         /// <summary>Las dos pasadas del OCR leyeron igual el precio y la cantidad (o el peso y el precio por kilo).</summary>
         public required bool InputsStable { get; set; }
         public required OcrConfidence Confidence { get; set; }
@@ -542,11 +633,17 @@ public static class TicketParser
         if (tokens.Count == 0) return null;
         var fromText = ReadTail(tokens);
         var fromReread = !string.IsNullOrEmpty(line.Reread) ? ReadTail(TokensOf(CleanText(line.Reread))) : null;
+        // Otras lecturas independientes de la banda de importes (a otra escala), para votar.
+        var fromExtra = (line.Rereads ?? []).Select(reading => ReadTail(TokensOf(CleanText(reading)))).ToList();
+        var gap = FirstGapTokenIndex(text);
+        // Unas cifras sin coma pegadas al nombre, sin el hueco que lo separa de los importes («SERVILLETAS 100U»,
+        // «MANTEQUILLA 250G»), son parte del nombre, no un importe.
+        if (fromText.LooseAmountCents is not null && (gap is null || gap > fromText.NameTokens.Count))
+            fromText = new TailReading(tokens, null, null, null, null, null, null);
 
         // El nombre no pasa del primer hueco grande: lo de después son importes (aunque estén mal leídos).
         var uncut = fromText.NameTokens;
         var nameTokens = uncut.ToList();
-        var gap = FirstGapTokenIndex(text);
         if (gap is { } cut && cut < nameTokens.Count) nameTokens = nameTokens.Take(cut).ToList();
         // Sin importe al final, se quitan los restos con cifras y signos («1-29:B»).
         if (fromText.Amount is null)
@@ -583,30 +680,52 @@ public static class TicketParser
         // normal suele fallar añadiendo una cifra pegada («2,792 A»). Un importe limpio en la lectura
         // normal manda; si no lo es, manda la relectura. La multiplicación no puntúa aquí.
         if (fromReread?.Amount is { } rereadAmount) AddCandidate(amount, rereadAmount.Cents, rereadAmount.Clean ? 2 : 1.5);
+        foreach (var extra in fromExtra)
+            if (extra.Amount is { } extraAmount) AddCandidate(amount, extraAmount.Cents, extraAmount.Clean ? 2 : 1.5);
         if (fromText.Amount is { } textAmount) AddCandidate(amount, textAmount.Cents, textAmount.Clean ? 2.5 : 0.7);
-        if (fromReread is { LooseAmountCents: { } rereadLoose }) AddCandidate(amount, rereadLoose, 0.4);
-        if (fromText.LooseAmountCents is { } textLoose) AddCandidate(amount, textLoose, 0.4);
+        // Un importe sin coma («378») es poco fiable, y nunca si sus cifras están en el nombre («SERVILLETAS 100U», relectura «100»).
+        var nameNumbers = Digits.Matches(rawName).Select(match => match.Value).ToList();
+        var looseDigits = new List<string>();
+        foreach (var reading in new[] { fromReread }.Concat(fromExtra).Append(fromText))
+        {
+            if (reading?.LooseAmountCents is not { } loose) continue;
+            var digits = JsNumber.ToString(loose);
+            if (nameNumbers.Any(number => digits.StartsWith(number, StringComparison.Ordinal) || number.StartsWith(digits, StringComparison.Ordinal))) continue;
+            AddCandidate(amount, loose, 0.4);
+            looseDigits.Add(digits);
+        }
 
-        // Cantidad y precio unitario: de las dos lecturas, la que cuadra con algún importe leído; si ninguna, la normal.
-        var options = new[] { fromText, fromReread }.Where(reading => reading is { UnitCents: not null, Quantity: not null }).Select(reading => reading!).ToArray();
+        // Cantidad y precio unitario: de las lecturas, la que cuadra con algún importe leído; si ninguna, la normal.
+        var options = new[] { fromText, fromReread }.Concat(fromExtra).Where(reading => reading is { UnitCents: not null, Quantity: not null }).Select(reading => reading!).ToArray();
         var consistent = options.FirstOrDefault(reading => amount.Any(candidate => candidate.Cents == reading.UnitCents!.Value * reading.Quantity!.Value));
         var chosen = consistent ?? options.FirstOrDefault();
         var unitCents = chosen?.UnitCents ?? leadingUnitCents;
         var quantity = chosen?.Quantity is > 0 ? chosen.Quantity.Value : (leadingQuantity ?? 1);
         var plainUnit = fromReread is not null && fromReread.UnitCents is null ? ReadPlainUnit(fromReread) : null;
-        var inputsStable = (options.Length == 2 && options[0].UnitCents == options[1].UnitCents && options[0].Quantity == options[1].Quantity) ||
+        var inputsStable = (options.Length >= 2 && options.All(reading => reading.UnitCents == options[0].UnitCents && reading.Quantity == options[0].Quantity)) ||
             (plainUnit is not null && plainUnit.Value.UnitCents == unitCents && plainUnit.Value.Quantity == quantity);
 
+        var issues = new List<string>();
+        // «2,75X», «79X 2», «2,3% 2»: hay una multiplicación, pero no se ha podido leer. No es 1 unidad.
+        if (unitCents is null)
+        {
+            var textTail = gap is { } from ? uncut.Skip(from).ToList() : uncut.Skip(Math.Max(0, uncut.Count - 2)).ToList();
+            var tails = new[] { (IReadOnlyList<string>)textTail }.Concat(new[] { fromReread }.Concat(fromExtra).Select(reading => reading?.NameTokens ?? []));
+            if (tails.Any(list => list.Any(TimesRemnant.IsMatch))) issues.Add(UnreadableTimes);
+        }
+
         var amountDoubts = new List<string>();
-        var taxCode = fromReread?.Tax ?? fromText.Tax;
+        var readings = new[] { fromText, fromReread }.Concat(fromExtra).ToList();
+        var taxCode = fromReread?.Tax ?? fromExtra.FirstOrDefault(reading => !string.IsNullOrEmpty(reading.Tax))?.Tax ?? fromText.Tax;
         // «3,73 5» en vez de «3,79B»: si la letra del IVA solo aparece como cifra, el OCR ha leído la
         // línea como si fueran cifras y el importe puede tener otra cifra confundida.
-        if (taxCode is not null && !new[] { fromText, fromReread }.Any(reading => reading?.TaxRaw is { Length: > 0 } raw && JsText.CodePoints(raw).Any(JsText.IsLetter)))
-            amountDoubts.Add($"La letra del IVA se ha leído como la cifra «{fromText.TaxRaw ?? fromReread?.TaxRaw}»: puede haber otra cifra confundida en el importe");
-        if (fromText.Amount is null && fromReread?.Amount is not null) amountDoubts.Add("El importe solo se lee en la relectura de cifras");
-        if (HasLookalikeDigits(line.Text) || (!string.IsNullOrEmpty(line.Reread) && HasLookalikeDigits(line.Reread))) amountDoubts.Add("Se han interpretado letras como cifras");
+        if (taxCode is not null && !readings.Any(reading => reading?.TaxRaw is { Length: > 0 } raw && JsText.CodePoints(raw).Any(JsText.IsLetter)))
+            amountDoubts.Add($"La letra del IVA se ha leído como la cifra «{fromText.TaxRaw ?? fromReread?.TaxRaw ?? fromExtra.FirstOrDefault(reading => !string.IsNullOrEmpty(reading.TaxRaw))?.TaxRaw}»: puede haber otra cifra confundida en el importe");
+        if (fromText.Amount is null && (fromReread?.Amount is not null || fromExtra.Any(reading => reading.Amount is not null))) amountDoubts.Add("El importe solo se lee en la relectura de cifras");
+        if (HasLookalikeDigits(line.Text) || (!string.IsNullOrEmpty(line.Reread) && HasLookalikeDigits(line.Reread)) || (line.Rereads ?? []).Any(HasLookalikeDigits))
+            amountDoubts.Add("Se han interpretado letras como cifras");
 
-        return new WorkLine
+        var work = new WorkLine
         {
             Position = position,
             RawName = rawName,
@@ -618,12 +737,18 @@ public static class TicketParser
             Amount = amount,
             TextReading = fromText.Amount,
             RereadReading = fromReread?.Amount,
+            ExtraReadings = [.. fromExtra.Select(reading => reading.Amount)],
+            Loose = looseDigits,
             InputsStable = inputsStable,
             Confidence = WordConfidence(line),
             Source = line,
             AmountDoubts = amountDoubts,
         };
+        work.Issues.AddRange(issues);
+        return work;
     }
+
+    private static readonly Regex Digits = JsRegex.Create(@"\d+");
 
     /// <summary>/[^\p{L}\d]/u: algún punto de código que no es letra ni cifra ASCII.</summary>
     private static bool HasNonLetterNonDigit(string token) => JsText.CodePoints(token).Any(codePoint => !IsLetterOrAsciiDigit(codePoint));
@@ -675,7 +800,9 @@ public static class TicketParser
         var reads = Sorted(line.Amount);
         var textToken = line.TextReading;
         var rereadToken = line.RereadReading;
-        var readings = new[] { textToken, rereadToken }.Where(token => token is not null).Select(token => AsReading(token!)).ToList();
+        var extraTokens = line.ExtraReadings.Where(token => token is not null).Select(token => token!).ToList();
+        var tokens = new[] { textToken, rereadToken }.Concat(line.ExtraReadings).Where(token => token is not null).Select(token => token!).ToList();
+        var readings = tokens.Select(AsReading).ToList();
         var chosen = reads.Count > 0 ? reads[0] : null;
         // La lectura elegida, con sus cifras en bruto (una lectura sin coma, «378», cuenta como deformada).
         var recognized = chosen is null ? null :
@@ -688,8 +815,12 @@ public static class TicketParser
         var issues = new List<string>(line.Issues);
         var options = new List<TicketAmountOption>();
         long? amount = recognized?.Cents;
-        var selectedBy = rereadToken is not null && textToken?.Cents != amount && rereadToken.Cents == amount ? "reread" : "read";
+        var selectedBy = textToken?.Cents != amount && new[] { rereadToken }.Concat(extraTokens).Any(token => token is not null && token.Cents == amount) ? "reread" : "read";
         TicketDiscrepancy? discrepancy = null;
+        // Votación: con otra lectura independiente (a otra escala), un importe es fiable si al menos dos lecturas
+        // dan exactamente esa cifra y ninguna dice otra cosa (tampoco una deformada ni una sin coma).
+        var voted = amount is not null && extraTokens.Count > 0 && line.Loose.Count == 0 && tokens.Count >= 2 &&
+            tokens.All(token => token.Clean && token.Cents == amount);
 
         var weighted = line.WeightKg is not null && line.PricePerKgCents is not null;
         var grams = weighted ? (long)JsNumber.Round(line.WeightKg!.Value * 1000) : 0;
@@ -698,7 +829,7 @@ public static class TicketParser
             : line.UnitCents is { } unit ? sign * unit * line.Quantity : null;
         var common = recognized is null ? null : new AmountEvidence(
             recognized, readings.Count > 0 ? readings : [recognized], line.InputsStable,
-            readings.Count == 2 && readings[0].Cents == readings[1].Cents, line.Confidence);
+            readings.Count >= 2 && readings.All(reading => reading.Cents == readings[0].Cents), line.Confidence);
 
         if (calculated is not null && recognized is null)
         {
@@ -740,12 +871,17 @@ public static class TicketParser
         else if (calculated is null && reads.Count > 1)
         {
             issues.Add("Las lecturas del importe no coinciden");
-            // Botones solo para lecturas con forma de importe («2,99»), nunca para cifras sueltas sin coma («373»).
-            if (textToken is not null && rereadToken is not null && textToken.Cents != rereadToken.Cents)
+            // Botones solo para lecturas con forma de importe («2,99»), nunca para cifras sueltas sin coma («373»):
+            // la elegida primero y después cada lectura distinta.
+            var distinct = new List<TicketAmountOption>();
+            foreach (var (token, origin) in new[] { (textToken, "read"), (rereadToken, "reread") }.Concat(extraTokens.Select(token => ((AmountTokenValue?)token, "reread"))))
             {
-                var both = new List<TicketAmountOption> { new(textToken.Cents, "read"), new(rereadToken.Cents, "reread") };
-                if (selectedBy == "reread") both.Reverse();
-                options.AddRange(both);
+                if (token is not null && !distinct.Any(option => option.Cents == token.Cents)) distinct.Add(new TicketAmountOption(token.Cents, origin));
+            }
+            if (distinct.Count >= 2)
+            {
+                options.AddRange(distinct.Where(option => option.Cents == amount));
+                options.AddRange(distinct.Where(option => option.Cents != amount));
             }
         }
         if (calculated is null && textToken is not null && rereadToken is null && !string.IsNullOrEmpty(line.Source.Reread))
@@ -759,10 +895,10 @@ public static class TicketParser
         {
             // «2,939»: el OCR vio una cifra de más. Quitar la última es una suposición, así que una
             // lectura deformada no confirma el importe aunque otra lectura coincida.
-            var deformed = new[] { textToken, rereadToken }.FirstOrDefault(token => token is not null && !token.Clean && AnyDigit.IsMatch(token.Glued));
+            var deformed = tokens.FirstOrDefault(token => !token.Clean && AnyDigit.IsMatch(token.Glued));
             if (deformed is not null) issues.Add($"Una lectura del importe tiene cifras de más («{AsReading(deformed).Printed}»): confirma el importe");
             // «1,15-»: un «-» pegado detrás tampoco confirma nada; puede ser un descuento, una devolución o una mancha.
-            var hyphened = new[] { textToken, rereadToken }.FirstOrDefault(token => token is not null && token.Glued.StartsWith('-'));
+            var hyphened = tokens.FirstOrDefault(token => token.Glued.StartsWith('-'));
             if (hyphened is not null) issues.Add($"Una lectura del importe tiene un «-» pegado detrás («{AsReading(hyphened).Printed}{hyphened.Glued}»): confirma el importe");
         }
 
@@ -773,13 +909,20 @@ public static class TicketParser
         }
         // Una multiplicación que coincide con el importe leído es una comprobación independiente: resuelve la baja confianza.
         var verifiedByArithmetic = calculated is not null && recognized is not null && calculated == recognized.Cents;
-        if ((line.Source.Confidence ?? 100) < 75 && !verifiedByArithmetic) issues.Add("Lectura de baja confianza");
-        if (!verifiedByArithmetic) issues.AddRange(line.AmountDoubts);
+        // Un importe que solo sale de cifras sin coma («2525») nunca es fiable, salvo que lo confirme la multiplicación.
+        if (chosen is not null && line.Loose.Contains(JsNumber.ToString(chosen.Cents)) && !readings.Any(reading => reading.Cents == chosen.Cents) &&
+            !verifiedByArithmetic && amount == chosen.Cents)
+            issues.Add($"El importe se ha leído sin coma («{(line.Loose.Count > 0 ? line.Loose[0] : TicketEvidenceRules.PrintedDigits(chosen.Cents))}»): confírmalo");
+        // Tres lecturas que coinciden resuelven la poca confianza y las dudas de una cifra confundida.
+        if ((line.Source.Confidence ?? 100) < 75 && !verifiedByArithmetic && !voted) issues.Add("Lectura de baja confianza");
+        if (!verifiedByArithmetic && !voted) issues.AddRange(line.AmountDoubts);
         long discountCents = 0;
         foreach (var discount in line.Discounts)
         {
             var choices = Sorted(discount);
-            discountCents += choices.Count > 0 ? choices[0].Cents : 0;
+            // Entre lecturas distintas del descuento, mejor una que no supere el importe (la línea queda marcada igual).
+            var possible = amount is null ? [] : choices.Where(choice => choice.Cents <= Math.Max(0, amount.Value)).ToList();
+            discountCents += possible.Count > 0 ? possible[0].Cents : choices.Count > 0 ? choices[0].Cents : 0;
             if (choices.Count == 0 || choices.Count > 1) issues.Add("Descuento ilegible o ambiguo");
         }
         if (amount is not null && discountCents > Math.Max(0, amount.Value)) issues.Add("Descuento mayor que el importe");
@@ -837,15 +980,22 @@ public static class TicketParser
     /// <summary>parseTicket: analiza las líneas leídas de una o varias capturas (o el texto pegado, una línea por renglón).</summary>
     public static ParsedTicket ParseTicket(IReadOnlyList<IReadOnlyList<OcrLine>> pages)
     {
-        var lines = MergePages(pages).Where(line => JsText.Trim(line.Text) != "").ToList();
+        var merged = MergePagesReport(pages);
+        var lines = merged.Lines.Where(line => JsText.Trim(line.Text) != "").ToList();
         var store = DetectStore(lines);
         var issues = new List<string>();
         var adjustments = new List<TicketAdjustment>();
         var work = new List<WorkLine>();
+        var nonProducts = new List<NonProductLine>();
         var state = "header";
         var previousWasItem = false;
         int? totalIndex = null;
         var promoIndex = lines.Count;
+        // Sin la línea «EUR», la cabecera de Lidl acaba en su última línea conocida (empresa, código postal o NIF).
+        var headerEnd = -1;
+        if (store == "lidl")
+            for (var h = 0; h < Math.Min(15, lines.Count); h++)
+                if (IsLidlHeader(lines[h].Text)) headerEnd = h;
         for (var i = 0; i < lines.Count; i++)
         {
             var line = lines[i];
@@ -875,7 +1025,10 @@ public static class TicketParser
                 var rereadAmount = !string.IsNullOrEmpty(line.Reread) ? ReadTail(TokensOf(CleanText(line.Reread))).Amount : null;
                 var looksLikeAmount = headTail.Amount is not null ||
                     (rereadAmount is not null && AmountLike.IsMatch(headTail.NameTokens.Count > 0 ? headTail.NameTokens[^1] : ""));
-                if (!looksLikeAmount || LetterCount(string.Join(' ', headTail.NameTokens)) < 2 || DiscountLine.IsMatch(line.Text) || TotalLine.IsMatch(line.Text)) continue;
+                // Pasada la cabecera de Lidl, una línea con forma de producto es un producto aunque no se le lea el
+                // importe (si Tesseract pierde la columna de importes): nunca se queda en la cabecera sin decir nada.
+                var afterHeader = headerEnd >= 0 && i > headerEnd && LooksLikeProduct(line.Text);
+                if ((!looksLikeAmount && !afterHeader) || LetterCount(string.Join(' ', headTail.NameTokens)) < 2 || DiscountLine.IsMatch(line.Text) || TotalLine.IsMatch(line.Text)) continue;
                 state = "products";
             }
             var previous = work.Count > 0 ? work[^1] : null;
@@ -892,6 +1045,14 @@ public static class TicketParser
                 else issues.Add("Línea de peso sin producto identificable");
                 continue;
             }
+            if (WeightLike.IsMatch(line.Text))
+            {
+                // «34 kg     JO ER /La»: una línea de peso que no se lee entera es del producto de encima, no otro producto.
+                if (previous is not null && previousWasItem && previous.WeightKg is null)
+                    previous.Issues.Add("No se ha podido leer la línea del peso: confirma el peso, el precio por kilo y el importe");
+                else issues.Add("Línea de peso sin producto identificable");
+                continue;
+            }
             if (DiscountLine.IsMatch(line.Text))
             {
                 if (SavingsLine.IsMatch(line.Text))
@@ -900,14 +1061,20 @@ public static class TicketParser
                     continue;
                 }
                 var discount = ReadDiscount(line);
-                // Un «Desc.» o «Dto.» corto debajo es el descuento del artículo; un cupón o una promoción
-                // con nombre nunca se asigna por cercanía.
+                var label = AdjustmentLabel(line.Text);
+                // Un «Desc.» justo debajo de un producto es suyo. Una PROMO, solo si va sangrada como un «Desc.» justo
+                // debajo, y se propone para confirmar. Un cupón o una promoción sin sangrar quedan como ajuste general.
                 if (ArticleDiscount.IsMatch(CleanText(line.Text)) && previous is not null && previousWasItem)
                     previous.Discounts.Add(discount);
+                else if (PromoStart.IsMatch(line.Text) && previous is not null && previousWasItem && Indented(line, previous.Source))
+                {
+                    previous.Discounts.Add(discount);
+                    previous.Issues.Add($"«{label}» va sangrada debajo de este producto: se le propone como descuento, confírmalo");
+                }
                 else
                 {
                     var kind = Coupon.IsMatch(line.Text) ? "coupon" : Promotion.IsMatch(line.Text) ? "promotion" : "discount";
-                    adjustments.Add(new TicketAdjustment($"adjustment-{JsNumber.ToString(i)}", JsText.Slice(JsText.Trim(line.Text), 0, 120), kind,
+                    adjustments.Add(new TicketAdjustment($"adjustment-{JsNumber.ToString(i)}", label, kind,
                         discount.Count > 0 ? -Sorted(discount)[0].Cents : null, true, line.Text));
                     state = "adjustments";
                 }
@@ -921,6 +1088,13 @@ public static class TicketParser
                 continue;
             }
             var item = ReadItemLine(line, work.Count);
+            // Una línea sin ningún importe que no tiene forma de producto (texto de la app, restos) va aparte.
+            if (item is not null && item.Amount.Count == 0 && item.UnitCents is null && !LooksLikeProduct(item.RawName))
+            {
+                nonProducts.Add(new NonProductLine(JsText.Trim(line.Text), line.Source));
+                previousWasItem = false;
+                continue;
+            }
             if (item is not null)
             {
                 work.Add(item);
@@ -930,7 +1104,11 @@ public static class TicketParser
             }
             var tail = ReadTail(TokensOf(CleanText(line.Text)));
             if (previous is not null && previousWasItem && previous.Amount.Count == 0 && tail.Amount is not null) AddCandidate(previous.Amount, tail.Amount.Cents, 1);
-            else previousWasItem = false;
+            else
+            {
+                previousWasItem = false;
+                if (Whitespace.Replace(line.Text, "").Length >= 4) nonProducts.Add(new NonProductLine(JsText.Trim(line.Text), line.Source));
+            }
         }
         var metadata = lines.Take(promoIndex).ToList();
         var totalCents = ReadTotal(metadata, totalIndex);
@@ -951,6 +1129,8 @@ public static class TicketParser
                 if (TicketText.NameKey(next[0].Text) == TicketText.NameKey(next.Count > 1 ? next[1].Text : "")) issues.Add("Solapamiento ambiguo: se han conservado los productos repetidos");
             }
         }
+        foreach (var page in merged.Unmatched)
+            issues.Add($"No se ha encontrado dónde se solapan las capturas {JsNumber.ToString(page)} y {JsNumber.ToString(page + 1)}: revisa si hay productos repetidos o que falten");
         var taxGroups = ReadTaxGroups(metadata.Skip(totalIndex ?? 0).ToList());
         var taxCheck = CheckTaxGroups(parsed.Select(l => new TaxLine(l.AmountCents, l.DiscountCents, l.TaxCode)).ToList(), taxGroups,
             adjustments.Select(a => a.AmountCents).ToList());
@@ -969,7 +1149,34 @@ public static class TicketParser
         var (date, time) = DateAndTime(metadata);
         if (date is null) issues.Add("No se ha reconocido la fecha de compra");
         return new ParsedTicket(store, StoreNameOf(store, lines), AddressOf(store, lines), date, time, totalCents, parsed, check, adjustments,
-            [.. issues.Distinct(StringComparer.Ordinal)], taxGroups, PaymentMethodOf(metadata.Skip(totalIndex ?? 0).ToList()));
+            [.. issues.Distinct(StringComparer.Ordinal)], taxGroups, PaymentMethodOf(metadata.Skip(totalIndex ?? 0).ToList()),
+            nonProducts.Count > 0 ? nonProducts : null);
+    }
+
+    private static readonly Regex PromoStart = JsRegex.Create(@"^\s*promo\b", ignoreCase: true);
+
+    /// <summary>
+    /// indented: la línea va sangrada respecto a la de encima, por su posición en la imagen (al menos casi una letra más a la
+    /// derecha) o, en un texto pegado, por los espacios del principio.
+    /// </summary>
+    private static bool Indented(OcrLine line, OcrLine above)
+    {
+        var below = line.Source;
+        var over = above.Source;
+        if (below is not null && over is not null)
+        {
+            if (below.ImageIndex != over.ImageIndex) return false;
+            var charWidth = (over.Box.X1 - over.Box.X0) / Math.Max(1, JsText.Trim(above.Text).Length);
+            return below.Box.X0 - over.Box.X0 >= charWidth * 0.8;
+        }
+        if (below is not null || over is not null) return false;
+        static int Lead(string text)
+        {
+            var count = 0;
+            while (count < text.Length && JsText.IsWhiteSpace(text[count])) count++;
+            return count;
+        }
+        return Lead(line.Text) > Lead(above.Text);
     }
 
     // -------------------------------------------------------------------------------------------

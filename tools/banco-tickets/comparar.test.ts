@@ -21,15 +21,17 @@ describe('comparar lo leído con la verdad', () => {
   })
 
   it('separa lo limpio, lo marcado y, sobre todo, lo mal leído sin marcar', () => {
-    // «2,75X» se lee hoy como un importe de 2,75 y una unidad, sin aviso (lo que el banco tiene que encontrar).
-    const ticket = read('LIDL\nEUR\nPAN 1,00 B\nLASAÑA 5 QUESOS      2,75X\nYOGUR 0,55x 4 2,20 A\nTOTAL 8,70\nFECHA: 03/11/26\nHORA: 18:47:12')
+    // «1,22» por 1,29 igual en las dos lecturas: nada lo avisa (lo que el banco tiene que encontrar). «92,90» por 9,90, sí.
+    const ticket = parseTicket([[...linesFromText('LIDL\nEUR\nPAN 1,00 B'), { text: 'ARROZ 1,22 A', reread: '1,22 A' },
+      ...linesFromText('PATATA 4,95x 2 92,90 A\nTOTAL 12,19\nFECHA: 03/11/26\nHORA: 18:47:12')]])
     const result = compareTicket(truth([
       line('PAN', 100),
-      line('LASAÑA 5 QUESOS', 550, { quantity: 2, unitPriceCents: 275 }),
-      line('YOGUR', 220, { quantity: 4, unitPriceCents: 55, taxCode: 'A' }),
+      line('ARROZ', 129, { taxCode: 'A' }),
+      line('PATATA', 990, { quantity: 2, unitPriceCents: 495, taxCode: 'A' }),
     ]), ticket)
-    expect(result).toMatchObject({ products: 3, clean: 2, silentWrong: 1, missing: 0, date: true, time: true, total: true })
-    expect(result.lines[1]).toMatchObject({ class: 'mal-sin-marcar', differences: ['importe 2,75 ≠ 5,50', 'cantidad 1 ≠ 2', 'precio — ≠ 2,75'] })
+    expect(result).toMatchObject({ products: 3, clean: 1, silentWrong: 1, missing: 0, date: true, time: true, total: true })
+    expect(result.lines[1]).toMatchObject({ class: 'mal-sin-marcar', differences: ['importe 1,22 ≠ 1,29'] })
+    expect(result.lines[2].class).toMatch(/marcada/)
   })
 
   it('una línea que no es del ticket sobra, y una copia de un producto sobra como repetida', () => {

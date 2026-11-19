@@ -54,4 +54,8 @@ public sealed record ParsedTicket(
     IReadOnlyList<TicketAdjustment> Adjustments,
     IReadOnlyList<string> Issues,
     IReadOnlyList<TicketTaxGroup> TaxGroups,
-    string? PaymentMethod);
+    string? PaymentMethod,
+    IReadOnlyList<NonProductLine>? NonProducts = null);
+
+/// <summary>Una línea sin importe que no parece un producto (texto de la app, restos): no cuenta. null en <see cref="ParsedTicket.NonProducts"/> si no hay ninguna.</summary>
+public sealed record NonProductLine(string Text, TicketSource? Source);

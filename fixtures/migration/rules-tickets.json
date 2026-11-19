@@ -9998,7 +9998,7 @@
         "adjustments": [
           {
             "id": "adjustment-21",
-            "label": "PROMO LIDL PLUS                  -0,33",
+            "label": "PROMO LIDL PLUS",
             "kind": "promotion",
             "amountCents": -33,
             "needsReview": true,
@@ -10482,7 +10482,7 @@
         "adjustments": [
           {
             "id": "adjustment-21",
-            "label": "PROMO LIDL PLUS                  -0,33",
+            "label": "PROMO LIDL PLUS",
             "kind": "promotion",
             "amountCents": -33,
             "needsReview": true,
@@ -10957,7 +10957,7 @@
         "adjustments": [
           {
             "id": "adjustment-27",
-            "label": "PROMO LIOL PLUS                 -0,14",
+            "label": "PROMO LIOL PLUS",
             "kind": "promotion",
             "amountCents": -14,
             "needsReview": true,
@@ -11395,7 +11395,7 @@
         "adjustments": [
           {
             "id": "adjustment-28",
-            "label": "PROMO LIDL PLUS                 -0,14",
+            "label": "PROMO LIDL PLUS",
             "kind": "promotion",
             "amountCents": -14,
             "needsReview": true,
@@ -11850,7 +11850,7 @@
         "adjustments": [
           {
             "id": "adjustment-26",
-            "label": "PROMO LIDL PLUS                    -0,14",
+            "label": "PROMO LIDL PLUS",
             "kind": "promotion",
             "amountCents": -14,
             "needsReview": true,
@@ -12024,7 +12024,7 @@
         "adjustments": [
           {
             "id": "adjustment-3",
-            "label": "Desc. -0,17",
+            "label": "Desc.",
             "kind": "discount",
             "amountCents": -17,
             "needsReview": true,
@@ -12032,7 +12032,7 @@
           },
           {
             "id": "adjustment-4",
-            "label": "PROMO LIDL PLUS -0,14",
+            "label": "PROMO LIDL PLUS",
             "kind": "promotion",
             "amountCents": -14,
             "needsReview": true,
@@ -13010,7 +13010,7 @@
         "adjustments": [
           {
             "id": "adjustment-8",
-            "label": "PROMO LIDL PLUS               -0, 14",
+            "label": "PROMO LIDL PLUS",
             "kind": "promotion",
             "amountCents": -14,
             "needsReview": true,
@@ -15210,7 +15210,7 @@
         "adjustments": [
           {
             "id": "adjustment-6",
-            "label": "PROMO LIDL PLUS -0,33",
+            "label": "PROMO LIDL PLUS",
             "kind": "promotion",
             "amountCents": -33,
             "needsReview": true,
@@ -15298,7 +15298,7 @@
         "adjustments": [
           {
             "id": "adjustment-4",
-            "label": "CUPON LIDL PLUS -0,50",
+            "label": "CUPON LIDL PLUS",
             "kind": "coupon",
             "amountCents": -50,
             "needsReview": true,
@@ -28885,7 +28885,7 @@
         "adjustments": [
           {
             "id": "adjustment-4",
-            "label": "CUPON COMPRA -0,50",
+            "label": "CUPON COMPRA",
             "kind": "coupon",
             "amountCents": -50,
             "needsReview": true,
@@ -29222,8 +29222,1177 @@
           }
         ],
         "adjustments": [],
-        "issues": ["Solapamiento ambiguo: se han conservado los productos repetidos","No se ha reconocido la fecha de compra"],
+        "issues": [
+          "Solapamiento ambiguo: se han conservado los productos repetidos",
+          "No se ha encontrado dónde se solapan las capturas 1 y 2: revisa si hay productos repetidos o que falten",
+          "No se ha reconocido la fecha de compra"
+        ],
         "check": {"status":"cuadra","linesTotalCents":400,"differenceCents":0,"unreadable":0,"pending":0},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-x-pegada",
+      "description": "parseTicket (ticketSafety): 4a: «2,75X» es un precio unitario sin cantidad, no un importe",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"LASAÑA 5 QUESOS      2,75X","reread":"2,75X"},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "LASAÑA 5 QUESOS",
+            "key": "LASANA 5 QUESOS",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": null,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": null,
+            "flags": ["ilegible"],
+            "evidence": {
+              "text": "LASAÑA 5 QUESOS      2,75X",
+              "reread": "2,75X",
+              "normalized": "LASAÑA 5 QUESOS      2,75X",
+              "recognizedCents": null,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se ha podido leer la cantidad o el precio unitario","No se lee el importe"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": [],
+        "check": {"status":"incompleto","linesTotalCents":0,"differenceCents":999,"unreadable":1,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-sin-coma-nombre",
+      "description": "parseTicket (ticketSafety): 4b: «100» de la relectura sale de «SERVILLETAS 100U»",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"SERVILLETAS 100U","reread":"100"},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "SERVILLETAS 100U",
+            "key": "SERVILLETAS 100U",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": null,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": null,
+            "flags": ["ilegible"],
+            "evidence": {
+              "text": "SERVILLETAS 100U",
+              "reread": "100",
+              "normalized": "SERVILLETAS 100U",
+              "recognizedCents": null,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se lee el importe"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": [],
+        "check": {"status":"incompleto","linesTotalCents":0,"differenceCents":999,"unreadable":1,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-sin-coma-nombre-2",
+      "description": "parseTicket (ticketSafety): 4b: «2506» de la relectura sale de «MANTEQUILLA 250G»",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"MANTEQUILLA 250G","reread":"2506"},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "MANTEQUILLA 250G",
+            "key": "MANTEQUILLA 250G",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": null,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": null,
+            "flags": ["ilegible"],
+            "evidence": {
+              "text": "MANTEQUILLA 250G",
+              "reread": "2506",
+              "normalized": "MANTEQUILLA 250G",
+              "recognizedCents": null,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se lee el importe"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": [],
+        "check": {"status":"incompleto","linesTotalCents":0,"differenceCents":999,"unreadable":1,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-sin-coma",
+      "description": "parseTicket (ticketSafety): 4b: un importe sin coma nunca es fiable",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"DESODORANTE SPRAY                   2525 €","reread":"2525 C"},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "DESODORANTE SPRAY",
+            "key": "DESODORANTE SPRAY",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 2525,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "C",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "DESODORANTE SPRAY                   2525 €",
+              "reread": "2525 C",
+              "normalized": "DESODORANTE SPRAY                   2525 €",
+              "recognizedCents": 2525,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["El importe se ha leído sin coma («2525»): confírmalo"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["Los importes no cuadran con el total"],
+        "check": {"status":"no_cuadra","linesTotalCents":2525,"differenceCents":-1526,"unreadable":0,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-multiplicacion-ilegible",
+      "description": "parseTicket (ticketSafety): 4c: «O, 79X   2» no es una unidad",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"LENTEJAS COCIDAS     O, 79X   2     1,58 A","reread":"79X 2 1,58 A"},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "LENTEJAS COCIDAS",
+            "key": "LENTEJAS COCIDAS",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 158,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "LENTEJAS COCIDAS     O, 79X   2     1,58 A",
+              "reread": "79X 2 1,58 A",
+              "normalized": "LENTEJAS COCIDAS     O, 79X   2     1,58 A",
+              "recognizedCents": 158,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se ha podido leer la cantidad o el precio unitario"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["Los importes no cuadran con el total"],
+        "check": {"status":"no_cuadra","linesTotalCents":158,"differenceCents":841,"unreadable":0,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-multiplicacion-ilegible-2",
+      "description": "parseTicket (ticketSafety): 4c: «1,1X 4» con relectura «1,155X 4»",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"GEL DUCHA 750ML     1,1X 4    4,60 C","reread":"750 1,155X 4 4,60 C"},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "GEL DUCHA 750ML",
+            "key": "GEL DUCHA 750ML",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 460,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "C",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "GEL DUCHA 750ML     1,1X 4    4,60 C",
+              "reread": "750 1,155X 4 4,60 C",
+              "normalized": "GEL DUCHA 750ML     1,1X 4    4,60 C",
+              "recognizedCents": 460,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se ha podido leer la cantidad o el precio unitario"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["Los importes no cuadran con el total"],
+        "check": {"status":"no_cuadra","linesTotalCents":460,"differenceCents":539,"unreadable":0,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-multiplicacion-ilegible-3",
+      "description": "parseTicket (ticketSafety): 4c: «2,4xX 2»",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"PIZZA BARBACOA        2,4xX 2     4,90 B","reread":null},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "PIZZA BARBACOA",
+            "key": "PIZZA BARBACOA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 490,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "B",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "PIZZA BARBACOA        2,4xX 2     4,90 B",
+              "reread": null,
+              "normalized": "PIZZA BARBACOA        2,4xX 2     4,90 B",
+              "recognizedCents": 490,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se ha podido leer la cantidad o el precio unitario"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["Los importes no cuadran con el total"],
+        "check": {"status":"no_cuadra","linesTotalCents":490,"differenceCents":509,"unreadable":0,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-peso-ilegible",
+      "description": "parseTicket (ticketSafety): 4d: una línea de peso ilegible marca el producto de encima",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"MANZANA GOLDEN 2,21 A","reread":null},
+            {"text":"34 kg     JO ER /La","reread":null},
+            {"text":"TOTAL 9,99","reread":null},
+            {"text":"FECHA: 28/10/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": "2026-10-28",
+        "time": null,
+        "totalCents": 999,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "MANZANA GOLDEN",
+            "key": "MANZANA GOLDEN",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 221,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "MANZANA GOLDEN 2,21 A",
+              "reread": null,
+              "normalized": "MANZANA GOLDEN 2,21 A",
+              "recognizedCents": 221,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se ha podido leer la línea del peso: confirma el peso, el precio por kilo y el importe"]
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["Los importes no cuadran con el total"],
+        "check": {"status":"no_cuadra","linesTotalCents":221,"differenceCents":778,"unreadable":0,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-votacion",
+      "description": "parseTicket (ticketSafety): tres lecturas: dos iguales y ninguna distinta, o una distinta o deformada",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"PAN BARRA RÚSTICA","reread":"0,65 A","rereads":["0,65 A"]},
+            {"text":"ARROZ REDONDO 1KG                   1,22 A","reread":"1,22 A","rereads":["1,29 A"]},
+            {"text":"ZANAHORIA BOLSA                     0,739 A","reread":"0,73 A","rereads":["0,73 A"]},
+            {"text":"QUESO FUNDIDO BURGER                1,25 A","reread":"1,25 A","rereads":["1,25 A"],"confidence":60},
+            {"text":"TOTAL 3,88","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": null,
+        "time": null,
+        "totalCents": 388,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "PAN BARRA RÚSTICA",
+            "key": "PAN BARRA RUSTICA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 65,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "PAN BARRA RÚSTICA",
+              "reread": "0,65 A",
+              "normalized": "PAN BARRA RÚSTICA",
+              "recognizedCents": 65,
+              "calculatedCents": null,
+              "selectedBy": "reread",
+              "issues": []
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "ARROZ REDONDO 1KG",
+            "key": "ARROZ REDONDO 1KG",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 122,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "ARROZ REDONDO 1KG                   1,22 A",
+              "reread": "1,22 A",
+              "normalized": "ARROZ REDONDO 1KG                   1,22 A",
+              "recognizedCents": 122,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["Las lecturas del importe no coinciden"],
+              "options": [{"cents":122,"origin":"read"},{"cents":129,"origin":"reread"}]
+            }
+          },
+          {
+            "position": 2,
+            "rawName": "ZANAHORIA BOLSA",
+            "key": "ZANAHORIA BOLSA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 73,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "ZANAHORIA BOLSA                     0,739 A",
+              "reread": "0,73 A",
+              "normalized": "ZANAHORIA BOLSA                     0,739 A",
+              "recognizedCents": 73,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["Una lectura del importe tiene cifras de más («0,739»): confirma el importe"]
+            }
+          },
+          {
+            "position": 3,
+            "rawName": "QUESO FUNDIDO BURGER",
+            "key": "QUESO FUNDIDO BURGER",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 125,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "QUESO FUNDIDO BURGER                1,25 A",
+              "reread": "1,25 A",
+              "normalized": "QUESO FUNDIDO BURGER                1,25 A",
+              "recognizedCents": 125,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["Los importes no cuadran con el total","No se ha reconocido la fecha de compra"],
+        "check": {"status":"no_cuadra","linesTotalCents":385,"differenceCents":3,"unreadable":0,"pending":2},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-promo-sangrada",
+      "description": "parseTicket (ticketSafety): PROMO sangrada bajo un producto: descuento sugerido y el desglose de IVA, concluyente",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL","reread":null},
+            {"text":"EUR","reread":null},
+            {
+              "text": "COOKIES PEPITAS CHOC                1,29 B",
+              "reread": "1,29 B",
+              "source": {"imageIndex":0,"segmentIndex":0,"width":900,"height":2000,"box":{"x0":34,"y0":100,"x1":800,"y1":126}}
+            },
+            {
+              "text": "PROMO LIDL PLUS                  -0,14",
+              "reread": "-0,14",
+              "source": {"imageIndex":0,"segmentIndex":0,"width":900,"height":2000,"box":{"x0":70,"y0":148,"x1":742,"y1":174}}
+            },
+            {
+              "text": "ARROZ LARGO                         1,09 A",
+              "reread": "1,09 A",
+              "source": {"imageIndex":0,"segmentIndex":0,"width":900,"height":2000,"box":{"x0":34,"y0":196,"x1":800,"y1":222}}
+            },
+            {"text":"TOTAL 2,24","reread":null},
+            {"text":"A 4% 1,05 0,04 1,09","reread":null},
+            {"text":"B 10% 1,05 0,10 1,15","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": null,
+        "time": null,
+        "totalCents": 224,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "COOKIES PEPITAS CHOC",
+            "key": "COOKIES PEPITAS CHOC",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 129,
+            "discountCents": 14,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "B",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "COOKIES PEPITAS CHOC                1,29 B",
+              "reread": "1,29 B",
+              "normalized": "COOKIES PEPITAS CHOC                1,29 B",
+              "recognizedCents": 129,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["«PROMO LIDL PLUS» va sangrada debajo de este producto: se le propone como descuento, confírmalo"],
+              "source": {"imageIndex":0,"segmentIndex":0,"width":900,"height":2000,"box":{"x0":34,"y0":100,"x1":800,"y1":126}}
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "ARROZ LARGO",
+            "key": "ARROZ LARGO",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 109,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "ARROZ LARGO                         1,09 A",
+              "reread": "1,09 A",
+              "normalized": "ARROZ LARGO                         1,09 A",
+              "recognizedCents": 109,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": [],
+              "source": {"imageIndex":0,"segmentIndex":0,"width":900,"height":2000,"box":{"x0":34,"y0":196,"x1":800,"y1":222}}
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": [
+          "La suma coincide con el total, pero hay líneas dudosas: dos errores pueden compensarse",
+          "No se ha reconocido la fecha de compra"
+        ],
+        "check": {"status":"pendiente","linesTotalCents":224,"differenceCents":0,"unreadable":0,"pending":1},
+        "taxGroups": [
+          {"code":"A","rateBasisPoints":400,"baseCents":105,"taxCents":4,"grossCents":109},
+          {"code":"B","rateBasisPoints":1000,"baseCents":105,"taxCents":10,"grossCents":115}
+        ],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-sin-eur",
+      "description": "parseTicket: sin «EUR» ni importes, los productos tras la cabecera de Lidl entran marcados",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"Copia","reread":null},
+            {"text":"LIDL SUPERMERCADOS S.A.U.","reread":null},
+            {"text":"Avda. del Ensayo s/n","reread":null},
+            {"text":"39300Torrelavega","reread":null},
+            {"text":"PAN BARRA RÚSTICA","reread":null},
+            {"text":"HUEVOS M DOCENA","reread":null},
+            {"text":"LECHE ENTERA 0,95 A","reread":null},
+            {"text":"TOTAL 4,15","reread":null},
+            {"text":"FECHA: 03/11/26","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "Avda. del Ensayo s/n, 39300 Torrelavega",
+        "date": "2026-11-03",
+        "time": null,
+        "totalCents": 415,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "PAN BARRA RÚSTICA",
+            "key": "PAN BARRA RUSTICA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": null,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": null,
+            "flags": ["ilegible"],
+            "evidence": {
+              "text": "PAN BARRA RÚSTICA",
+              "reread": null,
+              "normalized": "PAN BARRA RÚSTICA",
+              "recognizedCents": null,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se lee el importe"]
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "HUEVOS M DOCENA",
+            "key": "HUEVOS M DOCENA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": null,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": null,
+            "flags": ["ilegible"],
+            "evidence": {
+              "text": "HUEVOS M DOCENA",
+              "reread": null,
+              "normalized": "HUEVOS M DOCENA",
+              "recognizedCents": null,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["No se lee el importe"]
+            }
+          },
+          {
+            "position": 2,
+            "rawName": "LECHE ENTERA",
+            "key": "LECHE ENTERA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 95,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "LECHE ENTERA 0,95 A",
+              "reread": null,
+              "normalized": "LECHE ENTERA 0,95 A",
+              "recognizedCents": 95,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": [],
+        "check": {"status":"incompleto","linesTotalCents":95,"differenceCents":320,"unreadable":2,"pending":2},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-promo-pegada",
+      "description": "parseTicket: PROMO sangrada con espacios en un texto pegado, y sin sangrar",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"COOKIES PEPITAS CHOC 1,29 B","reread":null},
+            {"text":"  PROMO LIDL PLUS -0,14","reread":null},
+            {"text":"ARROZ 1,09 A","reread":null},
+            {"text":"PROMO LIDL PLUS -0,10","reread":null},
+            {"text":"TOTAL 2,14","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": null,
+        "time": null,
+        "totalCents": 214,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "COOKIES PEPITAS CHOC",
+            "key": "COOKIES PEPITAS CHOC",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 129,
+            "discountCents": 14,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "B",
+            "flags": ["dudoso"],
+            "evidence": {
+              "text": "COOKIES PEPITAS CHOC 1,29 B",
+              "reread": null,
+              "normalized": "COOKIES PEPITAS CHOC 1,29 B",
+              "recognizedCents": 129,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": ["«PROMO LIDL PLUS» va sangrada debajo de este producto: se le propone como descuento, confírmalo"]
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "ARROZ",
+            "key": "ARROZ",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 109,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "ARROZ 1,09 A",
+              "reread": null,
+              "normalized": "ARROZ 1,09 A",
+              "recognizedCents": 109,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          }
+        ],
+        "adjustments": [
+          {
+            "id": "adjustment-5",
+            "label": "PROMO LIDL PLUS",
+            "kind": "promotion",
+            "amountCents": -10,
+            "needsReview": true,
+            "originalText": "PROMO LIDL PLUS -0,10"
+          }
+        ],
+        "issues": [
+          "La suma coincide con el total, pero hay líneas dudosas: dos errores pueden compensarse",
+          "No se ha reconocido la fecha de compra"
+        ],
+        "check": {"status":"pendiente","linesTotalCents":214,"differenceCents":0,"unreadable":0,"pending":1},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-no-productos",
+      "description": "parseTicket: líneas sin importe que no parecen productos van aparte",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"PAN 1,00 A","reread":null},
+            {"text":"Ticket de compra","reread":null},
+            {"text":"18:51  5G  87 %","reread":null},
+            {"text":"LECHE 0,90 A","reread":null},
+            {"text":"TOTAL 1,90","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": null,
+        "time": null,
+        "totalCents": 190,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "PAN",
+            "key": "PAN",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 100,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "PAN 1,00 A",
+              "reread": null,
+              "normalized": "PAN 1,00 A",
+              "recognizedCents": 100,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "LECHE",
+            "key": "LECHE",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 90,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "LECHE 0,90 A",
+              "reread": null,
+              "normalized": "LECHE 0,90 A",
+              "recognizedCents": 90,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["No se ha reconocido la fecha de compra"],
+        "check": {"status":"cuadra","linesTotalCents":190,"differenceCents":0,"unreadable":0,"pending":0},
+        "taxGroups": [],
+        "paymentMethod": null,
+        "nonProducts": [{"text":"Ticket de compra"},{"text":"18:51  5G  87 %"}]
+      }
+    },
+    {
+      "id": "lidl-plus-capturas",
+      "description": "parseTicket: capturas sueltas con la app en los bordes y un solape con una cifra confundida",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"PAN 1,00 A","reread":null},
+            {"text":"LECHE ENTERA 0,95 A","reread":null},
+            {"text":"HUEVOS M DOCENA 2,55 A","reread":null},
+            {"text":"QUESO TIERNO 3,99 A","reread":null},
+            {"text":"Inicio Ofertas Lidl Plus Tickets","reread":null}
+          ],
+          [
+            {"text":"18:52 5G 87 %","reread":null},
+            {"text":"Ticket de compra","reread":null},
+            {"text":"HUEVOS M D0CENA 2,5S A","reread":null},
+            {"text":"QUESO TIERNO 3,99 A","reread":null},
+            {"text":"ARROZ 1,29 A","reread":null},
+            {"text":"TOTAL 9,78","reread":null}
+          ]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": null,
+        "time": null,
+        "totalCents": 978,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "PAN",
+            "key": "PAN",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 100,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "PAN 1,00 A",
+              "reread": null,
+              "normalized": "PAN 1,00 A",
+              "recognizedCents": 100,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "LECHE ENTERA",
+            "key": "LECHE ENTERA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 95,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "LECHE ENTERA 0,95 A",
+              "reread": null,
+              "normalized": "LECHE ENTERA 0,95 A",
+              "recognizedCents": 95,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          },
+          {
+            "position": 2,
+            "rawName": "HUEVOS M DOCENA",
+            "key": "HUEVOS M DOCENA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 255,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "HUEVOS M DOCENA 2,55 A",
+              "reread": null,
+              "normalized": "HUEVOS M DOCENA 2,55 A",
+              "recognizedCents": 255,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          },
+          {
+            "position": 3,
+            "rawName": "QUESO TIERNO",
+            "key": "QUESO TIERNO",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 399,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "QUESO TIERNO 3,99 A",
+              "reread": null,
+              "normalized": "QUESO TIERNO 3,99 A",
+              "recognizedCents": 399,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          },
+          {
+            "position": 4,
+            "rawName": "ARROZ",
+            "key": "ARROZ",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 129,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "ARROZ 1,29 A",
+              "reread": null,
+              "normalized": "ARROZ 1,29 A",
+              "recognizedCents": 129,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": ["No se ha reconocido la fecha de compra"],
+        "check": {"status":"cuadra","linesTotalCents":978,"differenceCents":0,"unreadable":0,"pending":0},
+        "taxGroups": [],
+        "paymentMethod": null
+      }
+    },
+    {
+      "id": "lidl-plus-capturas-sin-solape",
+      "description": "parseTicket: dos capturas que no se solapan se avisan",
+      "operation": "parseTicket",
+      "input": {
+        "pages": [
+          [
+            {"text":"LIDL","reread":null},
+            {"text":"EUR","reread":null},
+            {"text":"PAN 1,00 A","reread":null},
+            {"text":"LECHE ENTERA 0,95 A","reread":null}
+          ],
+          [{"text":"QUESO TIERNO 3,99 A","reread":null},{"text":"TOTAL 6,93","reread":null}]
+        ]
+      },
+      "expected": {
+        "store": "lidl",
+        "storeName": "Lidl",
+        "address": "",
+        "date": null,
+        "time": null,
+        "totalCents": 693,
+        "lines": [
+          {
+            "position": 0,
+            "rawName": "PAN",
+            "key": "PAN",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 100,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "PAN 1,00 A",
+              "reread": null,
+              "normalized": "PAN 1,00 A",
+              "recognizedCents": 100,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          },
+          {
+            "position": 1,
+            "rawName": "LECHE ENTERA",
+            "key": "LECHE ENTERA",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 95,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "LECHE ENTERA 0,95 A",
+              "reread": null,
+              "normalized": "LECHE ENTERA 0,95 A",
+              "recognizedCents": 95,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          },
+          {
+            "position": 2,
+            "rawName": "QUESO TIERNO",
+            "key": "QUESO TIERNO",
+            "quantity": 1,
+            "unitPriceCents": null,
+            "amountCents": 399,
+            "discountCents": 0,
+            "weightKg": null,
+            "pricePerKgCents": null,
+            "taxCode": "A",
+            "flags": [],
+            "evidence": {
+              "text": "QUESO TIERNO 3,99 A",
+              "reread": null,
+              "normalized": "QUESO TIERNO 3,99 A",
+              "recognizedCents": 399,
+              "calculatedCents": null,
+              "selectedBy": "read",
+              "issues": []
+            }
+          }
+        ],
+        "adjustments": [],
+        "issues": [
+          "Los importes no cuadran con el total",
+          "No se ha encontrado dónde se solapan las capturas 1 y 2: revisa si hay productos repetidos o que falten",
+          "No se ha reconocido la fecha de compra"
+        ],
+        "check": {"status":"no_cuadra","linesTotalCents":594,"differenceCents":99,"unreadable":0,"pending":0},
         "taxGroups": [],
         "paymentMethod": null
       }
@@ -29532,7 +30701,7 @@
         "adjustments": [
           {
             "id": "adjustment-3",
-            "label": "Descñ -0,10",
+            "label": "Descñ",
             "kind": "discount",
             "amountCents": -10,
             "needsReview": true,
@@ -29710,7 +30879,7 @@
             "weightKg": null,
             "pricePerKgCents": null,
             "taxCode": "B",
-            "flags": [],
+            "flags": ["dudoso"],
             "evidence": {
               "text": "LOMO 3,67 B",
               "reread": null,
@@ -29718,33 +30887,11 @@
               "recognizedCents": 367,
               "calculatedCents": null,
               "selectedBy": "read",
-              "issues": []
+              "issues": ["No se ha podido leer la línea del peso: confirma el peso, el precio por kilo y el importe"]
             }
           },
           {
             "position": 1,
-            "rawName": "0,544 kg x 6,75 EUR/kg",
-            "key": "0 544 KG X 6 75 EUR KG",
-            "quantity": 1,
-            "unitPriceCents": null,
-            "amountCents": null,
-            "discountCents": 0,
-            "weightKg": null,
-            "pricePerKgCents": null,
-            "taxCode": null,
-            "flags": ["ilegible"],
-            "evidence": {
-              "text": "0,544 kg x 6,75 EUR/kg",
-              "reread": null,
-              "normalized": "0,544 kg x 6,75 EUR/kg",
-              "recognizedCents": null,
-              "calculatedCents": null,
-              "selectedBy": "read",
-              "issues": ["No se lee el importe"]
-            }
-          },
-          {
-            "position": 2,
             "rawName": "FILETE",
             "key": "FILETE",
             "quantity": 1,
@@ -29754,7 +30901,7 @@
             "weightKg": null,
             "pricePerKgCents": null,
             "taxCode": "B",
-            "flags": [],
+            "flags": ["dudoso"],
             "evidence": {
               "text": "FILETE 4,15 B",
               "reread": null,
@@ -29762,35 +30909,16 @@
               "recognizedCents": 415,
               "calculatedCents": null,
               "selectedBy": "read",
-              "issues": []
-            }
-          },
-          {
-            "position": 3,
-            "rawName": "0,547 kg x 7,58 EUR/kg",
-            "key": "0 547 KG X 7 58 EUR KG",
-            "quantity": 1,
-            "unitPriceCents": null,
-            "amountCents": null,
-            "discountCents": 0,
-            "weightKg": null,
-            "pricePerKgCents": null,
-            "taxCode": null,
-            "flags": ["ilegible"],
-            "evidence": {
-              "text": "0,547 kg\rx 7,58 EUR/kg",
-              "reread": null,
-              "normalized": "0,547 kg\rx 7,58 EUR/kg",
-              "recognizedCents": null,
-              "calculatedCents": null,
-              "selectedBy": "read",
-              "issues": ["No se lee el importe"]
+              "issues": ["No se ha podido leer la línea del peso: confirma el peso, el precio por kilo y el importe"]
             }
           }
         ],
         "adjustments": [],
-        "issues": ["No se ha reconocido la fecha de compra"],
-        "check": {"status":"incompleto","linesTotalCents":782,"differenceCents":0,"unreadable":2,"pending":2},
+        "issues": [
+          "La suma coincide con el total, pero hay líneas dudosas: dos errores pueden compensarse",
+          "No se ha reconocido la fecha de compra"
+        ],
+        "check": {"status":"pendiente","linesTotalCents":782,"differenceCents":0,"unreadable":0,"pending":2},
         "taxGroups": [],
         "paymentMethod": null
       }
@@ -29829,7 +30957,7 @@
             "weightKg": null,
             "pricePerKgCents": null,
             "taxCode": "B",
-            "flags": [],
+            "flags": ["dudoso"],
             "evidence": {
               "text": "LOMO 3,67 B",
               "reread": null,
@@ -29837,35 +30965,16 @@
               "recognizedCents": 367,
               "calculatedCents": null,
               "selectedBy": "read",
-              "issues": []
-            }
-          },
-          {
-            "position": 1,
-            "rawName": "0,544 Kg x 6,75 EUR/kg",
-            "key": "0 544 KG X 6 75 EUR KG",
-            "quantity": 1,
-            "unitPriceCents": null,
-            "amountCents": null,
-            "discountCents": 0,
-            "weightKg": null,
-            "pricePerKgCents": null,
-            "taxCode": null,
-            "flags": ["ilegible"],
-            "evidence": {
-              "text": "0,544 Kg x 6,75 EUR/kg",
-              "reread": null,
-              "normalized": "0,544 Kg x 6,75 EUR/kg",
-              "recognizedCents": null,
-              "calculatedCents": null,
-              "selectedBy": "read",
-              "issues": ["No se lee el importe"]
+              "issues": ["No se ha podido leer la línea del peso: confirma el peso, el precio por kilo y el importe"]
             }
           }
         ],
         "adjustments": [],
-        "issues": ["No se ha reconocido la fecha de compra"],
-        "check": {"status":"incompleto","linesTotalCents":367,"differenceCents":0,"unreadable":1,"pending":1},
+        "issues": [
+          "La suma coincide con el total, pero hay líneas dudosas: dos errores pueden compensarse",
+          "No se ha reconocido la fecha de compra"
+        ],
+        "check": {"status":"pendiente","linesTotalCents":367,"differenceCents":0,"unreadable":0,"pending":1},
         "taxGroups": [],
         "paymentMethod": null
       }
@@ -30998,7 +32107,7 @@
         "adjustments": [
           {
             "id": "adjustment-6",
-            "label": "Dto. -0,20",
+            "label": "Dto.",
             "kind": "discount",
             "amountCents": -30,
             "needsReview": true,

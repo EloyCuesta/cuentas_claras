@@ -85,7 +85,8 @@ public sealed record TicketTaxGroupView(string Code, long RateBasisPoints, long 
 public sealed record ParsedTicketView(
     string Store, string StoreName, string Address, string? Date, string? Time, long? TotalCents, IReadOnlyList<ParsedTicketLineView> Lines,
     IReadOnlyList<TicketAdjustmentView> Adjustments, IReadOnlyList<string> Issues, TicketCheckView Check, IReadOnlyList<TicketTaxGroupView> TaxGroups,
-    string? PaymentMethod)
+    string? PaymentMethod,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<NonProductView>? NonProducts)
 {
     public static ParsedTicketView From(ParsedTicket ticket) => new(
         ticket.Store, ticket.StoreName, ticket.Address, ticket.Date, ticket.Time, ticket.TotalCents,
@@ -95,8 +96,12 @@ public sealed record ParsedTicketView(
         ticket.Issues,
         new TicketCheckView(ticket.Check.Status, ticket.Check.LinesTotalCents, ticket.Check.DifferenceCents, ticket.Check.Unreadable, ticket.Check.Pending),
         [.. ticket.TaxGroups.Select(group => new TicketTaxGroupView(group.Code, group.RateBasisPoints, group.BaseCents, group.TaxCents, group.GrossCents))],
-        ticket.PaymentMethod);
+        ticket.PaymentMethod,
+        ticket.NonProducts is null ? null : [.. ticket.NonProducts.Select(line => new NonProductView(line.Text, line.Source is null ? null : TicketSourceView.From(line.Source)))]);
 }
+
+/// <summary>Una línea que no parece un producto (texto y, si lo hay, de dónde sale).</summary>
+public sealed record NonProductView(string Text, [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] TicketSourceView? Source);
 
 /// <summary>Qué hacer con cada producto del ticket (TicketSuggestion): un producto, no seguirlo o uno nuevo.</summary>
 public sealed record ItemSuggestionView(string Kind, string ItemId, string How);

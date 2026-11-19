@@ -37,6 +37,9 @@ Lo que ve la persona en la interfaz, cómo se llama en el código y qué es.
 | Lo aprendido | alias (`pantry_aliases`, `AliasRecord`) | Qué producto es cada nombre de ticket en cada tienda. |
 | No se sigue | decisión `ignore`, alias con `itemId: null` | Una línea del ticket que no es de la despensa (bolsas…). |
 | Para una ocasión | `occasional` | Una compra que no cuenta para el ritmo. |
+| Banda de importes | `amountBand` (`server/modules/tickets/adapters/tesseract/amountColumn.ts`) | La franja de cada línea con la cantidad × el precio, el importe y la letra del IVA, calculada con todas las líneas de la imagen. El lector la relee en todas las líneas de producto. |
+| Lecturas de un importe, votación | `OcrLine.reread`, `OcrLine.rereads`; `voted` en `shared/tickets/ticketParse.ts` | Las lecturas independientes de una línea: el texto, la banda y la banda a otra escala. Un importe sale sin dudas solo si al menos dos coinciden y ninguna dice otra cosa. |
+| Texto que no parece un producto | `ParsedTicket.nonProducts` | Líneas sin importe y sin forma de producto (texto de la app, restos): no cuentan; la revisión las enseña plegadas. |
 | Huella del ticket | `fingerprint`, `sourceFingerprint` | Lo que impide guardar el mismo ticket dos veces. |
 | Últimas compras | `listTickets` | Los tickets guardados, en la Despensa. |
 | — (no se ve) | `UnitOfWork`, `MysqlUnitOfWork` | Una transacción de MySQL con una sola conexión: se guarda todo o nada, y las anidadas se unen a la de fuera. |

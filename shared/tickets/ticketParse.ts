@@ -4,7 +4,7 @@ import { roundRatio } from './ticketArithmetic.ts'
 import { assessUnits, assessWeight, printedDigits, type AmountReading } from './ticketEvidence.ts'
 import { formatEuros } from '../common/money.ts'
 import type { ISODate } from '../common/types.ts'
-import type { OcrLine, TicketAdjustment, TicketAmountOption, TicketDiscrepancy, TicketEvidence } from './types.ts'
+import type { OcrLine, TicketAdjustment, TicketAmountOption, TicketDiscrepancy, TicketEvidence, TicketSource } from './types.ts'
 
 /**
  * Analizador de tickets de la compra: convierte las líneas leídas por el OCR
@@ -90,6 +90,11 @@ export interface ParsedTicket {
   taxGroups?: TicketTaxGroup[]
   /** «Lidl Pay», «Tarjeta», «Efectivo»… Nunca guarda números de tarjeta. */
   paymentMethod?: string | null
+  /**
+   * Líneas sin importe que no parecen un producto (texto de la app, restos): no
+   * cuentan, pero la revisión las enseña plegadas por si alguna lo era. Solo si hay.
+   */
+  nonProducts?: { text: string; source?: TicketSource }[]
 }
 
 /** Un grupo del desglose de IVA: «B 10% 25,50 2,55» → base 25,50 € + cuota 2,55 € = 28,05 €. */
@@ -139,11 +144,19 @@ const TAX_MAP: Record<string, TaxCode> = {
 // Detrás del importe puede venir pegada la letra del IVA, una cifra mal leída o ambas
 // («1,758», «1,155A», «1,15-»). Un importe así está deformado: nunca confirma nada. Con dos
 // cifras pegadas («1,2398») ya no se interpreta: mejor ilegible que un importe inventado.
-const AMOUNT_TOKEN = /^(-?)(\d{1,4})[,.:;](\d{2})(\d?[A-Za-z€¢(]?|-[€¢]?)$/
+// Una x pegada no es una letra del IVA: «2,75X» es un precio unitario («2,75x 2»), no un importe.
+const AMOUNT_TOKEN = /^(-?)(\d{1,4})[,.:;](\d{2})(\d?[A-WYZa-wyz€¢(]?|-[€¢]?)$/
 // La relectura a veces duplica la x («3,95Xx»).
 const UNIT_TOKEN = /^(\d{1,4})[,.:;](\d{2})[xX×%*]{1,2}$/
 const QTY_TOKEN = /^\d{1,3}$/
 const LOOSE_AMOUNT_TOKEN = /^(\d{3,4})\D?$/
+/**
+ * Restos de una multiplicación que no se ha podido leer: «2,75X», «79X», «1,1X»,
+ * «1,155X», «2,3%» (la x leída como %), «2,4xX» o una x suelta. «72%» o «0%» (sin
+ * coma) son parte de un nombre, no una multiplicación.
+ */
+const TIMES_REMNANT = /^(\d{1,4}[,.:;]\d{1,3}[xX×%*]{1,2}|\d{1,4}[xX×]{1,2}|[xX×]{1,2})$/
+const UNREADABLE_TIMES = 'No se ha podido leer la cantidad o el precio unitario'
 
 const toCents = (integer: string, decimals: string) => Number(integer) * 100 + Number(decimals)
 
@@ -301,6 +314,25 @@ function firstGapTokenIndex(text: string): number | null {
 
 const isSeparator = (text: string) => /^[\s\-=*_.·•]*$/.test(text)
 const WEIGHT_LINE = /(\d{1,3})\s?[,.]\s?(\d{3})\s*kg\b.*?[xX×*]\s*(\d{1,4})\s?[,.:;]\s?(\d{2})/i
+/** Una línea que empieza como una de peso («34 kg …», «0,544 kg x», «0,544 …»), aunque no se pueda leer entera. */
+const WEIGHT_LIKE = /^\s*(\d[\d\s.,]*\s*kg\b|\d{1,3}\s?[,.]\s?\d{3}(?![\d,.]))/i
+/** Lo que acaba la cabecera de Lidl: el nombre de la empresa, el NIF o el código postal pegado (o no) al pueblo. */
+const LIDL_HEADER_WORDS = /LIDL\s+SUPERMERCADOS|\bNIF\b/i
+const POSTAL_TOWN = /^\s*\d{5}\s?\p{L}/u
+const isLidlHeader = (text: string) => LIDL_HEADER_WORDS.test(text) || POSTAL_TOWN.test(text)
+/**
+ * Un nombre de producto en un ticket de Lidl va en mayúsculas. Una línea sin
+ * importe que no lo parece (texto de la app, restos) no es un producto.
+ */
+function looksLikeProduct(text: string): boolean {
+  const letters = text.match(/\p{L}/gu) ?? []
+  if (letters.length < 3) return false
+  return letters.filter((c) => c === c.toUpperCase() && c !== c.toLowerCase()).length / letters.length >= 0.7
+}
+/** Lo que pone la app alrededor del ticket en una captura: la barra de estado, la cabecera y la barra de navegación. */
+const APP_CHROME = /^\s*\d{1,2}[:.]\d{2}\b(?!\s*(?:EUR|€)).{0,24}$|^\s*(?:‹|<)?\s*Ticket de compra\b|^\s*(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl)(?:\s+(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl))+\s*$/i
+/** El concepto de un ajuste, sin su importe: «PROMO LIDL PLUS               -0,14» → «PROMO LIDL PLUS». */
+const adjustmentLabel = (text: string) => text.replace(/\s+-?\d{1,4}\s?[,.:;]\s?\d{2}\S*\s*$/, '').replace(/\s+/g, ' ').trim().slice(0, 120)
 const DISCOUNT_LINE = /^\s*(desc\b|desc\.|desc,|dto\b|descuento|promo\b|cup[oó]n|ahorro)/i
 const TOTAL_LINE = /^\s*TOTAL\b(?!\s*(oferta|desc|ahorro))/i
 const HEADER_WORDS = /^\s*(descripci[oó]n|cantidad|p\.?\s*unit|precio|importe|eur)\b/i
@@ -320,18 +352,41 @@ export const endsProducts = (text: string) => PAYMENT_LINE.test(text) || FISCAL_
  * para no borrar productos repetidos de verdad.
  */
 export function mergePages(pages: readonly (readonly OcrLine[])[]): OcrLine[] {
+  return mergePagesReport(pages).lines
+}
+
+/** Sin lo de la app en los bordes de una captura: la barra de estado, la cabecera y la barra de navegación. */
+function withoutAppChrome(page: readonly OcrLine[]): readonly OcrLine[] {
+  let start = 0
+  let end = page.length
+  while (start < Math.min(3, end) && APP_CHROME.test(page[start].text)) start++
+  while (end > start && page.length - end < 3 && APP_CHROME.test(page[end - 1].text)) end--
+  return start === 0 && end === page.length ? page : page.slice(start, end)
+}
+
+/**
+ * Une las capturas y dice cuáles no se han podido unir (`unmatched`: la página
+ * 1, 2… tras la que no se ha encontrado el solape). Con capturas sueltas (sin la
+ * posición en la imagen), se quita lo de la app de los bordes y el solape se
+ * busca con tolerancia: dos líneas son la misma si se leen igual o si tienen el
+ * mismo importe y casi el mismo nombre; puede sobrar una línea cortada al
+ * principio de la captura o al final de la anterior.
+ */
+function mergePagesReport(pages: readonly (readonly OcrLine[])[]): { lines: OcrLine[]; unmatched: number[] } {
   const merged: OcrLine[] = []
+  const unmatched: number[] = []
   const same = (a: OcrLine, b: OcrLine) => {
     const x = readTail(tokensOf(cleanText(a.text)))
     const y = readTail(tokensOf(cleanText(b.text)))
-    return nameKey(a.text) !== '' && similarity(a.text, b.text) >= 0.95 &&
-      x.amount?.cents === y.amount?.cents && x.quantity === y.quantity && x.unitCents === y.unitCents && x.tax === y.tax
+    if (nameKey(a.text) === '') return false
+    if (similarity(a.text, b.text) >= 0.95 && x.amount?.cents === y.amount?.cents && x.quantity === y.quantity && x.unitCents === y.unitCents && x.tax === y.tax) return true
+    return x.amount !== null && y.amount !== null && x.amount.cents === y.amount.cents && similarity(x.nameTokens.join(' '), y.nameTokens.join(' ')) >= 0.85
   }
-  for (const page of pages) {
+  for (const [p, original] of pages.entries()) {
     // Internal strips refer to the same source coordinate system. Match by
     // geometry, never by name alone: repeated products have distinct boxes.
-    if (page[0]?.source && merged.some(l => l.source?.imageIndex === page[0].source!.imageIndex)) {
-      for (const line of page) {
+    if (original[0]?.source && merged.some(l => l.source?.imageIndex === original[0].source!.imageIndex)) {
+      for (const line of original) {
         const source = line.source
         const duplicate = source && merged.findIndex(l => l.source?.imageIndex === source.imageIndex &&
           Math.abs((l.source.box.y0 + l.source.box.y1) / 2 - (source.box.y0 + source.box.y1) / 2) <
@@ -342,18 +397,35 @@ export function mergePages(pages: readonly (readonly OcrLine[])[]): OcrLine[] {
       }
       continue
     }
-    let overlap = 0
-    for (let k = Math.min(merged.length, page.length, 40); k >= 2; k--) {
-      let all = true
-      for (let j = 0; j < k && all; j++) all = same(merged[merged.length - k + j], page[j])
-      if (all && new Set(page.slice(0, k).map(l => nameKey(l.text))).size >= 2) {
-        overlap = k
-        break
+    const page = withoutAppChrome(original)
+    if (merged.length === 0) {
+      merged.push(...page)
+      continue
+    }
+    // El solape más largo; puede sobrar una línea cortada (o dos) al final de la anterior o al principio de esta.
+    let found: { drop: number; skip: number; length: number } | null = null
+    search: for (let length = Math.min(merged.length, page.length, 40); length >= 2; length--) {
+      for (let drop = 0; drop <= 2; drop++) {
+        for (let skip = 0; skip <= 2; skip++) {
+          if (merged.length - drop - length < 0 || skip + length > page.length) continue
+          let all = true
+          for (let j = 0; j < length && all; j++) all = same(merged[merged.length - drop - length + j], page[skip + j])
+          if (all && new Set(page.slice(skip, skip + length).map(l => nameKey(l.text))).size >= 2) {
+            found = { drop, skip, length }
+            break search
+          }
+        }
       }
     }
-    merged.push(...page.slice(overlap))
+    if (found) {
+      merged.splice(merged.length - found.drop, found.drop)
+      merged.push(...page.slice(found.skip + found.length))
+    } else {
+      unmatched.push(p)
+      merged.push(...page)
+    }
   }
-  return merged
+  return { lines: merged, unmatched }
 }
 
 // ---------------------------------------------------------------------------
@@ -431,8 +503,12 @@ interface WorkLine {
   taxCode: TaxCode | null
   /** Importes leídos (nunca calculados), con su puntuación. */
   amount: Candidate[]
-  /** Cada lectura del importe por separado, con sus cifras en bruto. */
-  readings: { text: AmountToken | null; reread: AmountToken | null }
+  /**
+   * Cada lectura del importe por separado, con sus cifras en bruto: la del texto, la relectura de la
+   * banda y las otras lecturas independientes (null si una no tiene importe). `loose`: las cifras sin
+   * coma que se han tomado como candidatas.
+   */
+  readings: { text: AmountToken | null; reread: AmountToken | null; extra: (AmountToken | null)[]; loose: string[] }
   /** Las dos pasadas del OCR leyeron igual el precio y la cantidad (o el peso y el precio por kilo). */
   inputsStable: boolean
   confidence: { amount?: number; inputs?: number }
@@ -486,13 +562,20 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
   const text = cleanText(line.text)
   const tokens = tokensOf(text)
   if (tokens.length === 0) return null
-  const fromText = readTail(tokens)
+  let fromText = readTail(tokens)
   const fromReread = line.reread ? readTail(tokensOf(cleanText(line.reread))) : null
+  // Otras lecturas independientes de la banda de importes (a otra escala), para votar.
+  const fromExtra = (line.rereads ?? []).map((reading) => readTail(tokensOf(cleanText(reading))))
+  const gap = firstGapTokenIndex(text)
+  // Unas cifras sin coma pegadas al nombre, sin el hueco que lo separa de los importes («SERVILLETAS 100U»,
+  // «MANTEQUILLA 250G»), son parte del nombre, no un importe.
+  if (fromText.looseAmountCents !== null && (gap === null || gap > fromText.nameTokens.length)) {
+    fromText = { nameTokens: tokens, amount: null, looseAmountCents: null, unitCents: null, quantity: null, tax: null, taxRaw: null }
+  }
 
   // El nombre no pasa del primer hueco grande: lo de después son importes (aunque estén mal leídos).
   const uncut = fromText.nameTokens
   let nameTokens = uncut
-  const gap = firstGapTokenIndex(text)
   if (gap !== null && gap < nameTokens.length) nameTokens = nameTokens.slice(0, gap)
   // Sin importe al final, se quitan los restos con cifras y signos («1-29:B»).
   if (!fromText.amount) {
@@ -527,29 +610,50 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
   // normal manda; si no lo es, manda la relectura. La multiplicación NO puntúa aquí: se usa
   // después como evidencia independiente (ver selectLine y ticketEvidence.ts).
   if (fromReread?.amount) addCandidate(amount, fromReread.amount.cents, fromReread.amount.clean ? 2 : 1.5)
+  for (const extra of fromExtra) if (extra.amount) addCandidate(amount, extra.amount.cents, extra.amount.clean ? 2 : 1.5)
   if (fromText.amount) addCandidate(amount, fromText.amount.cents, fromText.amount.clean ? 2.5 : 0.7)
-  if (fromReread && fromReread.looseAmountCents !== null) addCandidate(amount, fromReread.looseAmountCents, 0.4)
-  if (fromText.looseAmountCents !== null) addCandidate(amount, fromText.looseAmountCents, 0.4)
+  // Un importe sin coma («378») es poco fiable, y nunca si sus cifras están en el nombre («SERVILLETAS 100U», relectura «100»).
+  const nameNumbers = rawName.match(/\d+/g) ?? []
+  const looseDigits: string[] = []
+  for (const reading of [fromReread, ...fromExtra, fromText]) {
+    if (!reading || reading.looseAmountCents === null) continue
+    const digits = String(reading.looseAmountCents)
+    if (nameNumbers.some((n) => digits.startsWith(n) || n.startsWith(digits))) continue
+    addCandidate(amount, reading.looseAmountCents, 0.4)
+    looseDigits.push(digits)
+  }
 
-  // Cantidad y precio unitario: de las dos lecturas, la que cuadra con algún importe leído; si ninguna, la normal.
-  const options = [fromText, fromReread].filter((r): r is TailReading => r !== null && r.unitCents !== null && r.quantity !== null)
+  // Cantidad y precio unitario: de las lecturas, la que cuadra con algún importe leído; si ninguna, la normal.
+  const options = [fromText, fromReread, ...fromExtra].filter((r): r is TailReading => r !== null && r.unitCents !== null && r.quantity !== null)
   const consistent = options.find((r) => amount.some((c) => c.cents === r.unitCents! * r.quantity!))
   const chosen = consistent ?? options[0]
   const unitCents = chosen?.unitCents ?? leadingUnitCents
   const quantity = chosen?.quantity && chosen.quantity > 0 ? chosen.quantity : (leadingQuantity ?? 1)
   const plainUnit = fromReread && fromReread.unitCents === null ? readPlainUnit(fromReread) : null
-  const inputsStable = (options.length === 2 && options[0].unitCents === options[1].unitCents && options[0].quantity === options[1].quantity) ||
+  const inputsStable = (options.length >= 2 && options.every((r) => r.unitCents === options[0].unitCents && r.quantity === options[0].quantity)) ||
     (plainUnit !== null && plainUnit.unitCents === unitCents && plainUnit.quantity === quantity)
 
+  const issues: string[] = []
+  // «2,75X», «79X 2», «2,3% 2»: hay una multiplicación, pero no se ha podido leer. No es 1 unidad.
+  if (unitCents === null) {
+    const textTail = gap !== null ? uncut.slice(gap) : uncut.slice(-2)
+    if ([textTail, ...[fromReread, ...fromExtra].map((r) => r?.nameTokens ?? [])].some((list) => list.some((token) => TIMES_REMNANT.test(token)))) {
+      issues.push(UNREADABLE_TIMES)
+    }
+  }
+
   const amountDoubts: string[] = []
-  const taxCode = fromReread?.tax ?? fromText.tax
+  const readings = [fromText, fromReread, ...fromExtra]
+  const taxCode = fromReread?.tax ?? fromExtra.find((r) => r.tax)?.tax ?? fromText.tax
   // «3,73 5» en vez de «3,79B»: si la letra del IVA solo aparece como cifra, el OCR ha leído
   // la línea como si fueran cifras y el importe puede tener otra cifra confundida.
-  if (taxCode && ![fromText, fromReread].some(r => r?.taxRaw && /\p{L}/u.test(r.taxRaw))) {
-    amountDoubts.push(`La letra del IVA se ha leído como la cifra «${fromText.taxRaw ?? fromReread?.taxRaw}»: puede haber otra cifra confundida en el importe`)
+  if (taxCode && !readings.some(r => r?.taxRaw && /\p{L}/u.test(r.taxRaw))) {
+    amountDoubts.push(`La letra del IVA se ha leído como la cifra «${fromText.taxRaw ?? fromReread?.taxRaw ?? fromExtra.find((r) => r.taxRaw)?.taxRaw}»: puede haber otra cifra confundida en el importe`)
   }
-  if (!fromText.amount && fromReread?.amount) amountDoubts.push('El importe solo se lee en la relectura de cifras')
-  if (hasLookalikeDigits(line.text) || (line.reread && hasLookalikeDigits(line.reread))) amountDoubts.push('Se han interpretado letras como cifras')
+  if (!fromText.amount && (fromReread?.amount || fromExtra.some((r) => r.amount))) amountDoubts.push('El importe solo se lee en la relectura de cifras')
+  if (hasLookalikeDigits(line.text) || (line.reread && hasLookalikeDigits(line.reread)) || (line.rereads ?? []).some(hasLookalikeDigits)) {
+    amountDoubts.push('Se han interpretado letras como cifras')
+  }
 
   return {
     position,
@@ -560,12 +664,12 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
     pricePerKgCents: null,
     taxCode,
     amount,
-    readings: { text: fromText.amount, reread: fromReread?.amount ?? null },
+    readings: { text: fromText.amount, reread: fromReread?.amount ?? null, extra: fromExtra.map((r) => r.amount), loose: looseDigits },
     inputsStable,
     confidence: wordConfidence(line),
     discounts: [],
     source: line,
-    issues: [],
+    issues,
     amountDoubts,
   }
 }
@@ -608,7 +712,9 @@ const asReading = (token: AmountToken): AmountReading => ({ cents: token.cents, 
 function selectLine(line: WorkLine): ParsedTicketLine {
   const reads = sorted(line.amount)
   const { text: textToken, reread: rereadToken } = line.readings
-  const readings = [textToken, rereadToken].filter((t): t is AmountToken => t !== null).map(asReading)
+  const extraTokens = line.readings.extra.filter((t): t is AmountToken => t !== null)
+  const tokens = [textToken, rereadToken, ...extraTokens].filter((t): t is AmountToken => t !== null)
+  const readings = tokens.map(asReading)
   const chosen = reads[0] ?? null
   // La lectura elegida, con sus cifras en bruto (una lectura sin coma, «378», cuenta como deformada).
   const recognized: AmountReading | null = chosen === null ? null :
@@ -617,8 +723,12 @@ function selectLine(line: WorkLine): ParsedTicketLine {
   const issues = [...line.issues]
   const options: TicketAmountOption[] = []
   let amount: number | null = recognized?.cents ?? null
-  let selectedBy: TicketEvidence['selectedBy'] = rereadToken && textToken?.cents !== amount && rereadToken.cents === amount ? 'reread' : 'read'
+  let selectedBy: TicketEvidence['selectedBy'] = textToken?.cents !== amount && [rereadToken, ...extraTokens].some(t => t?.cents === amount) ? 'reread' : 'read'
   let discrepancy: TicketDiscrepancy | undefined
+  // Votación: con otra lectura independiente (a otra escala), un importe es fiable si al menos dos lecturas
+  // dan exactamente esa cifra y ninguna dice otra cosa (tampoco una deformada ni una sin coma).
+  const voted = amount !== null && extraTokens.length > 0 && line.readings.loose.length === 0 && tokens.length >= 2 &&
+    tokens.every(t => t.clean && t.cents === amount)
 
   const weighted = line.weightKg !== null && line.pricePerKgCents !== null
   const grams = weighted ? Math.round(line.weightKg! * 1000) : 0
@@ -627,7 +737,7 @@ function selectLine(line: WorkLine): ParsedTicketLine {
     : line.unitCents !== null ? sign * line.unitCents * line.quantity : null
   const common = recognized && {
     recognized, readings: readings.length ? readings : [recognized], inputsStable: line.inputsStable,
-    amountStable: readings.length === 2 && readings[0].cents === readings[1].cents, confidence: line.confidence,
+    amountStable: readings.length >= 2 && readings.every(r => r.cents === readings[0].cents), confidence: line.confidence,
   }
 
   if (calculated !== null && recognized === null) {
@@ -657,11 +767,13 @@ function selectLine(line: WorkLine): ParsedTicketLine {
     }
   } else if (calculated === null && reads.length > 1) {
     issues.push('Las lecturas del importe no coinciden')
-    // Botones solo para lecturas con forma de importe («2,99»), nunca para cifras sueltas sin coma («373»).
-    if (textToken && rereadToken && textToken.cents !== rereadToken.cents) {
-      const both: TicketAmountOption[] = [{ cents: textToken.cents, origin: 'read' }, { cents: rereadToken.cents, origin: 'reread' }]
-      options.push(...(selectedBy === 'reread' ? both.reverse() : both))
+    // Botones solo para lecturas con forma de importe («2,99»), nunca para cifras sueltas sin coma («373»):
+    // la elegida primero y después cada lectura distinta.
+    const distinct: TicketAmountOption[] = []
+    for (const [token, origin] of [[textToken, 'read'], [rereadToken, 'reread'], ...extraTokens.map(t => [t, 'reread'] as const)] as const) {
+      if (token && !distinct.some(o => o.cents === token.cents)) distinct.push({ cents: token.cents, origin })
     }
+    if (distinct.length >= 2) options.push(...distinct.filter(o => o.cents === amount), ...distinct.filter(o => o.cents !== amount))
   }
   if (calculated === null && textToken && !rereadToken && line.source.reread) {
     // Relectura con cifras que no se puede interpretar («2795» frente a «3,72B»): las dos pasadas no coinciden.
@@ -673,10 +785,10 @@ function selectLine(line: WorkLine): ParsedTicketLine {
   if (calculated === null) {
     // «2,939»: el OCR vio una cifra de más. Quitar la última es una suposición (podía sobrar la del
     // medio), así que una lectura deformada no confirma el importe aunque otra lectura coincida.
-    const deformed = [textToken, rereadToken].find(t => t && !t.clean && /\d/.test(t.glued))
+    const deformed = tokens.find(t => !t.clean && /\d/.test(t.glued))
     if (deformed) issues.push(`Una lectura del importe tiene cifras de más («${asReading(deformed).printed}»): confirma el importe`)
     // «1,15-»: un «-» pegado detrás tampoco confirma nada; puede ser un descuento, una devolución o una mancha.
-    const hyphened = [textToken, rereadToken].find(t => t?.glued.startsWith('-'))
+    const hyphened = tokens.find(t => t.glued.startsWith('-'))
     if (hyphened) issues.push(`Una lectura del importe tiene un «-» pegado detrás («${asReading(hyphened).printed}${hyphened.glued}»): confirma el importe`)
   }
   // Si el importe leído coincide con la multiplicación, esa coincidencia resuelve el desacuerdo entre lecturas.
@@ -684,12 +796,20 @@ function selectLine(line: WorkLine): ParsedTicketLine {
   if (amount === null && !discrepancy) { flags.add('ilegible'); issues.push('No se lee el importe') }
   // Una multiplicación que coincide con el importe leído es una comprobación independiente: resuelve la baja confianza.
   const verifiedByArithmetic = calculated !== null && recognized !== null && calculated === recognized.cents
-  if ((line.source.confidence ?? 100) < 75 && !verifiedByArithmetic) issues.push('Lectura de baja confianza')
-  if (!verifiedByArithmetic) issues.push(...line.amountDoubts)
+  // Un importe que solo sale de cifras sin coma («2525») nunca es fiable, salvo que lo confirme la multiplicación.
+  if (chosen !== null && line.readings.loose.includes(String(chosen.cents)) && !readings.some(r => r.cents === chosen.cents) &&
+    !verifiedByArithmetic && amount === chosen.cents) {
+    issues.push(`El importe se ha leído sin coma («${line.readings.loose[0] ?? printedDigits(chosen.cents)}»): confírmalo`)
+  }
+  // Tres lecturas que coinciden resuelven la poca confianza y las dudas de una cifra confundida.
+  if ((line.source.confidence ?? 100) < 75 && !verifiedByArithmetic && !voted) issues.push('Lectura de baja confianza')
+  if (!verifiedByArithmetic && !voted) issues.push(...line.amountDoubts)
   let discountCents = 0
   for (const discount of line.discounts) {
     const choices = sorted(discount)
-    discountCents += choices[0]?.cents ?? 0
+    // Entre lecturas distintas del descuento, mejor una que no supere el importe (la línea queda marcada igual).
+    const possible = amount === null ? [] : choices.filter(c => c.cents <= Math.max(0, amount!))
+    discountCents += (possible[0] ?? choices[0])?.cents ?? 0
     if (!choices.length || choices.length > 1) issues.push('Descuento ilegible o ambiguo')
   }
   if (amount !== null && discountCents > Math.max(0, amount)) issues.push('Descuento mayor que el importe')
@@ -736,15 +856,19 @@ function readTotal(lines: readonly OcrLine[], totalIndex: number | null): number
 
 /** Analiza las líneas leídas de una o varias capturas (o el texto pegado, una línea por renglón). */
 export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicket {
-  const lines = mergePages(pages).filter(line => line.text.trim() !== '')
+  const merged = mergePagesReport(pages)
+  const lines = merged.lines.filter(line => line.text.trim() !== '')
   const store = detectStore(lines)
   const issues: string[] = []
   const adjustments: TicketAdjustment[] = []
   const work: WorkLine[] = []
+  const nonProducts: { text: string; source?: TicketSource }[] = []
   let state: 'header' | 'products' | 'adjustments' | 'closed' = 'header'
   let previousWasItem = false
   let totalIndex: number | null = null
   let promoIndex = lines.length
+  // Sin la línea «EUR», la cabecera de Lidl acaba en su última línea conocida (empresa, código postal o NIF).
+  const headerEnd = store === 'lidl' ? lines.slice(0, 15).findLastIndex(line => isLidlHeader(line.text)) : -1
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     if (PROMOTIONAL_LINE.test(line.text) && state !== 'header') promoIndex = Math.min(promoIndex, i)
@@ -766,7 +890,10 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
       const tail = readTail(tokensOf(cleanText(line.text)))
       const rereadAmount = line.reread ? readTail(tokensOf(cleanText(line.reread))).amount : null
       const looksLikeAmount = tail.amount !== null || (rereadAmount !== null && /\d[,.:;]?\d/.test(tail.nameTokens.at(-1) ?? ''))
-      if (!looksLikeAmount || letterCount(tail.nameTokens.join(' ')) < 2 || DISCOUNT_LINE.test(line.text) || TOTAL_LINE.test(line.text)) continue
+      // Pasada la cabecera de Lidl, una línea con forma de producto es un producto aunque no se le lea el
+      // importe (si Tesseract pierde la columna de importes): nunca se queda en la cabecera sin decir nada.
+      const afterHeader = headerEnd >= 0 && i > headerEnd && looksLikeProduct(line.text)
+      if ((!looksLikeAmount && !afterHeader) || letterCount(tail.nameTokens.join(' ')) < 2 || DISCOUNT_LINE.test(line.text) || TOTAL_LINE.test(line.text)) continue
       state = 'products'
     }
     const previous = work[work.length - 1]
@@ -780,16 +907,26 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
       } else issues.push('Línea de peso sin producto identificable')
       continue
     }
+    if (WEIGHT_LIKE.test(line.text)) {
+      // «34 kg     JO ER /La»: una línea de peso que no se lee entera es del producto de encima, no otro producto.
+      if (previous && previousWasItem && previous.weightKg === null) previous.issues.push('No se ha podido leer la línea del peso: confirma el peso, el precio por kilo y el importe')
+      else issues.push('Línea de peso sin producto identificable')
+      continue
+    }
     if (DISCOUNT_LINE.test(line.text)) {
       if (/^\s*(ahorro|ahorrado|resumen)\b/i.test(line.text)) { previousWasItem = false; continue }
       const discount = readDiscount(line)
-      // A short Desc./Dto. continuation is the supported article-discount
-      // grammar. A named coupon/promotion is never assigned by proximity.
+      const label = adjustmentLabel(line.text)
+      // Un «Desc.» justo debajo de un producto es suyo. Una PROMO, solo si va sangrada como un «Desc.» justo
+      // debajo, y se propone para confirmar. Un cupón o una promoción sin sangrar quedan como ajuste general.
       if (/^\s*(desc[.,]?|dto[.,]?|descuento art[ií]culo)\s+-/i.test(cleanText(line.text)) && previous && previousWasItem) {
         previous.discounts.push(discount)
+      } else if (/^\s*promo\b/i.test(line.text) && previous && previousWasItem && indented(line, previous.source)) {
+        previous.discounts.push(discount)
+        previous.issues.push(`«${label}» va sangrada debajo de este producto: se le propone como descuento, confírmalo`)
       } else {
         const kind = /cup[oó]n/i.test(line.text) ? 'coupon' : /promo/i.test(line.text) ? 'promotion' : 'discount'
-        adjustments.push({ id: `adjustment-${i}`, label: line.text.trim().slice(0, 120), kind,
+        adjustments.push({ id: `adjustment-${i}`, label, kind,
           amountCents: discount.length ? -sorted(discount)[0].cents : null,
           needsReview: true, originalText: line.text })
         state = 'adjustments'
@@ -799,6 +936,12 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
     }
     if (work.length >= 300) { issues.push('El ticket supera las 300 líneas; lectura incompleta'); state = 'closed'; continue }
     const item = readItemLine(line, work.length)
+    // Una línea sin ningún importe que no tiene forma de producto (texto de la app, restos) va aparte.
+    if (item && item.amount.length === 0 && item.unitCents === null && !looksLikeProduct(item.rawName)) {
+      nonProducts.push({ text: line.text.trim(), ...(line.source ? { source: line.source } : {}) })
+      previousWasItem = false
+      continue
+    }
     if (item) {
       work.push(item)
       previousWasItem = true
@@ -807,7 +950,10 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
     }
     const tail = readTail(tokensOf(cleanText(line.text)))
     if (previous && previousWasItem && previous.amount.length === 0 && tail.amount) addCandidate(previous.amount, tail.amount.cents, 1)
-    else previousWasItem = false
+    else {
+      previousWasItem = false
+      if (line.text.replace(/\s/g, '').length >= 4) nonProducts.push({ text: line.text.trim(), ...(line.source ? { source: line.source } : {}) })
+    }
   }
   const metadata = lines.slice(0, promoIndex)
   const totalCents = readTotal(metadata, totalIndex)
@@ -825,6 +971,7 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
       if (nameKey(next[0].text) === nameKey(next[1]?.text ?? '')) issues.push('Solapamiento ambiguo: se han conservado los productos repetidos')
     }
   }
+  for (const page of merged.unmatched) issues.push(`No se ha encontrado dónde se solapan las capturas ${page} y ${page + 1}: revisa si hay productos repetidos o que falten`)
   const taxGroups = readTaxGroups(metadata.slice(totalIndex ?? 0))
   const taxCheck = checkTaxGroups(parsed, taxGroups, adjustments)
   for (const group of taxCheck.groups) {
@@ -844,7 +991,25 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
   if (!date) issues.push('No se ha reconocido la fecha de compra')
   return { store, storeName: storeNameOf(store, lines), address: addressOf(store, lines), date, time,
     totalCents, lines: parsed, adjustments, issues: [...new Set(issues)], check, taxGroups,
-    paymentMethod: paymentMethodOf(metadata.slice(totalIndex ?? 0)) }
+    paymentMethod: paymentMethodOf(metadata.slice(totalIndex ?? 0)), ...(nonProducts.length ? { nonProducts } : {}) }
+}
+
+/**
+ * La línea va sangrada respecto a la de encima: por su posición en la imagen
+ * (al menos casi una letra más a la derecha) o, en un texto pegado, por los
+ * espacios del principio.
+ */
+function indented(line: OcrLine, above: OcrLine): boolean {
+  const below = line.source
+  const over = above.source
+  if (below && over) {
+    if (below.imageIndex !== over.imageIndex) return false
+    const charWidth = (over.box.x1 - over.box.x0) / Math.max(1, above.text.trim().length)
+    return below.box.x0 - over.box.x0 >= charWidth * 0.8
+  }
+  if (below || over) return false
+  const lead = (text: string) => text.length - text.trimStart().length
+  return lead(line.text) > lead(above.text)
 }
 
 // ---------------------------------------------------------------------------

@@ -221,6 +221,9 @@ public sealed class NodeTicketReader(OcrWorkerSettings settings, TextWriter? log
             ? new TicketSource(from.GetProperty("imageIndex").GetInt32(), from.GetProperty("segmentIndex").GetInt32(), ReadBox(from.GetProperty("box")),
                 from.GetProperty("width").GetDouble(), from.GetProperty("height").GetDouble())
             : null;
-        return new OcrLine(TextOrNull(line, "text") ?? "", TextOrNull(line, "reread"), confidence, words, source);
+        IReadOnlyList<string>? rereads = line.TryGetProperty("rereads", out var others) && others.ValueKind == JsonValueKind.Array
+            ? [.. others.EnumerateArray().Where(reading => reading.ValueKind == JsonValueKind.String).Select(reading => reading.GetString()!)]
+            : null;
+        return new OcrLine(TextOrNull(line, "text") ?? "", TextOrNull(line, "reread"), confidence, words, source, rereads);
     }
 }
