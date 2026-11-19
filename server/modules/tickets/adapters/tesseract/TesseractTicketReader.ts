@@ -5,24 +5,30 @@ import type { OcrLine, TicketSegment } from '#shared/tickets/types.ts'
 import { endsProducts } from '#shared/tickets/ticketParse.ts'
 import { imageInfo, type ImageInfo } from '../../../../common/imageInfo.ts'
 import type { TicketReader } from '../../application/ports.ts'
+import { amountBand, type Band } from './amountColumn.ts'
 
 /**
  * Lector de tickets: OCR con Tesseract (tesseract.js), en este mismo equipo.
  * Las imágenes no salen de casa y no se descarga nada al usarlo: el modelo de
  * español viene en node_modules (@tesseract.js-data/spa).
  *
- * Dos pasadas por imagen:
+ * Dos pasadas por imagen (todas las franjas de una misma imagen juntas):
  * 1. Texto completo, línea a línea (nombres, fechas, total…), en modo «una
  *    columna» (PSM 4): un ticket es una sola columna de texto de distintos
  *    tamaños. Medido con OCR real sobre 132 líneas de tickets de prueba (capturas
  *    a 400-1080 px y fotos): 111 líneas limpias frente a 104 con PSM 6 (bloque),
  *    sin ningún importe erróneo aceptado en silencio en ninguno de los dos.
- * 2. Solo la parte final de cada línea de producto (cantidad × precio,
- *    importe y letra de IVA), leída otra vez con una lista de caracteres
- *    permitidos (cifras, coma, x, A/B/C). En las capturas pequeñas o
- *    borrosas es donde más se equivoca la primera pasada.
+ * 2. La banda de importes (cantidad × precio, importe y letra de IVA) de cada
+ *    línea de producto, leída otra vez con una lista de caracteres permitidos
+ *    (cifras, coma, x, A/B/C). La banda se calcula con todas las líneas de la
+ *    imagen (amountColumn.ts), no con las palabras de cada línea: así se relee
+ *    aunque Tesseract no haya devuelto la columna de importes en esa línea (la
+ *    pierde si la separa como otro bloque) y la relectura nunca lee el nombre.
+ *    Se relee en todas las líneas de producto, no solo en las dudosas. Si no hay
+ *    una columna de importes clara (otro formato de ticket), se relee como
+ *    antes el final numérico de las líneas que lo necesitan.
  *    Leer solo la palabra del importe (PSM 8) o quitar la lista de caracteres
- *    dio peores resultados en esa misma medición.
+ *    dieron peores resultados en la medición.
  * Las dos lecturas se entregan al analizador (shared/tickets/ticketParse.ts), que
  * las compara entre sí y con la multiplicación de la línea. El total del
  * ticket nunca decide un importe.
@@ -71,19 +77,24 @@ function clampRect(rect: Rect, image: ImageInfo): Rect {
   return { left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) }
 }
 
-/** Líneas que merece la pena releer: las de productos, entre la cabecera «EUR» y el TOTAL (incluido). */
+/** Lo que señala el final de la cabecera de Lidl cuando falta la línea «EUR»: el nombre, la dirección o el NIF. */
+const HEADER_LINE = /LIDL\s+SUPERMERCADOS|S\.?A\.?U\.?\s*$|\bNIF\b|^\s*\d{5}\s?\p{L}|^\s*Copia\s*$/iu
+
+/**
+ * Líneas que merece la pena releer: las de productos, entre la cabecera y el
+ * TOTAL (incluido). La cabecera acaba en «EUR»; si no se ha leído, en la
+ * última línea de la cabecera de Lidl de las primeras.
+ */
 function rereadRange(lines: readonly Line[]): [number, number] {
-  const start = lines.findIndex((line) => /^\s*EUR\s*$/i.test(line.text))
+  let start = lines.findIndex((line) => /^\s*EUR\s*$/i.test(line.text))
+  if (start === -1) start = lines.slice(0, 15).findLastIndex((line) => HEADER_LINE.test(line.text))
   const end = lines.findIndex((line, i) => i > start && (/^\s*TOTAL\b/i.test(line.text) || endsProducts(line.text)))
-  return [start === -1 ? 0 : start + 1, end === -1 ? lines.length - 1 : end]
+  return [start + 1, end === -1 ? lines.length - 1 : end]
 }
 
-async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source: Omit<TicketSegment, 'image'>): Promise<OcrLine[]> {
-  await worker.setParameters({
-    tessedit_pageseg_mode: PSM.SINGLE_COLUMN,
-    tessedit_char_whitelist: '',
-    preserve_interword_spaces: '1',
-  })
+interface TextPass { lines: Line[]; result: OcrLine[] }
+
+async function readText(worker: Worker, image: Buffer, info: ImageInfo, source: Omit<TicketSegment, 'image'>): Promise<TextPass> {
   const { data } = await worker.recognize(image, {}, { text: true, blocks: true })
   const lines = (data.blocks ?? []).flatMap((block) => block.paragraphs.flatMap((paragraph) => paragraph.lines))
   const result: OcrLine[] = lines.map((line) => ({ text: line.text.replace(/\n$/, ''), reread: null,
@@ -91,7 +102,11 @@ async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source:
     words: line.words.map(w => ({ text: w.text, confidence: w.confidence, box: { ...w.bbox, y0: w.bbox.y0 + source.offsetY, y1: w.bbox.y1 + source.offsetY } })),
     source: { imageIndex: source.imageIndex, segmentIndex: source.segmentIndex, width: info.width, height: source.fullHeight,
       box: { ...line.bbox, y0: line.bbox.y0 + source.offsetY, y1: line.bbox.y1 + source.offsetY } } }))
+  return { lines, result }
+}
 
+/** La segunda pasada de una franja: la banda de importes de cada línea de producto y las líneas de peso enteras. */
+async function reread(worker: Worker, image: Buffer, info: ImageInfo, { lines, result }: TextPass, band: Band | null): Promise<void> {
   const [from, to] = rereadRange(lines)
   const tails: { index: number; rect: Rect }[] = []
   const weights: { index: number; rect: Rect }[] = []
@@ -104,11 +119,15 @@ async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source:
       weights.push({ index: i, rect: clampRect(rect, info) })
       continue
     }
+    if (band) {
+      // La banda entera a la altura de la línea, aunque la primera pasada no haya leído ahí ningún importe.
+      tails.push({ index: i, rect: clampRect({ left: band.left, top: line.bbox.y0 - pad, width: band.right - band.left, height: height + 2 * pad }, info) })
+      continue
+    }
     const start = numericTailStart(line.words)
     if (start === null) continue
     const numeric = line.words.slice(start)
-    // Multiunit arithmetic benefits from an independent reading. Clean,
-    // high-confidence single amounts do not need another Tesseract call.
+    // Sin banda (otro formato), como antes: un importe limpio y con mucha confianza no se relee.
     if (numeric.every(w => w.confidence >= 90) && /\d[,.]\d{2}\s+[ABC]\s*$/.test(line.text) && !/\d\s*[xX×*]\s*\d/.test(line.text)) continue
     const first = line.words[start]
     const rect = { left: first.bbox.x0 - pad, top: line.bbox.y0 - pad, width: line.bbox.x1 - first.bbox.x0 + 2 * pad, height: height + 2 * pad }
@@ -122,11 +141,40 @@ async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source:
     if (targets.length === 0) continue
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE, tessedit_char_whitelist: whitelist })
     for (const { index, rect } of targets) {
-      const { data: reread } = await worker.recognize(image, { rectangle: rect })
-      result[index].reread = reread.text.replace(/\s+/g, ' ').trim() || null
+      const { data: again } = await worker.recognize(image, { rectangle: rect })
+      result[index].reread = again.text.replace(/\s+/g, ' ').trim() || null
     }
   }
-  return result
+}
+
+/** La banda de importes de una imagen, con las líneas de todas sus franjas (comparten el eje x). */
+function bandOf(passes: readonly TextPass[], width: number): Band | null {
+  const lines = passes.flatMap((pass) => pass.lines)
+  return amountBand(lines.map((line) => ({ text: line.text, x0: line.bbox.x0, x1: line.bbox.x1,
+    words: line.words.map((w) => ({ text: w.text, x0: w.bbox.x0, x1: w.bbox.x1 })) })), width)
+}
+
+/**
+ * Lee las franjas: primero el texto de todas y después, imagen a imagen, la
+ * banda de importes (con las líneas de todas sus franjas) y la segunda pasada.
+ */
+async function readAll(worker: Worker, images: readonly Uint8Array[], segments: readonly Omit<TicketSegment, 'image'>[] | undefined): Promise<OcrLine[][]> {
+  const prepared = images.map((bytes, i) => {
+    // tesseract.js y imageInfo trabajan con Buffer; el puerto recibe Uint8Array (sin copiar nada).
+    const image = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    const info = imageInfo(image)
+    if (!info) throw new Error('Imagen no válida')
+    return { image, info, source: segments?.[i] ?? { imageIndex: i, segmentIndex: 0, offsetY: 0, fullHeight: info.height } }
+  })
+  await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_COLUMN, tessedit_char_whitelist: '', preserve_interword_spaces: '1' })
+  const passes: TextPass[] = []
+  for (const { image, info, source } of prepared) passes.push(await readText(worker, image, info, source))
+  const bands = new Map<number, Band | null>()
+  for (const { info, source } of prepared) {
+    if (!bands.has(source.imageIndex)) bands.set(source.imageIndex, bandOf(passes.filter((_, i) => prepared[i].source.imageIndex === source.imageIndex), info.width))
+  }
+  for (const [i, { image, info, source }] of prepared.entries()) await reread(worker, image, info, passes[i], bands.get(source.imageIndex) ?? null)
+  return passes.map((pass) => pass.result)
 }
 
 /** Lector real (Tesseract). Las imágenes deben ser PNG o JPEG ya validados (ver validateTicketImage). */
@@ -159,16 +207,7 @@ export function createTesseractReader({ idleMs = IDLE_MS }: { idleMs?: number } 
     read(images, segments) {
       const job = queue.then(async () => {
         if (idleTimer) clearTimeout(idleTimer)
-        const tesseract = await getWorker()
-        const pages: OcrLine[][] = []
-        for (const [i, bytes] of images.entries()) {
-          // tesseract.js y imageInfo trabajan con Buffer; el puerto recibe Uint8Array (sin copiar nada).
-          const image = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-          const info = imageInfo(image)
-          if (!info) throw new Error('Imagen no válida')
-          pages.push(await readImage(tesseract, image, info, segments?.[i] ?? { imageIndex: i, segmentIndex: 0, offsetY: 0, fullHeight: info.height }))
-        }
-        return pages
+        return readAll(await getWorker(), images, segments)
       })
       // Un fallo en un ticket no bloquea los siguientes.
       queue = job.catch(() => undefined).finally(scheduleIdle)

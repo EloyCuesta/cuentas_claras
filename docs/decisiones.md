@@ -145,6 +145,15 @@ Una pareja que no se solapa con claridad no se inventa: se avisa antes de leer y
 
 **Recortar al papel, e invertir si hace falta.** Con fondo oscuro alrededor del papel (el modo oscuro, o una foto sobre una mesa), Tesseract partía las líneas en nombres e importes. Ahora se recorta al papel: las columnas y filas del color del papel, contando como papel las filas con los dos márgenes en blanco (así el logotipo, las rayas y los recuadros no lo parten). Si el papel es oscuro con letras claras, se invierte.
 
+**Releer la banda de importes de todas las líneas.** La segunda pasada del OCR releía el final numérico de cada línea a partir de sus palabras, y solo en las que parecían dudosas. Si Tesseract no devolvía la columna de importes de un trozo, no había nada que releer, y el analizador perdía esos productos o los dejaba sin importe.
+
+Ahora el lector calcula con todas las líneas de la imagen dónde está la banda de importes (`server/modules/tickets/adapters/tesseract/amountColumn.ts`):
+- empieza tras las 20 columnas del nombre, en la de las multiplicaciones;
+- llega al borde derecho, con la letra del IVA;
+- relee esa banda en todas las líneas de producto.
+
+Así una línea siempre tiene dos lecturas de su importe y la relectura nunca lee el nombre. En el banco sintético (18 casos), con la imagen ya preparada por la fase anterior, deja las líneas limpias igual (615 → 616 de 696) y cuesta un 4 % más de tiempo de lectura (91 → 95 s). Es la red para cuando se pierde la columna.
+
 **PNG para las imágenes de pantalla.** Una captura o la imagen de la app tienen el fondo liso y van en PNG, sin las manchas del JPEG alrededor de las cifras. Las fotos van en JPEG, igual que una franja que no quepa en los límites. El cuerpo de la lectura (`franjas`) y sus límites no cambian.
 
 Lo que cuesta: la huella de origen sale de los bytes de las franjas, así que un ticket guardado con la preparación de antes y vuelto a escanear sale como **posible duplicado** (misma tienda, fecha, hora y total), no como repetido. Lo comprueba `server/modules/tickets/tickets.test.ts`.
