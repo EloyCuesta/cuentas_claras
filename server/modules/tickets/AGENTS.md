@@ -62,7 +62,7 @@ Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql
 
 `ticketAtomicity.test.ts` provoca un fallo real de MySQL en la segunda línea (su id ya está ocupado) y compara todas las filas antes y después: rollback completo y reintento sin duplicados. Con dos conexiones, dos guardados iguales a la vez (un 201 y un 409, sin efectos dobles) y un ticket y un + a la vez sobre el mismo producto. Y la restauración financiera, sin alterar tickets ni despensa.
 
-`adapters/tesseract/amountColumn.test.ts`: la banda de importes que relee el lector (empieza tras las 20 columnas del nombre y sale aunque falten importes en muchas líneas). El efecto del lector en tickets enteros se mide con el banco (`tools/banco-tickets/`).
+`adapters/tesseract/amountColumn.test.ts`: la banda de importes que relee el lector (empieza tras las 20 columnas del nombre, sale aunque falten importes en muchas líneas y no cuenta los precios por kilo). `adapters/tesseract/pngImage.test.ts`: el PNG en gris de la tercera lectura (leer, reescalar y codificar). El efecto del lector en tickets enteros se mide con el banco (`tools/banco-tickets/`).
 
 `adapters/tesseract/ocrWorker.test.ts`: el worker del OCR que usa el backend .NET (TIC-02) responde por stdin/stdout lo mismo que el lector, explica los errores y termina al cerrar stdin.
 
@@ -75,7 +75,7 @@ Las reglas de `domain/` (compra, identidad y huellas, historial) están portadas
 - `findDuplicate` devuelve el ticket entero (con líneas) cuando lo encuentra comparando contenido, y solo el resumen en los demás casos. Así era antes y la web lo acepta.
 - Las consultas de varios tickets llevan un ORDER BY completo (al final, por id): SQLite los daba en el orden de su GROUP BY y MySQL no garantiza ninguno. «total IS ?» de SQLite es `total_cents <=> ?`.
 - `imageInfo` está en `server/common/imageInfo.ts` porque lo usan dos adaptadores: HTTP para validar y Tesseract para medir.
-- El lector relee la banda de importes de todas las líneas de producto, calculada con todas las líneas de la imagen (`adapters/tesseract/amountColumn.ts`), no con las palabras de cada una: Tesseract a veces no devuelve la columna de importes de un trozo del ticket, y así la relectura no la pierde ni lee el nombre. Sin columna clara (otro formato de tienda), relee como antes el final numérico.
+- El lector relee la banda de importes de todas las líneas de producto, calculada con todas las líneas de la imagen (`adapters/tesseract/amountColumn.ts`), no con las palabras de cada una: Tesseract a veces no devuelve la columna de importes de un trozo del ticket, y así la relectura no la pierde ni lee el nombre. Sin columna clara (otro formato de tienda), relee como antes el final numérico. Con franjas PNG hay además una tercera lectura de la banda, a 1,5 veces su tamaño y de una vez (`rereads` de cada línea; `adapters/tesseract/pngImage.ts` reescala sin dependencias): para votar el importe.
 - `adapters/tesseract/ocrWorker.ts` no lo usa Express: es la entrada del proceso que lanza el backend .NET para el OCR (mismo lector, una petición JSON por línea). Cambiar el lector cambia también lo que lee .NET.
 - Por qué el OCR es local y por compras en lugar de inventario: ver `docs/decisiones.md`.
 

@@ -42,7 +42,7 @@ const percentile = (values: readonly number[], q: number) => {
 }
 
 export function amountBand(lines: readonly LineBox[], width: number): Band | null {
-  const amounts: WordBox[] = []
+  const candidates: WordBox[] = []
   const times: WordBox[] = []
   const letters: number[] = []
   for (const line of lines) {
@@ -50,12 +50,18 @@ export function amountBand(lines: readonly LineBox[], width: number): Band | nul
     words.forEach((word, i) => {
       const text = word.text.trim()
       if (text.length >= 4 && /\p{L}{3}/u.test(text)) letters.push((word.x1 - word.x0) / text.length)
-      if (i >= Math.max(1, words.length - 2) && AMOUNT.test(text)) amounts.push(word)
+      // El importe es la última palabra, o la penúltima con la letra del IVA detrás (no el «6,99» de «x 6,99 EUR/kg»).
+      const last = i === words.length - 1 || (i === words.length - 2 && words[i + 1].text.trim().length === 1)
+      if (i >= 1 && last && AMOUNT.test(text)) candidates.push(word)
       if (i >= 1 && TIMES.test(text)) times.push(word)
     })
   }
-  if (amounts.length < 3 || letters.length < 3) return null
+  if (candidates.length < 3 || letters.length < 3) return null
   const charWidth = percentile(letters, 0.5)
+  // Los importes van alineados a la derecha: la columna son los que acaban donde la mayoría.
+  const right = percentile(candidates.map((w) => w.x1), 0.5)
+  const amounts = candidates.filter((w) => Math.abs(w.x1 - right) <= charWidth * 1.5)
+  if (amounts.length < 3) return null
   const amountLeft = percentile(amounts.map((w) => w.x0), 0.1)
   // Los importes tienen que formar una columna a la derecha, no estar sueltos por la línea.
   if (amountLeft < width * 0.4) return null

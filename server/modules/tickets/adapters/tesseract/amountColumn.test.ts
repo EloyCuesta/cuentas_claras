@@ -33,6 +33,17 @@ describe('la banda de importes', () => {
     expect(band!.left).toBeLessThanOrEqual(460)
   })
 
+  it('los precios por kilo de las líneas de peso no cuentan como la columna de importes', () => {
+    const band = amountBand([
+      line('FILETE PECHUGA POLLO                4,28 B'), line('  0,612 kg x 6,99   EUR/kg'),
+      line('FILETE PECHUGA POLLO                4,10 B'), line('  0,587 kg x 6,99   EUR/kg'),
+      line('FILETE PECHUGA POLLO                4,42 B'), line('  0,633 kg x 6,99   EUR/kg'),
+      line('  Desc.                            -0,43'),
+    ], WIDTH)
+    expect(band!.left).toBeGreaterThan(40 + 20 * 20)
+    expect(band!.left).toBeLessThanOrEqual(460)
+  })
+
   it('nunca entra en la columna del nombre, aunque algo parecido a una multiplicación esté dentro', () => {
     const band = amountBand([
       line('ZUMO 1,25x PACK      1,19x   2      2,38 B'),

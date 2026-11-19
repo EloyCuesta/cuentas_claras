@@ -3,10 +3,15 @@ import type { PantryFrequency } from '../pantry/types.ts'
 
 /** Tickets de la compra: lo que lee el OCR, la revisión y lo que se guarda. */
 
-/** Una línea leída de la imagen de un ticket. `reread`: su parte final leída otra vez solo con cifras. */
+/**
+ * Una línea leída de la imagen de un ticket. `reread`: su banda de importes
+ * leída otra vez solo con cifras; `rereads`: otras lecturas independientes de
+ * esa banda (a otra escala), para votar el importe.
+ */
 export interface OcrLine {
   text: string
   reread: string | null
+  rereads?: string[]
   confidence?: number
   words?: { text: string; confidence: number; box: TicketBox }[]
   source?: TicketSource

@@ -6,6 +6,7 @@ import { endsProducts } from '#shared/tickets/ticketParse.ts'
 import { imageInfo, type ImageInfo } from '../../../../common/imageInfo.ts'
 import type { TicketReader } from '../../application/ports.ts'
 import { amountBand, type Band } from './amountColumn.ts'
+import { decodePngGray, encodeGrayPng, scaleRegion } from './pngImage.ts'
 
 /**
  * Lector de tickets: OCR con Tesseract (tesseract.js), en este mismo equipo.
@@ -144,6 +145,38 @@ async function reread(worker: Worker, image: Buffer, info: ImageInfo, { lines, r
       const { data: again } = await worker.recognize(image, { rectangle: rect })
       result[index].reread = again.text.replace(/\s+/g, ' ').trim() || null
     }
+  }
+  if (band && tails.length > 0) await rereadScaled(worker, image, lines, result, band, tails)
+}
+
+/**
+ * Otra lectura de la banda de importes, independiente de las dos primeras:
+ * la banda entera de la franja, reescalada (SECOND_SCALE) y leída de una vez
+ * como un bloque. Cada renglón leído va a la línea que más solapa en altura,
+ * en `rereads`. Solo con franjas PNG (las de pantalla); con una foto en JPEG
+ * no hay tercera lectura.
+ */
+const SECOND_SCALE = 1.5
+async function rereadScaled(worker: Worker, image: Buffer, lines: readonly Line[], result: OcrLine[], band: Band, tails: readonly { index: number; rect: Rect }[]): Promise<void> {
+  const gray = decodePngGray(image)
+  if (!gray) return
+  const top = Math.min(...tails.map((t) => t.rect.top))
+  const bottom = Math.max(...tails.map((t) => t.rect.top + t.rect.height))
+  const left = Math.max(0, band.left)
+  const scaled = scaleRegion(gray, left, top, Math.min(gray.width, band.right) - left, bottom - top, SECOND_SCALE)
+  await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK, tessedit_char_whitelist: TAIL_WHITELIST })
+  const { data } = await worker.recognize(encodeGrayPng(scaled), {}, { text: true, blocks: true })
+  const read = (data.blocks ?? []).flatMap((block) => block.paragraphs.flatMap((paragraph) => paragraph.lines))
+    .map((line) => ({ text: line.text.replace(/\s+/g, ' ').trim(), y0: top + line.bbox.y0 / SECOND_SCALE, y1: top + line.bbox.y1 / SECOND_SCALE }))
+    .filter((line) => line.text !== '')
+  for (const { index } of tails) {
+    const box = lines[index].bbox
+    let best: { text: string; overlap: number } | null = null
+    for (const line of read) {
+      const overlap = Math.min(box.y1, line.y1) - Math.max(box.y0, line.y0)
+      if (overlap > (box.y1 - box.y0) * 0.5 && (!best || overlap > best.overlap)) best = { text: line.text, overlap }
+    }
+    if (best) result[index].rereads = [best.text]
   }
 }
 

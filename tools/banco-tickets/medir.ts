@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { parseTicket, type ParsedTicket } from '#shared/tickets/ticketParse.ts'
+import type { OcrLine } from '#shared/tickets/types.ts'
 import { createTesseractReader } from '../../server/modules/tickets/index.ts'
 import { compareTicket } from './comparar.ts'
 import { summary, table, type CaseRow } from './informe.ts'
@@ -74,7 +75,7 @@ function option(name: string): string | null {
 }
 
 /** El detalle de un caso: cada línea con su clase. El de un caso real solo se escribe en su carpeta. */
-function writeDetail(stamp: string, caso: Case, ticket: ParsedTicket | null, row: CaseRow, warnings: string[]) {
+function writeDetail(stamp: string, caso: Case, ticket: ParsedTicket | null, row: CaseRow, warnings: string[], pages: readonly (readonly OcrLine[])[]) {
   const dir = caso.real ? join(PRIVATE_DIR, 'resultados', stamp) : `${RESULTS_DIR}${stamp}/`
   mkdirSync(dir, { recursive: true })
   const detail = {
@@ -89,6 +90,8 @@ function writeDetail(stamp: string, caso: Case, ticket: ParsedTicket | null, row
     })),
     ajustes: ticket?.adjustments,
     error: row.error,
+    // Lo que leyó el OCR, línea a línea, con todas sus lecturas (sin palabras ni cajas).
+    ocr: pages.flat().map(({ text, reread, rereads }) => ({ text, reread, ...(rereads ? { rereads } : {}) })),
   }
   writeFileSync(join(dir, `${caso.name.replace(/\//g, '--')}.json`), `${JSON.stringify(detail, null, 1)}\n`)
 }
@@ -111,10 +114,11 @@ async function main() {
       const prepared = await navegador.preparar(images)
       let row: CaseRow
       let ticket: ParsedTicket | null = null
+      let pages: OcrLine[][] = []
       if (prepared.error) row = { name: caso.name, result: null, prepareMs: prepared.ms, readMs: 0, error: prepared.error }
       else {
         const start = performance.now()
-        const pages = await reader.read(
+        pages = await reader.read(
           prepared.franjas.map((f) => Buffer.from(f.image, 'base64')),
           prepared.franjas.map(({ image: _image, ...segment }) => segment),
         )
@@ -122,7 +126,7 @@ async function main() {
         row = { name: caso.name, result: compareTicket(caso.truth, ticket), prepareMs: prepared.ms, readMs: performance.now() - start }
       }
       rows.push(row)
-      writeDetail(stamp, caso, ticket, row, prepared.avisos)
+      writeDetail(stamp, caso, ticket, row, prepared.avisos, pages)
       if (process.argv.includes('--franjas')) {
         const dir = caso.real ? join(PRIVATE_DIR, 'resultados', stamp) : `${RESULTS_DIR}${stamp}/`
         for (const f of prepared.franjas) {

@@ -154,6 +154,13 @@ Ahora el lector calcula con todas las líneas de la imagen dónde está la banda
 
 Así una línea siempre tiene dos lecturas de su importe y la relectura nunca lee el nombre. En el banco sintético (18 casos), con la imagen ya preparada por la fase anterior, deja las líneas limpias igual (615 → 616 de 696) y cuesta un 4 % más de tiempo de lectura (91 → 95 s). Es la red para cuando se pierde la columna.
 
+**Una tercera lectura para votar.** Dos lecturas de la misma imagen a la misma escala pueden equivocarse igual: «1,22» por 1,29 en las dos. Por eso el lector lee la banda de importes una vez más, a otra escala:
+- la banda entera de cada franja, ampliada 1,5 veces y leída de una vez (una llamada por franja, no una por línea);
+- decodificar y reescalar el PNG se hace con `node:zlib`, sin dependencias;
+- cada renglón leído va a la línea con la que más solapa en altura, en `rereads`.
+
+Cuesta unos 3 s en todo el banco. Con la banda bien calculada llega a 685 de 696 líneas y da el importe correcto en 677. Si se exige que coincidan al menos dos lecturas y que ninguna diga otra cosa (contando como desacuerdo una lectura deformada como «0,739»), saldrían limpias 663 líneas (95 %) sin ninguna cifra mal aceptada. Con fotos en JPEG no hay tercera lectura. Leer el banco pasa de 88 s (partida) a 111 s: 1,27 veces.
+
 **PNG para las imágenes de pantalla.** Una captura o la imagen de la app tienen el fondo liso y van en PNG, sin las manchas del JPEG alrededor de las cifras. Las fotos van en JPEG, igual que una franja que no quepa en los límites. El cuerpo de la lectura (`franjas`) y sus límites no cambian.
 
 Lo que cuesta: la huella de origen sale de los bytes de las franjas, así que un ticket guardado con la preparación de antes y vuelto a escanear sale como **posible duplicado** (misma tienda, fecha, hora y total), no como repetido. Lo comprueba `server/modules/tickets/tickets.test.ts`.
