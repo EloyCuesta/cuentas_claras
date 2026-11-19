@@ -24,7 +24,8 @@ import type { Verdad } from './verdad.ts'
  *   detalle se escribe solo dentro de esa carpeta.
  *
  * Opciones: --caso <texto> (solo los casos que lo contienen), --solo-sinteticos,
- * --guardar <archivo.md> (escribe la tabla).
+ * --guardar <archivo.md> (escribe la tabla) y --franjas (guarda también las
+ * franjas que se envían a leer, junto al detalle).
  */
 
 interface Case {
@@ -122,6 +123,13 @@ async function main() {
       }
       rows.push(row)
       writeDetail(stamp, caso, ticket, row, prepared.avisos)
+      if (process.argv.includes('--franjas')) {
+        const dir = caso.real ? join(PRIVATE_DIR, 'resultados', stamp) : `${RESULTS_DIR}${stamp}/`
+        for (const f of prepared.franjas) {
+          const ext = f.image.startsWith('iVBOR') ? 'png' : 'jpg'
+          writeFileSync(join(dir, `${caso.name.replace(/\//g, '--')}--franja-${f.imageIndex}-${f.segmentIndex}.${ext}`), Buffer.from(f.image, 'base64'))
+        }
+      }
       console.log(`${caso.name}: ${row.result ? `${row.result.clean}/${row.result.products} limpias, ${row.result.silentWrong} mal sin marcar` : row.error}`)
     }
   } finally {

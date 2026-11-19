@@ -13,7 +13,8 @@
 | TicketLineCheck, LineSnippet | `TicketLineCheck.tsx` | La comprobación de una línea dudosa: trozo de imagen, lectura, cálculo y acciones | «un importe mal leído…», «Dejar pendiente…» |
 | TicketDetailDialog | `TicketDetailDialog.tsx` | Un ticket guardado: líneas, cambiar el producto y borrarlo | «lee la captura de un ticket de Lidl…» |
 | ticketReviewState | `ticketReviewState.ts` | El estado de la revisión, sin React (estados de cada línea, comprobación y lo que se guarda) | también en `ticketReviewState.test.ts` |
-| ticketImages | `ticketImages.ts` | Preparar las imágenes en el navegador: girar, recortar, franjas y contraste | también en `ticketImages.test.ts` |
+| ticketImages | `ticketImages.ts` | Preparar las imágenes en el navegador (`prepareTicketImages`): girar, unir las capturas que se solapan, recortar al papel, escalar por la altura de las letras, franjas, invertir y contraste; `analyzeTicketImages` avisa antes de leer si dos capturas no se solapan | también en `ticketImages.test.ts` |
+| ticketImageAnalysis | `ticketImageAnalysis.ts` | El cálculo, en funciones puras sobre píxeles en gris: tono y recorte del papel, altura de las letras, pantalla o foto, bandas fijas, solape y orden de las capturas | `ticketImageAnalysis.test.ts` |
 
 ## Estado y datos
 - Esta feature no hace peticiones ni guarda estado global: los diálogos reciben `actions: TicketActions` (`ticketActions.ts`).
@@ -27,14 +28,16 @@ Los e2e usan estos nombres y atributos; no los cambies sin cambiar el test:
 - `data-testid="ticket-input"` (el selector de imágenes) y `data-testid="ticket-check"` con `data-status` (la comprobación del total).
 
 ## Pruebas
-- `ticketReviewState.test.ts` y `ticketImages.test.ts` (Vitest).
+- `ticketReviewState.test.ts`, `ticketImages.test.ts` y `ticketImageAnalysis.test.ts` (Vitest).
+- La preparación de verdad, en Chrome y con el OCR real: el banco de medida (`tools/banco-tickets/`, `npm run medir:tickets`).
 - La lectura del texto, en `shared/tickets/`.
 - En el navegador, `e2e/tickets.spec.ts` (con el OCR real del servidor de pruebas): `npx playwright test e2e/tickets.spec.ts --project=escritorio`.
 
 ## Trampas
 - Cualquier edición de una línea la deja sin confirmar; las acciones («Usar…», «Confirmar», «Dejar pendiente») dicen ellas mismas cómo queda.
 - Las líneas con el mismo nombre normalizado van al mismo producto: si se asocian a productos distintos, no se puede guardar.
-- La imagen que se compara es la original; al servidor va una copia preparada, en franjas de como mucho 4096 px de alto.
+- La imagen que se compara es la original; al servidor va una copia preparada, en franjas de como mucho 4096 px de alto. Las capturas que se solapan se unen en una: el `imageIndex` de una franja es el de la imagen unida, no el de la captura elegida.
+- La escala sale de la altura de las mayúsculas medida en la imagen (`TARGET_TEXT_HEIGHT`, elegida con el banco de `tools/banco-tickets/`): con letras más grandes Tesseract pierde la columna de importes. Cambiar la preparación cambia la huella de origen (los bytes de las franjas): un ticket ya guardado vuelve a salir como posible duplicado, no como repetido (`server/modules/tickets/tickets.test.ts`).
 
 ## Si cambias esta pantalla
 - Textos o `data-testid`: `e2e/tickets.spec.ts`.

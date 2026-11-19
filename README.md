@@ -184,8 +184,15 @@ Lo que se compra en casa, separado por persona para que lo individual no se mezc
 
 ### Tickets de la compra
 
-- **Escanear ticket**: una captura del ticket en la app de la tienda (en Lidl Plus: *Tickets*) o una foto del ticket de papel. Si el ticket es largo se pueden elegir varias capturas seguidas (hasta 6); las líneas repetidas entre una captura y la siguiente se quitan. También se puede pegar el texto del ticket (por ejemplo, el que llega por email).
-- **Se lee en este equipo**: el texto se reconoce con Tesseract (OCR) en el propio servidor, con el modelo de español que se instala con `npm install`. No se envía nada a Internet y **las imágenes no se guardan**: solo los datos del ticket que confirmes. Antes de enviarla, el navegador prepara una copia: la gira y recorta si se lo pides, la divide en franjas si es muy larga y, solo si es una foto de poco contraste (papel gris), estira el contraste y la enfoca. La imagen original no se toca y es la que se ve al comparar. Si tiene poca resolución (menos de unos 11 píxeles por letra), avisa antes de leer. Una captura tarda unos segundos.
+- **Escanear ticket**: lo mejor es la imagen completa del ticket que da Lidl Plus; si no, una captura larga o varias que se solapen un poco (hasta 6), o una foto del ticket de papel. Las capturas que se solapan se unen en una sola imagen antes de leerlas, así que nada sale repetido; si dos no se solapan, la app lo avisa antes de leer («puede faltar una parte del ticket»). También se puede pegar el texto del ticket (por ejemplo, el que llega por email).
+- **Se lee en este equipo**: el texto se reconoce con Tesseract (OCR) en el propio servidor, con el modelo de español que se instala con `npm install`. No se envía nada a Internet y **las imágenes no se guardan**: solo los datos del ticket que confirmes. Antes de enviarla, el navegador prepara una copia:
+  - la gira si se lo pides;
+  - la recorta al papel del ticket (fuera la barra de estado, la cabecera y el fondo de la app, también en modo oscuro);
+  - la escala para que las letras tengan el tamaño que mejor lee el OCR;
+  - la divide en franjas si es muy larga;
+  - solo si es una foto de poco contraste (papel gris), estira el contraste y la enfoca.
+
+  La imagen original no se toca y es la que se ve al comparar. Si tiene poca resolución (letras de menos de unos 12 píxeles de alto), avisa antes de leer. Un ticket tarda unos segundos.
 - **Dos lecturas por línea**: una del texto completo y otra solo de la columna de cifras. Se conservan las dos, y el texto original del OCR queda guardado con cada línea aunque se corrija.
 - **Cada cifra se comprueba**, sin mirar nunca el total del ticket para decidirla:
   - **Precio × cantidad** («4,95X 2 9,90 A») y **peso × precio por kilo** («0,544 kg x 6,75 EUR/kg» = 3,67 €), en céntimos exactos. «5 KG» o «5 QUESOS» son parte del nombre, no la cantidad.

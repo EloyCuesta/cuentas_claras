@@ -233,6 +233,29 @@ describe('API de tickets', () => {
     expect(again.draft.suggestions['DETERGENTE LIQUIDO']).toEqual({ kind: 'ignore', how: 'recordado' })
   })
 
+  it('un ticket ya guardado y vuelto a escanear con otra preparación de las imágenes sale como posible duplicado', async () => {
+    // La huella de origen sale de los bytes de las franjas: si la web cambia cómo prepara las imágenes (escala,
+    // recorte, PNG o JPEG), el mismo ticket llega con otra huella. Y lo guardado es lo revisado (con importes
+    // corregidos), así que tampoco coincide la huella del contenido. Queda el posible duplicado: misma tienda,
+    // fecha, hora y total, que hay que confirmar.
+    const api = await startApi({ login: false, ticketReader: fakeReader() })
+    const { draft } = await read(api)
+    const reviewed = saveInput(draft)
+    // En la revisión se corrige un importe: lo guardado ya no es lo que lee el OCR.
+    reviewed.lines = reviewed.lines.map((line) => (line.rawName === 'ARROZ REDONDO' ? { ...line, amountCents: 125 } : line))
+    const saved = await guest(api).call('POST', '/despensa/tickets', reviewed)
+    expect(saved.status).toBe(201)
+    const { ticket } = saved.body.data as { ticket: PantryTicket }
+
+    const franjas = [{ image: FIXTURE_PNG.toString('base64'), imageIndex: 0, segmentIndex: 0, offsetY: 0, fullHeight: 2808 }]
+    const again = await read(api, { franjas, hoy: '2026-10-25' })
+    expect(again.status).toBe(200)
+    expect(again.draft.duplicate).toBeNull()
+    expect((again.body.data as { possibleDuplicate: PantryTicketSummary | null }).possibleDuplicate).toMatchObject({ id: ticket.id })
+    const second = await guest(api).call('POST', '/despensa/tickets', { ...saveInput(again.draft), importId: (again.body.data as { importId: string }).importId })
+    expect(second).toMatchObject({ status: 409, body: { error: { message: expect.stringMatching(/misma fecha, hora y total/) } } })
+  })
+
   it('en los productos que se cuentan, suma lo comprado y actualiza el precio', async () => {
     const api = await startApi({ login: false, ticketReader: fakeReader() })
     const rice = (

@@ -110,6 +110,45 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Los bytes de las imágenes, como en Node (TIC-02).** Las huellas de origen de las imágenes se calculan sobre los bytes decodificados, así que .NET decodifica el base64 como `Buffer.from(texto, 'base64')`, que no rechaza nada: el byte bajo de cada carácter, `-` y `_` como `+` y `/`, lo demás se salta y para en el primer `=`. Convert.FromBase64String rechazaría cuerpos que Express acepta y daría otras huellas. La cabecera de PNG y JPEG se lee igual que `server/common/imageInfo.ts`. Lo fija el corpus `fixtures/migration/rules-ticket-read.json`.
 
+## De la lectura de tickets de Lidl Plus (noviembre de 2026)
+
+**Medir antes de cambiar.** Las pruebas estaban en verde, pero ninguna usaba una imagen de Lidl Plus como la que da la app. Con un ticket real, la lectura perdía la mitad de los productos y dejaba cifras mal sin aviso.
+
+Antes de tocar nada se hizo un banco de medida (`tools/banco-tickets/`, en `docs/pruebas.md`):
+- mide el mismo camino que la app: la preparación del navegador, el lector real y `parseTicket`;
+- usa tickets sintéticos con el formato de Lidl Plus, en sus variantes, y los reales de la persona, que no salen de su carpeta.
+
+Cada cambio de la lectura se decide con su tabla. Lo que cuenta primero es **ninguna cifra mal sin marcar**; después, cuántas líneas salen limpias. La tabla de partida está en `tools/banco-tickets/partida.md`.
+
+**La escala, por la altura de las letras y no por el ancho.** Antes, toda imagen se llevaba a 1300-1800 px de ancho. La imagen completa de Lidl Plus (1080 px, mayúsculas de unos 27 px) se ampliaba así a mayúsculas de unos 33 px, y con letras tan grandes Tesseract separa la columna de importes y la pierde, a veces en una franja entera. No es una pendiente sino un precipicio.
+
+Ahora se mide la altura de las mayúsculas en la imagen y se escala para dejarla en `TARGET_TEXT_HEIGHT` = 21 px. Medido con el banco sintético (18 casos):
+
+| Altura objetivo | Líneas limpias |
+| --- | --- |
+| 20 px | 85 % |
+| 21 px | 88 % |
+| 22 px | 85 % |
+| 24 px | 43 %: «grande» cae al 2-7 % |
+
+Con el ticket real, de 21 a 24 px iba bien y desde 25 px se hundía. Se elige 21 px, que es lo mejor y queda a 3 px del precipicio. Si la letra no se puede medir (no hay renglones claros), se usa la escala de antes. El aviso de poca resolución también pasa a la altura de las letras: menos de unos 12 px.
+
+**Varias capturas se unen por la imagen, no por el texto.** Unir por el texto exigía que la siguiente captura empezara por las líneas repetidas, y siempre empieza por la barra de estado, la cabecera y una línea cortada. Con 3 capturas sobraban productos y aparecía «Ticket de compra» como producto.
+
+Ahora el navegador las une antes de leer:
+1. Quita las filas iguales a la misma altura en todas (con tolerancia para el reloj y la batería).
+2. Busca cuánto se desplaza cada captura respecto a la anterior. Compara huellas de filas, solo en las que tienen texto, porque las filas en blanco coinciden en cualquier sitio.
+3. Pega lo nuevo desde la mitad del solape, donde las dos tienen renglones enteros.
+4. Si vienen desordenadas, las ordena por los solapes.
+
+Una pareja que no se solapa con claridad no se inventa: se avisa antes de leer y va por separado a la unión por texto. No se solapa con claridad si la diferencia es alta o si hay otro desplazamiento casi igual de bueno.
+
+**Recortar al papel, e invertir si hace falta.** Con fondo oscuro alrededor del papel (el modo oscuro, o una foto sobre una mesa), Tesseract partía las líneas en nombres e importes. Ahora se recorta al papel: las columnas y filas del color del papel, contando como papel las filas con los dos márgenes en blanco (así el logotipo, las rayas y los recuadros no lo parten). Si el papel es oscuro con letras claras, se invierte.
+
+**PNG para las imágenes de pantalla.** Una captura o la imagen de la app tienen el fondo liso y van en PNG, sin las manchas del JPEG alrededor de las cifras. Las fotos van en JPEG, igual que una franja que no quepa en los límites. El cuerpo de la lectura (`franjas`) y sus límites no cambian.
+
+Lo que cuesta: la huella de origen sale de los bytes de las franjas, así que un ticket guardado con la preparación de antes y vuelto a escanear sale como **posible duplicado** (misma tienda, fecha, hora y total), no como repetido. Lo comprueba `server/modules/tickets/tickets.test.ts`.
+
 ## Pendiente
 
 **Retirar la migración de los datos del navegador** (IndexedDB → la base de datos del servidor), en un PR aparte, cuando se confirme que ningún navegador (el móvil, por ejemplo) tiene datos antiguos sin pasar. Se ganaría:
