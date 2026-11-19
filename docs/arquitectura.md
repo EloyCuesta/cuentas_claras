@@ -19,7 +19,7 @@ server/index.ts → server/app.ts (raíz de composición)              ▼
 server/common/   errores, HTTP, MySQL, puertos comunes (Clock, IdGenerator, UnitOfWork)
 shared/          lógica pura: common · finance · pantry · tickets (la usan web y servidor)
 database/mysql/  el esquema de MySQL (.sql), que aplica server/common/mysql/ al arrancar
-tools/           fuera del servidor: el esquema SQLite de antes y el importador
+tools/           fuera del servidor: el esquema SQLite de antes, el importador y el banco de los tickets
 ```
 
 ## Capas del servidor
@@ -44,6 +44,7 @@ Cada módulo de `server/modules/` tiene:
 | todo `server/` | lo de arriba | `tools/` y better-sqlite3: el servidor no depende de SQLite |
 | `tools/sqlite/` | librerías (better-sqlite3), `shared/` y su propia carpeta | lo demás, también `server/` |
 | `tools/importer/` | su carpeta, `tools/sqlite/`, `server/common/`, `shared/` y librerías | los módulos y `server/app.ts`: carga las tablas tal cual, sin casos de uso |
+| `tools/banco-tickets/` | su carpeta, `shared/`, `server/modules/tickets/index.ts` (el lector real) y librerías; su página, además, `src/features/tickets/ticketImages.ts` | lo demás del servidor y de la web: mide el mismo camino que la app |
 | `server/app.ts` · `server/index.ts` | el `index.ts` de cada módulo y `server/common/` | el interior de los módulos |
 | `src/` | lo de la web y `shared/` | nada de `server/` |
 
@@ -113,6 +114,7 @@ server/
 database/mysql/                    schema_migrations.sql y migrations/005…
 tools/sqlite/                      las migraciones 001…005 de SQLite (las lee el importador)
 tools/importer/                    el importador de una copia de cuentas.db a MySQL
+tools/banco-tickets/               el banco de medida de la lectura de tickets
 shared/{common,finance,pantry,tickets,testing}/
 src/
 ├── main.tsx · Root.tsx · App.tsx · GuestApp.tsx · styles.css

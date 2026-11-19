@@ -1,0 +1,190 @@
+{
+ "provenance": "synthetic-image",
+ "note": "Ticket SINTÉTICO del banco de medida (corto): 15 productos: cabe casi en una captura. 2 multiplicaciones, un peso, un «Desc.», PROMO y un producto repetido. Datos inventados con el formato de Lidl Plus; lo dibuja tools/banco-tickets/generar.ts.",
+ "date": "2026-11-17",
+ "time": "09:41",
+ "totalCents": 2817,
+ "paymentMethod": "Lidl Pay",
+ "lines": [
+  {
+   "rawName": "BAGUETTE",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 45,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "CRUASÁN MANTEQUILLA",
+   "quantity": 4,
+   "unitPriceCents": 69,
+   "amountCents": 276,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "LECHE SIN LACTOSA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 115,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "ZUMO MELOCOTÓN",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 135,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "CLEMENTINA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 205,
+   "discountCents": 0,
+   "weightKg": 1.032,
+   "pricePerKgCents": 199,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "JAMÓN SERRANO LONCH.",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 299,
+   "discountCents": 60,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "QUESO FRESCO BATIDO",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 149,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "YOGUR LÍQUIDO FRESA",
+   "quantity": 6,
+   "unitPriceCents": 45,
+   "amountCents": 270,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "CAFÉ CÁPSULAS 20U",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 349,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "AZÚCAR BLANCO 1KG",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 109,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "HARINA TRIGO 1KG",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 79,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "LEVADURA PANADERÍA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 89,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "LIMPIACRISTALES",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 189,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "LIMPIACRISTALES",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 189,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "PILAS AA PACK 4",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 399,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  }
+ ],
+ "adjustments": [
+  {
+   "label": "PROMO LIDL PLUS",
+   "amountCents": -20,
+   "line": 8
+  }
+ ],
+ "taxGroups": [
+  {
+   "code": "A",
+   "rate": 4,
+   "tax": 33,
+   "base": 830,
+   "gross": 863
+  },
+  {
+   "code": "B",
+   "rate": 10,
+   "tax": 107,
+   "base": 1070,
+   "gross": 1177
+  },
+  {
+   "code": "C",
+   "rate": 21,
+   "tax": 135,
+   "base": 642,
+   "gross": 777
+  }
+ ]
+}

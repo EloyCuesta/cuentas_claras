@@ -22,6 +22,7 @@ server/        el servidor: Express + MySQL (server/AGENTS.md)
   data/        cuentas.db: los datos de antes de MySQL (fuera de git; no se lee)
 tools/         fuera del servidor: el esquema SQLite de antes (tools/sqlite/AGENTS.md)
   importer/    el importador de una copia de cuentas.db a MySQL (tools/importer/AGENTS.md)
+  banco-tickets/  el banco de medida de la lectura de tickets (tools/banco-tickets/AGENTS.md)
 shared/        lógica pura que usan la web y el servidor (shared/AGENTS.md)
 src/           la web: React por funcionalidades (src/AGENTS.md)
   features/    auth · finance · pantry · tickets, cada una con su AGENTS.md
@@ -44,6 +45,7 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
 | `server/common/` o `server/app.ts` | `server/AGENTS.md` y `docs/arquitectura.md` |
 | `tools/sqlite/` | `tools/sqlite/AGENTS.md` y `docs/migration/DATA.md` |
 | `tools/importer/` | su AGENTS.md, `tools/sqlite/AGENTS.md`, `database/mysql/AGENTS.md` y `docs/migration/DATA.md` |
+| `tools/banco-tickets/` | su AGENTS.md, `docs/pruebas.md` (el banco) y los AGENTS.md de `src/features/tickets/` y `server/modules/tickets/` |
 | `database/mysql/` o `server/common/mysql/` | `database/mysql/AGENTS.md`, `docs/base-de-datos.md` y `docs/migration/DATA.md` |
 | `shared/` | `shared/AGENTS.md`: el cambio afecta a la web y al servidor |
 | `src/features/auth/` | su AGENTS.md y `src/AGENTS.md` |
@@ -87,6 +89,7 @@ npx vitest run shared/pantry     # una carpeta, un archivo o, con -t "nombre", u
 npm run build                    # tipos y la web en dist/
 npm run test:e2e                 # navegador (CUENTAS_E2E_CHANNEL=chrome si no hay Chromium)
 npm run importar:sqlite -- <copia de cuentas.db>   # pasar los datos de antes a una base MySQL vacía (lo hace la persona)
+npm run generar:tickets && npm run medir:tickets    # el banco de medida de la lectura de tickets (tools/banco-tickets/)
 npx playwright test e2e/tickets.spec.ts --project=escritorio
 ```
 Las pruebas necesitan MySQL en marcha y las `CUENTAS_DB_*` de un usuario que pueda crear y borrar `cuentas_test_%` (README, «Pruebas»). Para probar el servidor a mano sin tocar tus datos, usa `CUENTAS_DB_NAME` con una base de pruebas (`server/AGENTS.md`).

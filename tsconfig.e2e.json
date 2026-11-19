@@ -22,5 +22,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["e2e", "playwright.config.ts", "playwright.dotnet.config.ts"]
+  "include": ["e2e", "playwright.config.ts", "playwright.dotnet.config.ts", "tools/banco-tickets/pagina"]
 }

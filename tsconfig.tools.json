@@ -20,5 +20,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["tools"]
+  "include": ["tools"],
+  /* La página del banco de tickets se ejecuta en el navegador: la comprueba tsconfig.e2e.json, con DOM */
+  "exclude": ["tools/banco-tickets/pagina"]
 }

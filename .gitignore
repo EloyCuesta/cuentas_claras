@@ -46,3 +46,6 @@ backend/**/TestResults/
 
 # Web construida para los E2E contra .NET (playwright.dotnet.config.ts)
 dist-dotnet
+
+# Banco de medida de tickets: imágenes generadas y resultados (tools/banco-tickets/)
+.banco-tickets

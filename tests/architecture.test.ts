@@ -202,6 +202,17 @@ const SERVER_RULES: Rule[] = [
       (imp.target.startsWith('server/common/') && !imp.target.startsWith('server/common/testing/'))
     return allowed ? null : 'el importador importa su carpeta, tools/sqlite/, server/common/ y shared/: ni los módulos ni app.ts (carga las tablas tal cual, sin casos de uso)'
   },
+  // tools/banco-tickets/: el banco de medida de los tickets. El lector real (index.ts del módulo tickets), shared/ y,
+  // desde su página del navegador, la preparación de imágenes de la web: lo mismo que usa la app, nada más.
+  (file, imp) => {
+    if (!file.startsWith('tools/banco-tickets/') || imp.target === null) return null
+    const allowed =
+      imp.target.startsWith('tools/banco-tickets/') ||
+      imp.target.startsWith('shared/') ||
+      imp.target === 'server/modules/tickets/index.ts' ||
+      (file.startsWith('tools/banco-tickets/pagina/') && imp.target === 'src/features/tickets/ticketImages.ts')
+    return allowed ? null : 'el banco de tickets importa su carpeta, shared/, el index.ts del módulo tickets y, desde su página, ticketImages.ts de la web'
+  },
   // app.ts e index.ts: la raíz de composición solo conoce el index.ts de cada módulo y common/.
   (file, imp) => {
     if ((file !== 'server/app.ts' && file !== 'server/index.ts') || imp.target === null) return null

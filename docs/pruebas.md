@@ -60,10 +60,32 @@ Nunca se usan los datos de `server/data/`. Los tickets de prueba están en `fixt
 - `ticket-torrelavega-sintetico.png`: una imagen **sintética**, dibujada imitando un ticket de Lidl con las líneas que el dueño de la app transcribió de un ticket suyo real (Torrelavega, 28/10/26). No es su captura.
 - `ticket-cases.json` y los casos de `shared/tickets/ticketCases.test.ts`: incluyen esa **transcripción parcial** de un ticket real, aportada a propósito para probar el lector, y casos escritos a mano.
 - `fixtures/tickets/ocr-real/`: lo que leyó Tesseract de verdad de esas imágenes sintéticas (en varias resoluciones y como «foto»).
+- `fixtures/tickets/banco/`: las verdades de los tickets **sintéticos** del banco (datos inventados con el formato de Lidl Plus) y las imágenes de «mediano» que usan las e2e: la completa y sus capturas con la app alrededor. Las dibuja `npm run generar:tickets`.
 
 Cada fixture lleva un campo `provenance` que dice de dónde sale. Si añades una, que sea inventada o sintética, y dilo en ese campo.
 
 Las copias de `cuentas.db` con las que se prueba el importador no son archivos: las crea `tools/importer/syntheticCopy.ts` en la carpeta temporal, con las migraciones 001–005 y datos inventados.
+
+## El banco de los tickets
+
+`npm run medir:tickets` (`tools/banco-tickets/`) mide la lectura de tickets de punta a punta, con el mismo camino que la app:
+1. la preparación de las imágenes en Chrome (`src/features/tickets/ticketImages.ts`, a través de una página de Vite);
+2. el lector real de Tesseract;
+3. `parseTicket`;
+4. la comparación de cada línea con su verdad.
+
+No pasa ni falla: da una tabla por caso y sirve para decidir cada cambio de la lectura con números. Su tabla tiene estas columnas:
+- líneas limpias, bien pero marcadas, mal y marcadas, y **mal sin marcar** (lo que no puede pasar);
+- las que faltan y las que sobran;
+- la letra del IVA;
+- fecha, hora, total, ajustes y estado;
+- el tiempo de preparar y de leer.
+
+Casos:
+- **Sintéticos.** Tres tickets inventados con el formato de Lidl Plus (`npm run generar:tickets`). Cada uno sale como imagen completa, a 400 px, como capturas con la app alrededor en claro y en oscuro, y como esas capturas por WhatsApp. Las imágenes se generan en `.banco-tickets/`, fuera de git.
+- **Reales.** Solo si existe la carpeta privada (CUENTAS_TICKETS_PRIVADOS, por defecto `C:\tickets-privados`). Salen como «real-1…», con recuentos, y su detalle se queda en esa carpeta: nada de un ticket real entra en el repositorio.
+
+La tabla de partida, antes de cambiar la lectura, está en `tools/banco-tickets/partida.md`. Cómo se lee cada columna está en `tools/banco-tickets/AGENTS.md`.
 
 ## Caracterización para la migración
 

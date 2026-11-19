@@ -16,6 +16,8 @@
     "dev:server": "tsx watch --env-file-if-exists=.env server/index.ts",
     "server": "tsx --env-file-if-exists=.env server/index.ts",
     "importar:sqlite": "tsx --env-file-if-exists=.env tools/importer/cli.ts",
+    "generar:tickets": "tsx tools/banco-tickets/generar.ts",
+    "medir:tickets": "tsx tools/banco-tickets/medir.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",

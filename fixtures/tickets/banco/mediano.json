@@ -1,0 +1,450 @@
+{
+ "provenance": "synthetic-image",
+ "note": "Ticket SINTÉTICO del banco de medida (mediano): 41 productos: 7 multiplicaciones, 4 pesos (uno con «Desc.»), PROMO bajo su producto y un producto repetido. Es el de las E2E. Datos inventados con el formato de Lidl Plus; lo dibuja tools/banco-tickets/generar.ts.",
+ "date": "2026-11-12",
+ "time": "13:05",
+ "totalCents": 9173,
+ "paymentMethod": "Lidl Pay",
+ "lines": [
+  {
+   "rawName": "LECHE ENTERA",
+   "quantity": 6,
+   "unitPriceCents": 95,
+   "amountCents": 570,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "PAN BARRA RÚSTICA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 65,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "PAN BARRA RÚSTICA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 65,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "HUEVOS M DOCENA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 255,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "QUESO TIERNO CUÑA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 399,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "YOGUR SABORES 8U",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 179,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "PECHUGA PAVO",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 370,
+   "discountCents": 0,
+   "weightKg": 0.412,
+   "pricePerKgCents": 899,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "LOMO CERDO FILETES",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 483,
+   "discountCents": 97,
+   "weightKg": 0.733,
+   "pricePerKgCents": 659,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "SALCHICHAS FRANKFURT",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 159,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "PIZZA PROSCIUTTO",
+   "quantity": 2,
+   "unitPriceCents": 255,
+   "amountCents": 510,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "EMPANADILLAS ATÚN",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 209,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "SOPA DE SOBRE",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 75,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "FIDEOS FINOS",
+   "quantity": 3,
+   "unitPriceCents": 59,
+   "amountCents": 177,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "ARROZ BASMATI 1KG",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 219,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "ACEITE GIRASOL 1L",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 189,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "VINAGRE DE VINO",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 79,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "SAL FINA 1KG",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 35,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "ALUBIAS BLANCAS",
+   "quantity": 2,
+   "unitPriceCents": 99,
+   "amountCents": 198,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "MAÍZ DULCE LATA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 89,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "ACEITUNAS RELLENAS",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 119,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "UVA BLANCA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 282,
+   "discountCents": 0,
+   "weightKg": 0.856,
+   "pricePerKgCents": 329,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "KIWI",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 176,
+   "discountCents": 0,
+   "weightKg": 0.504,
+   "pricePerKgCents": 349,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "FRESÓN TARRINA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 299,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "ESPINACAS BOLSA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 149,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "AGUACATE MALLA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 279,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "A"
+  },
+  {
+   "rawName": "ZUMO NARANJA 1L",
+   "quantity": 2,
+   "unitPriceCents": 119,
+   "amountCents": 238,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "LECHE AVENA 1L",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 135,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "GALLETAS DIGESTIVE",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 129,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "MAGDALENAS",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 149,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "TORTITAS MAÍZ",
+   "quantity": 2,
+   "unitPriceCents": 89,
+   "amountCents": 178,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "CHOCOLATE NEGRO 72%",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 165,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "INFUSIÓN MANZANILLA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 99,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "DETERGENTE VAJILLAS",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 145,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "SUAVIZANTE 60D",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 299,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "PAPEL HIGIÉN. 12R",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 449,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "ESTROPAJO PACK 3",
+   "quantity": 2,
+   "unitPriceCents": 99,
+   "amountCents": 198,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "DESODORANTE SPRAY",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 225,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "MAQUINILLAS 5U",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 349,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "PIENSO PERRO 3KG",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 699,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "VELAS AROMÁTICAS",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 199,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "BOLSA REUTILIZABLE",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 15,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  }
+ ],
+ "adjustments": [
+  {
+   "label": "PROMO LIDL PLUS",
+   "amountCents": -30,
+   "line": 22
+  }
+ ],
+ "taxGroups": [
+  {
+   "code": "A",
+   "rate": 4,
+   "tax": 133,
+   "base": 3338,
+   "gross": 3471
+  },
+  {
+   "code": "B",
+   "rate": 10,
+   "tax": 348,
+   "base": 3475,
+   "gross": 3823
+  },
+  {
+   "code": "C",
+   "rate": 21,
+   "tax": 326,
+   "base": 1553,
+   "gross": 1879
+  }
+ ]
+}
