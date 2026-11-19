@@ -201,3 +201,24 @@ export async function prepareTicketImage(file: Blob, imageIndex = 0, options = d
   }
   return { segments, bytes, warnings, quality: quality.level, enhanced: enhance }
 }
+
+/**
+ * Prepara todas las imágenes elegidas de un ticket, en su orden, tal como se
+ * envían a leer. La usan la revisión y el banco de medida
+ * (`tools/banco-tickets/`), para medir exactamente lo que hace la app.
+ */
+export async function prepareTicketImages(selections: readonly { file: Blob; options: TicketImageOptions }[]): Promise<{
+  segments: TicketSegment[]; warnings: string[]
+}> {
+  const segments: TicketSegment[] = []
+  const warnings: string[] = []
+  let bytes = 0
+  for (const [i, selection] of selections.entries()) {
+    const part = await prepareTicketImage(selection.file, i, selection.options)
+    bytes += part.bytes
+    segments.push(...part.segments)
+    warnings.push(...part.warnings)
+    if (segments.length > MAX_SEGMENTS || bytes > MAX_TOTAL_BYTES) throw new TicketImageError('El conjunto supera 24 franjas o 20 MB. Recorta las zonas informativas antes de leer.')
+  }
+  return { segments, warnings: [...new Set(warnings)] }
+}

@@ -5,7 +5,7 @@ import type { PantryItem, PantryPerson } from '#shared/pantry/types.ts'
 import type { PantryTicket, TicketSegment } from '#shared/tickets/types.ts'
 import { describeStorageError } from '../../api/storageErrors.ts'
 import type { TicketActions } from './ticketActions.ts'
-import { defaultImageOptions, MAX_SEGMENTS, MAX_TOTAL_BYTES, prepareTicketImage, TicketImageError, type TicketImageOptions } from './ticketImages.ts'
+import { defaultImageOptions, prepareTicketImages, TicketImageError, type TicketImageOptions } from './ticketImages.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../../ui/Dialog.tsx'
 import { Icon } from '../../ui/Icon.tsx'
 import { TicketReview } from './TicketReview.tsx'
@@ -80,18 +80,9 @@ export function TicketScanDialog({
     }
     setStep({ kind: 'leyendo', images: files.length })
     try {
-      const prepared: TicketSegment[] = []
-      const warnings: string[] = []
-      let bytes = 0
-      for (const [i, selection] of selected.entries()) {
-        const part = await prepareTicketImage(selection.file, i, selection.options)
-        bytes += part.bytes
-        prepared.push(...part.segments)
-        warnings.push(...part.warnings)
-        if (prepared.length > MAX_SEGMENTS || bytes > MAX_TOTAL_BYTES) throw new TicketImageError('El conjunto supera 24 franjas o 20 MB. Recorta las zonas informativas antes de leer.')
-      }
+      const { segments: prepared, warnings } = await prepareTicketImages(selected)
       const draft = await actions.readTicket({ franjas: prepared })
-      draft.ticket.issues.push(...new Set(warnings))
+      draft.ticket.issues.push(...warnings)
       setSegments(prepared)
       startReview(draft)
     } catch (failure) {
