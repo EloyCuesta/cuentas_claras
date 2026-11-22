@@ -56,7 +56,7 @@ Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql
 
 ## Pruebas
 `tickets.test.ts`:
-- el OCR real con dos tickets inventados (`fixtures/tickets/`);
+- el OCR real con tres imágenes de `fixtures/tickets/`: el ticket inventado y los sintéticos de Torrelavega y de Lidl Plus con cupones (este, entre las barras del móvil, con los cupones en azul y la app detrás);
 - la API con un lector falso: leer, guardar, duplicados, decisiones, pendientes, cambiar una línea, borrar y actividad;
 - las huellas golden.
 
@@ -74,6 +74,7 @@ Las reglas de `domain/` (compra, identidad y huellas, historial) están portadas
 - Las consultas de varios tickets llevan un ORDER BY completo (al final, por id): SQLite los daba en el orden de su GROUP BY y MySQL no garantiza ninguno. «total IS ?» de SQLite es `total_cents <=> ?`.
 - `imageInfo` está en `server/common/imageInfo.ts` porque lo usan dos adaptadores: HTTP para validar y Tesseract para medir.
 - `adapters/tesseract/ocrWorker.ts` no lo usa Express: es la entrada del proceso que lanza el backend .NET para el OCR (mismo lector, una petición JSON por línea). Cambiar el lector cambia también lo que lee .NET.
+- La relectura de cifras depende del margen que se deja alrededor: si no trae ningún importe, se repite una vez con uno más ajustado (TAIL_RETRY_PAD, con la medición en el comentario). Un cambio en el lector se mide con OCR real en todas las imágenes de `fixtures/tickets/`, también reducidas y preparadas como en el navegador: que ninguna línea empeore. La captura real de Lidl Plus no está en el repositorio; de ella solo queda lo que leyó el lector (`fixtures/tickets/ocr-real/lidl-plus-captura-422px.json`).
 - Por qué el OCR es local y por compras en lugar de inventario: ver `docs/decisiones.md`.
 
 ## Si cambias este módulo

@@ -23,6 +23,8 @@ import type { TicketReader } from '../../application/ports.ts'
  *    borrosas es donde más se equivoca la primera pasada.
  *    Leer solo la palabra del importe (PSM 8) o quitar la lista de caracteres
  *    dio peores resultados en esa misma medición.
+ *    Si esa relectura no trae nada con forma de importe («1» por «0,15 C»), se
+ *    repite una vez con un margen más ajustado (ver TAIL_RETRY_PAD).
  * Las dos lecturas se entregan al analizador (shared/tickets/ticketParse.ts), que
  * las compara entre sí y con la multiplicación de la línea. El total del
  * ticket nunca decide un importe.
@@ -38,6 +40,19 @@ const LANG_PATH = join(dirname(require.resolve('@tesseract.js-data/spa/package.j
 const TAIL_WHITELIST = '0123456789,.-xX ABC'
 /** Caracteres de una línea de peso: «0,544 kg x 6,75 EUR/kg». */
 const WEIGHT_WHITELIST = '0123456789,.kgxEUR/ '
+/** Margen alrededor de lo que se relee, en proporción al alto de la línea. */
+const TAIL_PAD = 0.35
+/**
+ * Margen de la segunda relectura, solo para las que no traen ningún importe. Tesseract
+ * es sensible al margen: en una captura de Lidl Plus de 422 px, «0,15 C» se leía «1» con
+ * 0,35 y bien con 0,15, 0,25 o 0,5. Medido con OCR real en 7 imágenes (esa captura y las
+ * sintéticas de fixtures/tickets/, a 400-1080 px, preparadas como en el navegador y como
+ * foto): con 0,35 no traían importe 4 relecturas, y con 0,15 las 4 salían bien. Pero con
+ * 0,15 para todas, 18 relecturas habrían dado otro importe (9 con 0,35): solo sirve para repetir.
+ */
+const TAIL_RETRY_PAD = 0.15
+/** Lo que hace que una relectura sirva: algo con forma de importe («0,15»). */
+const AMOUNT_SHAPE = /\d[,.]\d{2}/
 const MAX_REREADS = 250
 const IDLE_MS = 5 * 60 * 1000
 
@@ -93,12 +108,12 @@ async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source:
       box: { ...line.bbox, y0: line.bbox.y0 + source.offsetY, y1: line.bbox.y1 + source.offsetY } } }))
 
   const [from, to] = rereadRange(lines)
-  const tails: { index: number; rect: Rect }[] = []
-  const weights: { index: number; rect: Rect }[] = []
+  const tails: { index: number; rect: Rect; retry?: Rect }[] = []
+  const weights: { index: number; rect: Rect; retry?: Rect }[] = []
   for (let i = from; i <= to && tails.length + weights.length < MAX_REREADS; i++) {
     const line = lines[i]
     const height = line.bbox.y1 - line.bbox.y0
-    const pad = Math.max(2, Math.round(height * 0.35))
+    const pad = Math.max(2, Math.round(height * TAIL_PAD))
     if (isWeightLine(line.text)) {
       const rect = { left: line.bbox.x0 - pad, top: line.bbox.y0 - pad, width: line.bbox.x1 - line.bbox.x0 + 2 * pad, height: height + 2 * pad }
       weights.push({ index: i, rect: clampRect(rect, info) })
@@ -111,19 +126,27 @@ async function readImage(worker: Worker, image: Buffer, info: ImageInfo, source:
     // high-confidence single amounts do not need another Tesseract call.
     if (numeric.every(w => w.confidence >= 90) && /\d[,.]\d{2}\s+[ABC]\s*$/.test(line.text) && !/\d\s*[xX×*]\s*\d/.test(line.text)) continue
     const first = line.words[start]
-    const rect = { left: first.bbox.x0 - pad, top: line.bbox.y0 - pad, width: line.bbox.x1 - first.bbox.x0 + 2 * pad, height: height + 2 * pad }
-    tails.push({ index: i, rect: clampRect(rect, info) })
+    const tailRect = (pad: number) => clampRect({ left: first.bbox.x0 - pad, top: line.bbox.y0 - pad,
+      width: line.bbox.x1 - first.bbox.x0 + 2 * pad, height: height + 2 * pad }, info)
+    tails.push({ index: i, rect: tailRect(pad), retry: tailRect(Math.max(2, Math.round(height * TAIL_RETRY_PAD))) })
   }
 
+  const reread = async (rect: Rect) => (await worker.recognize(image, { rectangle: rect })).data.text.replace(/\s+/g, ' ').trim() || null
   for (const [targets, whitelist] of [
     [tails, TAIL_WHITELIST],
     [weights, WEIGHT_WHITELIST],
   ] as const) {
     if (targets.length === 0) continue
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE, tessedit_char_whitelist: whitelist })
-    for (const { index, rect } of targets) {
-      const { data: reread } = await worker.recognize(image, { rectangle: rect })
-      result[index].reread = reread.text.replace(/\s+/g, ' ').trim() || null
+    for (const { index, rect, retry } of targets) {
+      let text = await reread(rect)
+      // Una relectura sin importe no confirma nada: se repite una vez con el otro margen y, si
+      // tampoco trae importe, se queda la primera (el analizador decide igual que antes).
+      if (retry && !AMOUNT_SHAPE.test(text ?? '')) {
+        const second = await reread(retry)
+        if (second && AMOUNT_SHAPE.test(second)) text = second
+      }
+      result[index].reread = text
     }
   }
   return result

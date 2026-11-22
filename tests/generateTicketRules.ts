@@ -210,6 +210,7 @@ add('ticket-lidl-ejemplo', 'parseTicket: lo que leyó el OCR del ticket inventad
 for (const name of ['ejemplo-franja-navegador', 'torrelavega-400px', 'torrelavega-foto-800', 'torrelavega-foto-1600-mejorada']) {
   add(`ocr-real-${name}`, `parseTicket: OCR real de una imagen sintética (ocr-real/${name}.json)`, 'parseTicket', { pages: [fixture(`fixtures/tickets/ocr-real/${name}.json`).lines] })
 }
+add('ocr-real-lidl-plus-captura-422px', 'parseTicket: OCR real de una captura de Lidl Plus que aportó el usuario, en dos franjas con palabras y posiciones (ocr-real/lidl-plus-captura-422px.json)', 'parseTicket', { pages: fixture('fixtures/tickets/ocr-real/lidl-plus-captura-422px.json').pages })
 for (const fixtureCase of fixture('fixtures/tickets/ticket-cases.json') as { id: string; text: string }[]) {
   add(`caso-${fixtureCase.id}`, `parseTicket: ticket-cases.json, ${fixtureCase.id}`, 'parseTicket', { pages: [linesFromText(fixtureCase.text)] })
   add(`texto-${fixtureCase.id}`, `linesFromText: ticket-cases.json, ${fixtureCase.id}`, 'linesFromText', { text: fixtureCase.text })
