@@ -1,24 +1,29 @@
 import { readFileSync } from 'node:fs'
 import type { APIRequestContext } from '@playwright/test'
+import { similarity } from '#shared/tickets/ticketText.ts'
 import { expect, test, type Locator, type Page } from './test.ts'
 import { resetDatabase } from './auth.ts'
 
-/** Lo que dice de verdad el ticket de ejemplo (para resolver las dudas del OCR como lo haría una persona mirando la imagen). */
-const TRUTH = JSON.parse(readFileSync('fixtures/tickets/ticket-lidl-ejemplo.json', 'utf8')) as { lines: { rawName: string; amountCents: number }[] }
+type Truth = { lines: { rawName: string; amountCents: number }[] }
+/** Lo que dice de verdad cada ticket (para resolver las dudas del OCR como lo haría una persona mirando la imagen). */
+const TRUTH = JSON.parse(readFileSync('fixtures/tickets/ticket-lidl-ejemplo.json', 'utf8')) as Truth
+const BANCO = 'fixtures/tickets/banco/'
+const MEDIANO = JSON.parse(readFileSync(`${BANCO}mediano.json`, 'utf8')) as Truth
 const euros = (cents: number) => `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, '0')}`
 
 /**
- * Resuelve cada línea dudosa desde su panel de comprobación: si el lector
- * ofrece el importe correcto, «Usar …»; si no, «Editar» y escribirlo. Así la
- * prueba no depende de qué cifras exactas confunda el OCR en este navegador.
+ * Resuelve cada línea dudosa desde su tarjeta: si el lector ofrece el importe
+ * correcto, «Usar …»; si no, «Editar» y escribirlo. Así la prueba no depende de
+ * qué cifras exactas confunda el OCR en este navegador. La línea de la verdad es
+ * la de nombre más parecido (el OCR puede confundir una letra del nombre).
  */
-async function resolveDoubts(page: Page, review: Locator) {
-  for (let round = 0; round < 30; round++) {
+async function resolveDoubts(page: Page, review: Locator, truthOf: Truth = TRUTH) {
+  for (let round = 0; round < 40; round++) {
     const open = review.locator('.ticket-line-check--sugerido, .ticket-line-check--pendiente').first()
     if (await open.count() === 0) return
     const name = (await open.locator('.ticket-line-check__head strong').innerText()).trim()
-    const truth = TRUTH.lines.find(l => l.rawName === name)
-    expect(truth, `línea inesperada: ${name}`).toBeTruthy()
+    const truth = [...truthOf.lines].sort((a, b) => similarity(b.rawName, name) - similarity(a.rawName, name))[0]
+    expect(truth && similarity(truth.rawName, name) >= 0.7, `línea inesperada: ${name}`).toBeTruthy()
     const amount = euros(truth!.amountCents)
     // La línea se ve en la imagen, junto a lo que leyó el OCR.
     await expect(open.getByRole('img', { name: `Línea ${name} en la imagen del ticket` })).toBeVisible()
@@ -57,7 +62,7 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
 
   await page.getByRole('button', { name: 'Escanear ticket' }).click()
   await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('fixtures/tickets/ticket-lidl-ejemplo.png')
-  await page.getByRole('button', { name: 'Leer imágenes', exact: true }).click()
+  await page.getByRole('button', { name: 'Leer', exact: true }).click()
   const review = page.getByRole('dialog', { name: 'Revisar el ticket' })
   await expect(review).toBeVisible({ timeout: 90_000 })
 
@@ -72,8 +77,12 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   await expect(review.getByText(/Cuadra con el total: 18 líneas suman 52,51/)).toBeVisible()
   await expect(status).toHaveAttribute('data-status', 'cuadra')
 
-  // Las dos líneas de macarrones van juntas.
+  // Con todo resuelto, los productos van plegados. Las dos líneas de macarrones van juntas.
+  await review.getByRole('button', { name: /^Ver los productos/ }).click()
   await expect(review.getByRole('button', { name: /^Macarrones.*2 líneas/ })).toBeVisible()
+  // La PROMO LIDL PLUS va sangrada bajo el café: es su descuento (confirmado al resolver la línea), no un ajuste general.
+  await expect(review.getByRole('button', { name: /^Café molido natural.*desc\. 0,33/ })).toBeVisible()
+  await expect(review.getByRole('region', { name: 'Ajustes generales' })).toHaveCount(0)
 
   // Un producto con otro nombre y una línea que no se sigue.
   await review.getByRole('button', { name: /^Huevos camperos L/ }).click()
@@ -83,8 +92,6 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   await review.getByLabel('Es el producto').selectOption({ label: 'No seguir esta línea (bolsas, envases…)' })
   await review.getByRole('button', { name: 'Listo' }).click()
   await expect(review.getByRole('button', { name: /^PAPEL HIGIÉNICO 12R.*No se sigue/ })).toBeVisible()
-
-  await review.getByLabel('Confirmar ajuste 1', { exact: true }).check()
 
   await review.getByRole('button', { name: 'Guardar ticket' }).click()
   await expect(review).toBeHidden()
@@ -114,10 +121,75 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   // El mismo ticket no se puede guardar dos veces.
   await page.getByRole('button', { name: 'Escanear ticket' }).click()
   await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles('fixtures/tickets/ticket-lidl-ejemplo.png')
-  await page.getByRole('button', { name: 'Leer imágenes', exact: true }).click()
+  await page.getByRole('button', { name: 'Leer', exact: true }).click()
   await expect(review.getByText(/Este ticket ya está guardado/)).toBeVisible({ timeout: 90_000 })
-  await expect(review.getByRole('heading', { name: /^Ya conocidos \(\d+\)$/ })).toBeVisible()
+  // Vuelven las dudas de la primera lectura: con líneas por revisar, los productos no se pliegan.
+  await expect(review.getByRole('heading', { name: /^Para revisar \(\d+\)$/ })).toBeVisible()
+  await expect(review.getByRole('button', { name: /^Leche semidesnatada.*Ya lo tienes/ })).toBeVisible()
   await expect(review.getByRole('button', { name: 'Guardar ticket' })).toBeDisabled()
+})
+
+/** El estado y «Guardar ticket» se ven sin desplazarse, y la página no es más alta que `screens` pantallas. */
+async function expectFitsOnPhone(page: Page, review: Locator, screens: number) {
+  const viewport = page.viewportSize()!
+  const status = await review.getByTestId('ticket-check').boundingBox()
+  const save = await review.getByRole('button', { name: 'Guardar ticket' }).boundingBox()
+  expect(status!.y + status!.height).toBeLessThanOrEqual(viewport.height)
+  expect(save!.y + save!.height).toBeLessThanOrEqual(viewport.height)
+  const height = await review.locator('.dialog__body').evaluate((el) => el.scrollHeight)
+  expect(height, 'la revisión no cabe en las pantallas previstas').toBeLessThanOrEqual(screens * viewport.height)
+}
+
+test('lee la imagen completa que da Lidl Plus: en el móvil, el estado y «Guardar ticket» a la vista', async ({ page }, info) => {
+  test.setTimeout(150_000)
+  await page.clock.setFixedTime(new Date('2026-11-13T10:00:00+01:00'))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Escanear ticket' }).click()
+  await page.getByRole('dialog', { name: 'Escanear un ticket' }).getByTestId('ticket-input').setInputFiles(`${BANCO}mediano-completa.png`)
+  await page.getByRole('button', { name: 'Leer', exact: true }).click()
+  const review = page.getByRole('dialog', { name: 'Revisar el ticket' })
+  await expect(review).toBeVisible({ timeout: 120_000 })
+  await expect(review.getByLabel('Total del ticket')).toHaveValue('91,73')
+  await expect(review.getByLabel('Fecha de la compra')).toHaveValue('2026-11-12')
+  await expect(review.getByLabel('Hora de la compra')).toHaveValue('13:05')
+  const phone = info.project.name.includes('movil')
+  if (phone) {
+    const viewport = page.viewportSize()!
+    await expectFitsOnPhone(page, review, 6)
+    // Cada línea dudosa ocupa como mucho un tercio de la pantalla.
+    for (const card of await review.locator('.ticket-line-check').all()) {
+      expect((await card.boundingBox())!.height).toBeLessThanOrEqual(viewport.height / 3)
+    }
+  }
+  await resolveDoubts(page, review, MEDIANO)
+  await expect(review.getByText(/41 líneas suman 91,73/)).toBeVisible()
+  await expect(review.getByTestId('ticket-check')).toHaveAttribute('data-status', 'cuadra')
+  if (phone) await expectFitsOnPhone(page, review, 3)
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  await expect(review).toBeHidden()
+  await expect(page.getByText(/Ticket guardado: \d+ productos apuntados/)).toBeVisible()
+})
+
+test('une varias capturas con la app alrededor: ni productos repetidos ni texto de la app', async ({ page }) => {
+  test.setTimeout(150_000)
+  await page.clock.setFixedTime(new Date('2026-11-13T10:00:00+01:00'))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Escanear ticket' }).click()
+  const scan = page.getByRole('dialog', { name: 'Escanear un ticket' })
+  await scan.getByTestId('ticket-input').setInputFiles([1, 2, 3, 4].map(i => `${BANCO}mediano-captura-${i}.png`))
+  await expect(scan.getByRole('img', { name: 'Imagen 4' })).toBeVisible()
+  // Antes de leer ya se sabe que se solapan.
+  await expect(scan.getByText('Las 4 capturas se solapan: se unirán en una sola imagen.')).toBeVisible({ timeout: 30_000 })
+  await page.getByRole('button', { name: 'Leer', exact: true }).click()
+  const review = page.getByRole('dialog', { name: 'Revisar el ticket' })
+  await expect(review).toBeVisible({ timeout: 120_000 })
+  await expect(review.getByLabel('Total del ticket')).toHaveValue('91,73')
+  await resolveDoubts(page, review, MEDIANO)
+  await expect(review.getByText(/41 líneas suman 91,73/)).toBeVisible()
+  await expect(review.getByTestId('ticket-check')).toHaveAttribute('data-status', 'cuadra')
+  await review.getByRole('button', { name: /^Ver los productos/ }).click()
+  await expect(review.getByRole('button', { name: /^Ticket de compra/ })).toHaveCount(0)
+  await expect(review.getByRole('button', { name: /^Pan barra rústica.*2 líneas/ })).toBeVisible()
 })
 
 async function pasteTicket(page: Page, lines: string[]) {
@@ -144,10 +216,8 @@ test('un importe mal leído: se ve la discrepancia y se usa el calculado', async
   await expect(status).toHaveAttribute('data-status', 'pendiente')
 
   const check = review.getByRole('group', { name: 'Comprobar PATATA NUEVA 5 KG' })
-  await expect(check).toContainText('Cantidad2')
-  await expect(check).toContainText('Precio unitario4,95 €')
-  await expect(check).toContainText('OCR92,90 €')
-  await expect(check).toContainText('Calculado9,90 €')
+  await expect(check).toContainText('Leído 92,90 €')
+  await expect(check).toContainText('2 × 4,95 € = 9,90 €')
   await expect(check).toContainText('Sugerido: confírmalo')
   await expect(check).toContainText('Se explica por una cifra de más en el importe')
   // La línea de los huevos cuadra y no pide nada.
@@ -155,7 +225,7 @@ test('un importe mal leído: se ve la discrepancia y se usa el calculado', async
 
   // Elegir la lectura del OCR deja la incoherencia a la vista.
   await check.getByRole('button', { name: 'Usar 92,90 € (leído)' }).click()
-  await expect(check).toContainText('El importe reconocido no coincide con el precio unitario multiplicado por la cantidad.')
+  await expect(check).toContainText('no coincide')
   await expect(check).toContainText('Pendiente')
   await expect(status).toHaveAttribute('data-status', 'no_cuadra')
 

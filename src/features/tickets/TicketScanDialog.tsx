@@ -5,7 +5,7 @@ import type { PantryItem, PantryPerson } from '#shared/pantry/types.ts'
 import type { PantryTicket, TicketSegment } from '#shared/tickets/types.ts'
 import { describeStorageError } from '../../api/storageErrors.ts'
 import type { TicketActions } from './ticketActions.ts'
-import { defaultImageOptions, prepareTicketImages, TicketImageError, type TicketImageOptions } from './ticketImages.ts'
+import { analyzeTicketImages, defaultImageOptions, prepareTicketImages, TicketImageError, type TicketImageOptions, type TicketImagesAnalysis } from './ticketImages.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../../ui/Dialog.tsx'
 import { Icon } from '../../ui/Icon.tsx'
 import { TicketReview } from './TicketReview.tsx'
@@ -20,11 +20,14 @@ const MAX_IMAGES = 6
  * una foto del ticket de papel, o pegar su texto; leerlo; revisarlo y guardarlo.
  *
  * Pasos (`step`):
- * - «elegir»: hasta 6 imágenes, cada una con su giro y su recorte, o el texto pegado.
- * - «leyendo»: el navegador prepara las imágenes (ticketImages.ts: gira, recorta,
- *   divide en franjas y, solo si es una foto de poco contraste, la retoca) y las
- *   envía como `franjas` a POST /api/despensa/tickets/leer. El texto va tal cual.
- *   Si algo falla se vuelve a «elegir» con el error.
+ * - «elegir»: hasta 6 imágenes en fila (número, girar y quitar), o el texto
+ *   pegado. Al elegirlas se comprueba si las capturas se solapan
+ *   (analyzeTicketImages) y se avisa antes de leer. «Leer» va en el pie.
+ * - «leyendo»: el navegador prepara las imágenes (ticketImages.ts: gira, une las
+ *   capturas, recorta al papel, escala por la altura de las letras y divide en
+ *   franjas) y las envía como `franjas` a POST /api/despensa/tickets/leer; se ve
+ *   el paso y los segundos. El texto va tal cual. Si algo falla se vuelve a
+ *   «elegir» con el error.
  * - «revisar»: TicketReview con el estado de ticketReviewState.ts.
  * - Al guardar: si hay una posible compra duplicada sin confirmar, se avisa; si
  *   quedan advertencias (no cuadra, líneas pendientes…), se pide confirmación
@@ -60,6 +63,9 @@ export function TicketScanDialog({
   const [selected, setSelected] = useState<{ file: File; options: TicketImageOptions }[]>([])
   const [segments, setSegments] = useState<TicketSegment[]>([])
   const [confirmation, setConfirmation] = useState<string[] | null>(null)
+  const [analysis, setAnalysis] = useState<TicketImagesAnalysis | null>(null)
+  const [progress, setProgress] = useState<{ label: string; since: number }>({ label: 'Leyendo el ticket…', since: 0 })
+  const [now, setNow] = useState(() => Date.now())
   const fileInput = useRef<HTMLInputElement>(null)
 
   // Las imágenes se ven en la revisión desde URL locales: se liberan al cerrar.
@@ -70,6 +76,22 @@ export function TicketScanDialog({
     setStep({ kind: 'revisar', draft })
   }
 
+  // Al elegir (o girar, o quitar) imágenes, se comprueba antes de leer si las capturas se solapan.
+  useEffect(() => {
+    let current = true
+    setAnalysis(null)
+    if (selected.length === 0) return
+    analyzeTicketImages(selected).then(result => { if (current) setAnalysis(result) }, () => { if (current) setAnalysis(null) })
+    return () => { current = false }
+  }, [selected])
+
+  // Mientras se lee, un reloj para enseñar los segundos que lleva.
+  useEffect(() => {
+    if (step.kind !== 'leyendo') return
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [step.kind])
+
   const readImages = async () => {
     const files = selected.map(s => s.file)
     if (files.length === 0) return
@@ -79,8 +101,11 @@ export function TicketScanDialog({
       return
     }
     setStep({ kind: 'leyendo', images: files.length })
+    setProgress({ label: 'Preparando las imágenes', since: Date.now() })
     try {
-      const { segments: prepared, warnings } = await prepareTicketImages(selected)
+      const { segments: prepared, warnings } = await prepareTicketImages(selected, (s) => setProgress({ since: Date.now(),
+        label: s.kind === 'uniendo' ? `Uniendo ${s.total} capturas` : s.total > 1 ? `Preparando la imagen ${s.image} de ${s.total}` : 'Preparando la imagen' }))
+      setProgress({ label: 'Leyendo el ticket…', since: Date.now() })
       const draft = await actions.readTicket({ franjas: prepared })
       draft.ticket.issues.push(...warnings)
       setSegments(prepared)
@@ -100,6 +125,7 @@ export function TicketScanDialog({
     }
     setError(null)
     setStep({ kind: 'leyendo', images: 0 })
+    setProgress({ label: 'Leyendo el ticket…', since: Date.now() })
     try {
       const draft = await actions.readTicket({ texto: text })
       setPreviews([])
@@ -147,9 +173,9 @@ export function TicketScanDialog({
       <div className="dialog__body">
         {step.kind === 'elegir' && (
           <div className="stack">
-            <p>
-              Haz una captura del ticket en la app de la tienda (en Lidl Plus: <em>Tickets</em>) o una foto del ticket de papel, y
-              elígela aquí. Si el ticket es largo, puedes elegir varias capturas seguidas.
+            <p className="ticket-tip">
+              Lo mejor es la <strong>imagen completa del ticket</strong> que da Lidl Plus (<em>Tickets</em>, el ticket y compartir o guardar la
+              imagen). Si no, una captura larga o varias que se solapen un poco. También vale una foto del ticket de papel.
             </p>
             <label className="ticket-pick">
               <Icon name="upload" size={28} />
@@ -171,25 +197,26 @@ export function TicketScanDialog({
                 }}
               />
             </label>
-            {selected.map((s, i) => <div className="ticket-image-options" key={`${i}-${s.file.name}`}>
-              <img src={previews[i]} alt={`Preparar imagen ${i + 1}`} style={{ transform: `rotate(${s.options.rotation}deg)` }} />
-              <div className="stack stack--tight"><strong>{i + 1}. {s.file.name}</strong>
-                <button type="button" className="btn btn--small" onClick={() => setSelected(selected.map((x, j) => j === i ? { ...x, options: { ...x.options, rotation: ((x.options.rotation + 90) % 360) as TicketImageOptions['rotation'] } } : x))}>Girar imagen {i + 1}</button>
-                {i > 0 && <button type="button" className="link-btn" onClick={() => {
-                  const next = [...selected]; [next[i - 1], next[i]] = [next[i], next[i - 1]]
-                  setSelected(next)
-                  // Recreate URLs: the previous set is released by the effect.
-                  setPreviews(next.map(x => URL.createObjectURL(x.file)))
-                }}>Mover imagen {i + 1} antes</button>}
-                <details><summary>Recortar márgenes de la imagen {i + 1}</summary>
-                  <p className="muted small">Porcentaje que se quitará de cada borde después de girar.</p>
-                  {([['top', 'arriba'], ['bottom', 'abajo'], ['left', 'izquierda'], ['right', 'derecha']] as const).map(([edge, label]) => <label className="field" key={edge}>
-                    Recortar {label} imagen {i + 1} (%)<input type="number" className="input" min="0" max="90" value={s.options.crop[edge]} onChange={e => setSelected(selected.map((x, j) => j === i ? { ...x, options: { ...x.options, crop: { ...x.options.crop, [edge]: Number(e.target.value) } } } : x))} />
-                  </label>)}
-                </details>
-              </div>
-            </div>)}
-            {selected.length > 0 && <button type="button" className="btn btn--primary" onClick={() => void readImages()}>Leer imágenes</button>}
+            {selected.length > 0 && <ul className="ticket-thumbs" aria-label="Imágenes elegidas">
+              {selected.map((s, i) => <li className="ticket-thumbs__item" key={previews[i]}>
+                <span className="ticket-thumbs__number" aria-hidden="true">{i + 1}</span>
+                <img src={previews[i]} alt={`Imagen ${i + 1}`} style={{ transform: `rotate(${s.options.rotation}deg)` }} />
+                <div className="ticket-thumbs__actions">
+                  <button type="button" className="icon-btn" aria-label={`Girar imagen ${i + 1}`} title="Girar"
+                    onClick={() => setSelected(selected.map((x, j) => j === i ? { ...x, options: { ...x.options, rotation: ((x.options.rotation + 90) % 360) as TicketImageOptions['rotation'] } } : x))}>
+                    <Icon name="repeat" size={18} /></button>
+                  <button type="button" className="icon-btn" aria-label={`Quitar imagen ${i + 1}`} title="Quitar" onClick={() => {
+                    setSelected(selected.filter((_, j) => j !== i))
+                    // Las URL se recrean: el efecto libera las de antes.
+                    setPreviews(selected.filter((_, j) => j !== i).map(x => URL.createObjectURL(x.file)))
+                  }}><Icon name="trash" size={18} /></button>
+                </div>
+              </li>)}
+            </ul>}
+            {selected.length > 1 && analysis && <div role="status" className="stack stack--tight">
+              {analysis.warnings.length === 0 && analysis.images === 1 && <p className="muted small">Las {selected.length} capturas se solapan: se unirán en una sola imagen.</p>}
+              {analysis.warnings.map(w => <p className="notice notice--warning small" key={w}>{w}</p>)}
+            </div>}
             <DialogError message={error} />
             {pasting ? (
               <div className="field">
@@ -222,9 +249,9 @@ export function TicketScanDialog({
           <div className="ticket-reading" role="status">
             <span className="ticket-reading__spinner" aria-hidden="true" />
             <p>
-              <strong>Leyendo el ticket…</strong>
+              <strong>{progress.label} {Math.max(0, Math.floor((now - progress.since) / 1000))} s</strong>
               <br />
-              {step.images > 0 ? 'Suele tardar entre 10 y 30 segundos.' : 'Un momento.'}
+              {step.images > 0 ? 'Se lee en este equipo: suele tardar entre 10 y 30 segundos.' : 'Un momento.'}
             </p>
           </div>
         )}
@@ -252,6 +279,11 @@ export function TicketScanDialog({
         <button type="button" className="btn" onClick={onClose}>
           Cancelar
         </button>
+        {step.kind === 'elegir' && (
+          <button type="button" className="btn btn--primary" onClick={() => void readImages()} disabled={selected.length === 0}>
+            Leer
+          </button>
+        )}
         {step.kind === 'revisar' && (
           <button type="button" className="btn btn--primary" onClick={() => void save()} disabled={saving || step.draft.duplicate !== null}>
             {saving ? 'Guardando…' : 'Guardar ticket'}
