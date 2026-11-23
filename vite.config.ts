@@ -19,6 +19,8 @@ export default defineConfig({
   // Rutas relativas: el resultado de "npm run build" funciona en cualquier carpeta del servidor.
   base: './',
   server: { proxy: apiProxy },
+  // El análisis de las capturas de un ticket va en un Web Worker de tipo módulo (src/features/tickets/ticketPlan.worker.ts).
+  worker: { format: 'es' },
   preview: { proxy: apiProxy },
   test: {
     include: ['src/**/*.test.ts', 'server/**/*.test.ts', 'shared/**/*.test.ts', 'tests/**/*.test.ts', 'tools/**/*.test.ts'],

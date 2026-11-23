@@ -192,6 +192,88 @@ test('une varias capturas con la app alrededor: ni productos repetidos ni texto 
   await expect(review.getByRole('button', { name: /^Pan barra rústica.*2 líneas/ })).toBeVisible()
 })
 
+test('avisa antes de leer cuando las capturas no se pueden unir: sin solape o de distinto tamaño', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Escanear ticket' }).click()
+  const scan = page.getByRole('dialog', { name: 'Escanear un ticket' })
+  const input = scan.getByTestId('ticket-input')
+  // Con una sola imagen no hay nada que comparar.
+  await input.setInputFiles(`${BANCO}mediano-captura-1.png`)
+  await expect(scan.getByRole('img', { name: 'Imagen 1' })).toBeVisible()
+  await expect(scan.getByText(/se solapan|Comprobando/)).toHaveCount(0)
+  // La 1.ª y la 3.ª no se tocan: falta la del medio.
+  await input.setInputFiles([1, 3].map(i => `${BANCO}mediano-captura-${i}.png`))
+  await expect(scan.getByText('Las capturas 1 y 2 no se solapan: puede faltar una parte del ticket.')).toBeVisible({ timeout: 30_000 })
+  // Una captura y la imagen completa no se pueden unir.
+  await input.setInputFiles([`${BANCO}mediano-captura-1.png`, `${BANCO}mediano-completa.png`])
+  await expect(scan.getByText('Las imágenes no tienen el mismo tamaño y no se pueden unir: se leen por separado, revisa si hay productos repetidos o que falten.'))
+    .toBeVisible({ timeout: 30_000 })
+  // Quitar una deja la otra con su imagen, y ya no hay aviso.
+  await scan.getByRole('button', { name: 'Quitar imagen 2' }).click()
+  await expect(scan.getByRole('img', { name: 'Imagen 1' })).toBeVisible()
+  await expect(scan.getByRole('img', { name: 'Imagen 2' })).toHaveCount(0)
+  await expect(scan.getByText(/no se pueden unir/)).toHaveCount(0)
+})
+
+test('una línea emparejada solo por parecido: su tarjeta pregunta si es ese producto, y el foco pasa a la siguiente', async ({ page, request }) => {
+  await page.clock.setFixedTime(new Date('2026-10-29T10:00:00+01:00'))
+  await request.post('/api/despensa/productos', {
+    data: { name: 'Leche semidesnatada', ownerId: null, unit: 'ud', quantity: 1, target: 6, frequency: 'semanal', priceCents: 95, notes: '' },
+  })
+  await page.goto('/')
+  const review = await pasteTicket(page, ['LIDL SUPERMERCADOS S.A.U.', 'EUR', 'LECHE SEMIDESNAT.   0,95 A', 'PATATA NUEVA 5 KG   4,95X   2   92,90 A',
+    'TOTAL 10,85', 'Lidl Pay 10,85', 'FECHA: 28/10/26', 'HORA: 19:24:38'])
+  // Las dos cuentan como pendientes, y la lista de productos sigue abierta mientras queden.
+  await expect(review.getByText('Faltan 2 líneas por revisar')).toBeVisible()
+  await expect(review.getByRole('button', { name: /^Ver los productos/ })).toHaveCount(0)
+  const milk = review.getByRole('group', { name: 'Comprobar LECHE SEMIDESNAT.' })
+  await expect(milk).toContainText('Se parece a tu producto Leche semidesnatada. ¿Es el mismo?')
+  await milk.getByRole('button', { name: 'Sí, es Leche semidesnatada' }).click()
+  await expect(milk).toHaveCount(0)
+  await expect(review.getByText('Falta 1 línea por revisar')).toBeVisible()
+  // El foco va a la siguiente tarjeta, y al resolverla, al resumen.
+  const potato = review.getByRole('group', { name: 'Comprobar PATATA NUEVA 5 KG' })
+  await expect(potato).toBeFocused()
+  await potato.getByRole('button', { name: 'Usar 9,90 €', exact: true }).click()
+  await expect(review.getByRole('region', { name: 'Resumen del ticket' })).toBeFocused()
+  await expect(review.getByTestId('ticket-check')).toHaveAttribute('data-status', 'cuadra')
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  await expect(review).toBeHidden()
+  await expect(page.getByText('Ticket guardado: 2 productos apuntados')).toBeVisible()
+  // La leche del ticket va al producto que ya había: tenía 1 y ahora hay 2.
+  await expect(item(page, 'Leche semidesnatada')).toContainText('Hay 2 ud de 6 ud')
+})
+
+test('los errores de la cabecera al guardar: se abre «Editar datos del ticket», el foco va al campo y el error se ve', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-29T10:00:00+01:00'))
+  await page.goto('/')
+  const review = await pasteTicket(page, POTATO_TICKET)
+  await review.getByRole('group', { name: 'Comprobar PATATA NUEVA 5 KG' }).getByRole('button', { name: 'Usar 9,90 €', exact: true }).click()
+  const edit = review.getByText('Editar datos del ticket', { exact: true })
+  await edit.click()
+  await review.getByLabel('Tienda').fill('')
+  await review.getByLabel('Total del ticket').fill('doce')
+  await edit.click()
+  // Una tienda vacía se ve como lo que falta, no como «Tienda».
+  await expect(review.getByRole('region', { name: 'Resumen del ticket' })).toContainText('Falta la tienda')
+
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  const store = review.getByLabel('Tienda')
+  await expect(store).toBeVisible()
+  await expect(store).toBeFocused()
+  await expect(review.getByText('Escribe el nombre de la tienda.')).toBeVisible()
+  await store.fill('Lidl')
+  await expect(review.getByText('Escribe el nombre de la tienda.')).toHaveCount(0)
+
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  await expect(review.getByLabel('Total del ticket')).toBeFocused()
+  await expect(review.getByText('El total del ticket no es un importe válido.')).toBeVisible()
+  await review.getByLabel('Total del ticket').fill('15,58')
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  await expect(review).toBeHidden()
+  await expect(page.getByText('Ticket guardado: 2 productos apuntados')).toBeVisible()
+})
+
 /** El límite de lienzo de Safari en el iPhone (unos 16,7 millones de píxeles): uno más grande no da contexto. */
 const SAFARI_CANVAS_PIXELS = 16_777_216
 

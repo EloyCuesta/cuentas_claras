@@ -1,8 +1,9 @@
 import type { TicketSegment } from '#shared/tickets/types.ts'
 import {
-  contentBox, cropGray, findOverlap, findPaper, fixedBands, grayFromRgba, invertGray, isScreenImage, measureTextHeight, orderCaptures,
-  OVERLAP_MAX_SCORE, overlapUsable, paperTone, scaleForTextHeight, type Box, type GrayImage, type Overlap,
+  contentBox, grayFromRgba, invertGray, isScreenImage, measureTextHeight, paperTone, scaleForTextHeight, type Box,
 } from './ticketImageAnalysis.ts'
+import { groupGray, planCaptures, type Plan, type PlanSource } from './ticketPlan.ts'
+import type { PlanRequest, PlanResponse } from './ticketPlan.worker.ts'
 
 /**
  * Preparar en el navegador las imágenes de un ticket antes de leerlas. La
@@ -12,10 +13,14 @@ import {
  *    gris (ticketImageAnalysis.ts): el tono del papel, dónde está el papel y la
  *    altura de las letras. El giro se aplica al dibujar cada copia (drawRotated),
  *    nunca en un lienzo del tamaño de la foto, y cada lienzo se libera al acabar.
- * 2. Varias capturas del mismo ticket se unen en una sola imagen: se quitan las
- *    bandas fijas (barra de estado, cabecera, navegación), se busca cuánto se
- *    desplaza cada una respecto a la anterior y se pega solo lo nuevo. Si dos no
- *    se solapan con claridad no se inventa nada: se avisa y van por separado.
+ * 2. Varias capturas del mismo ticket se unen en una sola imagen (ticketPlan.ts,
+ *    en un Web Worker si el navegador puede): se quitan las bandas fijas (barra
+ *    de estado, cabecera, navegación), se busca cuánto se desplaza cada una
+ *    respecto a la anterior y se pega solo lo nuevo. Si dos no se solapan con
+ *    claridad no se inventa nada: se avisa y van por separado. Lo ya calculado
+ *    (cada imagen con su giro y cada plan) se guarda en un TicketImageCache: el
+ *    aviso de antes de leer y la lectura lo comparten, y girar una imagen solo
+ *    vuelve a preparar esa.
  * 3. Se recorta al papel escrito y se escala para que las mayúsculas midan lo
  *    que mejor lee el OCR (ver TARGET_TEXT_HEIGHT y el banco de medida), no por
  *    el ancho: a más de unos 24 px Tesseract pierde la columna de importes.
@@ -235,7 +240,9 @@ async function withCanvas<T>(width: number, height: number, draw: (canvas: HTMLC
 }
 
 /** Una imagen elegida, girada, recortada a mano si se pidió y con su copia de análisis. */
-interface Source {
+interface Source extends PlanSource {
+  /** Para reconocer el mismo plan en la caché. */
+  id: number
   /** La imagen original, sin girar: el giro se aplica al dibujarla (drawRotated). */
   image: HTMLImageElement
   rotation: TicketImageOptions['rotation']
@@ -243,16 +250,15 @@ interface Source {
   crop: Box
   /** Píxeles de la copia de análisis por píxel original. */
   factor: number
-  gray: GrayImage
-  tone: number
-  dark: boolean
   range: { low: number; high: number }
-  autoCrop: boolean
 }
+
+let nextSourceId = 0
 
 async function decode(file: Blob, options: TicketImageOptions): Promise<Source> {
   if (!file.type.startsWith('image/')) throw new TicketImageError('Elige una imagen del ticket.')
   const image = await loadImage(file)
+  if (image.naturalWidth === 0 || image.naturalHeight === 0) throw new TicketImageError('La imagen no tiene un tamaño válido.')
   if (image.naturalWidth * image.naturalHeight > 40_000_000) throw new TicketImageError('La imagen supera 40 millones de píxeles. Elige una captura más pequeña.')
   const width = options.rotation % 180 ? image.naturalHeight : image.naturalWidth
   const height = options.rotation % 180 ? image.naturalWidth : image.naturalHeight
@@ -278,89 +284,7 @@ async function decode(file: Blob, options: TicketImageOptions): Promise<Source> 
   let gray = grayFromRgba(rgba, analysisWidth, analysisHeight)
   const { tone, dark } = paperTone(gray)
   if (dark) gray = invertGray(gray)
-  return { image, rotation: options.rotation, crop: box, factor, gray, tone, dark, range, autoCrop: options.autoCrop }
-}
-
-/** Un trozo de una imagen elegida dentro de una imagen unida: sus filas (en la copia de análisis) y dónde van. */
-interface Piece { source: number; top: number; bottom: number; y: number }
-
-/** Una imagen que se envía a leer: una o varias capturas unidas, en coordenadas de la copia de análisis. */
-interface Group {
-  sources: number[]
-  pieces: Piece[]
-  left: number
-  right: number
-  height: number
-}
-
-interface Plan { groups: Group[]; warnings: string[] }
-
-/** Une las capturas que se solapan y avisa de las que no. Las imágenes de distinto tamaño (fotos sueltas) van por separado. */
-function plan(sources: readonly Source[]): Plan {
-  const warnings: string[] = []
-  const sameSize = sources.length > 1 && sources.every((s) => s.gray.width === sources[0].gray.width && s.gray.height === sources[0].gray.height)
-  const bands = sameSize ? fixedBands(sources.map((s) => s.gray)) : { top: 0, bottom: 0 }
-  const papers = sources.map((source) => {
-    const region: Box = { left: 0, top: bands.top, right: source.gray.width, bottom: source.gray.height - bands.bottom }
-    if (!source.autoCrop) return region
-    const paper = findPaper(cropGray(source.gray, region), source.tone)
-    return paper ? { left: paper.left, right: paper.right, top: paper.top + region.top, bottom: paper.bottom + region.top } : region
-  })
-  // Para comparar capturas, el mismo ancho en todas: el del papel de la primera, si todas lo tienen parecido.
-  const stitchable = sameSize && papers.every((p) => Math.abs(p.left - papers[0].left) <= 4 && Math.abs(p.right - papers[0].right) <= 4)
-  const columns = stitchable ? { left: Math.max(...papers.map((p) => p.left)), right: Math.min(...papers.map((p) => p.right)) } : null
-  const contents = sources.map((source, i) => cropGray(source.gray, columns ? { ...columns, top: papers[i].top, bottom: papers[i].bottom } : papers[i]))
-  const overlaps = new Map<string, Overlap | null>()
-  const overlap = (i: number, j: number) => {
-    const key = `${i}-${j}`
-    if (!overlaps.has(key)) overlaps.set(key, findOverlap(contents[i], contents[j], sources[i].tone))
-    return overlaps.get(key)!
-  }
-  const order = stitchable ? orderCaptures(sources.length, (i, j) => overlapUsable(overlap(i, j))) : sources.map((_, i) => i)
-  const groups: Group[] = []
-  const single = (i: number): Group => ({ sources: [i], pieces: [{ source: i, top: papers[i].top, bottom: papers[i].bottom, y: 0 }],
-    left: columns?.left ?? papers[i].left, right: columns?.right ?? papers[i].right, height: papers[i].bottom - papers[i].top })
-  let current = single(order[0])
-  for (let k = 1; k < order.length; k++) {
-    const [previous, next] = [order[k - 1], order[k]]
-    const found = stitchable ? overlap(previous, next) : null
-    if (found && overlapUsable(found)) {
-      // Lo nuevo de la siguiente empieza en la mitad del solape: ahí las dos tienen renglones enteros.
-      const last = current.pieces.at(-1)!
-      const lastStart = last.y - (last.top - papers[previous].top)
-      const cut = Math.floor((contents[previous].height - found.offset) / 2)
-      last.bottom = papers[previous].top + found.offset + cut
-      const y = lastStart + found.offset
-      current.pieces.push({ source: next, top: papers[next].top + cut, bottom: papers[next].bottom, y: y + cut })
-      current.sources.push(next)
-      current.height = y + contents[next].height
-      continue
-    }
-    if (stitchable) {
-      warnings.push(found && found.score <= OVERLAP_MAX_SCORE && found.ambiguous
-        ? `No está claro dónde se solapan las capturas ${previous + 1} y ${next + 1}: se leen por separado, revisa si hay productos repetidos o que falten.`
-        : `Las capturas ${previous + 1} y ${next + 1} no se solapan: puede faltar una parte del ticket.`)
-    }
-    groups.push(current)
-    current = single(next)
-  }
-  groups.push(current)
-  return { groups, warnings }
-}
-
-/** La copia de análisis de una imagen unida (para medir lo escrito y las letras). */
-function groupGray(group: Group, sources: readonly Source[]): GrayImage {
-  const width = group.right - group.left
-  const data = new Uint8Array(width * group.height).fill(sources[group.sources[0]].tone)
-  for (const piece of group.pieces) {
-    const source = sources[piece.source].gray
-    for (let row = piece.top; row < piece.bottom; row++) {
-      const y = piece.y + row - piece.top
-      if (y < 0 || y >= group.height) continue
-      data.set(source.data.subarray(row * source.width + group.left, row * source.width + group.right), y * width)
-    }
-  }
-  return { width, height: group.height, data }
+  return { id: ++nextSourceId, image, rotation: options.rotation, crop: box, factor, gray, tone, dark, range, autoCrop: options.autoCrop }
 }
 
 export type TicketImageStep =
@@ -373,20 +297,119 @@ export interface TicketImagesAnalysis {
   images: number
 }
 
-async function decodeAll(selections: readonly { file: Blob; options: TicketImageOptions }[], onStep?: (step: TicketImageStep) => void) {
+export interface TicketImageSelection { file: Blob; options: TicketImageOptions }
+
+/** El Web Worker del plan, compartido; null si el navegador no puede crearlo (se calcula en el hilo principal). */
+let planWorker: Worker | null | undefined
+let nextPlanRequest = 0
+
+function startPlanWorker(): Worker | null {
+  if (planWorker !== undefined) return planWorker
+  try {
+    planWorker = typeof Worker === 'undefined' ? null : new Worker(new URL('./ticketPlan.worker.ts', import.meta.url), { type: 'module' })
+  } catch {
+    planWorker = null
+  }
+  return planWorker
+}
+
+/** El plan en el Web Worker, sin congelar la ventana; si no se puede (o falla al arrancar), en el hilo principal. */
+function runPlan(sources: readonly Source[]): Promise<Plan> {
+  // Al worker solo va lo que necesita (la imagen original no se puede copiar).
+  const inputs: PlanSource[] = sources.map(({ gray, tone, dark, autoCrop }) => ({ gray, tone, dark, autoCrop }))
+  const worker = startPlanWorker()
+  if (!worker) return Promise.resolve(planCaptures(inputs))
+  const id = ++nextPlanRequest
+  return new Promise((resolve, reject) => {
+    const done = () => { worker.removeEventListener('message', onMessage); worker.removeEventListener('error', onError) }
+    const onMessage = ({ data }: MessageEvent<PlanResponse>) => {
+      if (data.id !== id) return
+      done()
+      if ('plan' in data) resolve(data.plan)
+      else reject(new TicketImageError('No se han podido comparar las capturas.'))
+    }
+    // El worker no arranca (o se cae): el mismo cálculo aquí, y los siguientes también.
+    const onError = (event: Event) => {
+      event.preventDefault()
+      done()
+      worker.terminate()
+      planWorker = null
+      try { resolve(planCaptures(inputs)) } catch (failure) { reject(failure) }
+    }
+    worker.addEventListener('message', onMessage)
+    worker.addEventListener('error', onError)
+    worker.postMessage({ id, sources: inputs } satisfies PlanRequest)
+  })
+}
+
+/**
+ * Lo ya preparado, para no repetirlo: cada imagen con sus opciones (la copia de análisis) y el plan de cada
+ * combinación. Una caché por ventana de escanear: la comparten el aviso de antes de leer y la lectura.
+ */
+export interface TicketImageCache {
+  source(selection: TicketImageSelection): Promise<Source>
+  plan(sources: readonly Source[]): Promise<Plan>
+  /** Olvida lo de las imágenes que ya no están elegidas (o con otras opciones). */
+  keep(selections: readonly TicketImageSelection[]): void
+}
+
+export function createTicketImageCache(): TicketImageCache {
+  const sources = new Map<Blob, Map<string, Promise<Source>>>()
+  const plans = new Map<string, Promise<Plan>>()
+  const keyOf = (options: TicketImageOptions) => JSON.stringify(options)
+  return {
+    source({ file, options }) {
+      const byOptions = sources.get(file) ?? new Map<string, Promise<Source>>()
+      sources.set(file, byOptions)
+      const key = keyOf(options)
+      let found = byOptions.get(key)
+      if (!found) {
+        found = decode(file, options)
+        byOptions.set(key, found)
+        // Un error no se guarda: al volver a intentarlo se prepara otra vez.
+        found.catch(() => byOptions.delete(key))
+      }
+      return found
+    },
+    plan(list) {
+      const key = list.map((source) => source.id).join(',')
+      let found = plans.get(key)
+      if (!found) {
+        found = runPlan(list)
+        plans.set(key, found)
+        found.catch(() => plans.delete(key))
+      }
+      return found
+    },
+    keep(selections) {
+      for (const [file, byOptions] of sources) {
+        const wanted = new Set(selections.filter((s) => s.file === file).map((s) => keyOf(s.options)))
+        for (const key of byOptions.keys()) if (!wanted.has(key)) byOptions.delete(key)
+        if (byOptions.size === 0) sources.delete(file)
+      }
+      if (plans.size > 20) plans.clear()
+    },
+  }
+}
+
+async function decodeAll(selections: readonly TicketImageSelection[], cache: TicketImageCache, onStep?: (step: TicketImageStep) => void) {
   const sources: Source[] = []
   for (const [i, selection] of selections.entries()) {
     onStep?.({ kind: 'preparando', image: i + 1, total: selections.length })
-    sources.push(await decode(selection.file, selection.options))
+    sources.push(await cache.source(selection))
   }
   if (selections.length > 1) onStep?.({ kind: 'uniendo', total: selections.length })
   return sources
 }
 
-/** Lo que se sabe antes de leer: si las capturas se solapan y cuántas imágenes saldrán. */
-export async function analyzeTicketImages(selections: readonly { file: Blob; options: TicketImageOptions }[]): Promise<TicketImagesAnalysis> {
-  if (selections.length === 0) return { warnings: [], images: 0 }
-  const { groups, warnings } = plan(await decodeAll(selections))
+/**
+ * Lo que se sabe antes de leer: si las capturas se solapan y cuántas imágenes saldrán. Con una sola imagen no hay
+ * nada que comparar. Lo calculado queda en `cache` para la lectura.
+ */
+export async function analyzeTicketImages(selections: readonly TicketImageSelection[], cache: TicketImageCache = createTicketImageCache()): Promise<TicketImagesAnalysis> {
+  cache.keep(selections)
+  if (selections.length < 2) return { warnings: [], images: selections.length }
+  const { groups, warnings } = await cache.plan(await decodeAll(selections, cache))
   return { warnings, images: groups.length }
 }
 
@@ -394,18 +417,22 @@ export async function analyzeTicketImages(selections: readonly { file: Blob; opt
  * Prepara todas las imágenes elegidas de un ticket tal como se envían a leer
  * (las capturas que se solapan, unidas). La usan la revisión y el banco de
  * medida (`tools/banco-tickets/`), para medir exactamente lo que hace la app.
+ * Devuelve también cada franja como Blob, para enseñarla con una URL local.
  */
-export async function prepareTicketImages(selections: readonly { file: Blob; options: TicketImageOptions }[], onStep?: (step: TicketImageStep) => void): Promise<{
-  segments: TicketSegment[]; warnings: string[]
-}> {
-  const sources = await decodeAll(selections, onStep)
-  const { groups, warnings } = plan(sources)
+export async function prepareTicketImages(selections: readonly TicketImageSelection[], onStep?: (step: TicketImageStep) => void,
+  cache: TicketImageCache = createTicketImageCache()): Promise<{ segments: TicketSegment[]; warnings: string[]; blobs: Blob[] }> {
+  if (selections.length === 0) throw new TicketImageError('Elige una imagen del ticket.')
+  const sources = await decodeAll(selections, cache, onStep)
+  const plan = await cache.plan(sources)
+  const groups = plan.groups
+  const warnings = [...plan.warnings]
   for (const source of sources) {
     const width = source.crop.right - source.crop.left
     const height = source.crop.bottom - source.crop.top
     if (width > height * 1.5) warnings.push('La imagen es horizontal. Si el texto está girado, vuelve atrás y gira la foto antes de leer.')
   }
   const segments: TicketSegment[] = []
+  const blobs: Blob[] = []
   let bytes = 0
   for (const [imageIndex, group] of groups.entries()) {
     const sourcesOf = group.sources.map((i) => sources[i])
@@ -468,8 +495,9 @@ export async function prepareTicketImages(selections: readonly { file: Blob; opt
       bytes += blob.size
       if (blob.size > MAX_SEGMENT_BYTES || bytes > MAX_TOTAL_BYTES) throw new TicketImageError('Las imágenes son demasiado grandes. Recorta los márgenes y la publicidad.')
       segments.push({ image: await toBase64(blob), imageIndex, segmentIndex, offsetY, fullHeight: outputHeight })
+      blobs.push(blob)
     }
   }
   if (segments.length > MAX_SEGMENTS || bytes > MAX_TOTAL_BYTES) throw new TicketImageError('El conjunto supera 24 franjas o 20 MB. Recorta las zonas informativas antes de leer.')
-  return { segments, warnings: [...new Set(warnings)] }
+  return { segments, warnings: [...new Set(warnings)], blobs }
 }

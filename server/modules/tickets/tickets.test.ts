@@ -148,12 +148,16 @@ describe('lector de tickets (OCR real) con la captura sintética de Lidl Plus co
     // Por la clave: el OCR puede perder el punto final de «TROPIF.».
     expect(ticket.lines.map(l => l.key)).toEqual(truth.lines.map(l => nameKey(l.rawName)))
     // Sin preparar la imagen como el navegador, la banda de importes se relee peor: lo que no sale
-    // como en el ticket (cantidad, precio o importe) tiene que quedar marcado.
-    truth.lines.forEach((real, i) => {
+    // como en el ticket (cantidad, precio o importe) tiene que quedar marcado. Y como mucho una línea:
+    // la 1.ª «INSTANT NOODLES» pierde «2 × 0,65» (el importe, 1,30, sí sale bien). Releerla con el margen
+    // ajustado la arregla, pero estropea otras dos (FIX-02, docs/terminar-el-proyecto.md): se queda marcada.
+    const differing = truth.lines.filter((real, i) => {
       const line = ticket.lines[i]
       const same = line.quantity === real.quantity && line.unitPriceCents === real.unitPriceCents && line.amountCents === real.amountCents
       if (!same) expect(line.flags.length, real.rawName).toBeGreaterThan(0)
+      return !same
     })
+    expect(differing.length, differing.map(l => l.rawName).join(', ')).toBeLessThanOrEqual(1)
     // Los PROMO LIDL PLUS, como ajustes o como descuento sugerido (y marcado) de su producto;
     // los cupones «GRATIS» y los puntos de la app no son compras.
     const promos = ticket.lines.filter(l => l.discountCents !== 0)

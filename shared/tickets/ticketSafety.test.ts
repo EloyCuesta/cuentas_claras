@@ -15,6 +15,7 @@ describe('regresiones de seguridad de tickets', () => {
     const t = parse('RULO DE CABRA 2,23 A', 'DATIL SIN HUESO 1,25 A', 'TOTAL 3,54')
     expect(t.lines.map(l => l.amountCents)).toEqual([223, 125])
     expect(t.check.status).toBe('no_cuadra')
+    expect(t.lines[0].evidence?.issues.join(' ')).toMatch(/Con 2,29\s€, el total cuadraría: comprueba esta cifra en la imagen/)
   })
   it('no inventa el único importe ilegible', () => {
     const t = parse('ARROZ 1,09 A', 'COOKIES ???', 'TOTAL 2,38')
@@ -152,21 +153,64 @@ describe('regresiones de seguridad de tickets', () => {
     const apart = parseTicket([linesFromText(first.slice(0, 4).join('\n')), linesFromText(['QUESO TIERNO 3,99 A', 'TOTAL 6,93'].join('\n'))])
     expect(apart.issues).toContain('No se ha encontrado dónde se solapan las capturas 1 y 2: revisa si hay productos repetidos o que falten')
   })
-  it('votación: un importe es fiable si dos lecturas coinciden y ninguna dice otra cosa', () => {
+  it('votación: un importe es fiable si la lectura del texto y otra coinciden y ninguna dice otra cosa', () => {
     const t = parseTicket([[...linesFromText('LIDL\nEUR'),
       { text: 'PAN BARRA RÚSTICA', reread: '0,65 A', rereads: ['0,65 A'] },
       { text: 'ARROZ REDONDO 1KG                   1,22 A', reread: '1,22 A', rereads: ['1,29 A'] },
       { text: 'ZANAHORIA BOLSA                     0,739 A', reread: '0,73 A', rereads: ['0,73 A'] },
       { text: 'QUESO FUNDIDO BURGER                1,25 A', reread: '1,25 A', rereads: ['1,25 A'], confidence: 60 },
-      ...linesFromText('TOTAL 3,88')]])
+      ...linesFromText('TOTAL 3,85')]])
     const [bread, rice, carrot, cheese] = t.lines
-    expect(bread).toMatchObject({ amountCents: 65, flags: [] })
+    // Sin la lectura del texto, las dos de la banda (el mismo recorte a dos escalas) no votan.
+    expect(bread).toMatchObject({ amountCents: 65, flags: ['dudoso'] })
+    expect(bread.evidence?.issues).toContain('El importe solo se lee en la relectura de cifras')
     expect(rice.flags).toContain('dudoso')
     expect(rice.evidence?.issues).toContain('Las lecturas del importe no coinciden')
     expect(rice.evidence?.options?.map(o => o.cents).sort()).toEqual([122, 129])
     expect(carrot.flags).toContain('dudoso')
     // Tres lecturas iguales y limpias: la poca confianza de Tesseract en la línea ya no la marca.
     expect(cheese).toMatchObject({ amountCents: 125, flags: [] })
+  })
+  it('4g. tres lecturas iguales y equivocadas: si el desglose de IVA no cuadra, se marca la línea que una cifra confundida explicaría', () => {
+    // «ZANAHORIA BOLSA» de grande/completa-400 en el banco: 0,73 en el texto, en la banda y en la banda a 1,5×, y era 0,79.
+    const read = (text: string, amount: string): OcrLine => ({ text: `${text.padEnd(36)}${amount} A`, reread: `${amount} A`, rereads: [`${amount} A`] })
+    const t = parseTicket([[...linesFromText('LIDL SUPERMERCADOS S.A.U.\nEUR'),
+      read('PAN DE MOLDE', '1,59'), read('ZANAHORIA BOLSA', '0,73'), read('LECHE ENTERA', '0,95'),
+      ...linesFromText('TOTAL 3,33\nA 10% 3,03 0,30 3,33\nFECHA: 28/10/26')]])
+    expect(t.lines.map(l => [l.rawName, l.amountCents, l.flags])).toEqual([
+      ['PAN DE MOLDE', 159, []], ['ZANAHORIA BOLSA', 73, ['dudoso']], ['LECHE ENTERA', 95, []]])
+    expect(t.lines[1].evidence?.issues.join(' ')).toMatch(/Con 0,79\s€, el desglose de IVA A cuadraría: comprueba esta cifra en la imagen/)
+    expect(t.check).toMatchObject({ status: 'no_cuadra', differenceCents: 6, pending: 1 })
+    // Sin cifra que lo explique (una diferencia de 0,04 no sale de cambiar una cifra confundible), no se marca nada más.
+    const none = parseTicket([[...linesFromText('LIDL SUPERMERCADOS S.A.U.\nEUR'),
+      read('PAN DE MOLDE', '1,59'), read('LECHE ENTERA', '0,95'), ...linesFromText('TOTAL 2,58\nFECHA: 28/10/26')]])
+    expect(none.lines.every(l => l.flags.length === 0)).toBe(true)
+    // La que comprueba la multiplicación no se marca aunque una cifra la explicara.
+    const product = parseTicket([[...linesFromText('LIDL SUPERMERCADOS S.A.U.\nEUR'),
+      { text: 'LECHE ENTERA 0,93x 6                5,58 A', reread: '0,93x 6 5,58 A', rereads: ['0,93x 6 5,58 A'] },
+      ...linesFromText('TOTAL 5,64\nFECHA: 28/10/26')]])
+    expect(product.lines[0].flags).toEqual([])
+  })
+  it('fuera de Lidl, una línea sin importe se queda como producto y toma el importe de la de debajo', () => {
+    const t = parseTicket([linesFromText('FRUTERIA EJEMPLO\nLeche entera 0,95\nPan de pueblo\n1,20\nTOTAL 2,15')])
+    expect(t.store).toBe('otra')
+    expect(t.lines.map(l => [l.rawName, l.amountCents])).toEqual([['Leche entera', 95], ['Pan de pueblo', 120]])
+    expect(t.nonProducts).toBeUndefined()
+  })
+  it('la cabecera de Lidl también acaba en una línea «… S.A.U.»: lo de después son productos', () => {
+    const t = parseTicket([linesFromText(['Copia', 'LIDL', 'DISTRIBUCION S.A.U.', 'PAN BARRA RÚSTICA', 'LECHE ENTERA 0,95 A', 'TOTAL 1,60', 'FECHA: 03/11/26'].join('\n'))])
+    expect(t.lines.map(l => [l.rawName, l.amountCents])).toEqual([['PAN BARRA RÚSTICA', null], ['LECHE ENTERA', 95]])
+  })
+  it('una línea con la fecha no es la hora de la barra de estado del móvil', () => {
+    const t = parseTicket([linesFromText('LIDL\nEUR\nPAN 1,00 A\nTOTAL 1,00\n28.10.2026 14:32')])
+    expect(t).toMatchObject({ date: '2026-10-28', time: '14:32' })
+  })
+  it('«5 KG PATATAS 2,99 B» es un producto, no una línea de peso ni 5 unidades', () => {
+    const t = parse('5 KG PATATAS 2,99 B', '2 L AGUA 0,60 A', 'TOTAL 3,59')
+    expect(t.lines.map(l => [l.rawName, l.quantity, l.amountCents])).toEqual([['5 KG PATATAS', 1, 299], ['2 L AGUA', 1, 60]])
+    expect(t.issues).not.toContain('Línea de peso sin producto identificable')
+    // Una línea de peso que no se lee entera sigue siendo del producto de encima.
+    expect(parse('PLATANO 1,23 A', '34 kg     JO ER /La', 'TOTAL 1,23').lines).toHaveLength(1)
   })
   it('un «-» pegado detrás del importe no lo confirma, aunque la relectura coincida', () => {
     const t = parseTicket([[...linesFromText('LIDL\nEUR'),

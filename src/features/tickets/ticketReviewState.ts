@@ -19,9 +19,9 @@ import type {
  * en TicketReview y lo que se envía al guardar.
  *
  * - initialReview: parte de lo que leyó el servidor (TicketDraft). Cada producto
- *   empieza con lo que se propone (lo aprendido, un nombre parecido o uno nuevo)
- *   y va al apartado «Para revisar» si le falta el importe, tiene alguna marca o
- *   se emparejó solo por parecido.
+ *   empieza con lo que se propone (lo aprendido, un nombre parecido o uno nuevo).
+ *   Va a «Para revisar» (needsLineCheck) si le falta el importe, tiene alguna
+ *   marca o se emparejó solo por parecido.
  * - Cada línea pasa por cuatro estados (lineState): comprobado → confirmado, o
  *   sugerido → confirmado, o pendiente. Solo «comprobado» y «confirmado» cambian
  *   la despensa al guardar; el resto se guarda en el ticket como pendiente.
@@ -29,7 +29,7 @@ import type {
  *   está la revisión ahora, y las advertencias que pedirán confirmación.
  * - reviewToInput: valida y convierte la revisión en lo que recibe
  *   POST /api/despensa/tickets. Las líneas con el mismo nombre deben ir al mismo
- *   producto.
+ *   producto. Un error de la cabecera dice su campo, para llevar el foco a él.
  *
  * Los importes se escriben como texto (coma decimal) y se leen en céntimos.
  */
@@ -53,7 +53,6 @@ export interface ReviewLine extends ParsedTicketLine {
   heldPending: boolean
 }
 export interface ReviewAdjustment extends TicketAdjustment { amountText: string }
-export type SectionId = 'revisar' | 'nuevos' | 'conocidos' | 'ignorados'
 export interface ReviewState {
   storeName: string
   address: string
@@ -63,7 +62,6 @@ export interface ReviewState {
   lines: ReviewLine[]
   adjustments: ReviewAdjustment[]
   choices: Record<string, Choice>
-  sections: Record<string, SectionId>
   nextPosition: number
   distinctPurchase: boolean
   /** Desglose de IVA leído del ticket, para la comprobación cruzada. */
@@ -102,18 +100,13 @@ export function reviewLine(line: ParsedTicketLine): ReviewLine {
 }
 export function initialReview(draft: TicketDraft, today: string, defaultOwnerId: string): ReviewState {
   const choices: Record<string, Choice> = {}
-  const sections: Record<string, SectionId> = {}
   const lines = draft.ticket.lines.map(line => {
     const suggestion = draft.suggestions[line.key]
     choices[line.key] ??= choiceFromSuggestion(suggestion, line.rawName, defaultOwnerId)
     const fuzzy = suggestion?.kind === 'item' && suggestion.how !== 'recordado'
-    const look = line.amountCents === null || line.flags.length > 0 || fuzzy
-    const choice = choices[line.key]
-    if (look) sections[line.key] = 'revisar'
-    else sections[line.key] ??= choice.kind === 'new' ? 'nuevos' : choice.kind === 'item' ? 'conocidos' : 'ignorados'
     return { ...reviewLine(line), associationConfirmed: !fuzzy }
   })
-  return { choices, sections, lines, storeName: draft.ticket.storeName, address: draft.ticket.address,
+  return { choices, lines, storeName: draft.ticket.storeName, address: draft.ticket.address,
     date: draft.ticket.date ?? today, time: draft.ticket.time ?? '', totalText: amountText(draft.ticket.totalCents),
     adjustments: (draft.ticket.adjustments ?? []).map(a => ({ ...a, amountText: amountText(a.amountCents) })),
     nextPosition: lines.length, distinctPurchase: false, taxGroups: draft.ticket.taxGroups ?? [] }
@@ -159,13 +152,16 @@ export function lineState(line: ReviewLine): LineState {
   return input.reviewStatus === 'pending' ? 'sugerido' : 'comprobado'
 }
 
-/** Las líneas que necesitan la comprobación visible: dudosas, incoherentes o dejadas pendientes. */
+/**
+ * Las líneas que necesitan la comprobación visible: dudosas, incoherentes, dejadas pendientes o emparejadas con un
+ * producto solo por parecido (su tarjeta pregunta si es ese producto).
+ */
 export function needsLineCheck(line: ReviewLine): boolean {
   const state = lineState(line)
   if (state === 'comprobado') return false
   if (state === 'confirmado') return (line.evidence?.discrepancy ?? null) !== null
-  // Solo la asociación por parecido: eso se resuelve en el editor del producto.
-  return line.heldPending || line.flags.length > 0 || (line.evidence?.issues.length ?? 0) > 0 || lineProblems(lineToInput(line).line).length > 0
+  return line.heldPending || !line.associationConfirmed || line.flags.length > 0 || (line.evidence?.issues.length ?? 0) > 0 ||
+    lineProblems(lineToInput(line).line).length > 0
 }
 
 /**
@@ -209,12 +205,16 @@ export function reviewWarnings(review: ReviewState): string[] {
   return warnings
 }
 
-export function reviewToInput(draft: TicketDraft, review: ReviewState, acknowledged = false): { ok: true; input: TicketSaveInput } | { ok: false; error: string } {
-  if (!review.storeName.trim()) return { ok: false, error: 'Escribe el nombre de la tienda.' }
-  if (!isValidISODate(review.date)) return { ok: false, error: 'Elige una fecha válida para el ticket.' }
-  if (review.time !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(review.time)) return { ok: false, error: 'Escribe una hora válida.' }
+/** Los datos del ticket que se editan en «Editar datos del ticket». */
+export type HeaderField = 'store' | 'date' | 'time' | 'total'
+
+export function reviewToInput(draft: TicketDraft, review: ReviewState, acknowledged = false):
+  { ok: true; input: TicketSaveInput } | { ok: false; error: string; field?: HeaderField } {
+  if (!review.storeName.trim()) return { ok: false, error: 'Escribe el nombre de la tienda.', field: 'store' }
+  if (!isValidISODate(review.date)) return { ok: false, error: 'Elige una fecha válida para el ticket.', field: 'date' }
+  if (review.time !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(review.time)) return { ok: false, error: 'Escribe una hora válida.', field: 'time' }
   const total = readAmount(review.totalText)
-  if (!total.ok) return { ok: false, error: 'El total del ticket no es un importe válido.' }
+  if (!total.ok) return { ok: false, error: 'El total del ticket no es un importe válido.', field: 'total' }
   if (!review.lines.length) return { ok: false, error: 'Añade al menos una línea al ticket.' }
   const decisions: Record<string, TicketDecision> = {}
   const lines: TicketSaveLine[] = []

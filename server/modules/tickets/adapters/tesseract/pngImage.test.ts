@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { imageInfo } from '../../../../common/imageInfo.ts'
-import { decodePngGray, encodeGrayPng, scaleRegion, type Gray } from './pngImage.ts'
+import { decodePngGray, decodePngRows, encodeGrayPng, scaleRegion, type Gray } from './pngImage.ts'
 
 const gradient = (width: number, height: number): Gray => {
   const data = new Uint8Array(width * height)
@@ -92,6 +92,33 @@ describe('PNG en gris para la tercera lectura del lector', () => {
     const bomb = deflateSync(Buffer.alloc(64 * 1024 * 1024))
     expect(bomb.length).toBeLessThan(100_000)
     expect(decodePngGray(png(ihdr(100, 100), chunk('IDAT', bomb)))).toBeNull()
+  })
+
+  it('decodePngRows: solo las filas pedidas, iguales que las de la imagen entera, y null si el PNG no sirve', async () => {
+    const real = readFileSync(new URL('../../../../../fixtures/tickets/banco/mediano-captura-1.png', import.meta.url))
+    const whole = decodePngGray(real)!
+    const band = await decodePngRows(real, 600, 900)
+    expect(band).toMatchObject({ width: 1080, height: 300 })
+    expect(band!.data).toEqual(whole.data.subarray(600 * 1080, 900 * 1080))
+    // La última fila de la imagen también.
+    expect((await decodePngRows(real, 2399, 2400))!.data).toEqual(whole.data.subarray(2399 * 1080))
+    // Fuera de la imagen, al revés o vacío.
+    expect(await decodePngRows(real, 2390, 2401)).toBeNull()
+    expect(await decodePngRows(real, 10, 10)).toBeNull()
+    expect(await decodePngRows(real, -1, 10)).toBeNull()
+    // Malformado: sin PNG, un filtro que no existe, menos filas de las pedidas o datos que no son zlib.
+    expect(await decodePngRows(new Uint8Array([1, 2, 3]), 0, 1)).toBeNull()
+    expect(await decodePngRows(png(ihdr(37, 19), chunk('IDAT', deflateSync(rows(37, 19, 5)))), 0, 5)).toBeNull()
+    expect(await decodePngRows(png(ihdr(37, 19), chunk('IDAT', deflateSync(rows(37, 10)))), 0, 15)).toBeNull()
+    expect(await decodePngRows(png(ihdr(37, 19), chunk('IDAT', Buffer.from('no es zlib'))), 0, 5)).toBeNull()
+  })
+
+  it('decodePngRows con una «bomba» de compresión: lee las filas pedidas y se para, sin descomprimir el resto', async () => {
+    const bomb = deflateSync(Buffer.alloc(64 * 1024 * 1024))
+    const started = performance.now()
+    expect(await decodePngRows(png(ihdr(100, 100), chunk('IDAT', bomb)), 0, 100)).toMatchObject({ width: 100, height: 100 })
+    // Descomprimir los 64 MB tardaría bastante más: se para en cuanto tiene la fila 100.
+    expect(performance.now() - started).toBeLessThan(1000)
   })
 
   it('reescala un trozo: la mitad promedia, el doble interpola', () => {

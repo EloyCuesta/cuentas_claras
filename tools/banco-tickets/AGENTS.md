@@ -34,7 +34,7 @@ No es una prueba que pase o falle: da una tabla para decidir cambios con número
 
 ## Reglas que no se rompen
 
-- **Los tickets reales no salen de su carpeta.** La carpeta es CUENTAS_TICKETS_PRIVADOS (por defecto `C:\tickets-privados`). En la tabla aparecen como «real-1…», con recuentos y ✓/✗; nunca un nombre, un importe, la fecha ni la dirección. Su detalle se escribe solo en la carpeta resultados que hay dentro de ella. Nada de ella se copia al repositorio, a un commit ni a la documentación.
+- **Los tickets reales no salen de su carpeta.** La carpeta es CUENTAS_TICKETS_PRIVADOS (por defecto `C:\tickets-privados` en Windows y ~/tickets-privados en otros sistemas, nunca dentro del repositorio). En la tabla aparecen como «real-1…», con recuentos y ✓/✗; nunca un nombre, un importe, la fecha ni la dirección. Su detalle se escribe solo en la carpeta resultados que hay dentro de ella. Nada de ella se copia al repositorio, a un commit ni a la documentación.
 - **Los datos sintéticos son inventados**: productos, tiendas, números de operación y tarjetas. Cada verdad lleva su `provenance`.
 - **Lo mismo que la app.** La preparación es la de `ticketImages.ts` (`prepareTicketImages`, con las opciones por defecto). El lector es `createTesseractReader` y el análisis, `parseTicket`, como `server/modules/tickets/application/ReadTicket.ts`. Si cambia ese camino, cambia aquí.
 - **Una sola regla de arquitectura** (`tests/architecture.test.ts`): solo importa su carpeta, `shared/` y `server/modules/tickets/index.ts`. La página, además, `src/features/tickets/ticketImages.ts`.
@@ -58,7 +58,7 @@ npm run medir:tickets -- --solo-sinteticos --guardar tools/banco-tickets/partida
 - **Limpias**: bien leídas y sin marcar.
 - **Bien marc.**: bien, pero la revisión la enseña como dudosa.
 - **Mal marc.**: alguna cifra mal, pero marcada.
-- **Mal sin marcar**: el fallo que no puede pasar. Una cifra es el importe, la cantidad, el precio unitario, el peso, el precio por kilo o el descuento.
+- **Mal sin marcar**: el fallo que no puede pasar. Una cifra es el importe, la cantidad, el precio unitario, el peso, el precio por kilo o el descuento. Cuenta también una línea de más (repetida o que no es un producto) que no va marcada.
 - **Faltan**: productos que no salen.
 - **Sobran**: líneas de más, repetidas o que no son productos.
 - **IVA**: la letra bien sobre las líneas emparejadas.

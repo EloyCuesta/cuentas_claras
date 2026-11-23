@@ -149,6 +149,8 @@ const AMOUNT_TOKEN = /^(-?)(\d{1,4})[,.:;](\d{2})(\d?[A-WYZa-wyz€¢(]?|-[€¢
 // La relectura a veces duplica la x («3,95Xx»).
 const UNIT_TOKEN = /^(\d{1,4})[,.:;](\d{2})[xX×%*]{1,2}$/
 const QTY_TOKEN = /^\d{1,3}$/
+/** Una unidad de medida suelta («KG», «g», «L», «ml»…). */
+const UNIT_WORD = /^(kg|g|gr|grs|l|ml|cl)\.?$/i
 const LOOSE_AMOUNT_TOKEN = /^(\d{3,4})\D?$/
 /**
  * Restos de una multiplicación que no se ha podido leer: «2,75X», «79X», «1,1X»,
@@ -316,10 +318,22 @@ const isSeparator = (text: string) => /^[\s\-=*_.·•]*$/.test(text)
 const WEIGHT_LINE = /(\d{1,3})\s?[,.]\s?(\d{3})\s*kg\b.*?[xX×*]\s*(\d{1,4})\s?[,.:;]\s?(\d{2})/i
 /** Una línea que empieza como una de peso («34 kg …», «0,544 kg x», «0,544 …»), aunque no se pueda leer entera. */
 const WEIGHT_LIKE = /^\s*(\d[\d\s.,]*\s*kg\b|\d{1,3}\s?[,.]\s?\d{3}(?![\d,.]))/i
-/** Lo que acaba la cabecera de Lidl: el nombre de la empresa, el NIF o el código postal pegado (o no) al pueblo. */
-const LIDL_HEADER_WORDS = /LIDL\s+SUPERMERCADOS|\bNIF\b/i
+/**
+ * «5 KG PATATAS 2,99 B» no es una línea de peso, sino un producto cuyo nombre empieza por el peso: tiene un importe
+ * al final y una palabra de al menos tres letras que no es «kg» ni «EUR».
+ */
+function productNamedByWeight(text: string): boolean {
+  const tail = readTail(tokensOf(cleanText(text)))
+  return tail.amount !== null && tail.nameTokens.some((token) => /^\p{L}{3,}$/u.test(token) && !/^(kg|eur)$/i.test(token))
+}
+/**
+ * Lo que acaba la cabecera de Lidl: el nombre de la empresa (también una línea que acaba en «S.A.U.»), el NIF o
+ * el código postal pegado (o no) al pueblo. Es la misma definición para el analizador y para el lector, que la
+ * usa para saber desde dónde releer los importes.
+ */
+const LIDL_HEADER_WORDS = /LIDL\s+SUPERMERCADOS|S\.?A\.?U\.?\s*$|\bNIF\b/i
 const POSTAL_TOWN = /^\s*\d{5}\s?\p{L}/u
-const isLidlHeader = (text: string) => LIDL_HEADER_WORDS.test(text) || POSTAL_TOWN.test(text)
+export const isLidlHeader = (text: string) => LIDL_HEADER_WORDS.test(text) || POSTAL_TOWN.test(text)
 /**
  * Un nombre de producto en un ticket de Lidl va en mayúsculas. Una línea sin
  * importe que no lo parece (texto de la app, restos) no es un producto.
@@ -329,8 +343,11 @@ function looksLikeProduct(text: string): boolean {
   if (letters.length < 3) return false
   return letters.filter((c) => c === c.toUpperCase() && c !== c.toLowerCase()).length / letters.length >= 0.7
 }
-/** Lo que pone la app alrededor del ticket en una captura: la barra de estado, la cabecera y la barra de navegación. */
-const APP_CHROME = /^\s*\d{1,2}[:.]\d{2}\b(?!\s*(?:EUR|€)).{0,24}$|^\s*(?:‹|<)?\s*Ticket de compra\b|^\s*(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl)(?:\s+(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl))+\s*$/i
+/**
+ * Lo que pone la app alrededor del ticket en una captura: la barra de estado (la hora, pero no una fecha como
+ * «28.10.2026»), la cabecera y la barra de navegación.
+ */
+const APP_CHROME = /^\s*\d{1,2}[:.]\d{2}\b(?![./-]\d)(?!\s*(?:EUR|€)).{0,24}$|^\s*(?:‹|<)?\s*Ticket de compra\b|^\s*(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl)(?:\s+(?:Inicio|Ofertas|Lidl Plus|Tickets|Cupones|Mi Lidl))+\s*$/i
 /** El concepto de un ajuste, sin su importe: «PROMO LIDL PLUS               -0,14» → «PROMO LIDL PLUS». */
 const adjustmentLabel = (text: string) => text.replace(/\s+-?\d{1,4}\s?[,.:;]\s?\d{2}\S*\s*$/, '').replace(/\s+/g, ' ').trim().slice(0, 120)
 const DISCOUNT_LINE = /^\s*(desc\b|desc\.|desc,|dto\b|descuento|promo\b|cup[oó]n|ahorro)/i
@@ -585,10 +602,11 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
       nameTokens = nameTokens.slice(0, -1)
     }
   }
-  // Otras tiendas ponen la cantidad delante: «2 YOGUR GRIEGO 1,20 2,40» o «1 PAN BARRA 0,60».
+  // Otras tiendas ponen la cantidad delante: «2 YOGUR GRIEGO 1,20 2,40» o «1 PAN BARRA 0,60». Con una unidad
+  // detrás («5 KG PATATAS», «2 L AGUA») es parte del nombre, no la cantidad.
   let leadingQuantity: number | null = null
   let leadingUnitCents: number | null = null
-  if (nameTokens.length >= 2 && QTY_TOKEN.test(nameTokens[0]) && letterCount(nameTokens[1]) > 0) {
+  if (nameTokens.length >= 2 && QTY_TOKEN.test(nameTokens[0]) && letterCount(nameTokens[1]) > 0 && !UNIT_WORD.test(nameTokens[1])) {
     const count = Number(nameTokens[0])
     const unit = readAmountToken(uncut[uncut.length - 1])
     if (unit?.clean && fromText.amount && unit.cents * count === fromText.amount.cents) {
@@ -732,11 +750,12 @@ function selectLine(line: WorkLine): ParsedTicketLine {
   let amount: number | null = recognized?.cents ?? null
   let selectedBy: TicketEvidence['selectedBy'] = textToken?.cents !== amount && [rereadToken, ...extraTokens].some(t => t?.cents === amount) ? 'reread' : 'read'
   let discrepancy: TicketDiscrepancy | undefined
-  // Votación: con otra lectura independiente (a otra escala), un importe es fiable si al menos dos lecturas
-  // dan exactamente esa cifra y ninguna dice otra cosa (tampoco una deformada ni una sin coma, aunque se
-  // haya descartado por estar en el nombre).
-  const voted = amount !== null && extraTokens.length > 0 && line.readings.loose.length === 0 && line.readings.nameLoose.length === 0 &&
-    tokens.length >= 2 && tokens.every(t => t.clean && t.cents === amount)
+  // Votación: con otra lectura de la banda (a otra escala), un importe es fiable si la lectura del texto da
+  // exactamente esa cifra, al menos otra también, y ninguna dice otra cosa (tampoco una deformada ni una sin
+  // coma, aunque se haya descartado por estar en el nombre). Las dos lecturas de la banda son el mismo recorte a
+  // dos escalas y se equivocan igual: sin la del texto no votan (sigue la marca «solo en la relectura»).
+  const voted = amount !== null && textToken !== null && extraTokens.length > 0 && line.readings.loose.length === 0 &&
+    line.readings.nameLoose.length === 0 && tokens.length >= 2 && tokens.every(t => t.clean && t.cents === amount)
 
   const weighted = line.weightKg !== null && line.pricePerKgCents !== null
   const grams = weighted ? Math.round(line.weightKg! * 1000) : 0
@@ -814,7 +833,7 @@ function selectLine(line: WorkLine): ParsedTicketLine {
   if (amount !== null && !verifiedByArithmetic && line.readings.nameLoose.some(digits => digits !== String(Math.abs(amount!)))) {
     issues.push('Las lecturas del importe no coinciden')
   }
-  // Tres lecturas que coinciden resuelven la poca confianza y las dudas de una cifra confundida.
+  // Dos lecturas que coinciden, una de ellas la del texto, resuelven la poca confianza y las dudas de una cifra confundida.
   if ((line.source.confidence ?? 100) < 75 && !verifiedByArithmetic && !voted) issues.push('Lectura de baja confianza')
   if (!verifiedByArithmetic && !voted) issues.push(...line.amountDoubts)
   let discountCents = 0
@@ -920,7 +939,7 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
       } else issues.push('Línea de peso sin producto identificable')
       continue
     }
-    if (WEIGHT_LIKE.test(line.text)) {
+    if (WEIGHT_LIKE.test(line.text) && !productNamedByWeight(line.text)) {
       // «34 kg     JO ER /La»: una línea de peso que no se lee entera es del producto de encima, no otro producto.
       if (previous && previousWasItem && previous.weightKg === null) previous.issues.push('No se ha podido leer la línea del peso: confirma el peso, el precio por kilo y el importe')
       else issues.push('Línea de peso sin producto identificable')
@@ -949,8 +968,9 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
     }
     if (work.length >= 300) { issues.push('El ticket supera las 300 líneas; lectura incompleta'); state = 'closed'; continue }
     const item = readItemLine(line, work.length)
-    // Una línea sin ningún importe que no tiene forma de producto (texto de la app, restos) va aparte.
-    if (item && item.amount.length === 0 && item.unitCents === null && !looksLikeProduct(item.rawName)) {
+    // En Lidl, una línea sin ningún importe que no tiene forma de producto (texto de la app, restos) va aparte. En
+    // otra tienda no se sabe cómo es un producto: la línea se queda y puede tomar el importe de la de debajo.
+    if (store === 'lidl' && item && item.amount.length === 0 && item.unitCents === null && !looksLikeProduct(item.rawName)) {
       nonProducts.push({ text: line.text.trim(), ...(line.source ? { source: line.source } : {}) })
       previousWasItem = false
       continue
@@ -972,9 +992,10 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
   const totalCents = readTotal(metadata, totalIndex)
   if (totalIndex === null) issues.push(totalCents === null ? 'No se ha encontrado el total' : 'Total obtenido del pago: confirma que es el importe completo')
   if (state !== 'closed') issues.push('No se ha identificado el final del ticket; podría estar recortado')
-  const parsed = work.map(selectLine)
+  let parsed = work.map(selectLine)
   // Si se dejó de leer por tamaño faltan líneas: la suma no demuestra nada aunque haya total.
-  const check = checkTicket(parsed.map(l => ({ ...l, pending: l.flags.length > 0 })), totalCents, adjustments, { incomplete: work.length >= 300 })
+  const checkLines = () => checkTicket(parsed.map(l => ({ ...l, pending: l.flags.length > 0 })), totalCents, adjustments, { incomplete: work.length >= 300 })
+  let check = checkLines()
   if (check.status === 'no_cuadra') issues.push('Los importes no cuadran con el total')
   if (check.status === 'pendiente') issues.push('La suma coincide con el total, pero hay líneas dudosas: dos errores pueden compensarse')
   for (let p = 1; p < pages.length; p++) {
@@ -987,6 +1008,11 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
   for (const page of merged.unmatched) issues.push(`No se ha encontrado dónde se solapan las capturas ${page} y ${page + 1}: revisa si hay productos repetidos o que falten`)
   const taxGroups = readTaxGroups(metadata.slice(totalIndex ?? 0))
   const taxCheck = checkTaxGroups(parsed, taxGroups, adjustments)
+  const suspects = markSuspects(parsed, taxCheck, check)
+  if (suspects !== parsed) {
+    parsed = suspects
+    check = checkLines()
+  }
   for (const group of taxCheck.groups) {
     if (taxCheck.conclusive && group.differenceCents !== null && group.differenceCents !== 0) {
       issues.push(`El desglose de IVA ${group.code} suma ${formatEuros(group.grossCents)} y sus artículos ${formatEuros(group.linesCents!)}: alguno de esos importes puede estar mal leído`)
@@ -1005,6 +1031,51 @@ export function parseTicket(pages: readonly (readonly OcrLine[])[]): ParsedTicke
   return { store, storeName: storeNameOf(store, lines), address: addressOf(store, lines), date, time,
     totalCents, lines: parsed, adjustments, issues: [...new Set(issues)], check, taxGroups,
     paymentMethod: paymentMethodOf(metadata.slice(totalIndex ?? 0)), ...(nonProducts.length ? { nonProducts } : {}) }
+}
+
+/**
+ * Las cifras que el OCR confunde entre sí en los importes de un ticket (por parejas): 0 con 6, 8 o 9; 1 con 4 o
+ * 7; 2 con 7; 3 con 5, 8 o 9; 5 con 6 u 8; 6 con 8; y 8 con 9.
+ */
+const CONFUSABLE_DIGITS = new Set(['06', '08', '09', '14', '17', '27', '35', '38', '39', '56', '58', '68', '89'])
+
+/** El importe `to` sale de `from` cambiando una sola cifra por otra que el OCR confunde con ella. */
+function oneConfusedDigit(from: number, to: number): boolean {
+  if (from === to || Math.sign(from) !== Math.sign(to)) return false
+  const a = printedDigits(from)
+  const b = printedDigits(to)
+  if (a.length !== b.length) return false
+  const changed: string[] = []
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) changed.push(a[i] < b[i] ? a[i] + b[i] : b[i] + a[i])
+  return changed.length === 1 && CONFUSABLE_DIGITS.has(changed[0])
+}
+
+/**
+ * Tres lecturas iguales también pueden equivocarse igual («0,73» en el texto, en la banda y en la banda a 1,5×,
+ * y era «0,79»). Si un grupo del desglose de IVA (o, sin desglose, el total) no cuadra, se marcan las líneas de
+ * ese grupo sin ninguna marca cuyo importe, con una sola cifra confundida, lo haría cuadrar. El total no cambia
+ * ninguna cifra: solo dice dónde mirar. No se marca la que comprueba la multiplicación.
+ */
+function markSuspects(lines: ParsedTicketLine[], taxCheck: { conclusive: boolean; groups: TaxGroupCheck[] }, check: TicketCheck): ParsedTicketLine[] {
+  const scopes: { code: TaxCode | null; difference: number; what: string }[] = []
+  if (taxCheck.conclusive) {
+    for (const group of taxCheck.groups) {
+      if (group.differenceCents) scopes.push({ code: group.code, difference: group.differenceCents, what: `el desglose de IVA ${group.code}` })
+    }
+  }
+  if (scopes.length === 0 && check.status === 'no_cuadra' && check.differenceCents) scopes.push({ code: null, difference: check.differenceCents, what: 'el total' })
+  if (scopes.length === 0) return lines
+  let marked = false
+  const result = lines.map((line) => {
+    const scope = scopes.find((s) => s.code === null || s.code === line.taxCode)
+    if (!scope || line.flags.length > 0 || line.amountCents === null || line.evidence?.calculatedCents === line.amountCents) return line
+    const alternative = line.amountCents + scope.difference
+    if (!oneConfusedDigit(line.amountCents, alternative)) return line
+    marked = true
+    const issue = `Con ${formatEuros(alternative)}, ${scope.what} cuadraría: comprueba esta cifra en la imagen`
+    return { ...line, flags: [...line.flags, 'dudoso' as const], ...(line.evidence ? { evidence: { ...line.evidence, issues: [...line.evidence.issues, issue] } } : {}) }
+  })
+  return marked ? result : lines
 }
 
 /**

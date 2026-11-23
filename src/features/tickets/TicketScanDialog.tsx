@@ -2,14 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { todayISO } from '#shared/common/dates.ts'
 import type { TicketDraft } from '#shared/tickets/ticketMatch.ts'
 import type { PantryItem, PantryPerson } from '#shared/pantry/types.ts'
-import type { PantryTicket, TicketSegment } from '#shared/tickets/types.ts'
+import type { PantryTicket } from '#shared/tickets/types.ts'
 import { describeStorageError } from '../../api/storageErrors.ts'
 import type { TicketActions } from './ticketActions.ts'
-import { analyzeTicketImages, defaultImageOptions, prepareTicketImages, TicketImageError, type TicketImageOptions, type TicketImagesAnalysis } from './ticketImages.ts'
+import {
+  analyzeTicketImages, createTicketImageCache, defaultImageOptions, prepareTicketImages, TicketImageError, type TicketImageOptions, type TicketImagesAnalysis,
+} from './ticketImages.ts'
 import { ConfirmDialog, Dialog, DialogError } from '../../ui/Dialog.tsx'
 import { Icon } from '../../ui/Icon.tsx'
 import { TicketReview } from './TicketReview.tsx'
-import { initialReview, reviewToInput, reviewWarnings, type ReviewState } from './ticketReviewState.ts'
+import type { ShownSegment } from './TicketLineCheck.tsx'
+import { initialReview, reviewToInput, reviewWarnings, type HeaderField, type ReviewState } from './ticketReviewState.ts'
 
 type Step = { kind: 'elegir' } | { kind: 'leyendo'; images: number } | { kind: 'revisar'; draft: TicketDraft }
 
@@ -21,8 +24,10 @@ const MAX_IMAGES = 6
  *
  * Pasos (`step`):
  * - «elegir»: hasta 6 imágenes en fila (número, girar y quitar), o el texto
- *   pegado. Al elegirlas se comprueba si las capturas se solapan
- *   (analyzeTicketImages) y se avisa antes de leer. «Leer» va en el pie.
+ *   pegado. Con dos o más se comprueba si las capturas se solapan
+ *   (analyzeTicketImages, en un Web Worker) y se avisa antes de leer. Lo que se
+ *   calcula queda en una caché de la ventana y la lectura lo reutiliza. «Leer»
+ *   va en el pie.
  * - «leyendo»: el navegador prepara las imágenes (ticketImages.ts: gira, une las
  *   capturas, recorta al papel, escala por la altura de las letras y divide en
  *   franjas) y las envía como `franjas` a POST /api/despensa/tickets/leer; se ve
@@ -35,8 +40,11 @@ const MAX_IMAGES = 6
  *
  * Reglas: como mucho 24 franjas y 20 MB en total (los mismos límites que el
  * servidor); la imagen original no se toca y es la que se ve al comparar; las URL
- * locales de las imágenes se liberan al cerrar.
+ * locales (de cada imagen elegida y de cada franja) se liberan al quitarla, al
+ * volver a leer y al cerrar.
  */
+
+interface Selected { file: File; options: TicketImageOptions; url: string }
 export function TicketScanDialog({
   items,
   people,
@@ -58,32 +66,40 @@ export function TicketScanDialog({
   const [pasting, setPasting] = useState(false)
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  /** El dato de la cabecera que ha impedido guardar: la revisión abre «Editar datos del ticket» y lleva el foco a él. */
+  const [headerError, setHeaderError] = useState<{ field: HeaderField; message: string } | null>(null)
   const [saving, setSaving] = useState(false)
-  const [previews, setPreviews] = useState<string[]>([])
-  const [selected, setSelected] = useState<{ file: File; options: TicketImageOptions }[]>([])
-  const [segments, setSegments] = useState<TicketSegment[]>([])
+  const [selected, setSelected] = useState<Selected[]>([])
+  /** Si lo que se revisa salió de las imágenes elegidas (no del texto pegado): solo entonces se comparan. */
+  const [fromImages, setFromImages] = useState(false)
+  const [segments, setSegments] = useState<ShownSegment[]>([])
+  const [cache] = useState(createTicketImageCache)
   const [confirmation, setConfirmation] = useState<string[] | null>(null)
   const [analysis, setAnalysis] = useState<TicketImagesAnalysis | null>(null)
   const [progress, setProgress] = useState<{ label: string; since: number }>({ label: 'Leyendo el ticket…', since: 0 })
   const [now, setNow] = useState(() => Date.now())
   const fileInput = useRef<HTMLInputElement>(null)
 
-  // Las imágenes se ven en la revisión desde URL locales: se liberan al cerrar.
-  useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews])
+  // Las imágenes elegidas se ven desde URL locales: cada una se libera al quitarla, y las que quedan, al cerrar.
+  const selectedNow = useRef(selected)
+  useEffect(() => { selectedNow.current = selected }, [selected])
+  useEffect(() => () => selectedNow.current.forEach((s) => URL.revokeObjectURL(s.url)), [])
+  // Las franjas leídas, también: al volver a leer y al cerrar.
+  useEffect(() => () => segments.forEach((s) => URL.revokeObjectURL(s.url)), [segments])
 
   const startReview = (draft: TicketDraft) => {
     setReview(initialReview(draft, todayISO(), defaultOwnerId))
     setStep({ kind: 'revisar', draft })
   }
 
-  // Al elegir (o girar, o quitar) imágenes, se comprueba antes de leer si las capturas se solapan.
+  // Al elegir (o girar, o quitar) imágenes, se comprueba antes de leer si las capturas se solapan. Con una sola, no hay nada que comparar.
   useEffect(() => {
     let current = true
     setAnalysis(null)
-    if (selected.length === 0) return
-    analyzeTicketImages(selected).then(result => { if (current) setAnalysis(result) }, () => { if (current) setAnalysis(null) })
+    if (selected.length < 2) return
+    analyzeTicketImages(selected, cache).then(result => { if (current) setAnalysis(result) }, () => { if (current) setAnalysis(null) })
     return () => { current = false }
-  }, [selected])
+  }, [selected, cache])
 
   // Mientras se lee, un reloj para enseñar los segundos que lleva.
   useEffect(() => {
@@ -103,12 +119,14 @@ export function TicketScanDialog({
     setStep({ kind: 'leyendo', images: files.length })
     setProgress({ label: 'Preparando las imágenes', since: Date.now() })
     try {
-      const { segments: prepared, warnings } = await prepareTicketImages(selected, (s) => setProgress({ since: Date.now(),
-        label: s.kind === 'uniendo' ? `Uniendo ${s.total} capturas` : s.total > 1 ? `Preparando la imagen ${s.image} de ${s.total}` : 'Preparando la imagen' }))
+      const { segments: prepared, warnings, blobs } = await prepareTicketImages(selected, (s) => setProgress({ since: Date.now(),
+        label: s.kind === 'uniendo' ? `Uniendo ${s.total} capturas` : s.total > 1 ? `Preparando la imagen ${s.image} de ${s.total}` : 'Preparando la imagen' }), cache)
       setProgress({ label: 'Leyendo el ticket…', since: Date.now() })
       const draft = await actions.readTicket({ franjas: prepared })
       draft.ticket.issues.push(...warnings)
-      setSegments(prepared)
+      // Cada franja se enseña desde una URL local (no como texto en base64, que puede ocupar 8 MB por tarjeta).
+      setSegments(prepared.map(({ image: _image, ...segment }, i) => ({ ...segment, url: URL.createObjectURL(blobs[i]) })))
+      setFromImages(true)
       startReview(draft)
     } catch (failure) {
       setError(failure instanceof TicketImageError ? failure.message : describeStorageError(failure))
@@ -128,7 +146,7 @@ export function TicketScanDialog({
     setProgress({ label: 'Leyendo el ticket…', since: Date.now() })
     try {
       const draft = await actions.readTicket({ texto: text })
-      setPreviews([])
+      setFromImages(false)
       setSegments([])
       startReview(draft)
     } catch (failure) {
@@ -141,9 +159,11 @@ export function TicketScanDialog({
     if (step.kind !== 'revisar' || !review || saving) return
     const result = reviewToInput(step.draft, review, acknowledged)
     if (!result.ok) {
-      setError(result.error)
+      setError(result.field ? null : result.error)
+      setHeaderError(result.field ? { field: result.field, message: result.error } : null)
       return
     }
+    setHeaderError(null)
     if (step.draft.possibleDuplicate && !review.distinctPurchase) {
       setError('Comprueba la posible compra duplicada y confirma si esta es otra compra.')
       return
@@ -192,30 +212,32 @@ export function TicketScanDialog({
                   const files = [...(event.target.files ?? [])]
                   if (files.length > MAX_IMAGES) { setError(`Elige como máximo ${MAX_IMAGES} imágenes.`); return }
                   setError(null)
-                  setSelected(files.map(file => ({ file, options: defaultImageOptions() })))
-                  setPreviews(files.map(file => URL.createObjectURL(file)))
+                  selected.forEach(s => URL.revokeObjectURL(s.url))
+                  setSelected(files.map(file => ({ file, options: defaultImageOptions(), url: URL.createObjectURL(file) })))
                 }}
               />
             </label>
             {selected.length > 0 && <ul className="ticket-thumbs" aria-label="Imágenes elegidas">
-              {selected.map((s, i) => <li className="ticket-thumbs__item" key={previews[i]}>
+              {selected.map((s, i) => <li className="ticket-thumbs__item" key={s.url}>
                 <span className="ticket-thumbs__number" aria-hidden="true">{i + 1}</span>
-                <img src={previews[i]} alt={`Imagen ${i + 1}`} style={{ transform: `rotate(${s.options.rotation}deg)` }} />
+                <span className="ticket-thumbs__frame"><img src={s.url} alt={`Imagen ${i + 1}`}
+                  className={s.options.rotation % 180 ? 'ticket-thumbs__img--sideways' : undefined}
+                  style={{ transform: `rotate(${s.options.rotation}deg)` }} /></span>
                 <div className="ticket-thumbs__actions">
                   <button type="button" className="icon-btn" aria-label={`Girar imagen ${i + 1}`} title="Girar"
                     onClick={() => setSelected(selected.map((x, j) => j === i ? { ...x, options: { ...x.options, rotation: ((x.options.rotation + 90) % 360) as TicketImageOptions['rotation'] } } : x))}>
                     <Icon name="repeat" size={18} /></button>
                   <button type="button" className="icon-btn" aria-label={`Quitar imagen ${i + 1}`} title="Quitar" onClick={() => {
+                    URL.revokeObjectURL(s.url)
                     setSelected(selected.filter((_, j) => j !== i))
-                    // Las URL se recrean: el efecto libera las de antes.
-                    setPreviews(selected.filter((_, j) => j !== i).map(x => URL.createObjectURL(x.file)))
                   }}><Icon name="trash" size={18} /></button>
                 </div>
               </li>)}
             </ul>}
-            {selected.length > 1 && analysis && <div role="status" className="stack stack--tight">
-              {analysis.warnings.length === 0 && analysis.images === 1 && <p className="muted small">Las {selected.length} capturas se solapan: se unirán en una sola imagen.</p>}
-              {analysis.warnings.map(w => <p className="notice notice--warning small" key={w}>{w}</p>)}
+            {selected.length > 1 && <div role="status" className="stack stack--tight">
+              {!analysis && <p className="muted small">Comprobando si las capturas se solapan…</p>}
+              {analysis && analysis.warnings.length === 0 && analysis.images === 1 && <p className="muted small">Las {selected.length} capturas se solapan: se unirán en una sola imagen.</p>}
+              {analysis?.warnings.map(w => <p className="notice notice--warning small" key={w}>{w}</p>)}
             </div>}
             <DialogError message={error} />
             {pasting ? (
@@ -249,7 +271,8 @@ export function TicketScanDialog({
           <div className="ticket-reading" role="status">
             <span className="ticket-reading__spinner" aria-hidden="true" />
             <p>
-              <strong>{progress.label} {Math.max(0, Math.floor((now - progress.since) / 1000))} s</strong>
+              {/* El contador va fuera del anuncio: si no, el lector de pantalla lo repetiría cada segundo. */}
+              <strong>{progress.label}<span aria-hidden="true"> {Math.max(0, Math.floor((now - progress.since) / 1000))} s</span></strong>
               <br />
               {step.images > 0 ? 'Se lee en este equipo: suele tardar entre 10 y 30 segundos.' : 'Un momento.'}
             </p>
@@ -264,10 +287,12 @@ export function TicketScanDialog({
               onChange={setReview}
               items={items}
               people={people}
-              previews={previews}
+              previews={fromImages ? selected.map(s => s.url) : []}
               segments={segments}
+              headerError={headerError}
               onRestart={() => {
                 setError(null)
+                setHeaderError(null)
                 setStep({ kind: 'elegir' })
               }}
             />

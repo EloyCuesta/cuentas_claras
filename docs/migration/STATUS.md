@@ -639,6 +639,20 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run check`: Vitest 1606/1606;
   - `npm run test:e2e`: 68 pasan y 4 se omiten.
 
+### FIX-02 de terminar-el-proyecto: reglas y corpus de tickets, 23 de noviembre de 2026 (no es un ID de la migración)
+
+- Base: `10f3d8f` (FIX-01), en la rama local terminar-proyecto. El uso diario sigue en Express; .NET tiene que dar lo mismo. La entrada completa está en el registro de [terminar-el-proyecto.md](../terminar-el-proyecto.md).
+- Reglas portadas a C# (`backend/src/CuentasClaras.Domain/Tickets/TicketParser.cs`):
+  - la votación exige la lectura del texto;
+  - MarkSuspects: con el desglose de IVA (o el total) sin cuadrar, se marcan las líneas que una sola cifra confundida explicaría;
+  - looksLikeProduct solo en Lidl;
+  - «5 KG PATATAS» (ProductNamedByWeight y UnitWord);
+  - la fecha no es la barra de estado (AppChrome);
+  - la cabecera de Lidl acaba también en «… S.A.U.».
+- Corpus: de 538 a 545 casos (`fix02-*`). Cambian también, como se esperaba, `seguridad-no-cuadra`, `analisis-no-cambia-cifra`, `casos-12-diferencia` (la línea que una cifra confundida explicaría, marcada) y `lidl-plus-votacion` (sin la lectura del texto no se vota). Generado con Node 24.13.0. `tests/migrationTicketRules.test.ts` y TicketRulesCorpusTests esperan 545.
+- El OCR de .NET usa el worker Node: también le llega `decodePngRows` (solo las filas de la banda, fuera del hilo principal).
+- Comandos, en Windows con el MySQL 8.4.13 de ensayo: `npm run build:dotnet` (0 avisos y 0 errores), `npm run test:dotnet` (2286/2286), `npm run test:e2e:dotnet` (80 pasan y 4 se omiten), `npm run check` (Vitest 1629/1629) y `npm run test:e2e` (74 pasan y 4 se omiten).
+
 ### Plantilla para la siguiente tarea
 
 Al trabajar en un ID, añade una entrada con fecha, commit base, alcance, archivos modificados, decisiones, contratos afectados y comandos ejecutados con resultados. Si algo no se ejecutó, indica el motivo y el efecto sobre la aceptación. Anota dependencias temporales, datos reales pendientes y el siguiente ID elegible. No rellenes esta plantilla con resultados hipotéticos.

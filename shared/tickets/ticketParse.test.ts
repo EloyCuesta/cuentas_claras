@@ -174,14 +174,16 @@ describe('parseTicket con lecturas difíciles', () => {
     expect(ticket.check.status).toBe('incompleto')
   })
 
-  it('no cambia una cifra para explicar la diferencia con el total', () => {
+  it('no cambia una cifra para explicar la diferencia con el total: marca la que, con una cifra confundida, la explicaría', () => {
     const ticket = parseTicket([
       ocr(...HEADER, ['RULO DE CABRA                       2,23 A', '2,23 A'], ['DÁTIL SIN HUESO 1,25 A', '1,25 A'], 'TOTAL 3,54', ...FOOTER),
     ])
+    // 2,23 → 2,29 (un 3 por un 9) haría cuadrar el total: se marca, pero la cifra no cambia. 1,25 → 1,31 cambia dos cifras.
     expect(ticket.lines.map((l) => [l.amountCents, l.flags])).toEqual([
-      [223, []],
+      [223, ['dudoso']],
       [125, []],
     ])
+    expect(ticket.lines[0].evidence?.issues.join(' ')).toMatch(/Con 2,29\s€, el total cuadraría: comprueba esta cifra en la imagen/)
   })
 
   it('si no cuadra, lo dice y marca lo dudoso sin inventarse nada', () => {

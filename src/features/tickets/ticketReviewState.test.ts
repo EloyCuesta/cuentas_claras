@@ -19,7 +19,6 @@ describe('revisión de un ticket con un importe mal leído', () => {
   it('la línea de las patatas está «sugerida» y a la vista; la de los huevos, comprobada', () => {
     expect(lineState(potato)).toBe('sugerido')
     expect(needsLineCheck(potato)).toBe(true)
-    expect(review.sections[potato.key]).toBe('revisar')
     expect(lineState(review.lines[1])).toBe('comprobado')
     expect(needsLineCheck(review.lines[1])).toBe(false)
   })
@@ -64,5 +63,28 @@ describe('el desglose de IVA en la revisión', () => {
     // Corregidas las dos cifras a mano, cuadra todo.
     const fixed = update(update(review, 0, { amountText: '1,20', confirmed: true }), 1, { amountText: '0,80', confirmed: true })
     expect(reviewCheck(fixed)).toMatchObject({ status: 'cuadra', taxMismatches: [] })
+  })
+})
+
+describe('lo que pide la revisión de cada línea y de la cabecera', () => {
+  it('una línea emparejada con un producto solo por parecido tiene su tarjeta hasta confirmar el producto', () => {
+    const ticket = parseTicket([linesFromText('LIDL\nEUR\nLECHE SEMI 0,95 A\nTOTAL 0,95\nFECHA: 28/10/26')])
+    const draft: TicketDraft = { ticket, suggestions: { [ticket.lines[0].key]: { kind: 'item', itemId: 'leche', how: 'parecido' } },
+      duplicate: null, importId: 'import-0123456789abcdef', sourceFingerprint: 'source-0123456789abcdef' }
+    const review = initialReview(draft, '2026-10-29', '')
+    const [line] = review.lines
+    expect(lineState(line)).toBe('pendiente')
+    expect(needsLineCheck(line)).toBe(true)
+    const confirmed = update(review, 0, { associationConfirmed: true })
+    expect(lineState(confirmed.lines[0])).toBe('comprobado')
+    expect(needsLineCheck(confirmed.lines[0])).toBe(false)
+  })
+  it('un error de la cabecera dice su campo, para llevar el foco a él', () => {
+    const draft = draftOf(POTATOES)
+    const review = initialReview(draft, '2026-10-29', '')
+    expect(reviewToInput(draft, { ...review, storeName: '  ' })).toEqual({ ok: false, error: 'Escribe el nombre de la tienda.', field: 'store' })
+    expect(reviewToInput(draft, { ...review, date: '0002-10-28' })).toEqual({ ok: false, error: 'Elige una fecha válida para el ticket.', field: 'date' })
+    expect(reviewToInput(draft, { ...review, time: '25:00' })).toEqual({ ok: false, error: 'Escribe una hora válida.', field: 'time' })
+    expect(reviewToInput(draft, { ...review, totalText: 'doce' })).toEqual({ ok: false, error: 'El total del ticket no es un importe válido.', field: 'total' })
   })
 })

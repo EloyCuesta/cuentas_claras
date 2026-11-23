@@ -2,11 +2,11 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { createWorker, OEM, PSM, type Line, type Word, type Worker } from 'tesseract.js'
 import type { OcrLine, TicketSegment } from '#shared/tickets/types.ts'
-import { endsProducts } from '#shared/tickets/ticketParse.ts'
+import { endsProducts, isLidlHeader } from '#shared/tickets/ticketParse.ts'
 import { imageInfo, type ImageInfo } from '../../../../common/imageInfo.ts'
 import type { TicketReader } from '../../application/ports.ts'
 import { amountBand, type Band } from './amountColumn.ts'
-import { decodePngGray, encodeGrayPng, scaleRegion } from './pngImage.ts'
+import { decodePngRows, encodeGrayPng, scaleRegion } from './pngImage.ts'
 
 /**
  * Lector de tickets: OCR con Tesseract (tesseract.js), en este mismo equipo.
@@ -94,8 +94,11 @@ function clampRect(rect: Rect, image: ImageInfo): Rect {
   return { left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) }
 }
 
-/** Lo que señala el final de la cabecera de Lidl cuando falta la línea «EUR»: el nombre, la dirección o el NIF. */
-const HEADER_LINE = /LIDL\s+SUPERMERCADOS|S\.?A\.?U\.?\s*$|\bNIF\b|^\s*\d{5}\s?\p{L}|^\s*Copia\s*$/iu
+/**
+ * Lo que señala el final de la cabecera de Lidl cuando falta la línea «EUR»: la misma definición que el analizador
+ * (isLidlHeader: el nombre, la dirección o el NIF) y, para releer, también la línea «Copia» de arriba.
+ */
+const isHeaderLine = (text: string) => isLidlHeader(text) || /^\s*Copia\s*$/i.test(text)
 
 /**
  * Líneas que merece la pena releer: las de productos, entre la cabecera y el
@@ -104,7 +107,7 @@ const HEADER_LINE = /LIDL\s+SUPERMERCADOS|S\.?A\.?U\.?\s*$|\bNIF\b|^\s*\d{5}\s?\
  */
 function rereadRange(lines: readonly Line[]): [number, number] {
   let start = lines.findIndex((line) => /^\s*EUR\s*$/i.test(line.text))
-  if (start === -1) start = lines.slice(0, 15).findLastIndex((line) => HEADER_LINE.test(line.text))
+  if (start === -1) start = lines.slice(0, 15).findLastIndex((line) => isHeaderLine(line.text))
   const end = lines.findIndex((line, i) => i > start && (/^\s*TOTAL\b/i.test(line.text) || endsProducts(line.text)))
   return [start + 1, end === -1 ? lines.length - 1 : end]
 }
@@ -182,12 +185,16 @@ async function reread(worker: Worker, image: Buffer, info: ImageInfo, { lines, r
  */
 const SECOND_SCALE = 1.5
 async function rereadScaled(worker: Worker, image: Buffer, lines: readonly Line[], result: OcrLine[], band: Band, tails: readonly { index: number; rect: Rect }[]): Promise<void> {
-  const gray = decodePngGray(image)
-  if (!gray) return
   const top = Math.min(...tails.map((t) => t.rect.top))
   const bottom = Math.max(...tails.map((t) => t.rect.top + t.rect.height))
+  // Solo las filas de la banda, y una más por arriba y por abajo: la interpolación de los bordes lee la vecina.
+  const info = imageInfo(image)
+  if (!info) return
+  const from = Math.max(0, top - 1)
+  const gray = await decodePngRows(image, from, Math.min(info.height, bottom + 1))
+  if (!gray) return
   const left = Math.max(0, band.left)
-  const scaled = scaleRegion(gray, left, top, Math.min(gray.width, band.right) - left, bottom - top, SECOND_SCALE)
+  const scaled = scaleRegion(gray, left, top - from, Math.min(gray.width, band.right) - left, bottom - top, SECOND_SCALE)
   await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK, tessedit_char_whitelist: TAIL_WHITELIST })
   const { data } = await worker.recognize(encodeGrayPng(scaled), {}, { text: true, blocks: true })
   const read = (data.blocks ?? []).flatMap((block) => block.paragraphs.flatMap((paragraph) => paragraph.lines))

@@ -1,4 +1,4 @@
-import { deflateSync, inflateSync } from 'node:zlib'
+import { createInflate, deflateSync, inflateSync } from 'node:zlib'
 import { IMAGE_LIMITS } from '../../../../common/imageInfo.ts'
 
 /**
@@ -12,6 +12,12 @@ import { IMAGE_LIMITS } from '../../../../common/imageInfo.ts'
  * usa solo la cabecera que validó la petición (el primer bloque, un IHDR de 13
  * bytes, y uno solo), con los mismos límites (IMAGE_LIMITS), y nunca
  * descomprime más de lo que dice esa cabecera. Cualquier cosa rara da null.
+ *
+ * El lector usa decodePngRows: solo las filas de la banda que relee, y la
+ * descompresión por partes, en el hilo de zlib (no bloquea Express). Una franja
+ * puede tener hasta 8000 × 4096 píxeles en color (131 MB descomprimida): así no
+ * se guarda nunca entera. decodePngGray, la imagen entera de una vez, queda para
+ * las pruebas.
  */
 
 export interface Gray {
@@ -34,8 +40,18 @@ const paeth = (a: number, b: number, c: number) => {
 /** Firma (8) + longitud, tipo, cuerpo de 13 bytes y CRC del IHDR (25). */
 const HEADER_END = 8 + 25
 
-/** Un PNG a gris (0-255), o null si no es un PNG que se sepa leer o viene malformado. */
-export function decodePngGray(png: Uint8Array): Gray | null {
+interface PngHeader {
+  width: number
+  height: number
+  channels: number
+  /** Bytes de una fila sin su byte de filtro. */
+  stride: number
+  /** Los bloques IDAT, juntos y aún comprimidos. */
+  compressed: Buffer
+}
+
+/** La cabecera y los datos comprimidos, o null si no es un PNG que se sepa leer o viene malformado. */
+function readPng(png: Uint8Array): PngHeader | null {
   const buffer = Buffer.from(png.buffer, png.byteOffset, png.byteLength)
   if (buffer.length < HEADER_END || !buffer.subarray(0, 8).equals(SIGNATURE)) return null
   // El primer bloque es el IHDR, de 13 bytes: el mismo que lee imageInfo al validar la petición.
@@ -58,12 +74,43 @@ export function decodePngGray(png: Uint8Array): Gray | null {
     if (type === 'IEND') break
   }
   if (chunks.length === 0) return null
-  const stride = width * channels
+  return { width, height, channels, stride: width * channels, compressed: Buffer.concat(chunks) }
+}
+
+/**
+ * Deshace el filtro de una fila (`line`, sin su byte de filtro) con la anterior ya deshecha, en `row`.
+ * false si el filtro no existe.
+ */
+function unfilter(filter: number, line: Uint8Array, previous: Uint8Array, row: Uint8Array, channels: number): boolean {
+  if (filter > 4) return false
+  for (let i = 0; i < line.length; i++) {
+    const left = i >= channels ? row[i - channels] : 0
+    const up = previous[i]
+    const corner = i >= channels ? previous[i - channels] : 0
+    const value = line[i]
+    row[i] = filter === 1 ? value + left : filter === 2 ? value + up : filter === 3 ? value + ((left + up) >> 1) : filter === 4 ? value + paeth(left, up, corner) : value
+  }
+  return true
+}
+
+/** Una fila ya deshecha, en gris, a partir de `at` de `gray`. */
+function grayRow(row: Uint8Array, gray: Uint8Array, at: number, width: number, channels: number): void {
+  for (let x = 0; x < width; x++) {
+    const p = x * channels
+    gray[at + x] = channels >= 3 ? (row[p] * 299 + row[p + 1] * 587 + row[p + 2] * 114) / 1000 : row[p]
+  }
+}
+
+/** Un PNG entero a gris (0-255), de una vez, o null si no es un PNG que se sepa leer o viene malformado. */
+export function decodePngGray(png: Uint8Array): Gray | null {
+  const header = readPng(png)
+  if (!header) return null
+  const { width, height, channels, stride } = header
   // Lo que ocupan las filas, cada una con su byte de filtro: ni un byte más (una «bomba» de compresión se corta aquí).
   const expected = height * (stride + 1)
   let raw: Buffer
   try {
-    raw = inflateSync(Buffer.concat(chunks), { maxOutputLength: expected })
+    raw = inflateSync(header.compressed, { maxOutputLength: expected })
   } catch {
     return null
   }
@@ -72,23 +119,58 @@ export function decodePngGray(png: Uint8Array): Gray | null {
   let previous = new Uint8Array(stride)
   let row = new Uint8Array(stride)
   for (let y = 0; y < height; y++) {
-    const filter = raw[y * (stride + 1)]
-    if (filter > 4) return null
-    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1))
-    for (let i = 0; i < stride; i++) {
-      const left = i >= channels ? row[i - channels] : 0
-      const up = previous[i]
-      const corner = i >= channels ? previous[i - channels] : 0
-      const value = line[i]
-      row[i] = filter === 1 ? value + left : filter === 2 ? value + up : filter === 3 ? value + ((left + up) >> 1) : filter === 4 ? value + paeth(left, up, corner) : value
-    }
-    for (let x = 0; x < width; x++) {
-      const p = x * channels
-      gray[y * width + x] = channels >= 3 ? (row[p] * 299 + row[p + 1] * 587 + row[p + 2] * 114) / 1000 : row[p]
-    }
+    if (!unfilter(raw[y * (stride + 1)], raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)), previous, row, channels)) return null
+    grayRow(row, gray, y * width, width, channels)
     ;[previous, row] = [row, previous]
   }
   return { width, height, data: gray }
+}
+
+/**
+ * Solo las filas de `from` a `to` (sin incluir) de un PNG, en gris: { width, height: to - from }. Descomprime por
+ * partes, en el hilo de zlib, y se para en cuanto tiene la última fila: nunca guarda la imagen entera ni descomprime
+ * más de lo que hace falta. null si el PNG no se sabe leer, viene malformado o no llega a esas filas.
+ */
+export function decodePngRows(png: Uint8Array, from: number, to: number): Promise<Gray | null> {
+  const header = readPng(png)
+  if (!header || !Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > header.height || from >= to) return Promise.resolve(null)
+  const { width, channels, stride } = header
+  const gray = new Uint8Array(width * (to - from))
+  let previous = new Uint8Array(stride)
+  let row = new Uint8Array(stride)
+  const pending = new Uint8Array(stride + 1)
+  let filled = 0
+  let y = 0
+  return new Promise((resolve) => {
+    const inflate = createInflate()
+    let done = false
+    const finish = (result: Gray | null) => {
+      if (done) return
+      done = true
+      inflate.removeAllListeners('data')
+      inflate.removeAllListeners('end')
+      inflate.destroy()
+      resolve(result)
+    }
+    inflate.on('data', (data: Buffer) => {
+      for (let at = 0; at < data.length && !done;) {
+        const take = Math.min(stride + 1 - filled, data.length - at)
+        pending.set(data.subarray(at, at + take), filled)
+        filled += take
+        at += take
+        if (filled < stride + 1) break
+        filled = 0
+        if (!unfilter(pending[0], pending.subarray(1), previous, row, channels)) return finish(null)
+        if (y >= from) grayRow(row, gray, (y - from) * width, width, channels)
+        ;[previous, row] = [row, previous]
+        if (++y === to) return finish({ width, height: to - from, data: gray })
+      }
+    })
+    // Un error de zlib o un final antes de la última fila pedida: el PNG no sirve.
+    inflate.on('error', () => finish(null))
+    inflate.on('end', () => finish(null))
+    inflate.end(header.compressed)
+  })
 }
 
 /** Un trozo de la imagen reescalado: media de cada caja al reducir, interpolación lineal al ampliar. */

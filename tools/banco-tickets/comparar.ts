@@ -18,7 +18,8 @@ import type { Verdad, VerdadLinea } from './verdad.ts'
  * - falta: no aparece.
  * «Mal» es un importe, cantidad, precio unitario, peso, precio por kilo o
  * descuento distinto. Las líneas leídas sin pareja «sobran»: repetidas (se
- * parecen a un producto del ticket) o que no son productos.
+ * parecen a un producto del ticket) o que no son productos; si además no van
+ * marcadas, cuentan también como «mal sin marcar».
  *
  * Una PROMO de la verdad (un ajuste) vale igual como ajuste o como descuento de
  * una sola línea: la de debajo de la que va, si la verdad lo sabe.
@@ -152,6 +153,8 @@ export function compareTicket(truth: Verdad, ticket: ParsedTicket): CaseResult {
     const repeated = truth.lines.some((line) => similarity(line.rawName, read.rawName) >= 0.8)
     if (repeated) result.extraRepeated++
     else result.extraOther++
+    // Una línea de más sin marcar también es un error que pasaría sin avisar: se guardaría una compra que no existe.
+    if (read.flags.length === 0) result.silentWrong++
     lines.push({ truth: null, read: r, class: repeated ? 'sobra-repetida' : 'sobra-no-producto', differences: [], flags: read.flags, issues: read.evidence?.issues ?? [] })
   })
   return result

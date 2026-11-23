@@ -278,35 +278,78 @@ export interface Overlap {
 /** Diferencia media por encima de la cual dos trozos no son el mismo. */
 export const OVERLAP_MAX_SCORE = 12
 
+/** Diferencia media entre dos huellas con `b` empezando en la fila `offset` de `a`, mirando cada `step` filas con texto. */
+function scoreOf(sa: Signature, sb: Signature, offset: number, step: number, minCounted: number): number {
+  const length = Math.min(sa.rows - offset, sb.rows)
+  let total = 0
+  let counted = 0
+  for (let i = 0; i < length; i += step) {
+    if (!sa.ink[offset + i] && !sb.ink[i]) continue
+    const ra = (offset + i) * sa.cols
+    const rb = i * sb.cols
+    let diff = 0
+    for (let c = 0; c < sa.cols; c++) diff += Math.abs(sa.values[ra + c] - sb.values[rb + c])
+    total += diff / sa.cols
+    counted++
+  }
+  return counted >= minCounted ? total / counted : Infinity
+}
+
+/** La huella reducida: la media de cada `factor` filas (y con tinta si alguna la tiene). */
+function shrink(signature: Signature, factor: number): Signature {
+  const rows = Math.floor(signature.rows / factor)
+  const { cols } = signature
+  const values = new Float32Array(rows * cols)
+  const ink = new Uint8Array(rows)
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < factor; k++) {
+      const row = r * factor + k
+      if (signature.ink[row]) ink[r] = 1
+      for (let c = 0; c < cols; c++) values[r * cols + c] += signature.values[row * cols + c] / factor
+    }
+  }
+  return { rows, cols, values, ink }
+}
+
+/** La búsqueda gruesa compara cada 4 filas (con las huellas reducidas) y se afinan, fila a fila, sus 8 mejores candidatos. */
+const COARSE = 4
+const CANDIDATES = 8
+
 /**
  * Cuánto se desplaza la captura `b` respecto a `a` (las dos sin bandas fijas y
  * del mismo ancho): la fila de `a` donde empieza `b`, con la menor diferencia
  * en las filas con texto. Solo cuentan solapes de al menos `minOverlap` filas y
  * con texto suficiente. null si no hay ninguno posible.
+ *
+ * De grueso a fino: las huellas reducidas (la media de cada 4 filas) dan los
+ * mejores candidatos, y solo alrededor de ellos se compara fila a fila. Mirar
+ * todos los desplazamientos fila a fila costaba unas 8 veces más; con 6
+ * capturas de 2400 px, varios segundos en un móvil.
  */
 export function findOverlap(a: GrayImage, b: GrayImage, tone: number, minOverlap = 60): Overlap | null {
   if (a.width !== b.width) return null
   const block = Math.max(4, Math.round(a.width / 90))
   const sa = signature(a, block, tone)
   const sb = signature(b, block, tone)
-  const scoreAt = (offset: number) => {
-    const length = Math.min(sa.rows - offset, sb.rows)
-    let total = 0
-    let counted = 0
-    for (let i = 0; i < length; i += 2) {
-      if (!sa.ink[offset + i] && !sb.ink[i]) continue
-      const ra = (offset + i) * sa.cols
-      const rb = i * sb.cols
-      let diff = 0
-      for (let c = 0; c < sa.cols; c++) diff += Math.abs(sa.values[ra + c] - sb.values[rb + c])
-      total += diff / sa.cols
-      counted++
-    }
-    return counted >= 8 ? total / counted : Infinity
+  const last = sa.rows - minOverlap
+  if (last < 0) return null
+  const ca = shrink(sa, COARSE)
+  const cb = shrink(sb, COARSE)
+  const coarse: [number, number][] = []
+  for (let offset = 0; offset * COARSE <= last; offset++) coarse.push([offset * COARSE, scoreOf(ca, cb, offset, 1, 2)])
+  coarse.sort((x, y) => x[1] - y[1] || x[0] - y[0])
+  const picked: number[] = []
+  for (const [offset, score] of coarse) {
+    if (!Number.isFinite(score) || picked.length === CANDIDATES) break
+    if (!picked.some((p) => Math.abs(p - offset) <= 2 * COARSE)) picked.push(offset)
   }
-  const scores: [number, number][] = []
-  for (let offset = 0; offset <= sa.rows - minOverlap; offset++) scores.push([offset, scoreAt(offset)])
-  scores.sort((x, y) => x[1] - y[1])
+  const refined = new Map<number, number>()
+  for (const center of picked) {
+    for (let offset = Math.max(0, center - COARSE - 2); offset <= Math.min(last, center + COARSE + 2); offset++) {
+      if (!refined.has(offset)) refined.set(offset, scoreOf(sa, sb, offset, 2, 8))
+    }
+  }
+  const scores = [...refined].sort((x, y) => x[1] - y[1] || x[0] - y[0])
   const [best] = scores
   if (!best || !Number.isFinite(best[1])) return null
   // El siguiente mejor que no sea el mismo desplazamiento (± media línea) decide si hay duda.

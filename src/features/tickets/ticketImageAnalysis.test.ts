@@ -126,6 +126,16 @@ describe('análisis de las imágenes de un ticket', () => {
     expect(overlapUsable(findOverlap(part(0), part(1500), 255))).toBe(false)
   })
 
+  it('la búsqueda de grueso a fino da el desplazamiento exacto, también entre las filas que mira la búsqueda gruesa', () => {
+    const long = ticket(400, 3000, 14)
+    const part = (top: number) => cropGray(long, { left: 0, top, right: 400, bottom: top + 900 })
+    for (const offset of [61, 333, 402, 597, 702, 803]) {
+      const overlap = findOverlap(part(100), part(100 + offset), 255)!
+      expect(overlap, `desplazamiento ${offset}`).toMatchObject({ offset, ambiguous: false })
+      expect(overlap.score).toBeLessThan(1)
+    }
+  })
+
   it('si el ticket se repite (renglones iguales), el solape es ambiguo y no se usa', () => {
     const image = blank(400, 1800)
     const line = blank(400, 24)

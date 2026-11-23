@@ -234,10 +234,10 @@ describe('11. Devoluciones e importes negativos', () => {
 })
 
 describe('12. Diferencias entre el total y la suma de productos', () => {
-  it('lo dice, con la diferencia, y no toca ninguna cifra', () => {
+  it('lo dice, con la diferencia, y no toca ninguna cifra: solo marca la que una cifra confundida explicaría', () => {
     const t = parse('RULO DE CABRA 2,23 A', 'DATIL SIN HUESO 1,25 A', 'TOTAL 3,54')
     expect(t.check).toMatchObject({ status: 'no_cuadra', linesTotalCents: 348, differenceCents: 6 })
-    expect(t.lines.map(l => [l.amountCents, l.flags])).toEqual([[223, []], [125, []]])
+    expect(t.lines.map(l => [l.amountCents, l.flags])).toEqual([[223, ['dudoso']], [125, []]])
   })
 })
 

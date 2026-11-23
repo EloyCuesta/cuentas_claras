@@ -35,13 +35,15 @@ Las reglas de `shared/tickets/` (y las de `server/modules/tickets/domain/`) tien
 
 - Hay dos ValidationResult: el genérico de `shared/common/validation.ts`, con un mensaje (lo que llega a la API), y el de los formularios de finanzas, en `shared/finance/validation.ts`, con errores por campo.
 - `shared/tickets/ticketParse.ts` está afinado para Lidl. El total del ticket nunca decide un importe: lo que no se puede asegurar se marca. En concreto:
-  - Un importe sin dudas necesita al menos dos lecturas iguales (texto, banda y `rereads`) y ninguna distinta, ni deformada ni sin coma.
+  - Un importe sin dudas necesita que la lectura del texto y al menos otra (la banda o `rereads`) den esa cifra, y ninguna distinta, ni deformada ni sin coma. Las dos de la banda solas no votan: son el mismo recorte.
+  - Si un grupo del desglose de IVA (o el total) no cuadra, se marcan las líneas sin marca cuyo importe, con una sola cifra confundida, lo haría cuadrar. Ninguna cifra cambia.
   - «2,75X» es un precio unitario, no un importe. Una multiplicación que no se lee («79X 2», «2,3% 2») marca la línea en vez de darla por 1 unidad.
   - Un importe sin coma nunca es fiable. Se descarta si es un número del nombre o empieza por uno de dos cifras o más («SERVILLETAS 100U», «MANTEQUILLA 250G»); por uno de una cifra, no («LECHE 1L» y «149»). Aun descartado, no deja votar, y si dice otra cifra que el importe, la línea se marca (`docs/decisiones.md`).
   - Una línea de peso ilegible marca el producto de encima, sin crear otro.
-  - Pasada la cabecera de Lidl, una línea en mayúsculas es un producto aunque no tenga importe.
+  - Pasada la cabecera de Lidl (`isLidlHeader`, que usa también el lector), una línea en mayúsculas es un producto aunque no tenga importe.
+  - «5 KG PATATAS» lleva el peso en el nombre: no es una línea de peso ni 5 unidades.
   - La PROMO sangrada bajo un producto se le propone como descuento (por confirmar). Sin sangrar, es un ajuste.
-  - Lo que no parece un producto va a `nonProducts`.
+  - En Lidl, lo que no parece un producto va a `nonProducts`. En otra tienda no se sabe cómo es un producto: una línea sin importe se queda y puede tomar el de la de debajo.
   - Las capturas sueltas se unen con tolerancia, y si no se solapan se avisa.
   - Los casos están en `shared/tickets/ticketSafety.test.ts` y en el corpus (`lidl-plus-*`).
 - La huella de un ticket guardado no está aquí, sino en `server/modules/tickets/domain/ticketIdentity.ts`, y no debe cambiar.

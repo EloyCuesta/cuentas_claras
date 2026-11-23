@@ -247,7 +247,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | ID | Entrega | Depende de | Estado |
 | --- | --- | --- | --- |
 | FIX-01 | Los cuatro fallos graves del último push | — | verificado |
-| FIX-02 | Los fallos medios de la lectura y la revisión de tickets | FIX-01 | pendiente |
+| FIX-02 | Los fallos medios de la lectura y la revisión de tickets | FIX-01 | verificado |
 | DOC-02 | Estado y documentación al día tras el push | FIX-02 | pendiente |
 | UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | pendiente |
 | UX-01 | Guardar sin esperar | UX-00 | pendiente |
@@ -571,3 +571,69 @@ Plantilla:
     - el corte no se ha tocado;
     - el Chromium de Playwright no está descargado en este equipo, así que se usó el Chrome instalado.
   - **Siguiente tarea**: FIX-02.
+
+- **FIX-02 · 23 de noviembre de 2026 · base `10f3d8f`** (FIX-01 en la rama local terminar-proyecto):
+  - **Alcance**: los fallos medios de la lectura y la revisión de tickets, la zanahoria que dejó FIX-01 y los menores que costaban poco.
+  - **Hallazgos**: se confirman todos los medios. Además:
+    - «Volver a empezar» enseñaba las miniaturas sin imagen solo tras leer un texto pegado: leer el texto liberaba sus URL;
+    - la votación ya exigía tres lecturas iguales para quitar dudas, pero dos de ellas podían ser las de la banda (el mismo recorte).
+
+    No se descarta ninguno. Quedan sin hacer dos menores: la evidencia guardada sigue sin `rereads` (cambiaría la validación del guardado en TypeScript y en C#) y el contador de lectura sigue con un aviso de oxlint que ya estaba.
+  - **Qué cambia**:
+    - **La lectura** (`shared/tickets/ticketParse.ts` y `backend/src/CuentasClaras.Domain/Tickets/TicketParser.cs`, con 7 casos nuevos del corpus):
+      - la votación exige la lectura del texto;
+      - si el desglose de IVA (o el total) no cuadra, se marcan las líneas cuyo importe, con una sola cifra confundida, lo haría cuadrar: así sale la zanahoria («Con 0,79 €, el total cuadraría…»);
+      - `looksLikeProduct` solo en Lidl;
+      - «5 KG PATATAS 2,99 B» es un producto de una unidad;
+      - una línea con la fecha no es la barra de estado;
+      - la cabecera de Lidl tiene una sola definición (`isLidlHeader`), que usa también el lector.
+    - **El lector**: `decodePngRows` decodifica solo las filas de la banda, por partes y en el hilo de zlib.
+    - **La unión de capturas** (`src/features/tickets/ticketPlan.ts`, con tests):
+      - es una función pura que calcula un Web Worker, con el hilo principal de respaldo;
+      - una captura que cabe en la anterior se trata como repetida y ya no se pierden filas;
+      - se avisa antes de leer si no se pueden unir por tamaño, color o bordes;
+      - el solape se busca de grueso a fino;
+      - lo calculado al elegir se guarda (TicketImageCache) y «Leer» lo reutiliza;
+      - el análisis solo corre con dos imágenes o más.
+    - **La revisión**:
+      - la línea que solo pide confirmar su producto tiene tarjeta («Sí, es …»), cuenta en «Faltan N» y mantiene abierta la lista;
+      - los errores de tienda, fecha, hora y total al guardar abren «Editar datos del ticket», se ven junto al campo y llevan el foco a él;
+      - una tienda vacía se ve como «Falta la tienda»;
+      - el recorte se abre ampliado por la altura del renglón y en el importe, con «Ampliar» y «Reducir» de 44 px al lado;
+      - al resolver una tarjeta, el foco va a la siguiente por resolver o al resumen;
+      - la lista no se pliega con un editor abierto.
+    - **Menores**:
+      - el contador de «Leyendo» fuera del anuncio;
+      - «Pagado con…» siempre;
+      - «Ajustes generales» no queda vacía;
+      - «Por qué» sin claves repetidas y en la fila de lo leído;
+      - `<summary>` y enlaces de 44 px en la revisión, y los botones de los ajustes sin `btn--small`;
+      - miniaturas que giran dentro de su marco, «Quitar» que no recarga las demás, URL de franjas como Blob;
+      - `prepareTicketImages([])` y una imagen de tamaño 0 dan su error;
+      - solo se unen capturas con el texto del mismo color;
+      - fuera `review.sections`, `.ticket-group*` y `.ticket-image-options`;
+      - el banco cuenta una línea de más sin marcar como «mal sin marcar», y su carpeta privada nunca cae dentro del repositorio.
+    - **El test de los cupones**: lo distinto, marcado, y como mucho una línea (la 1.ª «INSTANT NOODLES», que pierde «2 × 0,65» pero queda marcada). La regla de `server/modules/tickets/AGENTS.md` dice ahora que ninguna cifra quede mal sin marcar y que las limpias del banco no bajen (`docs/decisiones.md`).
+  - **Textos** nuevos: «Sí, es …», «Se parece a tu producto … ¿Es el mismo?», «Falta la tienda», «Comprobando si las capturas se solapan…», «Reducir», los avisos de capturas que no se pueden unir o repetidas, y los errores de la cabecera junto a su campo. «Por qué» pasa de `<details>` a un botón con `aria-expanded`. Ningún texto de antes cambia de nombre.
+  - **Números**:
+
+    | Comprobación | FIX-01 | FIX-02 |
+    | --- | --- | --- |
+    | Vitest | 1606 | 1629 |
+    | e2e contra Express | 68, y 4 omitidas | 74, y 4 omitidas |
+    | e2e contra .NET | 74, y 4 omitidas | 80, y 4 omitidas |
+    | .NET | 2272 | 2286 |
+    | Corpus de tickets | 538 casos | 545 casos |
+    | Banco sintético (mismas imágenes) | 629 de 696 limpias, **1 mal sin marcar** | 625 de 696 limpias, **0 mal sin marcar** |
+    | Preparar, grande/capturas-claro | 1,3 s | 0,5 s |
+
+    - La zanahoria pasa a «mal marcada».
+    - **Las 4 limpias de menos no cumplen la aceptación («no peor que 629»)**. Son el mismo caso: el texto lee «3,9», «1,9» o «1559:B» y solo las dos lecturas de la banda dan el importe, que es correcto. Es la regla que pedía esta tarea («la votación exige la lectura del texto, o conserva la marca»): quedan «bien marcadas» y piden un toque. Se eligió la seguridad (ninguna cifra mal sin marcar) frente a la cifra; si con tickets reales las dos lecturas de la banda resultan fiables, basta quitar `textToken !== null` de `voted` en TypeScript y en C#.
+  - **Comandos** (Windows; MySQL 8.4.13 de ensayo; Chrome 158 con CUENTAS_E2E_CHANNEL=chrome; Node 24.13.0; .NET SDK 10.0.102):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (antes 2); Vitest 1629/1629 (en una pasada, un `fetch failed` intermitente en `server/app.test.ts`, que no toca esta tarea; repetido, 10/10 y la suite entera en verde);
+    - `npm run build`: correcto;
+    - `npm run test:e2e`: 74 pasan y 4 se omiten;
+    - `npm run build:dotnet`: 0 avisos y 0 errores; `npm run test:dotnet`: 2286/2286;
+    - `npm run test:e2e:dotnet`: 80 pasan y 4 se omiten;
+    - `npm run generar:tickets` (y las imágenes de las e2e devueltas a git) y `npm run medir:tickets -- --solo-sinteticos`: la tabla de arriba.
+  - **Pendiente**: medir con tickets reales (PERSONA) la votación y la marca del IVA. **Siguiente tarea**: DOC-02.

@@ -395,6 +395,32 @@ add('lidl-plus-promo-pegada', 'parseTicket: PROMO sangrada con espacios en un te
 add('lidl-plus-no-productos', 'parseTicket: líneas sin importe que no parecen productos van aparte', 'parseTicket', {
   pages: [linesFromText('LIDL\nEUR\nPAN 1,00 A\nTicket de compra\n18:51  5G  87 %\nLECHE 0,90 A\nTOTAL 1,90')],
 })
+// ticketSafety.test.ts: FIX-02 (docs/terminar-el-proyecto.md).
+const ivaRead = (text: string, amount: string): OcrLine => ({ text: `${text.padEnd(36)}${amount} A`, reread: `${amount} A`, rereads: [`${amount} A`] })
+add('fix02-iva-sospechosa', 'parseTicket: tres lecturas iguales y equivocadas; el desglose de IVA marca la que una cifra confundida explica', 'parseTicket', {
+  pages: [[...linesFromText('LIDL SUPERMERCADOS S.A.U.\nEUR'), ivaRead('PAN DE MOLDE', '1,59'), ivaRead('ZANAHORIA BOLSA', '0,73'), ivaRead('LECHE ENTERA', '0,95'),
+    ...linesFromText('TOTAL 3,33\nA 10% 3,03 0,30 3,33\nFECHA: 28/10/26')]],
+})
+add('fix02-sin-cifra-confundida', 'parseTicket: si ninguna cifra confundida explica la diferencia, no se marca nada más', 'parseTicket', {
+  pages: [[...linesFromText('LIDL SUPERMERCADOS S.A.U.\nEUR'), ivaRead('PAN DE MOLDE', '1,59'), ivaRead('LECHE ENTERA', '0,95'), ...linesFromText('TOTAL 2,58\nFECHA: 28/10/26')]],
+})
+add('fix02-multiplicacion-no-sospechosa', 'parseTicket: la línea que comprueba la multiplicación no se marca', 'parseTicket', {
+  pages: [[...linesFromText('LIDL SUPERMERCADOS S.A.U.\nEUR'), { text: 'LECHE ENTERA 0,93x 6                5,58 A', reread: '0,93x 6 5,58 A', rereads: ['0,93x 6 5,58 A'] },
+    ...linesFromText('TOTAL 5,64\nFECHA: 28/10/26')]],
+})
+add('fix02-otra-tienda-sin-importe', 'parseTicket: fuera de Lidl, una línea sin importe toma el de la de debajo', 'parseTicket', {
+  pages: [linesFromText('FRUTERIA EJEMPLO\nLeche entera 0,95\nPan de pueblo\n1,20\nTOTAL 2,15')],
+})
+add('fix02-fecha-no-es-barra', 'parseTicket: una línea con la fecha no es la barra de estado', 'parseTicket', {
+  pages: [linesFromText('LIDL\nEUR\nPAN 1,00 A\nTOTAL 1,00\n28.10.2026 14:32')],
+})
+add('fix02-peso-en-el-nombre', 'parseTicket: «5 KG PATATAS 2,99 B» es un producto, no una línea de peso ni 5 unidades', 'parseTicket', {
+  pages: safetyPages('5 KG PATATAS 2,99 B', '2 L AGUA 0,60 A', 'TOTAL 3,59'),
+})
+add('fix02-cabecera-sau', 'parseTicket: la cabecera de Lidl también acaba en una línea «… S.A.U.»', 'parseTicket', {
+  pages: [linesFromText(['Copia', 'LIDL', 'DISTRIBUCION S.A.U.', 'PAN BARRA RÚSTICA', 'LECHE ENTERA 0,95 A', 'TOTAL 1,60', 'FECHA: 03/11/26'].join('\n'))],
+})
+
 const firstCapture = ['LIDL', 'EUR', 'PAN 1,00 A', 'LECHE ENTERA 0,95 A', 'HUEVOS M DOCENA 2,55 A', 'QUESO TIERNO 3,99 A', 'Inicio Ofertas Lidl Plus Tickets']
 add('lidl-plus-capturas', 'parseTicket: capturas sueltas con la app en los bordes y un solape con una cifra confundida', 'parseTicket', {
   pages: [firstCapture, ['18:52 5G 87 %', 'Ticket de compra', 'HUEVOS M D0CENA 2,5S A', 'QUESO TIERNO 3,99 A', 'ARROZ 1,29 A', 'TOTAL 9,78']].map(p => linesFromText(p.join('\n'))),

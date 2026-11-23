@@ -38,6 +38,10 @@ describe('comparar lo leído con la verdad', () => {
     const ticket = read('LIDL\nEUR\nPAN 1,00 B\nPAN 1,00 B\nTicket de compra 0,00 B\nTOTAL 1,00\nFECHA: 03/11/26')
     const result = compareTicket(truth([line('PAN', 100)]), ticket)
     expect(result).toMatchObject({ extraRepeated: 1, extraOther: 1 })
+    // Las líneas de más sin marcar cuentan también como «mal sin marcar»: se guardarían sin avisar.
+    const unflagged = result.lines.filter(l => l.class.startsWith('sobra') && l.flags.length === 0).length
+    expect(unflagged).toBeGreaterThan(0)
+    expect(result.silentWrong).toBe(unflagged)
   })
 
   it('la PROMO vale como ajuste o como descuento de la línea de encima', () => {
