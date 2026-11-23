@@ -1,6 +1,6 @@
 # Estado y tareas de la migración
 
-Última actualización: 23 de noviembre de 2026 (FIX-01 de terminar-el-proyecto, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
+Última actualización: 23 de noviembre de 2026 (DOC-02 de terminar-el-proyecto, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
 
 ## Estado comprobado
 
@@ -14,8 +14,8 @@
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
 | Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | En main desde el 16 de noviembre (fusión en avance rápido de la rama dotnet-modulos, que se ha borrado): TIC-01 y DATA-01 verificados en MySQL 8.4.13, y FIN-01…05, PAN-01…03 y TIC-02…04 verificados en .NET, con las 39 rutas de Express y la app React entera contra .NET en los E2E. Ensayo técnico del corte hecho con datos sintéticos. Quedan DATA-02 y CUT-01, de la persona (registros «Ensayo técnico del corte» y «Verificación final») |
-| Pruebas de aplicación de esta entrega | El 16 de noviembre, en Windows con MySQL 8.4.13 aislado en el 3307 y el usuario limitado cuentas_pruebas: .NET 2230/2230 (MySql 109/109, con el OCR real), `npm run check` (Vitest 1530/1530 en 52 archivos), `npm run test:e2e:dotnet` 64/64 y `npm run test:e2e` 58/58, con Chrome 157.0.8103.51 instalado |
+| Resultado de esta entrega | En main desde el 16 de noviembre (fusión en avance rápido de la rama dotnet-modulos, que se ha borrado): TIC-01 y DATA-01 verificados en MySQL 8.4.13, y FIN-01…05, PAN-01…03 y TIC-02…04 verificados en .NET, con las 39 rutas de Express y la app React entera contra .NET en los E2E. Ensayo técnico del corte hecho con datos sintéticos. El 23 de noviembre entró en main la lectura de tickets de Lidl Plus (fusión `c622210`); FIX-01 y FIX-02 de [terminar-el-proyecto.md](../terminar-el-proyecto.md) la arreglan en la rama local terminar-proyecto. Quedan DATA-02 y CUT-01, de la persona (registros «Ensayo técnico del corte» y «Verificación final») |
+| Pruebas de aplicación de esta entrega | El 23 de noviembre (FIX-02), en Windows con MySQL 8.4.13 aislado en el 3307 y el usuario limitado cuentas_pruebas: .NET 2286/2286 (con el OCR real), `npm run check` (Vitest 1629/1629 en 58 archivos), `npm run test:e2e:dotnet` 80 y 4 omitidas, y `npm run test:e2e` 74 y 4 omitidas, con Chrome 158 instalado. Las 4 omitidas son las capturas de `e2e/capturas-tickets.spec.ts`, que necesitan CUENTAS_CAPTURAS_DIR |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
 
@@ -600,7 +600,7 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 
 ### Tickets de Lidl Plus: reglas portadas de la lectura, 19 de noviembre de 2026 (no es un ID de la migración)
 
-- Base: main en `fba6550`; rama tickets-lidl-plus, sin fusionar. Es una mejora de la lectura de tickets que pidió la persona: Express sigue siendo el backend de uso diario y .NET tiene que dar lo mismo. La razón y las medidas están en `docs/decisiones.md`, «De la lectura de tickets de Lidl Plus».
+- Base: main en `fba6550`; rama tickets-lidl-plus, fusionada en main el 23 de noviembre (`c622210`, más abajo) y borrada. Es una mejora de la lectura de tickets que pidió la persona: Express sigue siendo el backend de uso diario y .NET tiene que dar lo mismo. La razón y las medidas están en `docs/decisiones.md`, «De la lectura de tickets de Lidl Plus».
 - Alcance portado a C#: cambian reglas de `shared/tickets/ticketParse.ts` y se portan a `backend/src/CuentasClaras.Domain/Tickets/TicketParser.cs`.
   - «2,75X» deja de ser un importe, y una multiplicación ilegible marca la línea.
   - Un importe sin coma nunca es fiable, y se descarta si sus cifras están en el nombre.
@@ -621,8 +621,28 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run check`: Vitest 1586/1586 en 57 archivos.
   - .NET: 2260/2260, con el corpus 1086/1086 en es-ES y en la invariante.
 
-  Un host .NET arrancado aparte con `dotnet run` bloqueaba `backend/src/CuentasClaras.Api/bin`. No se tocó: se compiló y probó con `--artifacts-path` en una carpeta fuera de git.
-- Sin ejecutar todavía en esta entrada: `npm run test:e2e:dotnet` (al terminar la interfaz).
+  Un host .NET arrancado aparte con `dotnet run` bloqueaba la carpeta de compilación de la API (backend/src/CuentasClaras.Api/bin). No se tocó: se compiló y probó con `--artifacts-path` en una carpeta fuera de git.
+- Sin ejecutar todavía en esta entrada: `npm run test:e2e:dotnet` (al terminar la interfaz). Se ejecutó después, con la fusión `c622210`: 68 pasan y 4 se omiten (abajo).
+- Los recuentos de esta entrada (532 casos, Vitest 1586, .NET 2260, corpus 1086) son los de la rama antes de fusionarla. Con la fusión pasaron a 535, 1594, 2266 y 1092; con FIX-01, a 538, 1606, 2272 y 1098; con FIX-02, a 545, 1629, 2286 y 1112.
+
+### Segunda relectura y el ticket de Lidl Plus con cupones, 22 de noviembre de 2026 (`48093ae`, no es un ID de la migración)
+
+- Base: main de GitHub antes de la fusión. El ejemplo es una captura de Lidl Plus del 21/11/26; la captura no se guarda y los datos de pago y de la tienda se sustituyen por otros inventados (`fixtures/tickets/ticket-lidl-plus-cupones.json` y su imagen sintética, y el OCR real de la captura en `fixtures/tickets/ocr-real/lidl-plus-captura-422px.json`).
+- Lector: si la relectura de cifras no trae nada con forma de importe, se repite una vez con un margen más ajustado (TAIL_RETRY_PAD, `docs/decisiones.md`). Medido con OCR real en 7 imágenes: arregla las 4 relecturas sin importe y no cambia ninguna otra.
+- Corpus: 520 casos (3 nuevos). Regla portada a C#: no hace falta, el lector es el worker Node de .NET.
+- Resultados del mensaje del commit, con MySQL 8.0: `npm run check` 1538, `npm run test:e2e` 58, `dotnet test` 2236 y e2e contra .NET 64.
+
+### Revisión de tickets pensada para el móvil, 22 de noviembre de 2026 (fase 4, `cbedcd6`, no es un ID de la migración)
+
+- Base: la rama tickets-lidl-plus tras la fase 3. Solo cambia la web (la revisión: resumen, tarjetas, productos plegados y «Guardar ticket» siempre a la vista); ni .NET ni el corpus.
+- Resultados del mensaje del commit, con MySQL 8.4: `npm run check` 1586 y `e2e/tickets.spec.ts` en escritorio y móvil, 14. Las suites enteras y las de .NET se pasaron con la fusión.
+
+### Fusión de la lectura de tickets en main, 23 de noviembre de 2026 (`c622210`, no es un ID de la migración)
+
+- Une las fases 0-4 (de `5695bfb` a `cbedcd6`) con `48093ae`. La segunda relectura con margen ajustado se queda solo cuando no hay banda de importes clara, que es donde se midió; sobre la banda arreglaba «INSTANT NOODLES» de la imagen sintética de los cupones y estropeaba otras dos.
+- Corpus: 535 casos (532 de la rama y 3 de main; cambian los 2 de los cupones por la regla de la PROMO sangrada).
+- El test del OCR real de los cupones pasó a pedir que lo distinto quede marcado; FIX-02 lo ajustó a «y como mucho una línea» (más abajo).
+- Resultados del mensaje del commit, con MySQL 8.4: `npm run check` 1594, `npm run test:e2e` 62 y 4 omitidas, `dotnet test` 2266 y e2e contra .NET 68 y 4 omitidas.
 
 ### FIX-01 de terminar-el-proyecto: reglas y corpus de tickets, 23 de noviembre de 2026 (no es un ID de la migración)
 

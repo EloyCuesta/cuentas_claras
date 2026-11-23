@@ -2,7 +2,7 @@
 
 La lectura de tickets **antes de cambiarla**: el código de main del 19 de noviembre de 2026, más el banco y la extracción de `prepareTicketImages` (sin cambios de comportamiento). Se ha medido con `npm run medir:tickets -- --solo-sinteticos` en el equipo de desarrollo: Windows 10, Node 24.13, Chrome 157 y tesseract.js 7. Los tiempos solo se comparan en el mismo equipo.
 
-Los tickets reales no están todavía: su fila, anonimizada como «real-N», se añadirá al medirlos en la etiqueta `banco-partida`.
+Los tickets reales no están todavía: su fila, anonimizada como «real-N», se añadirá al medirlos en la etiqueta `banco-partida`. Esa etiqueta solo existe en el equipo de desarrollo (no está en GitHub): marca el commit del banco sin cambios de lectura. La tabla de después está en `despues.md`.
 
 | Caso | Prod. | Limpias | Bien marc. | Mal marc. | **Mal sin marcar** | Faltan | Sobran (rep./otras) | IVA | Fecha | Hora | Total | Ajustes | Estado | Preparar s | Leer s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

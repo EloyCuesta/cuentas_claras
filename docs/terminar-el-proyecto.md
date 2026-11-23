@@ -248,7 +248,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | --- | --- | --- | --- |
 | FIX-01 | Los cuatro fallos graves del último push | — | verificado |
 | FIX-02 | Los fallos medios de la lectura y la revisión de tickets | FIX-01 | verificado |
-| DOC-02 | Estado y documentación al día tras el push | FIX-02 | pendiente |
+| DOC-02 | Estado y documentación al día tras el push | FIX-02 | verificado |
 | UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | pendiente |
 | UX-01 | Guardar sin esperar | UX-00 | pendiente |
 | UX-02 | Despensa instantánea | UX-00 | pendiente |
@@ -637,3 +637,21 @@ Plantilla:
     - `npm run test:e2e:dotnet`: 80 pasan y 4 se omiten;
     - `npm run generar:tickets` (y las imágenes de las e2e devueltas a git) y `npm run medir:tickets -- --solo-sinteticos`: la tabla de arriba.
   - **Pendiente**: medir con tickets reales (PERSONA) la votación y la marca del IVA. **Siguiente tarea**: DOC-02.
+
+- **DOC-02 · 23 de noviembre de 2026 · base `ea07008`** (FIX-02):
+  - **Alcance**: el estado y la documentación al día tras el push y las dos tareas FIX. No cambia código.
+  - **STATUS** (`docs/migration/STATUS.md`):
+    - entradas para `48093ae`, la fase 4 (`cbedcd6`) y la fusión `c622210`, con los resultados de sus mensajes de commit; FIX-01 y FIX-02 ya tenían la suya;
+    - la cabecera, la rama de los tickets (fusionada y borrada), los recuentos de después (535, 538 y 545 casos; los tests de cada paso) y las dos filas de pruebas de «Estado comprobado», con los números de FIX-02;
+    - la carpeta de compilación de la API, sin comillas invertidas: `tests/docs.test.ts` pasa también en un clon sin compilar;
+    - `npm run test:e2e:dotnet` de la entrada de los tickets: se ejecutó con la fusión (68 y 4 omitidas).
+  - **Documentos**:
+    - «dos lecturas que coinciden»: el README, `docs/glosario.md`, `shared/AGENTS.md` y `docs/decisiones.md` dicen ya lo que hace el código desde FIX-02 (la del texto y al menos otra); se hizo en el mismo commit de FIX-02;
+    - TAIL_RETRY_PAD, con su medida y por qué solo se aplica sin banda, en `docs/decisiones.md`;
+    - `e2e/capturas-tickets.spec.ts` en `e2e/AGENTS.md`;
+    - `fixtures/tickets/ocr-real/` en `docs/pruebas.md`, que ya dice que incluye una captura real;
+    - los recuentos del corpus (545 casos, 1112 pruebas en C#) en `backend/AGENTS.md` y `docs/pruebas.md`;
+    - `tools/banco-tickets/partida.md` dice que la etiqueta `banco-partida` solo está en el equipo de desarrollo.
+  - **El banco**: la tabla «después» en `tools/banco-tickets/despues.md`, medida en el mismo equipo y con el código de FIX-02: **625 de 696 limpias y 0 cifras mal sin marcar** (la partida: 22 mal sin marcar). La fila «real-N» sigue pendiente de los tickets reales (PERSONA).
+  - **Comandos**: `npm run check` (tipos, oxlint con 1 aviso y Vitest 1629/1629, con `tests/docs.test.ts`); `npm run medir:tickets -- --solo-sinteticos --guardar tools/banco-tickets/despues.md`. No se repitieron `npm run build`, los e2e ni las de .NET: esta tarea no cambia código y se pasaron con el mismo código en FIX-02 (74 y 80, con 4 omitidas en cada una; .NET 2286).
+  - **Siguiente tarea**: UX-00.

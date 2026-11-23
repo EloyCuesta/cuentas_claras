@@ -159,7 +159,7 @@ Así una línea siempre tiene dos lecturas de su importe y la relectura nunca le
 - decodificar y reescalar el PNG se hace con `node:zlib`, sin dependencias;
 - cada renglón leído va a la línea con la que más solapa en altura, en `rereads`.
 
-Cuesta unos 3 s en todo el banco. Con la banda bien calculada llega a 685 de 696 líneas y da el importe correcto en 677. Si se exige que coincidan al menos dos lecturas y que ninguna diga otra cosa (contando como desacuerdo una lectura deformada como «0,739»), saldrían limpias 663 líneas (95 %) sin ninguna cifra mal aceptada. Con fotos en JPEG no hay tercera lectura. Leer el banco pasa de 88 s (partida) a 111 s: 1,27 veces.
+Cuesta unos 3 s en todo el banco. Con la banda bien calculada llega a 685 de 696 líneas y da el importe correcto en 677. Si se exige que coincidan al menos dos lecturas y que ninguna diga otra cosa (contando como desacuerdo una lectura deformada como «0,739»), saldrían limpias 663 líneas (95 %) sin ninguna cifra mal aceptada. Se midió antes de la fase 4 y de la fusión, con otras imágenes; con las de hoy y FIX-02 (que exige la lectura del texto), la tabla está en `tools/banco-tickets/despues.md`: {CLEAN} limpias y {SILENT} mal sin marcar. Con fotos en JPEG no hay tercera lectura. Leer el banco pasa de 88 s (partida) a 111 s: 1,27 veces.
 
 **PNG para las imágenes de pantalla.** Una captura o la imagen de la app tienen el fondo liso y van en PNG, sin las manchas del JPEG alrededor de las cifras. Las fotos van en JPEG, igual que una franja que no quepa en los límites. El cuerpo de la lectura (`franjas`) y sus límites no cambian.
 
@@ -183,6 +183,10 @@ Cuando coinciden así, se quitan las marcas que solo eran sospechas:
 - las letras leídas como cifras.
 
 Con solo dos lecturas (fotos en JPEG) todo sigue como antes. En el banco sintético, estas reglas no dejan ninguna cifra mal sin marcar (antes, 22). Se ha medido también releer cada línea sobre la banda ampliada, en lugar de a su escala: dejaba todas las líneas con la misma lectura y se descartó.
+
+**La segunda relectura con margen ajustado, solo sin banda (`48093ae` y la fusión `c622210`).** Tesseract es sensible al margen que se deja alrededor del importe. En la captura real de Lidl Plus, la relectura de cifras de «BOLSA DE COMPRA 0,15 C» no traía nada con forma de importe. Por eso, si la relectura del final de una línea no trae ningún importe, se repite una vez con un margen de 0,15 en lugar de 0,35 (TAIL_RETRY_PAD, en `server/modules/tickets/adapters/tesseract/TesseractTicketReader.ts`). Medido con OCR real en 7 imágenes: arregla las 4 relecturas sin importe y no cambia ninguna otra.
+
+Al fusionarlo con la relectura de la banda de importes (fases 0-4), se quedó solo para cuando no hay banda clara, que es donde se midió. Sobre la banda, con la imagen sintética de los cupones sin preparar, arreglaba «INSTANT NOODLES» pero estropeaba otras dos relecturas: no entra sin medirlo con el banco y con tickets reales.
 
 **La votación necesita la lectura del texto (FIX-02).** La banda y la banda a 1,5× son el mismo recorte a dos escalas, con la misma lista de cifras permitidas: se equivocan igual. Hasta FIX-02, si el texto no traía importe, esas dos bastaban para dar la línea por buena y quitaban la marca «El importe solo se lee en la relectura de cifras». Ahora solo vota una lectura del texto que coincide con otra. Con tickets reales se podrá medir si las dos de la banda merecen votar solas; mientras, la línea queda marcada.
 

@@ -25,6 +25,7 @@ No es una prueba que pase o falle: da una tabla para decidir cambios con número
 | `pagina/` | La página que prepara las imágenes con el código de la web (`globalThis.banco`). Tiene DOM, así que la comprueba `tsconfig.e2e.json` |
 | `tipos.ts`, `rutas.ts` | Lo que se pasan Node y la página, y las carpetas |
 | `partida.md` | La tabla de partida, antes de cambiar la lectura |
+| `despues.md` | La tabla después de las fases 0-4, FIX-01 y FIX-02, en el mismo equipo |
 
 ### Las variantes de cada ticket sintético
 - `completa`: la imagen entera que da Lidl Plus, de 1080 px de ancho.
