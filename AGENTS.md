@@ -13,6 +13,9 @@ Una app web para una sola persona: ingresos, gastos y próximos pagos, y la desp
 ## Migración a ASP.NET Core y MySQL
 El backend actual es Express sobre MySQL (la fase MYSQL cambió el motor; SQLite solo queda para importar una copia antigua). Para migrarlo a .NET conservando React, lee [la entrada de migración](docs/migration/README.md) y [STATUS.md](docs/migration/STATUS.md), y después arquitectura, datos y módulos según la tarea. Elige la primera tarea pendiente con dependencias verificadas y contrasta siempre el diseño con el código de esta rama. Registra resultados reales y validaciones pendientes; no confundas el destino propuesto con una implementación disponible. Las reglas actuales de este archivo siguen vigentes.
 
+## Terminar el proyecto
+Lo que queda (arreglar el último push de tickets, una interfaz más fácil y rápida y preparar el corte a .NET), con la revisión, lo que autoriza la persona, las tareas y el prompt, está en [docs/terminar-el-proyecto.md](docs/terminar-el-proyecto.md). Sus excepciones a las reglas de «Interfaz» valen solo para esas tareas.
+
 ## Mapa del repositorio
 ```
 database/      el esquema de MySQL: migraciones .sql y su historial (database/mysql/AGENTS.md)

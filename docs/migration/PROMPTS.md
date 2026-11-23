@@ -47,7 +47,7 @@ Usa la misma instrucción principal y sustituye su línea `TAREA` por una de est
 | Tickets: guardar compra | `TAREA: TIC-03.` | Transacción integral y deduplicación con dos conexiones |
 | Tickets: historial | `TAREA: TIC-04.` | Detalle, asociación, borrado y actividad equivalente |
 | Validar los datos reales | `TAREA: DATA-02.` | Registro del corte que hace la persona con el importador de MYSQL-03 |
-| Integrar y preparar el corte | `TAREA: CUT-01.` | Recorridos completos, recuperación y condiciones de corte verificadas |
+| Integrar y preparar el corte | `TAREA: CUT-01.` | Recorridos completos, recuperación y condiciones de corte verificadas. La preparación sin cambiar el uso diario y el cambio final siguen [terminar-el-proyecto.md](../terminar-el-proyecto.md) (CUT-PREP y CUT-FINAL) |
 
 Si pides un ID con dependencias pendientes, el agente debe identificarlo y empezar por la primera dependencia necesaria que sí pueda completar; no debe afirmar que migró el módulo copiando su versión TypeScript a otra carpeta. Para seguir el orden sin elegir manualmente, usa la selección automática del prompt principal.
 
