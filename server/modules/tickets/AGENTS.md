@@ -56,7 +56,7 @@ Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql
 
 ## Pruebas
 `tickets.test.ts`:
-- el OCR real con dos tickets inventados (`fixtures/tickets/`);
+- el OCR real con tres imágenes de `fixtures/tickets/`: el ticket inventado y los sintéticos de Torrelavega y de Lidl Plus con cupones (este, entre las barras del móvil, con los cupones en azul y la app detrás);
 - la API con un lector falso: leer, guardar, duplicados, decisiones, pendientes, cambiar una línea, borrar y actividad;
 - las huellas golden.
 
@@ -77,6 +77,7 @@ Las reglas de `domain/` (compra, identidad y huellas, historial) están portadas
 - `imageInfo` está en `server/common/imageInfo.ts` porque lo usan dos adaptadores: HTTP para validar y Tesseract para medir.
 - El lector relee la banda de importes de todas las líneas de producto, calculada con todas las líneas de la imagen (`adapters/tesseract/amountColumn.ts`), no con las palabras de cada una: Tesseract a veces no devuelve la columna de importes de un trozo del ticket, y así la relectura no la pierde ni lee el nombre. Sin columna clara (otro formato de tienda), relee como antes el final numérico. Con franjas PNG hay además una tercera lectura de la banda, a 1,5 veces su tamaño y de una vez (`rereads` de cada línea; `adapters/tesseract/pngImage.ts` reescala sin dependencias): para votar el importe.
 - `adapters/tesseract/ocrWorker.ts` no lo usa Express: es la entrada del proceso que lanza el backend .NET para el OCR (mismo lector, una petición JSON por línea). Cambiar el lector cambia también lo que lee .NET.
+- La relectura de cifras depende del margen que se deja alrededor: sin banda de importes, si la relectura del final no trae ningún importe, se repite una vez con uno más ajustado (TAIL_RETRY_PAD, con la medición en el comentario). Un cambio en el lector se mide con OCR real en todas las imágenes de `fixtures/tickets/`, también reducidas y preparadas como en el navegador: que ninguna línea empeore. La captura real de Lidl Plus no está en el repositorio; de ella solo queda lo que leyó el lector (`fixtures/tickets/ocr-real/lidl-plus-captura-422px.json`).
 - Por qué el OCR es local y por compras en lugar de inventario: ver `docs/decisiones.md`.
 
 ## Si cambias este módulo

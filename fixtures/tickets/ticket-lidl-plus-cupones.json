@@ -1,0 +1,104 @@
+{
+ "provenance": "provided-capture-transcription",
+ "note": "Líneas transcritas de una captura de Lidl Plus (21/11/26, pago con tarjeta) que aportó el usuario; la captura no está en el repositorio. Las dos PROMO LIDL PLUS son los cupones «GRATIS» del aceite y los nachos: van sangradas debajo de su producto, y el lector las propone como descuento de ese producto, por confirmar (aquí siguen como ajustes: es lo que dice el ticket). La hora es la del pago con tarjeta (17:09:32); el pie dice 17:07. Es también la verdad de ticket-lidl-plus-cupones-sintetico.png y de ocr-real/lidl-plus-captura-422px.json.",
+ "store": "lidl",
+ "date": "2026-11-21",
+ "time": "17:09",
+ "totalCents": 1237,
+ "lines": [
+  {
+   "rawName": "ACEITE DE GIRASOL",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 184,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "NACHOS TEX MEX",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 89,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "CAFÉ CON LECHE",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 309,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "BOLSA DE COMPRA",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 15,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "C"
+  },
+  {
+   "rawName": "YATEKOMO POLLO",
+   "quantity": 2,
+   "unitPriceCents": 185,
+   "amountCents": 370,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "SOPA FIDEOS",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 49,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "INSTANT NOODLES",
+   "quantity": 2,
+   "unitPriceCents": 65,
+   "amountCents": 130,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "INSTANT NOODLES",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 65,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  },
+  {
+   "rawName": "HARIBO FUNKY TROPIF.",
+   "quantity": 1,
+   "unitPriceCents": null,
+   "amountCents": 299,
+   "discountCents": 0,
+   "weightKg": null,
+   "pricePerKgCents": null,
+   "taxCode": "B"
+  }
+ ],
+ "adjustments": [
+  -184,
+  -89
+ ]
+}

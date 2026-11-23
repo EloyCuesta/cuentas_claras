@@ -45,5 +45,24 @@
         { "rawName": "PAN", "quantity": 1, "unitPriceCents": null, "amountCents": 100, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "A" },
         { "rawName": "SAL ???", "quantity": 1, "unitPriceCents": null, "amountCents": null, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": null }
       ] }
+  },
+  {
+    "id": "lidl-plus-cupones-tarjeta-2026-11-21",
+    "provenance": "provided-capture-transcription",
+    "note": "Transcripción de una captura de Lidl Plus que aportó el usuario, sin la imagen. Inventados: dirección, NIF, terminal, tarjeta, autorización y número de operación. Dos cupones «GRATIS» (PROMO LIDL PLUS, sangradas: se proponen como descuento de su producto, por confirmar, y por eso queda pendiente), pago con tarjeta y la sección de cupones y puntos de la app detrás del ticket.",
+    "text": "Copia\nLIDL SUPERMERCADOS S.A.U.\nAvda. del Ejemplo, s/n\n39300Torrelavega\nNIF A00000000\nwww.lidl.es\nEUR\nACEITE DE GIRASOL                   1,84 B\n    PROMO LIDL PLUS                 -1,84\nNACHOS TEX MEX                      0,89 B\n    PROMO LIDL PLUS                 -0,89\nCAFÉ CON LECHE                      3,09 B\nBOLSA DE COMPRA                     0,15 C\nYATEKOMO POLLO        1,85x  2      3,70 B\nSOPA FIDEOS                         0,49 B\nINSTANT NOODLES       0,65x  2      1,30 B\nINSTANT NOODLES                     0,65 B\nHARIBO FUNKY TROPIF.                2,99 B\n-----------------------------------------\nTotal                               12,37\nENTREGA                             12,37\n-----------------------------------------\n000000000                        00000000\nA0000000041010                         00\nVENTA Mastercard\n000000XXXXXX0000                   000000\n21/11/2026                       17:09:32\nIMP.: 12,37 EUR\nRECIBO PARA EL CLIENTE\n IVA%       IVA    +    P N    =    PVP\nB  10%      1,11       11,11       12,22\nC  21%      0,03        0,12        0,15\nSuma        1,14       11,23       12,37\n¦         Desc. total en compra         ¦\n¦               2,73EUR               ¦\n¦        Total oferta Lidl Plus:        ¦\n¦               2,73 EUR              ¦\n0000   000000/00          21.11.26   17:07\nGRACIAS POR SU VISITA\nCupones canjeados\nGRATIS\nAceite de girasol 1 l\nGRATIS\nNachos Tex Mex 150 g\nPuntos obtenidos\n13 Puntos Lidl.\nEstos puntos caducarán el 20/11/2028",
+    "expected": {
+      "date": "2026-11-21", "time": "17:09", "totalCents": 1237, "status": "pendiente", "adjustments": [],
+      "lines": [
+        { "rawName": "ACEITE DE GIRASOL", "quantity": 1, "unitPriceCents": null, "amountCents": 184, "discountCents": 184, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "NACHOS TEX MEX", "quantity": 1, "unitPriceCents": null, "amountCents": 89, "discountCents": 89, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "CAFÉ CON LECHE", "quantity": 1, "unitPriceCents": null, "amountCents": 309, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "BOLSA DE COMPRA", "quantity": 1, "unitPriceCents": null, "amountCents": 15, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "C" },
+        { "rawName": "YATEKOMO POLLO", "quantity": 2, "unitPriceCents": 185, "amountCents": 370, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "SOPA FIDEOS", "quantity": 1, "unitPriceCents": null, "amountCents": 49, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "INSTANT NOODLES", "quantity": 2, "unitPriceCents": 65, "amountCents": 130, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "INSTANT NOODLES", "quantity": 1, "unitPriceCents": null, "amountCents": 65, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" },
+        { "rawName": "HARIBO FUNKY TROPIF.", "quantity": 1, "unitPriceCents": null, "amountCents": 299, "discountCents": 0, "weightKg": null, "pricePerKgCents": null, "taxCode": "B" }
+      ] }
   }
 ]

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import type { TicketSuggestion } from '#shared/tickets/ticketMatch.ts'
 import { parseTicket, type ParsedTicket } from '#shared/tickets/ticketParse.ts'
+import { nameKey } from '#shared/tickets/ticketText.ts'
 import type { PantryActivity, PantryItem, PantryPurchaseChange } from '#shared/pantry/types.ts'
 import type {
   OcrLine,
@@ -128,6 +129,39 @@ describe('lector de tickets (OCR real) con el ticket sintético de Torrelavega',
     })
     // La publicidad de después («CHOCOLATE NEGRO 72% 1,29 B») no es una compra.
     expect(ticket.lines.some(l => /CHOCOLATE/.test(l.rawName))).toBe(false)
+  })
+})
+
+describe('lector de tickets (OCR real) con la captura sintética de Lidl Plus con cupones', () => {
+  const reader = createTesseractReader()
+  afterAll(() => reader.close())
+  const truth = JSON.parse(readFileSync(new URL('../../../fixtures/tickets/ticket-lidl-plus-cupones.json', import.meta.url), 'utf8')) as {
+    date: string; time: string; totalCents: number; adjustments: number[]
+    lines: { rawName: string; amountCents: number; quantity: number; unitPriceCents: number | null }[]
+  }
+  it('lee entre las barras del móvil, con los cupones en azul y la app detrás, sin aceptar ningún importe erróneo en silencio', { timeout: 120_000 }, async () => {
+    // Imagen SINTÉTICA con las líneas de una captura de Lidl Plus que aportó el usuario; los datos de pago y de la tienda son inventados.
+    const ticket = parseTicket(await reader.read([readFileSync(new URL('../../../fixtures/tickets/ticket-lidl-plus-cupones-sintetico.png', import.meta.url))]))
+    expect(ticket).toMatchObject({ totalCents: truth.totalCents, date: truth.date, time: truth.time, paymentMethod: 'Tarjeta' })
+    expect(['cuadra', 'pendiente']).toContain(ticket.check.status)
+    expect(ticket.check.differenceCents).toBe(0)
+    // Por la clave: el OCR puede perder el punto final de «TROPIF.».
+    expect(ticket.lines.map(l => l.key)).toEqual(truth.lines.map(l => nameKey(l.rawName)))
+    // Sin preparar la imagen como el navegador, la banda de importes se relee peor: lo que no sale
+    // como en el ticket (cantidad, precio o importe) tiene que quedar marcado.
+    truth.lines.forEach((real, i) => {
+      const line = ticket.lines[i]
+      const same = line.quantity === real.quantity && line.unitPriceCents === real.unitPriceCents && line.amountCents === real.amountCents
+      if (!same) expect(line.flags.length, real.rawName).toBeGreaterThan(0)
+    })
+    // Los PROMO LIDL PLUS, como ajustes o como descuento sugerido (y marcado) de su producto;
+    // los cupones «GRATIS» y los puntos de la app no son compras.
+    const promos = ticket.lines.filter(l => l.discountCents !== 0)
+    for (const line of promos) expect(line.flags.length, line.rawName).toBeGreaterThan(0)
+    expect([...ticket.adjustments.map(a => a.amountCents ?? Number.NaN), ...promos.map(l => -l.discountCents)].sort((a, b) => a - b))
+      .toEqual([...truth.adjustments].sort((a, b) => a - b))
+    expect(ticket.lines.some(l => /GRATIS|Puntos/i.test(l.rawName))).toBe(false)
+    expect(ticket.taxGroups?.map(g => g.code)).toEqual(['B', 'C'])
   })
 })
 
