@@ -249,7 +249,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | FIX-01 | Los cuatro fallos graves del último push | — | verificado |
 | FIX-02 | Los fallos medios de la lectura y la revisión de tickets | FIX-01 | verificado |
 | DOC-02 | Estado y documentación al día tras el push | FIX-02 | verificado |
-| UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | pendiente |
+| UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | verificado |
 | UX-01 | Guardar sin esperar | UX-00 | pendiente |
 | UX-02 | Despensa instantánea | UX-00 | pendiente |
 | UX-03 | Añadir movimientos en segundos | UX-01 | pendiente |
@@ -655,3 +655,31 @@ Plantilla:
   - **El banco**: la tabla «después» en `tools/banco-tickets/despues.md`, medida en el mismo equipo y con el código de FIX-02: **625 de 696 limpias y 0 cifras mal sin marcar** (la partida: 22 mal sin marcar). La fila «real-N» sigue pendiente de los tickets reales (PERSONA).
   - **Comandos**: `npm run check` (tipos, oxlint con 1 aviso y Vitest 1629/1629, con `tests/docs.test.ts`); `npm run medir:tickets -- --solo-sinteticos --guardar tools/banco-tickets/despues.md`. No se repitieron `npm run build`, los e2e ni las de .NET: esta tarea no cambia código y se pasaron con el mismo código en FIX-02 (74 y 80, con 4 omitidas en cada una; .NET 2286).
   - **Siguiente tarea**: UX-00.
+
+- **UX-00 · 23 de noviembre de 2026 · base `4cd7fa1`** (DOC-02):
+  - **Alcance**: la línea base de la interfaz, sin cambiarla. Con `e2e/medidas-interfaz.spec.ts` (nuevo; se salta sin CUENTAS_MEDIDAS_DIR):
+    - en la base de pruebas, con `ejemplo/copia-de-ejemplo.json` y seis productos inventados, y el reloj en el 28 de octubre de 2026;
+    - capturas de las 7 pantallas y de los diálogos de añadir movimiento, pagar, producto y ticket, en escritorio (1280 × 720) y Pixel 7 (412 × 839), en claro y en oscuro;
+    - guardadas en .medidas-interfaz/ux00 (nueva línea en `.gitignore`).
+  - **Cómo se cuenta un toque**: pulsar algo es 1; elegir en una lista, 2 (abrirla y elegir); escribir en un campo que no tenía el foco, 1 (tocarlo), y lo escrito va aparte («campos»).
+  - **Números** (iguales en escritorio y en el móvil salvo donde se dice):
+
+    | Medida | UX-00 |
+    | --- | --- |
+    | Añadir un gasto | 5 toques y 2 campos |
+    | Añadir un ingreso | 7 toques y 2 campos (cambiar el tipo quita el foco del importe) |
+    | Marcar pagado | 2 toques |
+    | Añadir un producto | 2 toques y 1 campo (solo el nombre) |
+    | + / − del primer producto | 2: hay que desplazarse, el primer + está a 777 px de arriba en escritorio (pantalla de 720) y a 1162 px en el móvil (839) |
+    | Escanear un ticket (texto pegado, una duda) | 6 toques y 1 campo |
+    | Ver el mes | 0 toques (es lo que se abre) |
+    | JS y CSS al abrir (`npm run build`) | un solo archivo para todos: 458,8 kB de JS (136,5 kB comprimido) y 45,4 kB de CSS (9,5 kB); el invitado descarga lo mismo que con el código. Aparte, el Web Worker de los tickets (5,8 kB) y la fuente (34 kB latina y 19 kB latina extendida) |
+    | Abrir con el código | 4 peticiones (auth/me, occurrences/generate, data y meta), unos 90 ms |
+    | Guardar un movimiento | 3 peticiones (PUT, GET /data y GET /meta) antes de cerrar el diálogo, unos 200-220 ms |
+    | Volver a la Despensa | 5 peticiones (todo otra vez), unos 50 ms en local |
+    | Objetivos de menos de 44 px (escritorio / móvil) | Resumen 17 / 15, Año 20 / 18, Movimientos 14 / 12, Recurrentes 2 / 0, Presupuestos 11 / 9, Despensa 10 / 8, Ajustes 2 / 0, diálogo de movimiento 18 / 15, diálogo de producto 10 / 8 |
+
+    - Los objetivos pequeños más repetidos: `btn--small` (45), los meses del gráfico del año (12), el nombre de cada producto (12), los enlaces «Mes | Año» (6) y los `link-btn` (8).
+    - Los tiempos son en el equipo de desarrollo, con el servidor en local: sirven para comparar, no como lo que tarda en el móvil por la wifi de casa.
+  - **Comandos**: `CUENTAS_MEDIDAS_DIR=… npx playwright test e2e/medidas-interfaz.spec.ts` (Chrome 158, MySQL 8.4.13 de ensayo): 2 pasan. En la suite normal se salta: los e2e pasan a tener 6 omitidas (antes 4).
+  - **Siguiente tarea**: UX-01.

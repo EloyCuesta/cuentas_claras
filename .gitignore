@@ -49,3 +49,6 @@ dist-dotnet
 
 # Banco de medida de tickets: imágenes generadas y resultados (tools/banco-tickets/)
 .banco-tickets
+
+# Capturas y medidas de la interfaz (e2e/medidas-interfaz.spec.ts, con CUENTAS_MEDIDAS_DIR)
+.medidas-interfaz
