@@ -192,6 +192,56 @@ test('une varias capturas con la app alrededor: ni productos repetidos ni texto 
   await expect(review.getByRole('button', { name: /^Pan barra rústica.*2 líneas/ })).toBeVisible()
 })
 
+/** El límite de lienzo de Safari en el iPhone (unos 16,7 millones de píxeles): uno más grande no da contexto. */
+const SAFARI_CANVAS_PIXELS = 16_777_216
+
+test('una foto de 24 MP de lado se gira y se lee sin pasar el límite de lienzo de Safari', async ({ page }) => {
+  test.setTimeout(150_000)
+  await page.clock.setFixedTime(new Date('2026-10-29T10:00:00+01:00'))
+  await page.goto('/')
+  // Una foto de 6000 × 4000 (24 MP, como la de un iPhone) con el ticket de ejemplo de lado, girado a la izquierda.
+  const photo = await page.evaluate(async (png) => {
+    const image = new Image()
+    image.src = `data:image/png;base64,${png}`
+    await image.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = 6000
+    canvas.height = 4000
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#fff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    const scale = 0.95 * Math.min(canvas.width / image.height, canvas.height / image.width)
+    ctx.translate(canvas.width / 2, canvas.height / 2)
+    ctx.rotate(-Math.PI / 2)
+    ctx.scale(scale, scale)
+    ctx.drawImage(image, -image.width / 2, -image.height / 2)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9))
+    canvas.width = canvas.height = 0
+    const bytes = new Uint8Array(await blob!.arrayBuffer())
+    let binary = ''
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+    return btoa(binary)
+  }, readFileSync('fixtures/tickets/ticket-lidl-ejemplo.png').toString('base64'))
+  // Como Safari: un lienzo de más píxeles no da contexto, y preparar la imagen fallaría.
+  await page.evaluate((limit) => {
+    const getContext = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: unknown[]) {
+      return this.width * this.height > limit ? null : (getContext as (...a: unknown[]) => unknown).apply(this, args)
+    } as typeof getContext
+  }, SAFARI_CANVAS_PIXELS)
+
+  await page.getByRole('button', { name: 'Escanear ticket' }).click()
+  const scan = page.getByRole('dialog', { name: 'Escanear un ticket' })
+  await scan.getByTestId('ticket-input').setInputFiles({ name: 'foto-de-lado.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo, 'base64') })
+  await scan.getByRole('button', { name: 'Girar imagen 1' }).click()
+  await page.getByRole('button', { name: 'Leer', exact: true }).click()
+  const review = page.getByRole('dialog', { name: 'Revisar el ticket' })
+  await expect(review).toBeVisible({ timeout: 120_000 })
+  // Girada hacia el lado bueno: se lee el ticket.
+  await expect(review.getByLabel('Tienda')).toHaveValue('Lidl')
+  await expect(review.getByLabel('Total del ticket')).toHaveValue('52,51')
+})
+
 async function pasteTicket(page: Page, lines: string[]) {
   await page.getByRole('button', { name: 'Escanear ticket' }).click()
   const scan = page.getByRole('dialog', { name: 'Escanear un ticket' })
@@ -261,6 +311,28 @@ test('«Dejar pendiente»: la línea se guarda en el ticket, pero no toca la des
   const detail = page.getByRole('dialog', { name: 'Lidl · 28/10/2026' })
   await expect(detail).toContainText('pendiente: no actualiza la despensa')
   await expect(detail).toContainText('Leído por el OCR: 92,90 € · calculado: 9,90 €')
+})
+
+test('una fecha a medio escribir en «Editar datos del ticket» no tira la app, y la buena se guarda', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-29T10:00:00+01:00'))
+  await page.goto('/')
+  const review = await pasteTicket(page, POTATO_TICKET)
+  const summary = review.getByRole('region', { name: 'Resumen del ticket' })
+  await expect(summary).toContainText('Lidl · 28/10/2026 · 19:24')
+  await review.getByText('Editar datos del ticket', { exact: true }).click()
+  const date = review.getByLabel('Fecha de la compra')
+  // Al escribir el año cifra a cifra, el selector de fecha pasa por «0002-10-28»; y se puede vaciar.
+  await date.fill('0002-10-28')
+  await expect(summary).toContainText('Lidl · 19:24')
+  await date.fill('')
+  await expect(summary).toContainText('Lidl · 19:24')
+  await date.fill('2026-10-27')
+  await expect(summary).toContainText('Lidl · 27/10/2026 · 19:24')
+
+  await review.getByRole('group', { name: 'Comprobar PATATA NUEVA 5 KG' }).getByRole('button', { name: 'Usar 9,90 €', exact: true }).click()
+  await review.getByRole('button', { name: 'Guardar ticket' }).click()
+  await expect(review).toBeHidden()
+  await expect(page.getByRole('region', { name: 'Últimas compras' })).toContainText('Lidl · 27/10/2026')
 })
 
 /** Un ticket guardado directamente por la API (sin leer ninguna imagen). */

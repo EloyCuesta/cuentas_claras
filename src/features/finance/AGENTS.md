@@ -14,7 +14,7 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 | RecurringPage | `pages/RecurringPage.tsx` | Recurrentes y financiaciones | «abrir varias veces la aplicación no duplica vencimientos» |
 | BudgetsPage | `pages/BudgetsPage.tsx` | Presupuestos por categoría | — |
 | SettingsPage | `pages/SettingsPage.tsx` | Copias (BackupPanel), categorías (CategoryEditor) y sesión | «exportar y restaurar una copia…», «rechaza una copia no válida…», «crea, renombra y elimina categorías…», «eliminar una categoría con movimientos…» |
-| MovementDialog, PaymentDialog, RecurringDialog | `components/` | Crear y editar un movimiento, confirmar un pago y editar un recurrente | «valida los campos obligatorios», «marcar un pago pendiente como pagado…» |
+| MovementDialog, PaymentDialog, RecurringDialog | `components/` | Crear y editar un movimiento, confirmar un pago y editar un recurrente | «valida los campos obligatorios», «una fecha prevista a medio escribir…», «marcar un pago pendiente como pagado…» |
 | Resto de `components/` | | Piezas de las páginas: Ledger, CategoryChart, CategoryTable, CategoryMonthGrid, MonthlyTrendChart, BudgetSummary, DueList, MovementList, PeriodPicker y PeriodSwitch | las de su página |
 
 ## Estado y datos

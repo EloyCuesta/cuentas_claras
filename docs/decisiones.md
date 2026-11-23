@@ -165,7 +165,16 @@ Cuesta unos 3 s en todo el banco. Con la banda bien calculada llega a 685 de 696
 
 Lo que cuesta: la huella de origen sale de los bytes de las franjas, así que un ticket guardado con la preparación de antes y vuelto a escanear sale como **posible duplicado** (misma tienda, fecha, hora y total), no como repetido. Lo comprueba `server/modules/tickets/tickets.test.ts`.
 
-**Votar el importe: sin dudas solo si las lecturas coinciden.** Con la tercera lectura, el analizador da un importe por bueno sin marcarlo solo si al menos dos lecturas dan exactamente esa cifra y ninguna dice otra cosa. Cuentan como desacuerdo una lectura deformada («0,739») y una cifra sin coma.
+**Votar el importe: sin dudas solo si las lecturas coinciden.** Con la tercera lectura, el analizador da un importe por bueno sin marcarlo solo si al menos dos lecturas dan exactamente esa cifra y ninguna dice otra cosa. Cuentan como desacuerdo una lectura deformada («0,739») y una cifra sin coma, también la que se descarta por estar en el nombre.
+
+**Qué cifra sin coma sale del nombre (FIX-01).** Antes se descartaba cualquier cifra sin coma que empezara por un número del nombre, y no contaba para nada. Con «LECHE ENTERA 1L», una lectura «149» se descartaba por empezar por «1». Entonces bastaban las dos relecturas de la banda, que son el mismo recorte y pueden equivocarse igual («1,43»), para dar la línea por buena.
+
+Ahora:
+- solo se descarta si es igual a un número del nombre, o si empieza por uno de dos cifras o más («SERVILLETAS 100U» y «100»; «MANTEQUILLA 250G» y «2506»);
+- aun descartada, no deja votar, porque «100» también puede ser «1,00» sin la coma;
+- si dice otra cifra que el importe elegido, la línea se marca: «Las lecturas del importe no coinciden».
+
+Los casos están en `shared/tickets/ticketSafety.test.ts` (4e y 4f) y en el corpus.
 
 Cuando coinciden así, se quitan las marcas que solo eran sospechas:
 - «Lectura de baja confianza»;

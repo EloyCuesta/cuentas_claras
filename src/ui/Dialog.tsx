@@ -1,5 +1,34 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { Component, useEffect, useId, useRef, type ReactNode } from 'react'
 import { Icon } from './Icon.tsx'
+
+/**
+ * Si algo falla al pintar el contenido de una ventana, se queda la ventana con
+ * un aviso en lugar de quedarse la página en blanco: el resto de la app sigue
+ * como estaba. React escribe el error en la consola.
+ */
+class DialogBoundary extends Component<{ onClose: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <>
+        <div className="dialog__body">
+          <DialogError message="Algo ha fallado al mostrar esta ventana. Ciérrala y vuelve a intentarlo: lo que ya estaba guardado no se ha perdido." />
+        </div>
+        <div className="dialog__footer">
+          <button type="button" className="btn btn--primary" onClick={this.props.onClose}>
+            Cerrar esta ventana
+          </button>
+        </div>
+      </>
+    )
+  }
+}
 
 interface DialogProps {
   title: string
@@ -48,7 +77,7 @@ export function Dialog({ title, onClose, children, size = 'form' }: DialogProps)
           <Icon name="close" />
         </button>
       </div>
-      {children}
+      <DialogBoundary onClose={onClose}>{children}</DialogBoundary>
     </dialog>
   )
 }

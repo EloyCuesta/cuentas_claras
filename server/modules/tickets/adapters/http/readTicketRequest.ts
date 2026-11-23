@@ -2,7 +2,7 @@ import { isValidISODate } from '#shared/common/dates.ts'
 import type { ISODate } from '#shared/common/types.ts'
 import type { TicketSegment } from '#shared/tickets/types.ts'
 import { AppError } from '../../../../common/errors.ts'
-import { imageInfo } from '../../../../common/imageInfo.ts'
+import { IMAGE_LIMITS, imageInfo } from '../../../../common/imageInfo.ts'
 import type { TicketSourceInput } from '../../application/ReadTicket.ts'
 
 /**
@@ -18,7 +18,6 @@ import type { TicketSourceInput } from '../../application/ReadTicket.ts'
 
 const MAX_IMAGES = 6
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
-const MAX_PIXELS = 40_000_000
 const MAX_TEXT = 20_000
 
 function decodeImages(value: unknown, max = MAX_IMAGES): Buffer[] {
@@ -33,7 +32,7 @@ function decodeImages(value: unknown, max = MAX_IMAGES): Buffer[] {
     if (buffer.length > MAX_IMAGE_BYTES) throw new AppError('VALIDATION', `La imagen ${i + 1} es demasiado grande (máximo 8 MB).`)
     const info = imageInfo(buffer)
     if (!info) throw new AppError('VALIDATION', `La imagen ${i + 1} no es una imagen PNG o JPEG.`)
-    if (info.width * info.height > MAX_PIXELS || info.width > 8000 || info.height > 40000) {
+    if (info.width * info.height > IMAGE_LIMITS.maxPixels || info.width > IMAGE_LIMITS.maxWidth || info.height > IMAGE_LIMITS.maxHeight) {
       throw new AppError('VALIDATION', `La imagen ${i + 1} es demasiado grande para leerla.`)
     }
     return buffer
@@ -61,7 +60,7 @@ function readSegments(franjas: unknown[], images: readonly Buffer[]): Omit<Ticke
     const info = imageInfo(images[i])!
     const prev = previous.get(Number(imageIndex))
     if (
-      info.height > 4096 ||
+      info.height > IMAGE_LIMITS.maxSegmentHeight ||
       Number(offsetY) + info.height > Number(fullHeight) ||
       (prev
         ? Number(segmentIndex) !== prev.segment + 1 ||

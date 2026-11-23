@@ -1,4 +1,5 @@
 import { deflateSync, inflateSync } from 'node:zlib'
+import { IMAGE_LIMITS } from '../../../../common/imageInfo.ts'
 
 /**
  * PNG en gris, sin dependencias (node:zlib): decodificar una franja, recortar
@@ -6,6 +7,11 @@ import { deflateSync, inflateSync } from 'node:zlib'
  * banda de importes otra vez a otra escala: una lectura independiente para
  * votar el importe. Solo PNG de 8 bits sin entrelazar (lo que da un canvas);
  * con cualquier otra cosa devuelve null y el lector no vota.
+ *
+ * La ruta de lectura es pública, así que el decodificador no se fía de nada:
+ * usa solo la cabecera que validó la petición (el primer bloque, un IHDR de 13
+ * bytes, y uno solo), con los mismos límites (IMAGE_LIMITS), y nunca
+ * descomprime más de lo que dice esa cabecera. Cualquier cosa rara da null.
  */
 
 export interface Gray {
@@ -25,41 +31,49 @@ const paeth = (a: number, b: number, c: number) => {
   return pa <= pb && pa <= pc ? a : pb <= pc ? b : c
 }
 
-/** Un PNG a gris (0-255), o null si no es un PNG que se sepa leer. */
+/** Firma (8) + longitud, tipo, cuerpo de 13 bytes y CRC del IHDR (25). */
+const HEADER_END = 8 + 25
+
+/** Un PNG a gris (0-255), o null si no es un PNG que se sepa leer o viene malformado. */
 export function decodePngGray(png: Uint8Array): Gray | null {
   const buffer = Buffer.from(png.buffer, png.byteOffset, png.byteLength)
-  if (buffer.length < 33 || !buffer.subarray(0, 8).equals(SIGNATURE)) return null
-  let width = 0
-  let height = 0
-  let channels = 0
+  if (buffer.length < HEADER_END || !buffer.subarray(0, 8).equals(SIGNATURE)) return null
+  // El primer bloque es el IHDR, de 13 bytes: el mismo que lee imageInfo al validar la petición.
+  if (buffer.readUInt32BE(8) !== 13 || buffer.toString('latin1', 12, 16) !== 'IHDR') return null
+  const width = buffer.readUInt32BE(16)
+  const height = buffer.readUInt32BE(20)
+  const [depth, color, compression, filterMethod, interlace] = buffer.subarray(24, 29)
+  const channels = CHANNELS[color] ?? 0
+  if (depth !== 8 || channels === 0 || compression !== 0 || filterMethod !== 0 || interlace !== 0) return null
+  if (width === 0 || height === 0 || width > IMAGE_LIMITS.maxWidth || height > IMAGE_LIMITS.maxHeight || width * height > IMAGE_LIMITS.maxPixels) return null
   const chunks: Buffer[] = []
-  for (let at = 8; at + 8 <= buffer.length;) {
+  for (let at = HEADER_END; at + 12 <= buffer.length;) {
     const length = buffer.readUInt32BE(at)
+    if (at + 12 + length > buffer.length) return null
     const type = buffer.toString('latin1', at + 4, at + 8)
-    const body = buffer.subarray(at + 8, at + 8 + length)
-    if (type === 'IHDR') {
-      width = body.readUInt32BE(0)
-      height = body.readUInt32BE(4)
-      channels = CHANNELS[body[9]] ?? 0
-      if (body[8] !== 8 || body[12] !== 0 || channels === 0) return null
-    } else if (type === 'IDAT') chunks.push(body)
-    else if (type === 'IEND') break
+    // Otro IHDR cambiaría el tamaño que se validó.
+    if (type === 'IHDR') return null
+    if (type === 'IDAT') chunks.push(buffer.subarray(at + 8, at + 8 + length))
     at += 12 + length
+    if (type === 'IEND') break
   }
-  if (!width || !height) return null
+  if (chunks.length === 0) return null
+  const stride = width * channels
+  // Lo que ocupan las filas, cada una con su byte de filtro: ni un byte más (una «bomba» de compresión se corta aquí).
+  const expected = height * (stride + 1)
   let raw: Buffer
   try {
-    raw = inflateSync(Buffer.concat(chunks))
+    raw = inflateSync(Buffer.concat(chunks), { maxOutputLength: expected })
   } catch {
     return null
   }
-  const stride = width * channels
-  if (raw.length < height * (stride + 1)) return null
+  if (raw.length !== expected) return null
   const gray = new Uint8Array(width * height)
   let previous = new Uint8Array(stride)
   let row = new Uint8Array(stride)
   for (let y = 0; y < height; y++) {
     const filter = raw[y * (stride + 1)]
+    if (filter > 4) return null
     const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1))
     for (let i = 0; i < stride; i++) {
       const left = i >= channels ? row[i - channels] : 0

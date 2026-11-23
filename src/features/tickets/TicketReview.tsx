@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { formatDate } from '#shared/common/dates.ts'
+import { formatDate, isValidISODate } from '#shared/common/dates.ts'
 import { centsToInput, formatEuros } from '#shared/common/money.ts'
 import { FREQUENCY_LABELS, PANTRY_FREQUENCIES } from '#shared/pantry/pantry.ts'
 import type { TicketDraft } from '#shared/tickets/ticketMatch.ts'
@@ -103,7 +103,8 @@ export function TicketReview({ draft, review, onChange, items, people, previews,
     setExpanded({ key, place: 'list' })
   }
   const total = readAmount(review.totalText)
-  const when = [review.date ? formatDate(review.date) : null, review.time || null].filter(Boolean).join(' · ')
+  // Mientras se escribe, el selector de fecha da valores como «0002-10-28»: solo se enseña una fecha válida.
+  const when = [isValidISODate(review.date) ? formatDate(review.date) : null, review.time || null].filter(Boolean).join(' · ')
 
   /** El editor de un producto: qué producto es y cada una de sus líneas. */
   const editor = (key: string, lines: readonly ReviewLine[]) => {

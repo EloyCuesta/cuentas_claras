@@ -8,9 +8,9 @@ Pruebas de extremo a extremo con Playwright, en Chromium, en escritorio y en mó
 
 | Archivo | Qué prueba |
 | --- | --- |
-| `e2e/app.spec.ts` | Las finanzas, con sesión: primer gasto, validación, guardado con la relectura fallida y reintento tras perder la respuesta (sin duplicar), categorías (crear, renombrar, borrar y pasar sus movimientos a otra), editar y borrar, pagar sin duplicar, vencimientos sin duplicar, copias, CSV, plantilla anual y migración del navegador |
+| `e2e/app.spec.ts` | Las finanzas, con sesión: primer gasto, validación, una fecha prevista a medio escribir, guardado con la relectura fallida y reintento tras perder la respuesta (sin duplicar), categorías (crear, renombrar, borrar y pasar sus movimientos a otra), editar y borrar, pagar sin duplicar, vencimientos sin duplicar, copias, CSV, plantilla anual y migración del navegador |
 | `e2e/despensa.spec.ts` | El invitado y la despensa: no ve finanzas, personas y productos, lista y WhatsApp, + y −, comprar y deshacer, dos móviles con + a la vez (otro contexto del navegador; el servidor suma los dos), dos móviles editando el mismo producto (el segundo recibe el conflicto, conserva lo escrito y lo vuelve a cargar), copiar sin portapapeles, entrar y cerrar sesión, sesión caducada |
-| `e2e/tickets.spec.ts` | Escanear un ticket con el OCR real, revisarlo y guardarlo, importes dudosos, «Dejar pendiente», lo que toca revisar días después y el repaso de la semana |
+| `e2e/tickets.spec.ts` | Escanear un ticket con el OCR real, revisarlo y guardarlo, una foto de 24 MP girada con el límite de lienzo de Safari emulado, importes dudosos, «Dejar pendiente», una fecha a medio escribir en la revisión, lo que toca revisar días después y el repaso de la semana |
 | `e2e/auth.ts` | `E2E_CODE`, `signIn` y `resetDatabase` (contra Express, POST /api/test/reset; contra .NET, SQL directo) |
 | `e2e/test.ts` | El `test` de las pruebas de la app (el mismo contra los dos backends), `againstDotnet()` y `newPhone(browser)`, que abre otro móvil (otro contexto) en español y con la hora de Madrid |
 | `e2e/prepareDatabase.ts` | Antes de arrancar el servidor de pruebas, crea la base `cuentas_claras_e2e` si falta (con las `CUENTAS_DB_*`) |

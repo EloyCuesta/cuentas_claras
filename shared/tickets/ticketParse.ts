@@ -506,9 +506,9 @@ interface WorkLine {
   /**
    * Cada lectura del importe por separado, con sus cifras en bruto: la del texto, la relectura de la
    * banda y las otras lecturas independientes (null si una no tiene importe). `loose`: las cifras sin
-   * coma que se han tomado como candidatas.
+   * coma que se han tomado como candidatas; `nameLoose`, las que se han descartado por estar en el nombre.
    */
-  readings: { text: AmountToken | null; reread: AmountToken | null; extra: (AmountToken | null)[]; loose: string[] }
+  readings: { text: AmountToken | null; reread: AmountToken | null; extra: (AmountToken | null)[]; loose: string[]; nameLoose: string[] }
   /** Las dos pasadas del OCR leyeron igual el precio y la cantidad (o el peso y el precio por kilo). */
   inputsStable: boolean
   confidence: { amount?: number; inputs?: number }
@@ -612,13 +612,20 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
   if (fromReread?.amount) addCandidate(amount, fromReread.amount.cents, fromReread.amount.clean ? 2 : 1.5)
   for (const extra of fromExtra) if (extra.amount) addCandidate(amount, extra.amount.cents, extra.amount.clean ? 2 : 1.5)
   if (fromText.amount) addCandidate(amount, fromText.amount.cents, fromText.amount.clean ? 2.5 : 0.7)
-  // Un importe sin coma («378») es poco fiable, y nunca si sus cifras están en el nombre («SERVILLETAS 100U», relectura «100»).
+  // Un importe sin coma («378») es poco fiable. Se descarta si es un número del nombre («SERVILLETAS 100U»,
+  // relectura «100») o si empieza por uno de dos cifras o más («MANTEQUILLA 250G», «2506»); por uno de una
+  // cifra, no: casi cualquier importe empieza por 1 («LECHE 1L», «149»). Aun descartada, no deja votar y, si
+  // dice otra cifra que el importe elegido, marca la línea (selectLine).
   const nameNumbers = rawName.match(/\d+/g) ?? []
   const looseDigits: string[] = []
+  const nameLoose: string[] = []
   for (const reading of [fromReread, ...fromExtra, fromText]) {
     if (!reading || reading.looseAmountCents === null) continue
     const digits = String(reading.looseAmountCents)
-    if (nameNumbers.some((n) => digits.startsWith(n) || n.startsWith(digits))) continue
+    if (nameNumbers.some((n) => digits === n || (n.length >= 2 && (digits.startsWith(n) || n.startsWith(digits))))) {
+      nameLoose.push(digits)
+      continue
+    }
     addCandidate(amount, reading.looseAmountCents, 0.4)
     looseDigits.push(digits)
   }
@@ -664,7 +671,7 @@ function readItemLine(line: OcrLine, position: number): WorkLine | null {
     pricePerKgCents: null,
     taxCode,
     amount,
-    readings: { text: fromText.amount, reread: fromReread?.amount ?? null, extra: fromExtra.map((r) => r.amount), loose: looseDigits },
+    readings: { text: fromText.amount, reread: fromReread?.amount ?? null, extra: fromExtra.map((r) => r.amount), loose: looseDigits, nameLoose },
     inputsStable,
     confidence: wordConfidence(line),
     discounts: [],
@@ -726,9 +733,10 @@ function selectLine(line: WorkLine): ParsedTicketLine {
   let selectedBy: TicketEvidence['selectedBy'] = textToken?.cents !== amount && [rereadToken, ...extraTokens].some(t => t?.cents === amount) ? 'reread' : 'read'
   let discrepancy: TicketDiscrepancy | undefined
   // Votación: con otra lectura independiente (a otra escala), un importe es fiable si al menos dos lecturas
-  // dan exactamente esa cifra y ninguna dice otra cosa (tampoco una deformada ni una sin coma).
-  const voted = amount !== null && extraTokens.length > 0 && line.readings.loose.length === 0 && tokens.length >= 2 &&
-    tokens.every(t => t.clean && t.cents === amount)
+  // dan exactamente esa cifra y ninguna dice otra cosa (tampoco una deformada ni una sin coma, aunque se
+  // haya descartado por estar en el nombre).
+  const voted = amount !== null && extraTokens.length > 0 && line.readings.loose.length === 0 && line.readings.nameLoose.length === 0 &&
+    tokens.length >= 2 && tokens.every(t => t.clean && t.cents === amount)
 
   const weighted = line.weightKg !== null && line.pricePerKgCents !== null
   const grams = weighted ? Math.round(line.weightKg! * 1000) : 0
@@ -800,6 +808,11 @@ function selectLine(line: WorkLine): ParsedTicketLine {
   if (chosen !== null && line.readings.loose.includes(String(chosen.cents)) && !readings.some(r => r.cents === chosen.cents) &&
     !verifiedByArithmetic && amount === chosen.cents) {
     issues.push(`El importe se ha leído sin coma («${line.readings.loose[0] ?? printedDigits(chosen.cents)}»): confírmalo`)
+  }
+  // Una cifra sin coma descartada por estar en el nombre («SERVILLETAS 100U», «100») también puede ser el
+  // importe sin la coma («1,00»): si dice otra cosa que el importe elegido, las lecturas no coinciden.
+  if (amount !== null && !verifiedByArithmetic && line.readings.nameLoose.some(digits => digits !== String(Math.abs(amount!)))) {
+    issues.push('Las lecturas del importe no coinciden')
   }
   // Tres lecturas que coinciden resuelven la poca confianza y las dudas de una cifra confundida.
   if ((line.source.confidence ?? 100) < 75 && !verifiedByArithmetic && !voted) issues.push('Lectura de baja confianza')

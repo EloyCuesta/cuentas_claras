@@ -10,6 +10,15 @@ export interface ImageInfo {
   height: number
 }
 
+/**
+ * Lo más grande que se lee de una imagen de ticket. Lo comprueba la petición
+ * (`server/modules/tickets/adapters/http/readTicketRequest.ts`) con esta
+ * cabecera, y otra vez el decodificador PNG de la tercera lectura
+ * (`server/modules/tickets/adapters/tesseract/pngImage.ts`). Una franja mide
+ * como mucho `maxSegmentHeight` de alto.
+ */
+export const IMAGE_LIMITS = { maxWidth: 8000, maxHeight: 40_000, maxPixels: 40_000_000, maxSegmentHeight: 4096 } as const
+
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 
 function pngInfo(buffer: Buffer): ImageInfo | null {

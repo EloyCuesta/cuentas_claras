@@ -186,7 +186,7 @@ Lo que se compra en casa, separado por persona para que lo individual no se mezc
 
 - **Escanear ticket**: lo mejor es la imagen completa del ticket que da Lidl Plus; si no, una captura larga o varias que se solapen un poco (hasta 6), o una foto del ticket de papel. Las capturas que se solapan se unen en una sola imagen antes de leerlas, así que nada sale repetido; si dos no se solapan, la app lo avisa antes de leer («puede faltar una parte del ticket»). También se puede pegar el texto del ticket (por ejemplo, el que llega por email).
 - **Se lee en este equipo**: el texto se reconoce con Tesseract (OCR) en el propio servidor, con el modelo de español que se instala con `npm install`. No se envía nada a Internet y **las imágenes no se guardan**: solo los datos del ticket que confirmes. Antes de enviarla, el navegador prepara una copia:
-  - la gira si se lo pides;
+  - la gira si se lo pides (también una foto grande de móvil, que no cabría entera en el lienzo del navegador);
   - la recorta al papel del ticket (fuera la barra de estado, la cabecera y el fondo de la app, también en modo oscuro);
   - la escala para que las letras tengan el tamaño que mejor lee el OCR;
   - la divide en franjas si es muy larga;
@@ -198,7 +198,7 @@ Lo que se compra en casa, separado por persona para que lo individual no se mezc
   - **Precio × cantidad** («4,95X 2 9,90 A») y **peso × precio por kilo** («0,544 kg x 6,75 EUR/kg» = 3,67 €), en céntimos exactos. «5 KG» o «5 QUESOS» son parte del nombre, no la cantidad.
   - Si el importe leído no coincide (el OCR leyó «92,90»), la app busca qué campo tiene el error: si un error de una cifra en el importe lo explica y ninguno en el precio o la cantidad daría esa cifra, **propone el calculado (9,90 €)**; si los dos lo explicarían (5,08 frente a 2,84 × 2), **no elige ninguno** y te enseña las dos opciones. Una segunda lectura que coincide con el cálculo, o lo que confía el OCR en cada palabra, también cuentan.
   - Una lectura con cifras de más («2,939») o con un «-» pegado detrás («1,15-»), la letra del IVA leída como cifra («3,73 5» por «3,79B») o dos lecturas distintas marcan la línea, aunque el total cuadre.
-  - Un importe sin coma («2525») nunca se da por bueno, y unas cifras del nombre («SERVILLETAS 100U») nunca son el importe. Una multiplicación que no se lee entera («2,75X», «79X 2») marca la línea en vez de darla por una unidad, y una línea de peso que no se lee marca su producto.
+  - Un importe sin coma («2525») nunca se da por bueno, y unas cifras del nombre («SERVILLETAS 100U») nunca son el importe, pero tampoco dejan dar por buena otra cifra que no coincida. Una multiplicación que no se lee entera («2,75X», «79X 2») marca la línea en vez de darla por una unidad, y una línea de peso que no se lee marca su producto.
   - Las letras parecidas a cifras («5,O8», «I,29») solo se cambian dentro de un importe; la B detrás del importe es la letra del IVA, no un 8.
 - **Revisar antes de guardar**, pensado para el móvil:
   - arriba, un resumen (tienda, fecha y hora, total), si cuadra y cuántas líneas faltan por revisar; los datos del ticket se corrigen en «Editar datos del ticket»;

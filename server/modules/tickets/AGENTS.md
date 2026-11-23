@@ -46,6 +46,7 @@ Qué es un duplicado está en `application/duplicates.ts`, y la identidad de un 
 - El total del ticket nunca decide un importe (lo hace `shared/tickets/`).
 - El OCR es local: tesseract.js con el modelo de español de node_modules, y nada sale a Internet. Las imágenes no se guardan.
 - Límites del cuerpo: 30 MB para `/tickets/leer` (`server/app.ts`). Cada imagen hasta 8 MB, 20 MB en total, 6 imágenes o 24 franjas.
+- Límites de tamaño: los de IMAGE_LIMITS (`server/common/imageInfo.ts`), es decir, 8000 px de ancho, 40 000 de alto, 40 millones de píxeles y 4096 de alto por franja. La ruta es pública, así que el decodificador PNG de la tercera lectura (`adapters/tesseract/pngImage.ts`) los vuelve a aplicar con la misma cabecera que validó la petición (el primer bloque, un IHDR de 13 bytes, y uno solo). Además, no descomprime más de lo que dice esa cabecera y da null ante cualquier PNG malformado.
 
 ## Datos
 - `pantry_tickets`: la huella es única. También guarda `import_id` y `source_fingerprint`, sin imágenes.
@@ -62,7 +63,7 @@ Son de la migración MySQL 5 (`database/mysql/migrations/005-esquema-inicial.sql
 
 `ticketAtomicity.test.ts` provoca un fallo real de MySQL en la segunda línea (su id ya está ocupado) y compara todas las filas antes y después: rollback completo y reintento sin duplicados. Con dos conexiones, dos guardados iguales a la vez (un 201 y un 409, sin efectos dobles) y un ticket y un + a la vez sobre el mismo producto. Y la restauración financiera, sin alterar tickets ni despensa.
 
-`adapters/tesseract/amountColumn.test.ts`: la banda de importes que relee el lector (empieza tras las 20 columnas del nombre, sale aunque falten importes en muchas líneas y no cuenta los precios por kilo). `adapters/tesseract/pngImage.test.ts`: el PNG en gris de la tercera lectura (leer, reescalar y codificar). El efecto del lector en tickets enteros se mide con el banco (`tools/banco-tickets/`).
+`adapters/tesseract/amountColumn.test.ts`: la banda de importes que relee el lector (empieza tras las 20 columnas del nombre, sale aunque falten importes en muchas líneas y no cuenta los precios por kilo). `adapters/tesseract/pngImage.test.ts`: el PNG en gris de la tercera lectura (leer, reescalar y codificar), y que un PNG malformado (IHDR corto o repetido, bloques que se salen, filtros que no existen), fuera de los límites o una «bomba» de compresión da null sin lanzar. El efecto del lector en tickets enteros se mide con el banco (`tools/banco-tickets/`).
 
 `adapters/tesseract/ocrWorker.test.ts`: el worker del OCR que usa el backend .NET (TIC-02) responde por stdin/stdout lo mismo que el lector, explica los errores y termina al cerrar stdin.
 

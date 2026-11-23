@@ -10,7 +10,8 @@ import {
  *
  * 1. Cada imagen se gira y se recorta si se pide, y se analiza una copia en
  *    gris (ticketImageAnalysis.ts): el tono del papel, dónde está el papel y la
- *    altura de las letras.
+ *    altura de las letras. El giro se aplica al dibujar cada copia (drawRotated),
+ *    nunca en un lienzo del tamaño de la foto, y cada lienzo se libera al acabar.
  * 2. Varias capturas del mismo ticket se unen en una sola imagen: se quitan las
  *    bandas fijas (barra de estado, cabecera, navegación), se busca cuánto se
  *    desplaza cada una respecto a la anterior y se pega solo lo nuevo. Si dos no
@@ -178,9 +179,66 @@ export function imageLayout(width: number, height: number) {
   return { scale, width: outputWidth, height: outputHeight, offsets }
 }
 
+/** Un rectángulo en píxeles (x, y, ancho y alto). */
+export interface PixelRect { x: number; y: number; width: number; height: number }
+
+/**
+ * El trozo de la imagen original (`naturalWidth` × `naturalHeight`) que se ve
+ * en `rect` cuando la imagen se gira `rotation` grados en el sentido de las
+ * agujas del reloj (90 y 270 intercambian el ancho y el alto).
+ */
+export function rotatedSourceRect(rotation: TicketImageOptions['rotation'], naturalWidth: number, naturalHeight: number, rect: PixelRect): PixelRect {
+  const { x, y, width, height } = rect
+  if (rotation === 90) return { x: y, y: naturalHeight - x - width, width: height, height: width }
+  if (rotation === 180) return { x: naturalWidth - x - width, y: naturalHeight - y - height, width, height }
+  if (rotation === 270) return { x: naturalWidth - y - height, y: x, width: height, height: width }
+  return rect
+}
+
+/**
+ * Dibuja en `ctx`, en el destino (dx, dy, dw, dh), el trozo `rect` de la imagen
+ * girada. El giro va en la transformación del lienzo: nunca se crea un lienzo
+ * del tamaño de la imagen girada (una foto de 24 MP no cabe en el de Safari).
+ * Sin giro es el mismo drawImage de siempre.
+ */
+function drawRotated(ctx: CanvasRenderingContext2D, image: HTMLImageElement, rotation: TicketImageOptions['rotation'], rect: PixelRect,
+  dx: number, dy: number, dw: number, dh: number): void {
+  if (rotation === 0) {
+    ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height, dx, dy, dw, dh)
+    return
+  }
+  const source = rotatedSourceRect(rotation, image.naturalWidth, image.naturalHeight, rect)
+  ctx.save()
+  try {
+    // En unidades del trozo girado, con el origen en su esquina; después se gira alrededor del trozo.
+    ctx.translate(dx, dy)
+    ctx.scale(dw / rect.width, dh / rect.height)
+    if (rotation === 90) { ctx.translate(rect.width, 0); ctx.rotate(Math.PI / 2) }
+    if (rotation === 180) { ctx.translate(rect.width, rect.height); ctx.rotate(Math.PI) }
+    if (rotation === 270) { ctx.translate(0, rect.height); ctx.rotate(-Math.PI / 2) }
+    ctx.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, source.width, source.height)
+  } finally {
+    ctx.restore()
+  }
+}
+
+/** Un lienzo de trabajo que se libera siempre al terminar, también si algo falla. */
+async function withCanvas<T>(width: number, height: number, draw: (canvas: HTMLCanvasElement) => T | Promise<T>): Promise<T> {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  try {
+    return await draw(canvas)
+  } finally {
+    canvas.width = canvas.height = 0
+  }
+}
+
 /** Una imagen elegida, girada, recortada a mano si se pidió y con su copia de análisis. */
 interface Source {
-  drawable: CanvasImageSource
+  /** La imagen original, sin girar: el giro se aplica al dibujarla (drawRotated). */
+  image: HTMLImageElement
+  rotation: TicketImageOptions['rotation']
   /** Lo que se usa de la imagen original, ya girada (en sus píxeles). */
   crop: Box
   /** Píxeles de la copia de análisis por píxel original. */
@@ -200,18 +258,6 @@ async function decode(file: Blob, options: TicketImageOptions): Promise<Source> 
   const height = options.rotation % 180 ? image.naturalWidth : image.naturalHeight
   const { crop } = options
   if (Object.values(crop).some(n => !Number.isFinite(n) || n < 0 || n > 90) || crop.left + crop.right >= 95 || crop.top + crop.bottom >= 95) throw new TicketImageError('El recorte debe conservar una zona legible del ticket.')
-  let drawable: CanvasImageSource = image
-  if (options.rotation !== 0) {
-    const rotated = document.createElement('canvas')
-    rotated.width = width; rotated.height = height
-    const ctx = rotated.getContext('2d')
-    if (!ctx) throw new TicketImageError('Este navegador no puede preparar la imagen.')
-    if (options.rotation === 90) { ctx.translate(width, 0); ctx.rotate(Math.PI / 2) }
-    if (options.rotation === 180) { ctx.translate(width, height); ctx.rotate(Math.PI) }
-    if (options.rotation === 270) { ctx.translate(0, height); ctx.rotate(-Math.PI / 2) }
-    ctx.drawImage(image, 0, 0)
-    drawable = rotated
-  }
   const box: Box = {
     left: Math.floor(width * crop.left / 100), top: Math.floor(height * crop.top / 100),
     right: Math.ceil(width * (1 - crop.right / 100)), bottom: Math.ceil(height * (1 - crop.bottom / 100)),
@@ -219,20 +265,20 @@ async function decode(file: Blob, options: TicketImageOptions): Promise<Source> 
   const cropWidth = box.right - box.left
   const cropHeight = box.bottom - box.top
   const factor = Math.min(1, ANALYSIS_WIDTH / cropWidth, Math.sqrt(ANALYSIS_PIXELS / (cropWidth * cropHeight)))
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.round(cropWidth * factor)); canvas.height = Math.max(1, Math.round(cropHeight * factor))
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  if (!ctx) throw new TicketImageError('Este navegador no puede preparar la imagen.')
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(drawable, box.left, box.top, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height)
-  const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+  // La copia de análisis, ya girada y reducida: como mucho 16 millones de píxeles.
+  const { rgba, analysisWidth, analysisHeight } = await withCanvas(Math.max(1, Math.round(cropWidth * factor)), Math.max(1, Math.round(cropHeight * factor)), (canvas) => {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) throw new TicketImageError('Este navegador no puede preparar la imagen.')
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
+    drawRotated(ctx, image, options.rotation, { x: box.left, y: box.top, width: cropWidth, height: cropHeight }, 0, 0, canvas.width, canvas.height)
+    return { rgba: ctx.getImageData(0, 0, canvas.width, canvas.height).data, analysisWidth: canvas.width, analysisHeight: canvas.height }
+  })
   const range = luminanceRange(rgba)
-  let gray = grayFromRgba(rgba, canvas.width, canvas.height)
-  canvas.width = canvas.height = 1
+  let gray = grayFromRgba(rgba, analysisWidth, analysisHeight)
   const { tone, dark } = paperTone(gray)
   if (dark) gray = invertGray(gray)
-  return { drawable, crop: box, factor, gray, tone, dark, range, autoCrop: options.autoCrop }
+  return { image, rotation: options.rotation, crop: box, factor, gray, tone, dark, range, autoCrop: options.autoCrop }
 }
 
 /** Un trozo de una imagen elegida dentro de una imagen unida: sus filas (en la copia de análisis) y dónde van. */
@@ -388,40 +434,40 @@ export async function prepareTicketImages(selections: readonly { file: Blob; opt
     if (offsets.length + segments.length > MAX_SEGMENTS || outputHeight > 160000) throw new TicketImageError('El ticket es demasiado largo. Recorta la publicidad o elige capturas de la zona de compra.')
     const enhance = !screen && !dark && needsEnhancement(sourcesOf[0].range)
     for (const [segmentIndex, offsetY] of offsets.entries()) {
-      const canvas = document.createElement('canvas')
-      canvas.width = outputWidth; canvas.height = Math.min(STRIP_HEIGHT, outputHeight - offsetY)
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new TicketImageError('Este navegador no puede preparar la imagen.')
-      ctx.fillStyle = dark ? '#000' : '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
-      // Copia de análisis → imagen enviada: (y - content.top) / factor × scale.
-      const toOutput = scale / factor
-      for (const piece of group.pieces) {
-        const from = Math.max(piece.y, content.top)
-        const to = Math.min(piece.y + piece.bottom - piece.top, content.bottom)
-        const dy0 = (from - content.top) * toOutput - offsetY
-        const dy1 = (to - content.top) * toOutput - offsetY
-        if (to <= from || dy1 <= 0 || dy0 >= canvas.height) continue
-        const source = sources[piece.source]
-        const sy = (piece.top + from - piece.y) / factor
-        ctx.drawImage(source.drawable,
-          source.crop.left + (group.left + content.left) / factor, source.crop.top + sy, originalWidth, (to - from) / factor,
-          0, dy0, outputWidth, dy1 - dy0)
-      }
-      if (dark || enhance) {
-        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        if (dark) invertRgba(pixels.data)
-        else enhanceForOcr(pixels.data, canvas.width, canvas.height, sourcesOf[0].range, scale > 1.3)
-        ctx.putImageData(pixels, 0, 0)
-      }
-      let blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, screen ? 'image/png' : 'image/jpeg', 0.92))
-      // Una franja de pantalla que no cabe en PNG va en JPEG.
-      if (blob && screen && (blob.size > MAX_SEGMENT_BYTES || bytes + blob.size > MAX_TOTAL_BYTES)) blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+      const blob = await withCanvas(outputWidth, Math.min(STRIP_HEIGHT, outputHeight - offsetY), async (canvas) => {
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new TicketImageError('Este navegador no puede preparar la imagen.')
+        ctx.fillStyle = dark ? '#000' : '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'
+        // Copia de análisis → imagen enviada: (y - content.top) / factor × scale.
+        const toOutput = scale / factor
+        for (const piece of group.pieces) {
+          const from = Math.max(piece.y, content.top)
+          const to = Math.min(piece.y + piece.bottom - piece.top, content.bottom)
+          const dy0 = (from - content.top) * toOutput - offsetY
+          const dy1 = (to - content.top) * toOutput - offsetY
+          if (to <= from || dy1 <= 0 || dy0 >= canvas.height) continue
+          const source = sources[piece.source]
+          const sy = (piece.top + from - piece.y) / factor
+          drawRotated(ctx, source.image, source.rotation,
+            { x: source.crop.left + (group.left + content.left) / factor, y: source.crop.top + sy, width: originalWidth, height: (to - from) / factor },
+            0, dy0, outputWidth, dy1 - dy0)
+        }
+        if (dark || enhance) {
+          const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          if (dark) invertRgba(pixels.data)
+          else enhanceForOcr(pixels.data, canvas.width, canvas.height, sourcesOf[0].range, scale > 1.3)
+          ctx.putImageData(pixels, 0, 0)
+        }
+        let blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, screen ? 'image/png' : 'image/jpeg', 0.92))
+        // Una franja de pantalla que no cabe en PNG va en JPEG.
+        if (blob && screen && (blob.size > MAX_SEGMENT_BYTES || bytes + blob.size > MAX_TOTAL_BYTES)) blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+        return blob
+      })
       if (!blob) throw new TicketImageError('No se ha podido preparar una franja del ticket.')
       bytes += blob.size
       if (blob.size > MAX_SEGMENT_BYTES || bytes > MAX_TOTAL_BYTES) throw new TicketImageError('Las imágenes son demasiado grandes. Recorta los márgenes y la publicidad.')
       segments.push({ image: await toBase64(blob), imageIndex, segmentIndex, offsetY, fullHeight: outputHeight })
-      canvas.width = canvas.height = 1
     }
   }
   if (segments.length > MAX_SEGMENTS || bytes > MAX_TOTAL_BYTES) throw new TicketImageError('El conjunto supera 24 franjas o 20 MB. Recorta las zonas informativas antes de leer.')

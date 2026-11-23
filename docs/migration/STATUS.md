@@ -1,6 +1,6 @@
 # Estado y tareas de la migración
 
-Última actualización: 19 de noviembre de 2026 (reglas de la lectura de tickets de Lidl Plus, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
+Última actualización: 23 de noviembre de 2026 (FIX-01 de terminar-el-proyecto, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
 
 ## Estado comprobado
 
@@ -623,6 +623,21 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 
   Un host .NET arrancado aparte con `dotnet run` bloqueaba `backend/src/CuentasClaras.Api/bin`. No se tocó: se compiló y probó con `--artifacts-path` en una carpeta fuera de git.
 - Sin ejecutar todavía en esta entrada: `npm run test:e2e:dotnet` (al terminar la interfaz).
+
+### FIX-01 de terminar-el-proyecto: reglas y corpus de tickets, 23 de noviembre de 2026 (no es un ID de la migración)
+
+- Base: `d0b383a` (main `c622210` más `docs/terminar-el-proyecto.md`), en la rama local terminar-proyecto, sin commit. El uso diario sigue en Express; .NET tiene que dar lo mismo. La entrada completa, con el resto de FIX-01, está en el registro de [terminar-el-proyecto.md](../terminar-el-proyecto.md).
+- Regla portada a C#: qué cifra sin coma se descarta por estar en el nombre (`shared/tickets/ticketParse.ts` → `backend/src/CuentasClaras.Domain/Tickets/TicketParser.cs`, WorkLine.NameLoose).
+  - Solo se descarta si es igual a un número del nombre o empieza por uno de dos cifras o más.
+  - La descartada impide votar, y si dice otra cifra que el importe elegido, añade «Las lecturas del importe no coinciden».
+- Corpus: de 535 a 538 casos (`lidl-plus-sin-coma-nombre-corto`, `-voto` e `-igual`). No cambia ninguno de los anteriores: el diff solo añade. Generado con Node 24.13.0. `tests/migrationTicketRules.test.ts` y TicketRulesCorpusTests esperan 538.
+- El OCR de .NET usa el worker Node (`server/modules/tickets/adapters/tesseract/ocrWorker.ts`), así que también le llegan los límites nuevos del PNG de la tercera lectura.
+- Comandos, en Windows con el MySQL 8.4.13 de ensayo:
+  - `npm run build:dotnet`: 0 avisos y 0 errores;
+  - `npm run test:dotnet`: 2272/2272;
+  - `npm run test:e2e:dotnet`: 74 pasan y 4 se omiten;
+  - `npm run check`: Vitest 1606/1606;
+  - `npm run test:e2e`: 68 pasan y 4 se omiten.
 
 ### Plantilla para la siguiente tarea
 

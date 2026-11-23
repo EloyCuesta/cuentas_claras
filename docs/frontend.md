@@ -57,7 +57,7 @@ Con el `#` de la URL (`src/ui/useHashRoute.ts`): `#resumen`, `#anual`, `#movimie
 ## Accesibilidad
 
 - Cada campo tiene su etiqueta, y su error asociado (`aria-describedby`). Al enviar con errores, el foco va al primer campo con error (`focusFirstError` en `src/ui/helpers.ts`).
-- Ventanas modales nativas (`<dialog>`, en `src/ui/Dialog.tsx`), con el foco dentro y Escape para cerrar.
+- Ventanas modales nativas (`<dialog>`, en `src/ui/Dialog.tsx`), con el foco dentro y Escape para cerrar. Si algo falla al pintar su contenido, la ventana se queda con el aviso «Algo ha fallado al mostrar esta ventana…» (`role="alert"`) y el botón «Cerrar esta ventana» (DialogBoundary), y el resto de la app sigue como estaba.
 - Navegable con teclado, con «Saltar al contenido», y avisos con `role="status"` o `role="alert"`.
 - Contraste AA en modo claro y oscuro, revisado con axe sin incidencias.
 - Los e2e buscan por rol, nombre y etiqueta: un texto de la interfaz es parte del contrato con los tests (cada feature lista los suyos en su AGENTS.md).

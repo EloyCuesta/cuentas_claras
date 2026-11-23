@@ -142,6 +142,22 @@ test('valida los campos obligatorios', async ({ page }) => {
   expect(await storedMovements(page)).toBe(0)
 })
 
+test('una fecha prevista a medio escribir no cierra la ventana al pasar el gasto a pagado', async ({ page }) => {
+  await page.goto('/')
+  await openNewMovement(page)
+  const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+  await dialog.getByRole('radio', { name: 'Pendiente' }).check()
+  // Al escribir el año cifra a cifra, el selector de fecha pasa por «0002-…».
+  await dialog.getByLabel('Fecha prevista o de vencimiento').fill('0002-11-30')
+  await dialog.getByRole('radio', { name: 'Pagado' }).check()
+  await expect(dialog.getByLabel('Fecha de pago')).toBeVisible()
+  await expect(dialog.getByText(/Vencimiento previsto/)).toHaveCount(0)
+  await dialog.getByRole('radio', { name: 'Pendiente' }).check()
+  await dialog.getByLabel('Fecha prevista o de vencimiento').fill('2026-11-30')
+  await dialog.getByRole('radio', { name: 'Pagado' }).check()
+  await expect(dialog.getByText('Vencimiento previsto: 30/11/2026.')).toBeVisible()
+})
+
 test('si se guarda pero la pantalla no se puede recargar, avisa y no hay que repetirlo', async ({ page }) => {
   await page.goto('/')
   let failNextReload = false

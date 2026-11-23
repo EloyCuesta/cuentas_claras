@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { enhanceForOcr, imageLayout, imageQuality, luminanceRange, needsEnhancement } from './ticketImages.ts'
+import { enhanceForOcr, imageLayout, imageQuality, luminanceRange, needsEnhancement, rotatedSourceRect, type TicketImageOptions } from './ticketImages.ts'
 
 /** Una imagen RGBA de un solo canal repetido. */
 const gray = (values: number[]) => {
@@ -42,6 +42,31 @@ describe('preparación de la imagen del ticket', () => {
     expect(layout.width).toBe(1300)
     expect(layout.offsets.every((y, i) => i === 0 || y - layout.offsets[i - 1] === 4096 - 128)).toBe(true)
     expect(layout.offsets.at(-1)! + 4096).toBeGreaterThanOrEqual(layout.height)
+  })
+})
+
+describe('girar sin un lienzo del tamaño de la imagen', () => {
+  // Una imagen de 4 × 3 con un valor distinto en cada píxel, y la misma girada como la gira un lienzo
+  // (en el sentido de las agujas del reloj), píxel a píxel.
+  const W = 4
+  const H = 3
+  const original = (u: number, v: number) => v * W + u
+  const rotated = (rotation: TicketImageOptions['rotation'], x: number, y: number) =>
+    rotation === 0 ? original(x, y) : rotation === 90 ? original(y, H - 1 - x) : rotation === 180 ? original(W - 1 - x, H - 1 - y) : original(W - 1 - y, x)
+  const pixels = (rect: { x: number; y: number; width: number; height: number }, at: (x: number, y: number) => number) => {
+    const values: number[] = []
+    for (let y = rect.y; y < rect.y + rect.height; y++) for (let x = rect.x; x < rect.x + rect.width; x++) values.push(at(x, y))
+    return values.sort((a, b) => a - b)
+  }
+  it.each([0, 90, 180, 270] as const)('un trozo de la imagen girada %i° sale del mismo trozo de la original', (rotation) => {
+    const [width, height] = rotation % 180 ? [H, W] : [W, H]
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      for (let h = 1; y + h <= height; h++) for (let w = 1; x + w <= width; w++) {
+        const rect = { x, y, width: w, height: h }
+        const source = rotatedSourceRect(rotation, W, H, rect)
+        expect(pixels(source, original), `${rotation}° ${JSON.stringify(rect)}`).toEqual(pixels(rect, (a, b) => rotated(rotation, a, b)))
+      }
+    }
   })
 })
 

@@ -25,8 +25,8 @@ Leyendo: el paso y los segundos («Uniendo 3 capturas», «Leyendo el ticket… 
 ## Componentes
 | Componente | Archivo | Qué hace | Test e2e (`e2e/tickets.spec.ts`) |
 | --- | --- | --- | --- |
-| TicketScanDialog | `TicketScanDialog.tsx` | Los pasos elegir (miniaturas, aviso de solape y «Leer» en el pie) → leyendo (paso y segundos) → revisar → guardar (con confirmación si hay advertencias) | «lee la captura de un ticket de Lidl, se revisa y se guarda», «une varias capturas con la app alrededor…» |
-| TicketReview | `TicketReview.tsx` | La revisión: resumen y estado, tarjetas dudosas, productos (plegados si todo está bien), ajustes y texto que no parece un producto | los mismos, «lee la imagen completa que da Lidl Plus…» y «un importe mal leído…» |
+| TicketScanDialog | `TicketScanDialog.tsx` | Los pasos elegir (miniaturas, aviso de solape y «Leer» en el pie) → leyendo (paso y segundos) → revisar → guardar (con confirmación si hay advertencias) | «lee la captura de un ticket de Lidl, se revisa y se guarda», «une varias capturas con la app alrededor…», «una foto de 24 MP de lado se gira…» |
+| TicketReview | `TicketReview.tsx` | La revisión: resumen y estado, tarjetas dudosas, productos (plegados si todo está bien), ajustes y texto que no parece un producto | los mismos, «lee la imagen completa que da Lidl Plus…», «un importe mal leído…» y «una fecha a medio escribir en «Editar datos del ticket»…» |
 | TicketLineCheck, LineSnippet | `TicketLineCheck.tsx` | La tarjeta de una línea dudosa: la línea entera en la imagen (con «Ampliar»), lo leído frente a lo calculado, las acciones y «Por qué» | «un importe mal leído…», «Dejar pendiente…» |
 | TicketDetailDialog | `TicketDetailDialog.tsx` | Un ticket guardado: líneas, cambiar el producto y borrarlo | «lee la captura de un ticket de Lidl…» |
 | ticketReviewState | `ticketReviewState.ts` | El estado de la revisión, sin React (estados de cada línea, comprobación y lo que se guarda) | también en `ticketReviewState.test.ts` |
@@ -67,6 +67,8 @@ Los e2e usan estos nombres y atributos; no los cambies sin cambiar el test:
 - La escala sale de la altura de las mayúsculas medida en la imagen (`TARGET_TEXT_HEIGHT`, elegida con el banco de `tools/banco-tickets/`): con letras más grandes Tesseract pierde la columna de importes. Cambiar la preparación cambia la huella de origen (los bytes de las franjas): un ticket ya guardado vuelve a salir como posible duplicado, no como repetido (`server/modules/tickets/tickets.test.ts`).
 - El recorte a mano en porcentajes ya no se ofrece: lo sustituye el recorte automático al papel. La opción `crop` de TicketImageOptions sigue existiendo (y validándose) para quien la use.
 - Las franjas pueden ser PNG (pantalla) o JPEG (fotos): para enseñarlas, `segmentUrl` de `TicketLineCheck.tsx` pone el tipo correcto.
+- Girar no crea nunca un lienzo del tamaño de la foto: el giro va en la transformación del lienzo al dibujar la copia de análisis y cada franja (`drawRotated`), y cada lienzo se libera en un `finally`. Safari no da contexto a un lienzo de más de unos 16,7 millones de píxeles, y una foto de iPhone tiene 24. El e2e lo emula en Chrome.
+- La fecha del resumen sale de lo que hay en «Fecha de la compra», que mientras se escribe pasa por valores como «0002-10-28»: solo se formatea una fecha válida (`isValidISODate`). Si aun así algo falla al pintar la ventana, `Dialog` (`src/ui/Dialog.tsx`) enseña un aviso en lugar de tirar la app.
 - Los productos se pliegan solo cuando no queda ninguna línea dudosa; añadir un producto los despliega.
 
 ## Si cambias esta pantalla

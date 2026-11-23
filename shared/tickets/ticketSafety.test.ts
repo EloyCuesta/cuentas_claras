@@ -69,6 +69,25 @@ describe('regresiones de seguridad de tickets', () => {
     expect(loose.lines[0].amountCents === null || loose.lines[0].flags.length > 0).toBe(true)
     expect(loose.lines[0].flags.length).toBeGreaterThan(0)
   })
+  it('4e. una cifra sin coma solo se descarta si es un número del nombre: «149» no sale del «1» de «LECHE ENTERA 1L» y frena el voto', () => {
+    // Las dos relecturas de la banda son el mismo recorte y pueden equivocarse igual («1,43» por «1,49»).
+    const milk = parseLidl({ text: 'LECHE ENTERA 1L                     149 A', reread: '1,43 A', rereads: ['1,43 A'] })
+    expect(milk.lines[0]).toMatchObject({ rawName: 'LECHE ENTERA 1L', amountCents: 143 })
+    expect(milk.lines[0].flags).toContain('dudoso')
+    expect(milk.lines[0].evidence?.issues).toContain('Las lecturas del importe no coinciden')
+  })
+  it('4f. una cifra sin coma descartada por estar en el nombre no deja votar ni confirma otra cifra', () => {
+    // «100» puede salir de «SERVILLETAS 100U», o ser «1,00» sin la coma: no se usa, pero las relecturas («1,09») no bastan.
+    const napkins = parseLidl({ text: 'SERVILLETAS 100U                    100 A', reread: '1,09 A', rereads: ['1,09 A'] })
+    expect(napkins.lines[0]).toMatchObject({ rawName: 'SERVILLETAS 100U', amountCents: 109 })
+    expect(napkins.lines[0].flags).toContain('dudoso')
+    expect(napkins.lines[0].evidence?.issues).toContain('Las lecturas del importe no coinciden')
+    // Si dice lo mismo que el importe («100» y «1,00»), no lo contradice; pero tampoco lo confirma.
+    const same = parseLidl({ text: 'SERVILLETAS 100U                    100 A', reread: '1,00 A', rereads: ['1,00 A'] })
+    expect(same.lines[0]).toMatchObject({ rawName: 'SERVILLETAS 100U', amountCents: 100 })
+    expect(same.lines[0].flags).toContain('dudoso')
+    expect(same.lines[0].evidence?.issues).not.toContain('Las lecturas del importe no coinciden')
+  })
   it('4c. una multiplicación que no se puede leer marca la línea en vez de darla por 1 unidad', () => {
     const lentils = parseLidl({ text: 'LENTEJAS COCIDAS     O, 79X   2     1,58 A', reread: '79X 2 1,58 A' })
     const gel = parseLidl({ text: 'GEL DUCHA 750ML     1,1X 4    4,60 C', reread: '750 1,155X 4 4,60 C' })

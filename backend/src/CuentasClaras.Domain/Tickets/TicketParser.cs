@@ -547,6 +547,8 @@ public static class TicketParser
         public required IReadOnlyList<AmountTokenValue?> ExtraReadings { get; init; }
         /// <summary>Las cifras sin coma que se han tomado como candidatas («2525»).</summary>
         public required IReadOnlyList<string> Loose { get; init; }
+        /// <summary>Las cifras sin coma descartadas por estar en el nombre («100» de «SERVILLETAS 100U»).</summary>
+        public required IReadOnlyList<string> NameLoose { get; init; }
         /// <summary>Las dos pasadas del OCR leyeron igual el precio y la cantidad (o el peso y el precio por kilo).</summary>
         public required bool InputsStable { get; set; }
         public required OcrConfidence Confidence { get; set; }
@@ -683,14 +685,23 @@ public static class TicketParser
         foreach (var extra in fromExtra)
             if (extra.Amount is { } extraAmount) AddCandidate(amount, extraAmount.Cents, extraAmount.Clean ? 2 : 1.5);
         if (fromText.Amount is { } textAmount) AddCandidate(amount, textAmount.Cents, textAmount.Clean ? 2.5 : 0.7);
-        // Un importe sin coma («378») es poco fiable, y nunca si sus cifras están en el nombre («SERVILLETAS 100U», relectura «100»).
+        // Un importe sin coma («378») es poco fiable. Se descarta si es un número del nombre («SERVILLETAS 100U»,
+        // relectura «100») o si empieza por uno de dos cifras o más («MANTEQUILLA 250G», «2506»); por uno de una
+        // cifra, no: casi cualquier importe empieza por 1 («LECHE 1L», «149»). Aun descartada, no deja votar y, si
+        // dice otra cifra que el importe elegido, marca la línea (SelectLine).
         var nameNumbers = Digits.Matches(rawName).Select(match => match.Value).ToList();
         var looseDigits = new List<string>();
+        var nameLoose = new List<string>();
         foreach (var reading in new[] { fromReread }.Concat(fromExtra).Append(fromText))
         {
             if (reading?.LooseAmountCents is not { } loose) continue;
             var digits = JsNumber.ToString(loose);
-            if (nameNumbers.Any(number => digits.StartsWith(number, StringComparison.Ordinal) || number.StartsWith(digits, StringComparison.Ordinal))) continue;
+            if (nameNumbers.Any(number => digits == number ||
+                (number.Length >= 2 && (digits.StartsWith(number, StringComparison.Ordinal) || number.StartsWith(digits, StringComparison.Ordinal)))))
+            {
+                nameLoose.Add(digits);
+                continue;
+            }
             AddCandidate(amount, loose, 0.4);
             looseDigits.Add(digits);
         }
@@ -739,6 +750,7 @@ public static class TicketParser
             RereadReading = fromReread?.Amount,
             ExtraReadings = [.. fromExtra.Select(reading => reading.Amount)],
             Loose = looseDigits,
+            NameLoose = nameLoose,
             InputsStable = inputsStable,
             Confidence = WordConfidence(line),
             Source = line,
@@ -818,9 +830,10 @@ public static class TicketParser
         var selectedBy = textToken?.Cents != amount && new[] { rereadToken }.Concat(extraTokens).Any(token => token is not null && token.Cents == amount) ? "reread" : "read";
         TicketDiscrepancy? discrepancy = null;
         // Votación: con otra lectura independiente (a otra escala), un importe es fiable si al menos dos lecturas
-        // dan exactamente esa cifra y ninguna dice otra cosa (tampoco una deformada ni una sin coma).
-        var voted = amount is not null && extraTokens.Count > 0 && line.Loose.Count == 0 && tokens.Count >= 2 &&
-            tokens.All(token => token.Clean && token.Cents == amount);
+        // dan exactamente esa cifra y ninguna dice otra cosa (tampoco una deformada ni una sin coma, aunque se
+        // haya descartado por estar en el nombre).
+        var voted = amount is not null && extraTokens.Count > 0 && line.Loose.Count == 0 && line.NameLoose.Count == 0 &&
+            tokens.Count >= 2 && tokens.All(token => token.Clean && token.Cents == amount);
 
         var weighted = line.WeightKg is not null && line.PricePerKgCents is not null;
         var grams = weighted ? (long)JsNumber.Round(line.WeightKg!.Value * 1000) : 0;
@@ -913,6 +926,10 @@ public static class TicketParser
         if (chosen is not null && line.Loose.Contains(JsNumber.ToString(chosen.Cents)) && !readings.Any(reading => reading.Cents == chosen.Cents) &&
             !verifiedByArithmetic && amount == chosen.Cents)
             issues.Add($"El importe se ha leído sin coma («{(line.Loose.Count > 0 ? line.Loose[0] : TicketEvidenceRules.PrintedDigits(chosen.Cents))}»): confírmalo");
+        // Una cifra sin coma descartada por estar en el nombre («SERVILLETAS 100U», «100») también puede ser el
+        // importe sin la coma («1,00»): si dice otra cosa que el importe elegido, las lecturas no coinciden.
+        if (amount is { } selected && !verifiedByArithmetic && line.NameLoose.Any(digits => digits != JsNumber.ToString(Math.Abs(selected))))
+            issues.Add("Las lecturas del importe no coinciden");
         // Tres lecturas que coinciden resuelven la poca confianza y las dudas de una cifra confundida.
         if ((line.Source.Confidence ?? 100) < 75 && !verifiedByArithmetic && !voted) issues.Add("Lectura de baja confianza");
         if (!verifiedByArithmetic && !voted) issues.AddRange(line.AmountDoubts);

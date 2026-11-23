@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { categoryOptions } from '#shared/finance/categories.ts'
-import { formatDate } from '#shared/common/dates.ts'
+import { formatDate, isValidISODate } from '#shared/common/dates.ts'
 import { newId, nowISO } from '#shared/common/ids.ts'
 import { centsToInput, formatEuros } from '#shared/common/money.ts'
 import { categoryForConcept, conceptSuggestions } from '#shared/finance/suggestions.ts'
@@ -242,7 +242,7 @@ export function MovementDialog({
               id="mov-paid-date"
               label={isExpense ? 'Fecha de pago' : 'Fecha de cobro'}
               error={errors.paidDate}
-              hint={draft.dueDate ? `Vencimiento previsto: ${formatDate(draft.dueDate)}.` : undefined}
+              hint={isValidISODate(draft.dueDate) ? `Vencimiento previsto: ${formatDate(draft.dueDate)}.` : undefined}
             >
               {(control) => <DateInput control={control} value={draft.paidDate} onChange={(v) => set('paidDate', v)} today={today} />}
             </Field>

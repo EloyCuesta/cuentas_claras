@@ -37,7 +37,7 @@ Las reglas de `shared/tickets/` (y las de `server/modules/tickets/domain/`) tien
 - `shared/tickets/ticketParse.ts` está afinado para Lidl. El total del ticket nunca decide un importe: lo que no se puede asegurar se marca. En concreto:
   - Un importe sin dudas necesita al menos dos lecturas iguales (texto, banda y `rereads`) y ninguna distinta, ni deformada ni sin coma.
   - «2,75X» es un precio unitario, no un importe. Una multiplicación que no se lee («79X 2», «2,3% 2») marca la línea en vez de darla por 1 unidad.
-  - Un importe sin coma nunca es fiable, y se descarta si sus cifras están en el nombre («SERVILLETAS 100U»).
+  - Un importe sin coma nunca es fiable. Se descarta si es un número del nombre o empieza por uno de dos cifras o más («SERVILLETAS 100U», «MANTEQUILLA 250G»); por uno de una cifra, no («LECHE 1L» y «149»). Aun descartado, no deja votar, y si dice otra cifra que el importe, la línea se marca (`docs/decisiones.md`).
   - Una línea de peso ilegible marca el producto de encima, sin crear otro.
   - Pasada la cabecera de Lidl, una línea en mayúsculas es un producto aunque no tenga importe.
   - La PROMO sangrada bajo un producto se le propone como descuento (por confirmar). Sin sangrar, es un ajuste.

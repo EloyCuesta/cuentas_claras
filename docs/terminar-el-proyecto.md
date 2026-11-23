@@ -246,7 +246,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 
 | ID | Entrega | Depende de | Estado |
 | --- | --- | --- | --- |
-| FIX-01 | Los cuatro fallos graves del último push | — | pendiente |
+| FIX-01 | Los cuatro fallos graves del último push | — | verificado |
 | FIX-02 | Los fallos medios de la lectura y la revisión de tickets | FIX-01 | pendiente |
 | DOC-02 | Estado y documentación al día tras el push | FIX-02 | pendiente |
 | UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | pendiente |
@@ -311,11 +311,15 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
   - la votación exige la lectura del texto (o conserva la marca «solo en la relectura») hasta medir con tickets reales;
   - el comentario «Tres lecturas» se corrige;
   - el test relajado de los cupones se decide con el banco, y la regla de `server/modules/tickets/AGENTS.md` se ajusta a lo decidido.
+- **Tres lecturas iguales y equivocadas** (hallado en FIX-01): con las imágenes que dibuja hoy `npm run generar:tickets`, «ZANAHORIA BOLSA» de grande/completa-400 sale 0,73 en el texto, en la banda y en la banda a 1,5×, y es 0,79. La línea no se marca; solo lo delatan el total y el desglose de IVA del grupo A.
+  - Ya pasaba sin FIX-01: la tabla es idéntica con el código de partida.
+  - La confianza de Tesseract en la palabra del importe es 52, pero no sirve sola: marcar por debajo de 55 costaría 32 líneas limpias y bien leídas del banco (hay limpias con 0, 3 u 8).
+  - La persona decidió el 23 de noviembre que FIX-01 quedara verificado y que este caso entrara en la aceptación de esta tarea.
 - **El PNG**: decodificar solo las filas de la banda, o fuera del hilo principal.
 - **Los menores** que cuesten poco (lista de arriba).
 - **Aceptación**:
   - e2e para la línea de «confirmar producto», el aviso de capturas sin solape y los errores de cabecera;
-  - la tabla del banco no es peor que la de FIX-01;
+  - la tabla del banco no es peor que la de FIX-01 (629 de 696 limpias) y no tiene ninguna cifra mal sin marcar, tampoco la zanahoria de grande/completa-400;
   - cada regla cambiada está en TypeScript, en C# y en el corpus.
 
 ### DOC-02 · Estado y documentación al día
@@ -516,3 +520,54 @@ Plantilla:
   - números antes y después;
   - comandos con su resultado;
   - lo que queda pendiente y la siguiente tarea.
+
+- **FIX-01 · 23 de noviembre de 2026 · base `d0b383a`** (main `c622210` más este plan), en la rama local terminar-proyecto, sin commit:
+  - **Alcance**: los cuatro fallos graves, cada uno con un test que antes fallaba.
+  - **Hallazgos**: se confirman los cuatro. Además:
+    - el fallo de la fecha también estaba en `src/features/finance/components/MovementDialog.tsx`: una fecha prevista a medio escribir y «Pagado»;
+    - la tercera lectura también decodifica `{ imagenes }` enteras, no solo franjas, así que el PNG aplica los límites de imagen. Con franjas, los 4096 de alto quedan garantizados porque se usa la misma cabecera que validó la petición.
+
+    No se descarta ninguno.
+  - **Qué cambia**:
+    - **La fecha**: el resumen de la revisión y el aviso «Vencimiento previsto» solo formatean una fecha válida. `src/ui/Dialog.tsx` envuelve el contenido de cada ventana en DialogBoundary: si algo falla al pintarla, queda el aviso y el resto de la app sigue. Se comprobó quitando el arreglo de la fecha: la Despensa siguió a la vista y la ventana enseñó el aviso.
+    - **Girar**: `drawRotated` y `rotatedSourceRect` (`src/features/tickets/ticketImages.ts`) giran al dibujar la copia de análisis y cada franja, sin lienzos del tamaño de la foto. Los lienzos se liberan (0 × 0) en un `finally`. Sin giro, el dibujo es el mismo de antes.
+    - **Las cifras sin coma**: se descarta una cifra solo si es igual a un número del nombre, o si empieza por uno de dos cifras o más. La descartada no deja votar, y si dice otra cifra que el importe marca «Las lecturas del importe no coinciden». Va en `shared/tickets/ticketParse.ts` y `backend/src/CuentasClaras.Domain/Tickets/TicketParser.cs`, con tres casos nuevos en el corpus.
+    - **El PNG** (`server/modules/tickets/adapters/tesseract/pngImage.ts`):
+      - el primer bloque tiene que ser un IHDR de 13 bytes, y uno solo;
+      - límites compartidos con la petición (IMAGE_LIMITS en `server/common/imageInfo.ts`);
+      - `maxOutputLength = alto × (ancho × canales + 1)` y exactamente esos bytes;
+      - bloques dentro del archivo y filtros 0-4.
+
+      Cualquier otra cosa da null.
+  - **Archivos principales**: los cuatro de arriba, `src/features/tickets/TicketReview.tsx` y `tests/generateTicketRules.ts`. Los tests: `shared/tickets/ticketSafety.test.ts` (4e y 4f), `server/modules/tickets/adapters/tesseract/pngImage.test.ts`, `src/features/tickets/ticketImages.test.ts`, `e2e/tickets.spec.ts` y `e2e/app.spec.ts`.
+  - **Textos**: ninguno de los de antes cambia. Nuevos, solo cuando algo falla al pintar una ventana: «Algo ha fallado al mostrar esta ventana. Ciérrala y vuelve a intentarlo: lo que ya estaba guardado no se ha perdido.» (`role="alert"`) y el botón «Cerrar esta ventana». No se hicieron capturas porque ninguna pantalla cambia en su estado normal.
+  - **Pruebas que antes fallaban** (ejecutadas contra el código de partida):
+    - 4e y 4f: «LECHE ENTERA 1L» salía limpia con 1,43 aunque el texto decía «149»;
+    - del PNG: un IHDR corto lanzaba RangeError, se leían 8001 px de ancho y la bomba de 64 MB se descomprimía;
+    - tres e2e: la foto de 24 MP girada con el límite de lienzo de Safari emulado no llegaba a «Revisar el ticket», y las dos fechas a medio escribir dejaban la página sin la ventana.
+  - **Números**:
+
+    | Comprobación | Antes (según el mensaje de `c622210`) | Ahora |
+    | --- | --- | --- |
+    | Vitest | 1594 | 1606: 9 tests y 3 casos más del corpus |
+    | e2e contra Express | 62, y 4 omitidas | 68, y 4 omitidas |
+    | e2e contra .NET | 68, y 4 omitidas | 74, y 4 omitidas |
+    | .NET | 2266 | 2272 |
+    | Corpus de tickets | 535 casos | 538 casos |
+
+    - Banco sintético con las imágenes dibujadas hoy: **629 de 696 limpias (90 %) y 1 mal sin marcar**, idéntico con el código de partida (FIX-01 no cambia ninguna línea).
+    - Es «ZANAHORIA BOLSA» de grande/completa-400: las tres lecturas dan 0,73 y es 0,79. Pasa a FIX-02, por decisión de la persona.
+    - El texto de `docs/decisiones.md` hablaba de 663 limpias. Se midió antes de la fase 4 y de la fusión, con otras imágenes: hoy, en el mismo equipo, `npm run generar:tickets` dibuja las cinco imágenes de las e2e con otros bytes. Se restauraron las de git.
+  - **Comandos** (Windows; MySQL 8.4.13 de ensayo en el 3307 con el usuario cuentas_pruebas; Chrome 158.0.8127.37 con CUENTAS_E2E_CHANNEL=chrome; Node 24.13.0; .NET SDK 10.0.102):
+    - `npm run check`: tipos correctos; oxlint con los 2 avisos que ya había (TicketScanDialog y TicketLineCheck); Vitest 1606/1606 en 57 archivos;
+    - `npm run build`: correcto;
+    - `npm run test:e2e`: 68 pasan y 4 se omiten (las capturas reales);
+    - `npm run build:dotnet`: 0 avisos y 0 errores;
+    - `npm run test:dotnet`: 2272/2272;
+    - `npm run test:e2e:dotnet`: 74 pasan y 4 se omiten;
+    - `npm run generar:tickets` y `npm run medir:tickets -- --solo-sinteticos`: lo de arriba.
+  - **Pendiente**:
+    - la zanahoria, en FIX-02;
+    - el corte no se ha tocado;
+    - el Chromium de Playwright no está descargado en este equipo, así que se usó el Chrome instalado.
+  - **Siguiente tarea**: FIX-02.

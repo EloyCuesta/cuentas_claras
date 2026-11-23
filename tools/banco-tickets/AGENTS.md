@@ -77,6 +77,7 @@ Una PROMO de la verdad vale como ajuste o como descuento de la línea de encima.
 
 - `generar.ts` borra y rehace las imágenes de cada ticket. Si cambias `tickets.ts` o `plantilla.ts`, regenera y vuelve a medir; `verdad.test.ts` avisa si las verdades guardadas quedan atrás.
 - Dibujar depende de las fuentes del equipo (Consolas o DejaVu Sans Mono): en otro equipo las imágenes pueden cambiar un poco. Las de las e2e van en git para que no cambien.
+- También pueden cambiar en el mismo equipo, por ejemplo al actualizarse Chrome: el 23 de noviembre (Chrome 158) las cinco de las e2e salieron con otros bytes que las de git. `npm run generar:tickets` las reescribe en `fixtures/tickets/banco/`: si no quieres cambiar las e2e, devuélvelas a git (`git checkout -- fixtures/tickets/banco/`). Para comparar dos versiones del código, mide las dos con las mismas imágenes.
 - El primer uso del lector tarda en abrirse: el banco lo abre antes con el ticket de ejemplo y no lo cuenta.
 
 ## Si cambias algo aquí
