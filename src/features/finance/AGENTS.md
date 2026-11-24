@@ -27,7 +27,7 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 
 ## Textos y accesibilidad
 - Los e2e usan, entre otros, estos nombres; no los cambies sin cambiar el test:
-  - botones: «Añadir movimiento», «Añadir un gasto», «Guardar gasto», «Guardar cambios», «Marcar como pagado», «Eliminar movimiento», «Nuevo recurrente», «Guardar recurrente», «Descargar copia (JSON)», «Sustituir mis datos», «Exportar movimientos (CSV)» y «Descargar hoja de cálculo»;
+  - botones: «Añadir movimiento» (también con la tecla «n», `aria-keyshortcuts`), «Añadir ingreso» (en el lateral y en Movimientos, solo en el escritorio), «Añadir un gasto», «Guardar gasto», «Guardar y añadir otro», «Guardar cambios», «Hoy», «Ayer», «Marcar como pendiente» (con una fecha futura), los de «Más usadas» (el nombre corto de cada categoría), «Marcar como pagado», «Eliminar movimiento», «Nuevo recurrente», «Guardar recurrente», «Descargar copia (JSON)», «Sustituir mis datos», «Exportar movimientos (CSV)» y «Descargar hoja de cálculo»;
   - diálogos: «Nuevo movimiento», «Editar movimiento», «Confirmar pago», «Eliminar movimiento», «Nuevo recurrente» y «Restaurar copia»;
   - títulos: «Empieza apuntando tu primer gasto» y «Todavía no has apuntado ningún movimiento».
   - categorías (CategoryEditor, en la región «Categorías»): «Añadir categoría», «Añadir subcategoría a X», «Renombrar X» y «Eliminar X» (X es «Principal › Sub» en las subcategorías), los campos «Nueva categoría de gastos», «Nueva subcategoría de X» y «Nuevo nombre para «X»», el botón «Guardar», el diálogo «Eliminar «X»» con «Pasar a» y «Eliminar categoría», y los avisos «Categoría añadida», «Subcategoría añadida», «Categoría renombrada» y «Categoría «X» eliminada».
@@ -36,6 +36,7 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 - El almacenamiento se describe como «una base de datos MySQL de este equipo» (FinanceProvider, SummaryPage y BackupPanel); SQLite solo aparece en la importación de los datos de antes (`tools/importer/`).
 - `data-testid="restore-input"`, el selector de archivo de la copia, en `components/BackupPanel.tsx`.
 - Formularios con etiquetas y errores asociados, foco en el primer campo con error (`focusFirstError`) y ventanas `<dialog>` nativas.
+- MovementDialog (UX-03): el importe y «Tipo» (los radios «Gasto» e «Ingreso») en la misma fila; el grupo «Más usadas» (`role="group"`, sin la palabra «Categoría» para no confundir `getByLabel('Categoría')`); el estado («Pagado» o «Cobrado» y «Pendiente») y «Notas» dentro de «Más opciones», plegado salvo en un pendiente o con notas (también se abre si hay un error dentro).
 - Mientras guarda, «Guardar gasto» (y el resto) y «Marcar como pagado» llevan `aria-busy` y un círculo que gira, sin cambiar su nombre: si falla, se vuelven a pulsar igual.
 
 ## Pruebas
@@ -45,6 +46,8 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 - En el navegador, `e2e/app.spec.ts`: solo esas, `npx playwright test e2e/app.spec.ts --project=escritorio`.
 
 ## Trampas
+- Cambiar «Gasto | Ingreso» con el ratón o el dedo devuelve el foco al importe si lo tenía (MovementDialog); con el teclado, el foco se queda en los radios.
+- La categoría se propone por el concepto igual o, si no hay ninguno igual, por el más reciente que empieza por lo escrito (3 letras o más): `shared/finance/suggestions.ts`, con sus tests.
 - La fecha de hoy es la del navegador: el horizonte de los vencimientos se calcula aquí, no en el servidor.
 - Al volver a la pestaña con otro día, FinanceProvider vuelve a generar los vencimientos.
 - Un 401 en cualquier petición devuelve a la Despensa (lo gestiona la feature auth): FinanceProvider se desmonta y su estado se pierde.

@@ -130,11 +130,14 @@ export function AmountInput({
   value,
   onChange,
   autoFocus = false,
+  onEnter,
 }: {
   control: ControlProps
   value: string
   onChange: (value: string) => void
   autoFocus?: boolean
+  /** Intro (o «Siguiente» en el teclado del móvil): pasa al campo siguiente en lugar de enviar el formulario. */
+  onEnter?: () => void
 }) {
   return (
     <div className="input-affix">
@@ -142,10 +145,16 @@ export function AmountInput({
         {...control}
         className="input input--amount"
         inputMode="decimal"
+        enterKeyHint={onEnter ? 'next' : undefined}
         autoComplete="off"
         placeholder="0,00"
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={onEnter ? (event) => {
+          if (event.key !== 'Enter') return
+          event.preventDefault()
+          onEnter()
+        } : undefined}
         data-autofocus={autoFocus ? '' : undefined}
       />
       <span className="input-affix__suffix" aria-hidden="true">

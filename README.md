@@ -178,6 +178,17 @@ Cómo funciona:
 
 > **Importante:** en la red de casa la app va por **HTTP**, sin cifrar. El código y los datos viajan por la wifi tal cual. Vale para casa, pero **no expongas la aplicación a Internet** (sin abrir puertos en el router ni túneles).
 
+## Apuntar un gasto o un ingreso
+
+«Añadir movimiento» (o la tecla «n» en el ordenador) abre el formulario con el cursor en el importe:
+- «Gasto | Ingreso» está al lado del importe, y cambiarlo no te saca de él; en el ordenador hay también «Añadir ingreso»;
+- Intro pasa al concepto, que propone la categoría de la última vez (basta con el principio: «Merc» por «Mercadona»);
+- las categorías que más usas salen como botones, para elegirlas con un toque;
+- la fecha tiene «Hoy» y «Ayer»; el estado (pendiente) y las notas van en «Más opciones», y una fecha futura te propone apuntarlo como pendiente;
+- «Guardar y añadir otro» deja el formulario listo para el siguiente, con el mismo tipo y la misma fecha.
+
+Al guardar, el formulario se cierra en cuanto el servidor lo confirma.
+
 ## Despensa
 
 Lo que se compra en casa, separado por persona para que lo individual no se mezcle con lo compartido. Lo más cómodo es **escanear el ticket** después de cada compra: la app apunta qué se compró y cuándo, aprende cada cuánto se compra cada cosa y avisa de lo que conviene mirar. No hace falta ir contando lo que hay.

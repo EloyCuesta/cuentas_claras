@@ -63,6 +63,19 @@ export default function App() {
   }, [route])
 
   const openNew = (type: MovementType = 'gasto') => setEditor({ kind: 'movement', movement: null, type })
+
+  // En el escritorio, «n» abre «Nuevo movimiento» (fuera de un campo y sin otra ventana abierta).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'n' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      if (target?.closest('input, textarea, select, [contenteditable="true"]') || document.querySelector('dialog[open]')) return
+      event.preventDefault()
+      setEditor({ kind: 'movement', movement: null, type: 'gasto' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const openEdit = (movement: Movement) => setEditor({ kind: 'movement', movement, type: movement.type })
   const openPay = (movement: Movement) => setEditor({ kind: 'payment', movement })
   const showPending = () => {
@@ -127,9 +140,13 @@ export default function App() {
             <LogoMark />
             <span>Cuentas claras</span>
           </a>
-          <button type="button" className="btn btn--primary shell__add" onClick={() => openNew()}>
+          <button type="button" className="btn btn--primary shell__add" aria-keyshortcuts="n" title="Atajo: n" onClick={() => openNew()}>
             <Icon name="plus" />
             Añadir movimiento
+          </button>
+          <button type="button" className="btn shell__add" onClick={() => openNew('ingreso')}>
+            <Icon name="plus" />
+            Añadir ingreso
           </button>
           <nav className="nav" aria-label="Secciones">
             <ul className="nav__list">

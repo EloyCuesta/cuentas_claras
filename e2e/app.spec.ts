@@ -35,7 +35,11 @@ async function addExpense(page: Page, { amount, concept, category, pending = fal
   await dialog.getByLabel('Importe').fill(amount)
   await dialog.getByLabel('Concepto').fill(concept)
   await dialog.getByLabel('Categoría').selectOption({ label: category })
-  if (pending) await dialog.getByRole('radio', { name: 'Pendiente' }).check()
+  if (pending) {
+    // El estado va plegado en «Más opciones».
+    await dialog.getByText('Más opciones', { exact: true }).click()
+    await dialog.getByRole('radio', { name: 'Pendiente' }).check()
+  }
   await dialog.getByRole('button', { name: 'Guardar gasto' }).click()
   await expect(dialog).toBeHidden()
 }
@@ -129,6 +133,51 @@ test('registra un gasto en pocos pasos y se conserva después de recargar', asyn
   await expect(page.getByRole('button', { name: /Panadería/ })).toBeVisible()
 })
 
+test('un gasto en tres toques: Intro al concepto, la categoría habitual en un botón y «Guardar y añadir otro»', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
+  await page.goto('/')
+  await addExpense(page, { amount: '3,10', concept: 'Mercadona', category: 'Alimentación › Supermercado' })
+  // «n» abre el diálogo (fuera de un campo).
+  await page.keyboard.press('n')
+  const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+  const amount = dialog.getByLabel('Importe')
+  await expect(amount).toBeFocused()
+  await page.keyboard.type('12,50')
+  // Cambiar a ingreso y volver, con el ratón, no le quita el foco al importe.
+  await dialog.getByRole('radio', { name: 'Ingreso' }).click()
+  await expect(amount).toBeFocused()
+  await dialog.getByRole('radio', { name: 'Gasto' }).click()
+  await expect(amount).toBeFocused()
+  // Intro pasa al concepto; «Merc» ya propone la categoría de «Mercadona».
+  await page.keyboard.press('Enter')
+  await expect(dialog.getByLabel('Concepto')).toBeFocused()
+  await page.keyboard.type('Merc')
+  await expect(dialog.getByLabel('Categoría')).toHaveValue(/./)
+  const usual = dialog.getByRole('group', { name: 'Más usadas' })
+  await expect(usual.getByRole('button', { name: 'Supermercado' })).toHaveAttribute('aria-pressed', 'true')
+  // «Hoy» y «Ayer» junto a la fecha; una fecha futura propone «Pendiente».
+  await dialog.getByRole('button', { name: 'Ayer', exact: true }).click()
+  await expect(dialog.getByLabel('Fecha de pago')).toHaveValue('2026-10-27')
+  await dialog.getByLabel('Fecha de pago').fill('2026-11-05')
+  await dialog.getByRole('button', { name: 'Marcar como pendiente' }).click()
+  await expect(dialog.getByRole('radio', { name: 'Pendiente' })).toBeChecked()
+  await expect(dialog.getByLabel('Fecha prevista o de vencimiento')).toHaveValue('2026-11-05')
+  await dialog.getByRole('radio', { name: 'Pagado' }).check()
+  await dialog.getByRole('button', { name: 'Hoy', exact: true }).click()
+  // «Guardar y añadir otro»: se guarda y el diálogo sigue, vacío y con el foco en el importe.
+  await dialog.getByRole('button', { name: 'Guardar y añadir otro' }).click()
+  await expect(page.getByText('Gasto guardado').last()).toBeVisible()
+  await expect(dialog).toBeVisible()
+  await expect(amount).toHaveValue('')
+  await expect(amount).toBeFocused()
+  await page.keyboard.type('2')
+  await dialog.getByLabel('Concepto').fill('Pan')
+  await usual.getByRole('button', { name: 'Supermercado' }).click()
+  await dialog.getByRole('button', { name: 'Guardar gasto' }).click()
+  await expect(dialog).toBeHidden()
+  expect(await storedMovements(page)).toBe(3)
+})
+
 test('valida los campos obligatorios', async ({ page }) => {
   await page.goto('/')
   await openNewMovement(page)
@@ -146,6 +195,7 @@ test('una fecha prevista a medio escribir no cierra la ventana al pasar el gasto
   await page.goto('/')
   await openNewMovement(page)
   const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+  await dialog.getByText('Más opciones', { exact: true }).click()
   await dialog.getByRole('radio', { name: 'Pendiente' }).check()
   // Al escribir el año cifra a cifra, el selector de fecha pasa por «0002-…».
   await dialog.getByLabel('Fecha prevista o de vencimiento').fill('0002-11-30')

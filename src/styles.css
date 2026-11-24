@@ -710,6 +710,69 @@ body:has(dialog[open]) {
   accent-color: var(--accent);
 }
 
+/* Añadir un movimiento: el importe con «Gasto | Ingreso» al lado, categorías habituales, fechas rápidas y lo opcional plegado */
+.movement-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-chip {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--rule-strong);
+  border-radius: 999px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.quick-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.date-quick {
+  display: flex;
+  gap: 8px;
+  margin-top: -6px;
+}
+
+.date-quick .btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.movement-future {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.more-options > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.more-options[open] > summary {
+  margin-bottom: 8px;
+}
+
 /* Interruptor de opciones (radio nativos) */
 .segmented {
   min-width: 0;
@@ -1207,6 +1270,11 @@ body:has(dialog[open]) {
   justify-content: space-between;
   gap: 12px 24px;
   padding-top: 4px;
+}
+
+.page-header__actions {
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .page-title {

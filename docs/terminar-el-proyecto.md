@@ -252,7 +252,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | verificado |
 | UX-01 | Guardar sin esperar | UX-00 | verificado |
 | UX-02 | Despensa instantánea | UX-00 | verificado |
-| UX-03 | Añadir movimientos en segundos | UX-01 | pendiente |
+| UX-03 | Añadir movimientos en segundos | UX-01 | verificado |
 | UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | pendiente |
 | UX-05 | Despensa más directa | UX-02 | pendiente |
 | UX-06 | Carga y peso | UX-00 | pendiente |
@@ -725,3 +725,46 @@ Plantilla:
     - `npm run test:e2e:dotnet`: 84 pasan y 6 se omiten;
     - `e2e/medidas-interfaz.spec.ts` en escritorio: pasa.
   - **Siguiente tarea**: UX-03.
+
+- **UX-03 · 24 de noviembre de 2026 · base `433d45c`** (UX-02):
+  - **Alcance**: añadir un movimiento en segundos.
+  - **Hallazgos**: se confirman los puntos 2 y 7 de la revisión. La categoría era un select de unas 24 opciones y solo se proponía con el concepto exacto. «Gasto | Ingreso» iba antes del importe, y cambiarlo le quitaba el foco. «Añadir» siempre abría un gasto. Además faltaban «Hoy» y «Ayer», y después de guardar había que volver a abrir el diálogo.
+  - **Qué cambia**:
+    - `shared/finance/suggestions.ts`:
+      - `categoryForConcept` busca primero el concepto igual; si no lo hay, busca el más reciente que empieza por lo escrito, con 3 letras o más;
+      - `frequentCategories` da las categorías más usadas de un tipo, 6 como mucho;
+      - sus tests están en `shared/finance/suggestions.test.ts`. Solo lo usa la web, así que .NET no cambia.
+    - `src/features/finance/components/MovementDialog.tsx`:
+      - el importe y «Gasto | Ingreso» van en la misma fila;
+      - cambiar el tipo con el ratón o el dedo devuelve el foco al importe;
+      - Intro en el importe pasa al concepto (`enterKeyHint` «next», en `src/ui/forms.tsx`);
+      - el grupo «Más usadas» pone botones con las categorías habituales (`aria-pressed`);
+      - «Hoy» y «Ayer» van junto a la fecha;
+      - con una fecha futura aparece un aviso con «Marcar como pendiente»;
+      - el estado y las notas van en «Más opciones», plegado salvo en un pendiente, con notas o con un error dentro;
+      - «Guardar y añadir otro» guarda y deja el formulario vacío con el mismo tipo y la misma fecha, y el foco en el importe.
+    - `src/App.tsx`:
+      - la tecla «n» abre «Nuevo movimiento» si el foco no está en un campo y no hay otra ventana abierta; el botón lo anuncia con `aria-keyshortcuts`;
+      - en el lateral del escritorio hay un «Añadir ingreso».
+    - `src/features/finance/pages/MovementsPage.tsx`: «Añadir ingreso» junto a «Añadir movimiento», solo en el escritorio.
+    - `src/styles.css`: los estilos de la fila del importe, los botones de categoría (44 px de alto), las fechas rápidas, el aviso de la fecha futura y «Más opciones».
+  - **Textos, roles y `data-testid`**: no cambia ninguno de los que había.
+    - Botones nuevos: «Añadir ingreso», «Guardar y añadir otro», «Hoy», «Ayer» y «Marcar como pendiente», más un botón por categoría habitual con su nombre corto.
+    - Grupos nuevos: «Más usadas» y «Fechas rápidas».
+    - El estado («Pagado» o «Cobrado» y «Pendiente») y «Notas» quedan dentro de «Más opciones». Los e2e que marcan «Pendiente» abren antes «Más opciones».
+    - Todo esto está en `src/features/finance/AGENTS.md`, `e2e/AGENTS.md` y el README («Apuntar un gasto o un ingreso»).
+  - **Números**: toques medidos con `e2e/medidas-interfaz.spec.ts`. El script ahora pasa al concepto con Intro y elige la categoría con un botón de «Más usadas» si lo hay, o en la lista si no.
+
+    | Tarea | UX-00 | UX-03 |
+    | --- | --- | --- |
+    | Añadir un gasto (escritorio y móvil) | 5 toques + 2 campos escritos | 3 toques + 2 campos escritos |
+    | Añadir un ingreso (escritorio y móvil) | 7 toques + 2 campos escritos | 4 toques + 2 campos escritos |
+
+    Los 3 toques del gasto son abrir, la categoría y guardar. El ingreso se mide desde «Añadir movimiento» y cambiando a «Ingreso», que vale también en el móvil. En el escritorio, «Añadir ingreso» lo deja en 3.
+  - **Prueba nueva** (`e2e/app.spec.ts`): «un gasto en tres toques: Intro al concepto, la categoría habitual en un botón y «Guardar y añadir otro»». Cubre la tecla «n», el foco al cambiar de tipo, «Merc» proponiendo la categoría de «Mercadona», «Ayer», la fecha futura y «Guardar y añadir otro».
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1635/1635 (4 tests nuevos);
+    - `npm run test:e2e`: 80 pasan y 6 se omiten;
+    - `npm run test:e2e:dotnet`: 86 pasan y 6 se omiten;
+    - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa.
+  - **Siguiente tarea**: UX-04.

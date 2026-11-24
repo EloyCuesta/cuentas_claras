@@ -54,6 +54,20 @@ function counter() {
       task.typed++
       await field.fill(text)
     },
+    /** Intro (o «Siguiente» en el teclado del móvil) para pasar de campo: se escribe, no se toca. */
+    async next(field: Locator) { await field.press('Enter') },
+    /** La categoría: con un botón de «Más usadas» si está (1 toque), y si no, en la lista (2). */
+    async category(dialog: Locator, label: string | null) {
+      const chip = label ? dialog.locator(`.quick-chip[title="${label}"]`) : dialog.locator('.quick-chip').first()
+      if (await chip.count()) {
+        task.taps++
+        await chip.click()
+        return
+      }
+      const select = dialog.getByLabel('Categoría', { exact: true })
+      task.taps += 2
+      await select.selectOption(label ? { label } : { index: 1 })
+    },
   }
 }
 
@@ -215,8 +229,9 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
     await c.tap(page.getByRole('button', { name: 'Añadir movimiento' }).first())
     const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
     await c.type(dialog.getByLabel('Importe'), '12,50')
+    await c.next(dialog.getByLabel('Importe'))
     await c.type(dialog.getByLabel('Concepto'), 'Panadería')
-    await c.choose(dialog.getByLabel('Categoría'), 'Alimentación › Supermercado')
+    await c.category(dialog, 'Alimentación › Supermercado')
     const save = measure(page, async () => {
       await c.tap(dialog.getByRole('button', { name: 'Guardar gasto' }))
       await expect(dialog).toBeHidden()
@@ -254,9 +269,10 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
     const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
     await c.tap(dialog.getByRole('radio', { name: 'Ingreso' }))
     await c.type(dialog.getByLabel('Importe'), '100')
+    await c.next(dialog.getByLabel('Importe'))
     await c.type(dialog.getByLabel('Concepto'), 'Venta')
-    await c.choose(dialog.getByLabel('Categoría'), (await dialog.getByLabel('Categoría').locator('option').nth(1).innerText()).trim())
-    await c.tap(dialog.getByRole('button', { name: /^Guardar/ }))
+    await c.category(dialog, null)
+    await c.tap(dialog.getByRole('button', { name: /^Guardar (gasto|ingreso)$/ }))
     await expect(dialog).toBeHidden()
     tasks['añadir un ingreso'] = c.task
   }

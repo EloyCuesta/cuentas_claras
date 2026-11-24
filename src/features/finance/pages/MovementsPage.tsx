@@ -90,10 +90,16 @@ export function MovementsPage({
         <h1 className="page-title" tabIndex={-1}>
           Movimientos
         </h1>
-        <button type="button" className="btn btn--primary hide-mobile" onClick={() => onAdd()}>
-          <Icon name="plus" />
-          Añadir movimiento
-        </button>
+        <div className="page-header__actions hide-mobile">
+          <button type="button" className="btn" onClick={() => onAdd('ingreso')}>
+            <Icon name="plus" />
+            Añadir ingreso
+          </button>
+          <button type="button" className="btn btn--primary" onClick={() => onAdd()}>
+            <Icon name="plus" />
+            Añadir movimiento
+          </button>
+        </div>
       </header>
 
       <section className={`filters${panelOpen ? ' filters--open' : ''}`} aria-label="Buscar y filtrar">
