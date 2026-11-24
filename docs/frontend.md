@@ -34,7 +34,7 @@ Hoy las features dependen así: finance → auth (SessionPanel en Ajustes) y pan
 ## Estado
 
 - **Sesión** (`src/features/auth/`): AuthProvider pregunta a `/api/auth/me` al abrir y da `role`, `login` y `logout` con `useAuth()`. Cualquier 401 de la API devuelve al modo invitado.
-- **Finanzas** (`src/features/finance/`): FinanceProvider solo se monta con el código. Genera los vencimientos al abrir y al cambiar de día, lee todo, da los datos y las acciones con `useFinance()` y vuelve a leer tras cada escritura y cuando otra pestaña avisa (BroadcastChannel).
+- **Finanzas** (`src/features/finance/`): FinanceProvider solo se monta con el código. Genera los vencimientos al abrir y al cambiar de día, lee todo, da los datos y las acciones con `useFinance()` y vuelve a leer tras cada escritura (en segundo plano: el cambio entra antes en pantalla, UX-01) y cuando otra pestaña avisa (BroadcastChannel).
 - **Despensa** (`src/features/pantry/`): `usePantry()`, el mismo para invitado y administrador. Cada escritura refleja lo que confirma el servidor, y al volver a la pestaña se recarga.
 - **Avisos**: ToastProvider (`src/ui/`) y `useToast()`, con acción opcional («Deshacer») y tres tonos: `success`, `warning` (algo quedó a medias pero no hay que repetirlo, con los colores de aviso) y `error`.
 - Patrón de los contextos: `xContext.ts` (el contexto y su hook) + `XProvider.tsx` (el componente), como pide `react/only-export-components`.

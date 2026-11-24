@@ -76,7 +76,7 @@ export function PaymentDialog({ movement, onClose }: { movement: Movement; onClo
           <button type="button" className="btn" onClick={onClose}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn--primary" disabled={busy} data-autofocus>
+          <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy || undefined} data-autofocus>
             {isExpense ? 'Marcar como pagado' : 'Marcar como cobrado'}
           </button>
         </div>

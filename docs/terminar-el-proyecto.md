@@ -250,7 +250,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | FIX-02 | Los fallos medios de la lectura y la revisión de tickets | FIX-01 | verificado |
 | DOC-02 | Estado y documentación al día tras el push | FIX-02 | verificado |
 | UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | verificado |
-| UX-01 | Guardar sin esperar | UX-00 | pendiente |
+| UX-01 | Guardar sin esperar | UX-00 | verificado |
 | UX-02 | Despensa instantánea | UX-00 | pendiente |
 | UX-03 | Añadir movimientos en segundos | UX-01 | pendiente |
 | UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | pendiente |
@@ -683,3 +683,28 @@ Plantilla:
     - Los tiempos son en el equipo de desarrollo, con el servidor en local: sirven para comparar, no como lo que tarda en el móvil por la wifi de casa.
   - **Comandos**: `CUENTAS_MEDIDAS_DIR=… npx playwright test e2e/medidas-interfaz.spec.ts` (Chrome 158, MySQL 8.4.13 de ensayo): 2 pasan. En la suite normal se salta: los e2e pasan a tener 6 omitidas (antes 4).
   - **Siguiente tarea**: UX-01.
+
+- **UX-01 · 24 de noviembre de 2026 · base `a55c0c9`** (UX-00):
+  - **Alcance**: guardar sin esperar a releer, en las finanzas y al guardar un ticket.
+  - **Hallazgos**: se confirman los de la revisión. Guardar esperaba al PUT, a GET /data y a GET /meta antes de cerrar el diálogo; guardar un ticket releía toda la despensa (5 peticiones) aunque el servidor ya devuelve los productos.
+  - **Qué cambia**:
+    - `src/features/finance/confirmedWrite.ts`: tras confirmar la escritura, el cambio entra en pantalla y la acción termina; la relectura va en segundo plano. Si falla la escritura, el diálogo sigue abierto como antes (FIN-02); si falla la relectura, el mismo aviso `warning`.
+    - `src/features/finance/FinanceProvider.tsx`: lo que cambia en pantalla sin releer (movimiento, categoría y recurrente guardados; lo borrado, con los movimientos de una categoría borrada pasados a la elegida y los pendientes de un recurrente borrado; la fecha de la última copia). Un contador impide que una relectura empezada antes pise una escritura más nueva. Restaurar una copia sigue esperando a releer.
+    - «Guardar gasto» (y el resto) y «Marcar como pagado»: `aria-busy` y un círculo que gira mientras guardan, con el mismo nombre accesible.
+    - `src/features/pantry/usePantry.ts`: guardar un ticket usa los `items` que devuelve el servidor; los tickets y la actividad se releen en segundo plano.
+  - **Textos, roles y `data-testid`**: ninguno cambia; se añade `aria-busy` a los botones de guardar.
+  - **Números** (escritorio, `e2e/medidas-interfaz.spec.ts`, que ahora mide también guardar con GET /api/data retrasado 1,5 s):
+
+    | Guardar un movimiento | UX-00 | UX-01 |
+    | --- | --- | --- |
+    | Peticiones terminadas al cerrarse el diálogo | 3 (PUT, GET /data y GET /meta) | 1 (el PUT) |
+    | Tiempo hasta cerrarse, con la relectura retrasada 1,5 s | 2035 ms | 209 ms |
+    | Guardar un ticket: peticiones antes de cerrar | 1 POST y 5 GET | 1 POST |
+
+    El de UX-00 se midió con el mismo script sobre el código de UX-00 (FinanceProvider y confirmedWrite de antes).
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1631/1631 (2 tests nuevos en `confirmedWrite.test.ts`);
+    - `npm run test:e2e`: 74 pasan y 6 se omiten (las 4 de capturas y las 2 de medidas), con «si se guarda pero la pantalla no se puede recargar…» y «si se pierde la respuesta del guardado…»;
+    - `npm run test:e2e:dotnet`: 80 pasan y 6 se omiten;
+    - `npm run build` (dentro de los e2e): correcto.
+  - **Siguiente tarea**: UX-02.

@@ -27,7 +27,7 @@ Sin el código es lo único que se ve.
 ## Estado y datos
 - `usePantry.ts`: el estado de la despensa (personas, productos, ajustes, actividad, tickets y la fecha de hoy) y sus acciones. Lo usan igual el invitado y el administrador, sin FinanceProvider. Al volver a la pestaña se recarga. Una recarga antigua no pisa una escritura más nueva (contador `writes`).
 - `api.ts` (pantryApi) es lo único que hace peticiones: /api/despensa/personas, productos, revisiones, presupuesto, repaso, comprado, actividad y tickets.
-- Las acciones de tickets (TicketActions, de la feature tickets) también están en usePantry: guardar, cambiar o borrar un ticket recarga toda la despensa.
+- Las acciones de tickets (TicketActions, de la feature tickets) también están en usePantry. Guardar un ticket usa los productos que devuelve el servidor (la ventana se cierra tras una sola petición) y relee en segundo plano los tickets y la actividad; cambiar una línea o borrar un ticket recarga toda la despensa.
 - El ritmo, los avisos, la lista y el repaso se calculan en la web con `shared/pantry/`, a partir de la actividad (compras de los tickets y revisiones).
 - «Hoy no» del repaso se guarda solo en este navegador (localStorage), hasta mañana.
 - Editar un producto (PAN-01): PantryItemDialog guarda la versión del producto con que se abrió y `updateItem` la envía como `expectedVersion`. Si el servidor responde 409 (alguien lo cambió mientras tanto: otra edición, un + o una compra), el formulario conserva lo escrito y ofrece «Volver a cargar el producto»; `reloadItem` vuelve a leer los productos y el formulario pasa a mostrar el producto como está ahora, con su versión. Nunca se reintenta solo con una versión más nueva: eso pisaría el cambio del otro.

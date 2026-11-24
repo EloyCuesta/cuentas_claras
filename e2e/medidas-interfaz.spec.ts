@@ -225,6 +225,30 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
     tasks['añadir un gasto'] = c.task
   }
   {
+    // Lo mismo con la relectura retrasada 1,5 s: si el diálogo la espera, tarda más de 1,5 s en cerrarse.
+    await page.route('**/api/data', async (route) => {
+      await pause(1500)
+      await route.fallback()
+    })
+    await page.getByRole('button', { name: 'Añadir movimiento' }).first().click()
+    const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+    await dialog.getByLabel('Importe').fill('3,20')
+    await dialog.getByLabel('Concepto').fill('Café')
+    await dialog.getByLabel('Categoría').selectOption({ label: 'Alimentación › Supermercado' })
+    const finished: string[] = []
+    const onFinished = (request: Request) => {
+      const url = new URL(request.url())
+      if (url.pathname.startsWith('/api/')) finished.push(`${request.method()} ${url.pathname.split('/').slice(0, 3).join('/')}`)
+    }
+    page.on('requestfinished', onFinished)
+    const started = Date.now()
+    await dialog.getByRole('button', { name: 'Guardar gasto' }).click()
+    await expect(dialog).toBeHidden({ timeout: 10_000 })
+    report.guardarConRelecturaLenta = { ms: Date.now() - started, terminadasAlCerrar: [...finished] }
+    page.off('requestfinished', onFinished)
+    await page.unroute('**/api/data')
+  }
+  {
     const c = counter()
     await c.tap(page.getByRole('button', { name: 'Añadir movimiento' }).first())
     const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })

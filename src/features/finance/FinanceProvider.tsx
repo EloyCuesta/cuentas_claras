@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { todayISO } from '#shared/common/dates.ts'
 import { generationHorizon } from '#shared/finance/recurring.ts'
 import type { ISODate } from '#shared/common/types.ts'
-import type { FinanceData } from '#shared/finance/types.ts'
+import type { Category, FinanceData, Movement, RecurringRule } from '#shared/finance/types.ts'
 import { ServerUnavailableError } from '../../api/client.ts'
 import { writeThenReload } from './confirmedWrite.ts'
 import type { FinanceRepository } from './FinanceRepository.ts'
@@ -15,6 +15,7 @@ type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ready'; data: FinanceData; lastBackupAt: string | null; today: ISODate }
+type Ready = Extract<LoadState, { status: 'ready' }>
 
 /** Lee todos los datos y la fecha de la última copia. */
 async function readAll(repository: FinanceRepository, today: ISODate): Promise<LoadState> {
@@ -32,6 +33,33 @@ async function openApp(repository: FinanceRepository): Promise<LoadState> {
 /** El aviso cuando una escritura se guardó en el servidor pero la pantalla no se pudo volver a leer. */
 const SAVED_BUT_NOT_RELOADED =
   'Se ha guardado, pero la pantalla no se ha podido actualizar. No hace falta repetirlo: vuelve a cargar la página para verlo.'
+
+/** Pone `item` en la lista en lugar del que tenga su id, o al final si es nuevo. */
+function upsert<T extends { id: string }>(list: readonly T[], item: T): T[] {
+  const index = list.findIndex((x) => x.id === item.id)
+  return index === -1 ? [...list, item] : list.map((x, i) => (i === index ? item : x))
+}
+
+/** Lo que cambia en pantalla una escritura confirmada, antes de releer (la relectura trae lo que calcula el servidor). */
+const local = {
+  saveMovement: (data: FinanceData, movement: Movement): FinanceData => ({ ...data, movements: upsert(data.movements, movement) }),
+  deleteMovement: (data: FinanceData, id: string): FinanceData => ({ ...data, movements: data.movements.filter((m) => m.id !== id) }),
+  saveCategory: (data: FinanceData, category: Category): FinanceData => ({ ...data, categories: upsert(data.categories, category) }),
+  /** La categoría y sus subcategorías desaparecen; sus movimientos y recurrentes pasan a la que se eligió. */
+  deleteCategory: (data: FinanceData, id: string, replacementId: string | null): FinanceData => {
+    const removed = new Set([id, ...data.categories.filter((c) => c.parentId === id).map((c) => c.id)])
+    const move = <T extends { categoryId: string }>(x: T): T => (replacementId && removed.has(x.categoryId) ? { ...x, categoryId: replacementId } : x)
+    return { categories: data.categories.filter((c) => !removed.has(c.id)), movements: data.movements.map(move), recurring: data.recurring.map(move) }
+  },
+  /** El recurrente cambia ya; sus vencimientos los rehace el servidor y llegan con la relectura. */
+  saveRecurring: (data: FinanceData, rule: RecurringRule): FinanceData => ({ ...data, recurring: upsert(data.recurring, rule) }),
+  /** Se van el recurrente y sus pendientes; los pagados se conservan. */
+  deleteRecurring: (data: FinanceData, id: string): FinanceData => ({
+    ...data,
+    recurring: data.recurring.filter((r) => r.id !== id),
+    movements: data.movements.filter((m) => !(m.recurringId === id && m.status === 'pendiente')),
+  }),
+}
 
 /** Aviso que puede devolver el paso previo a abrir la app (por ejemplo, la importación de datos). */
 export type OpenNotice = { message: string; tone: ToastTone } | null
@@ -87,10 +115,32 @@ export function FinanceProvider({
       })
   }, [repository, prepare])
 
-  const reload = useCallback(
-    () => readAll(repository, todayISO()).then(setState, () => undefined),
-    [repository],
-  )
+  /**
+   * Releer y cambiar los datos en pantalla comparten un contador de escrituras confirmadas (en el cierre: no se pinta):
+   * una relectura que empezó antes de la última escritura no la pisa con datos de antes.
+   */
+  const sync = useMemo(() => {
+    let writes = 0
+    const readIfCurrent = async () => {
+      const startedAt = writes
+      const next = await readAll(repository, todayISO())
+      if (startedAt === writes) setState(next)
+    }
+    return {
+      reload: () => readIfCurrent().catch(() => undefined),
+      /** Cambia los datos en pantalla y cuenta la escritura. */
+      applyLocal: (change: (ready: Ready) => Partial<Ready>) => {
+        writes++
+        setState((current) => (current.status === 'ready' ? { ...current, ...change(current) } : current))
+      },
+      /** La relectura de después de escribir: avisa a las otras pestañas y trae lo que calculó el servidor. */
+      refresh: async () => {
+        notifyOtherTabs()
+        await readIfCurrent()
+      },
+    }
+  }, [repository])
+  const { reload, applyLocal, refresh } = sync
 
   // Al abrir la app.
   useEffect(() => {
@@ -111,56 +161,57 @@ export function FinanceProvider({
 
   const actions = useMemo<FinanceActions>(() => {
     /**
-     * Cada escritura: si se confirma, se avisa a las otras pestañas y se releen los datos. Si lo que falla es la relectura,
-     * lo guardado ya está en el servidor: la acción no falla (así nadie repite un alta que sí se guardó) y se avisa de que
-     * la pantalla no está al día (confirmedWrite.ts).
+     * Cada escritura (UX-01): si se confirma, el cambio entra en pantalla y la acción termina ya, así que el diálogo se
+     * cierra tras una sola petición; después se avisa a las otras pestañas y se releen los datos en segundo plano. Si
+     * falla la escritura, la acción falla y el diálogo sigue abierto. Si lo que falla es la relectura, lo guardado ya
+     * está en el servidor: se avisa de que la pantalla no está al día (confirmedWrite.ts).
      */
-    const write = <T,>(save: () => Promise<T>) =>
-      writeThenReload(
-        save,
-        async () => {
-          notifyOtherTabs()
-          setState(await readAll(repository, todayISO()))
-        },
-        () => notify(SAVED_BUT_NOT_RELOADED, 'warning'),
-      )
+    const write = <T,>(save: () => Promise<T>, apply: (data: FinanceData, result: T) => FinanceData) =>
+      writeThenReload(save, refresh, () => notify(SAVED_BUT_NOT_RELOADED, 'warning'), (result) =>
+        applyLocal(({ data }) => ({ data: apply(data, result) })))
     return {
       async saveMovement(movement) {
-        await write(() => repository.saveMovement(movement))
+        await write(() => repository.saveMovement(movement), (data) => local.saveMovement(data, movement))
       },
       async deleteMovement(id) {
-        await write(() => repository.deleteMovement(id))
+        await write(() => repository.deleteMovement(id), (data) => local.deleteMovement(data, id))
       },
       async saveCategory(category) {
-        await write(() => repository.saveCategory(category))
+        await write(() => repository.saveCategory(category), (data) => local.saveCategory(data, category))
       },
       async deleteCategory(id, replacementId) {
-        await write(() => repository.deleteCategory(id, replacementId))
+        await write(() => repository.deleteCategory(id, replacementId), (data) => local.deleteCategory(data, id, replacementId))
       },
       saveRecurring(rule, { markPastAsPaid }) {
         const today = todayISO()
-        return write(() =>
-          repository.saveRecurring(rule, {
-            horizon: generationHorizon(today),
-            markPaidBefore: markPastAsPaid ? today : null,
-          }),
+        return write(
+          () => repository.saveRecurring(rule, { horizon: generationHorizon(today), markPaidBefore: markPastAsPaid ? today : null }),
+          (data) => local.saveRecurring(data, rule),
         )
       },
       async deleteRecurring(id) {
-        await write(() => repository.deleteRecurring(id))
+        await write(() => repository.deleteRecurring(id), (data) => local.deleteRecurring(data, id))
       },
       async replaceAll(data) {
-        await write(async () => {
-          await repository.replaceAll(data)
-          // Como al abrir la app: se crean los vencimientos que falten desde la fecha de la copia.
-          await repository.generateOccurrences(generationHorizon(todayISO()))
-        })
+        // Restaurar una copia cambia todo: aquí sí se espera a releer (como al abrir la app).
+        await repository.replaceAll(data)
+        // Como al abrir la app: se crean los vencimientos que falten desde la fecha de la copia.
+        await repository.generateOccurrences(generationHorizon(todayISO()))
+        // Cuenta como escritura: una relectura empezada antes ya no la pisa.
+        applyLocal(() => ({}))
+        try {
+          await refresh()
+        } catch {
+          notify(SAVED_BUT_NOT_RELOADED, 'warning')
+        }
       },
       async registerBackup() {
-        await write(() => repository.setMeta('lastBackupAt', new Date().toISOString()))
+        const at = new Date().toISOString()
+        await writeThenReload(() => repository.setMeta('lastBackupAt', at), refresh, () => notify(SAVED_BUT_NOT_RELOADED, 'warning'),
+          () => applyLocal(() => ({ lastBackupAt: at })))
       },
     }
-  }, [repository, notify])
+  }, [repository, notify, applyLocal, refresh])
 
   const value = useMemo<FinanceContextValue | null>(
     () =>

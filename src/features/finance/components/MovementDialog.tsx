@@ -296,7 +296,8 @@ export function MovementDialog({
           <button type="button" className="btn" onClick={onClose}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
+          {/* Mientras guarda, el botón lo dice (aria-busy) sin cambiar su nombre: se vuelve a pulsar igual si falla. */}
+          <button type="submit" className="btn btn--primary" disabled={busy} aria-busy={busy || undefined}>
             {isNew ? (isExpense ? 'Guardar gasto' : 'Guardar ingreso') : 'Guardar cambios'}
           </button>
         </div>

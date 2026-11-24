@@ -18,7 +18,8 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 | Resto de `components/` | | Piezas de las páginas: Ledger, CategoryChart, CategoryTable, CategoryMonthGrid, MonthlyTrendChart, BudgetSummary, DueList, MovementList, PeriodPicker y PeriodSwitch | las de su página |
 
 ## Estado y datos
-- `financeContext.ts` (useFinance) + `FinanceProvider.tsx`. Al abrir, genera los vencimientos hasta el final del mes siguiente (con la fecha de hoy del navegador) y lee todo. Tras cada escritura confirmada avisa a las otras pestañas (`tabSync.ts`) y vuelve a leer (`confirmedWrite.ts`): si falla la escritura, el diálogo muestra el error y sigue abierto; si lo que falla es la relectura, la acción no falla y se avisa de que la pantalla no está al día, para que nadie repita un alta que sí se guardó.
+- `financeContext.ts` (useFinance) + `FinanceProvider.tsx`. Al abrir, genera los vencimientos hasta el final del mes siguiente (con la fecha de hoy del navegador) y lee todo. Tras cada escritura confirmada (`confirmedWrite.ts`, UX-01), el cambio entra en pantalla y la acción termina: el diálogo se cierra tras una sola petición. Después avisa a las otras pestañas (`tabSync.ts`) y vuelve a leer en segundo plano. Si falla la escritura, el diálogo muestra el error y sigue abierto; si lo que falla es la relectura, se avisa de que la pantalla no está al día, para que nadie repita un alta que sí se guardó. Una relectura que empezó antes de una escritura no la pisa (un contador en FinanceProvider). Restaurar una copia sí espera a releer.
+- Lo que entra en pantalla sin releer: el movimiento, la categoría o el recurrente guardados; lo borrado (con los movimientos de una categoría borrada pasados a la que se eligió, y los pendientes de un recurrente borrado); y la fecha de la última copia. Los vencimientos que crea el servidor llegan con la relectura.
 - Las altas deciden su id al abrir el diálogo (MovementDialog, RecurringDialog y el formulario de CategoryEditor): reintentar tras un fallo envía el mismo registro y no lo duplica.
 - `FinanceRepository.ts` es el contrato asíncrono que conoce la interfaz, y `ApiFinanceRepository.ts`, su implementación: /api/data, /movements, /categories, /recurring, /occurrences/generate, /meta e /import. `api.ts` hace las consultas de resumen de .NET (/api/summary/month y /api/summary/year). Son lo único que hace peticiones.
 - `useSummaryView.ts` (useMonthView y useYearView): lo que enseñan Resumen (mes y año) y Presupuestos, con los vencimientos proyectados de los recurrentes (no se guardan). Contra Express lo calcula el navegador con `shared/finance/summaryViews.ts`; con la web compilada para .NET (`CUENTAS_BACKEND=dotnet`), lo pide a GET /api/summary/* (`api.ts`, FIN-04) cada vez que cambian los datos, hoy o el periodo. Los pendientes que se pagan desde el resumen siguen siendo los guardados.
@@ -35,10 +36,11 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 - El almacenamiento se describe como «una base de datos MySQL de este equipo» (FinanceProvider, SummaryPage y BackupPanel); SQLite solo aparece en la importación de los datos de antes (`tools/importer/`).
 - `data-testid="restore-input"`, el selector de archivo de la copia, en `components/BackupPanel.tsx`.
 - Formularios con etiquetas y errores asociados, foco en el primer campo con error (`focusFirstError`) y ventanas `<dialog>` nativas.
+- Mientras guarda, «Guardar gasto» (y el resto) y «Marcar como pagado» llevan `aria-busy` y un círculo que gira, sin cambiar su nombre: si falla, se vuelven a pulsar igual.
 
 ## Pruebas
 - `browserMigration/IndexedDbFinanceRepository.test.ts` y `browserMigration/browserDataMigration.test.ts`, con IndexedDB en memoria (`src/test/setup.ts`).
-- `confirmedWrite.test.ts`: escritura fallida frente a guardado con la relectura fallida.
+- `confirmedWrite.test.ts`: escritura fallida frente a guardado con la relectura fallida, y que el cambio entra en pantalla sin esperar a la relectura.
 - Los cálculos, en `shared/finance/`.
 - En el navegador, `e2e/app.spec.ts`: solo esas, `npx playwright test e2e/app.spec.ts --project=escritorio`.
 

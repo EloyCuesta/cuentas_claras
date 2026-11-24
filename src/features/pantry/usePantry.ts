@@ -190,8 +190,14 @@ export function usePantry(): { state: PantryState; actions: PantryActions } {
         return pantryApi.readTicket(input, todayISO())
       },
       async saveTicket(input) {
-        const { ticket } = await pantryApi.saveTicket(input)
-        await refreshAll()
+        // El servidor devuelve ya los productos como quedan: entran al momento y la ventana se cierra tras una sola
+        // petición. Los tickets y la actividad (el ritmo) se releen en segundo plano.
+        const { ticket, items } = await pantryApi.saveTicket(input)
+        update(() => ({ items }))
+        void Promise.all([pantryApi.listTickets(), pantryApi.activity(todayISO())]).then(
+          ([tickets, activity]) => update(() => ({ tickets, activity })),
+          () => undefined,
+        )
         return ticket
       },
       getTicket(id) {

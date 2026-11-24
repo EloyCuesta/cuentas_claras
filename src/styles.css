@@ -464,6 +464,28 @@ body:has(dialog[open]) {
   cursor: not-allowed;
 }
 
+/* Guardando: el botón sigue con su texto y gira un círculo al lado. */
+.btn[aria-busy='true'] {
+  opacity: 0.8;
+  cursor: progress;
+}
+
+.btn[aria-busy='true']::after {
+  content: '';
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btn-busy 0.8s linear infinite;
+}
+
+@keyframes btn-busy {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .btn--primary {
   border-color: var(--accent);
   background: var(--accent);
