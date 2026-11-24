@@ -624,6 +624,30 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   Un host .NET arrancado aparte con `dotnet run` bloqueaba la carpeta bin del proyecto CuentasClaras.Api. No se tocó: se compiló y probó con `--artifacts-path` en una carpeta fuera de git.
 - Sin ejecutar todavía en esta entrada: `npm run test:e2e:dotnet` (al terminar la interfaz).
 
+### CUT-PREP — 24 de noviembre de 2026 (CUT-01 en curso)
+
+- No cierra CUT-01: prepara el corte sin cambiar el uso diario (tarea CUT-PREP de `docs/terminar-el-proyecto.md`, con su registro completo). Base `d0b383a` (main en `c622210` más el plan), rama ccr-e3b98276-3xjznb, en la nube. Las tareas FIX-01 a DOC-02 del plan están en una rama local de la persona, sin subir.
+- **Scripts de .NET aparte**: `dev:dotnet` (la API en 3201 y Vite), `dev:dotnet:api` y `dev:dotnet:web` (el móvil), `server:dotnet` (Release), `build:web:dotnet` y `preview:dotnet`. `npm run dev`, `server` y `preview` siguen con Express, y `tests/architecture.test.ts` lo vigila.
+- **El .env**: el host lo lee solo con `--env-file-if-exists=.env`, como Node en los scripts de Express (`backend/src/CuentasClaras.Api/Composition/EnvFile.cs`), con el formato de Node y el entorno por delante. Las pruebas y las e2e no lo piden. Con `dotnet run`, el host arranca en la raíz del repositorio (RunWorkingDirectory); antes arrancaba en la carpeta del proyecto.
+- **La web**: `vite.config.ts` elige el backend con `--mode dotnet` (proxy a 3201 y `__CUENTAS_BACKEND__`).
+- **Restos**:
+  - tsx pasa a dependencies;
+  - la codificación de `playwright.dotnet.config.ts`;
+  - MissingRoutes fuera de `backend/tests/CuentasClaras.Tests/HttpContractTests.cs` (el inventario exige ahora que cada paso de los corpus de módulos vaya a una ruta que existe);
+  - Cache-Control, al día en la API y en ARCHITECTURE.md;
+  - la carpeta bin de la API, sin comillas invertidas.
+- **Contratos**: ninguno cambia. Express no cambia de comportamiento.
+- **Comandos**, en Linux con .NET SDK 10.0.115, Node 22.23.5 y MySQL 8.0.46:
+  - restore con `--locked-mode`: correcto;
+  - `npm run check`: Vitest 1596/1596 en 57 archivos;
+  - `npm run build` y `npm run build:dotnet`: correctos;
+  - `npm run test:dotnet`: 2274/2274;
+  - `npm run test:e2e`: 62 y 4 omitidas;
+  - `npm run test:e2e:dotnet`: 68 y 4 omitidas.
+- **A mano**: `dev:dotnet` y los tres de producción, con un `.env` de ensayo sobre `cuentas_test_cutprep`.
+- **Sin comprobar**: Windows, Node 24 y el MySQL 8.0.36 de la persona.
+- **Siguiente**: DATA-02 y los pasos de la persona (PERSONA en el plan); después, CUT-FINAL con su confirmación.
+
 ### Plantilla para la siguiente tarea
 
 Al trabajar en un ID, añade una entrada con fecha, commit base, alcance, archivos modificados, decisiones, contratos afectados y comandos ejecutados con resultados. Si algo no se ejecutó, indica el motivo y el efecto sobre la aceptación. Anota dependencias temporales, datos reales pendientes y el siguiente ID elegible. No rellenes esta plantilla con resultados hipotéticos.

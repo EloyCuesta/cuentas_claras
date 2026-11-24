@@ -257,7 +257,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-05 | Despensa más directa | UX-02 | pendiente |
 | UX-06 | Carga y peso | UX-00 | pendiente |
 | UX-07 | Cierre de la interfaz | UX-01 … UX-06 | pendiente |
-| CUT-PREP | Preparar el corte sin cambiar el uso diario | — | pendiente |
+| CUT-PREP | Preparar el corte sin cambiar el uso diario | — | verificado |
 | PERSONA | Pasos que solo hace la persona | CUT-PREP | pendiente |
 | CUT-FINAL | Cambiar el uso diario a .NET | PERSONA | pendiente |
 
@@ -516,3 +516,45 @@ Plantilla:
   - números antes y después;
   - comandos con su resultado;
   - lo que queda pendiente y la siguiente tarea.
+
+- **CUT-PREP · 24 de noviembre de 2026 · base `d0b383a`** (main en `c622210` más este plan), en la nube:
+  - **Por qué esta tarea, fuera de orden.** FIX-01, FIX-02 y DOC-02 están hechos con su commit en la rama local terminar-proyecto del ordenador de la persona, sin subir; UX-00 y UX-01, hechos sin commit (la última sesión se cortó a mitad de una medida, y puede haber un `git stash` pendiente). Ese ordenador no estaba disponible, así que se hizo CUT-PREP, que no depende de ellas, sobre la rama ccr-e3b98276-3xjznb. Al juntar las dos ramas habrá conflictos fáciles en STATUS.md (la cabecera, la línea de la carpeta bin y el final del registro) y en el registro de este archivo.
+  - **Hallazgos confirmados**:
+    - `npm run dev`, `server` y el proxy de Vite iban a Express, y no había ningún script para .NET;
+    - el host .NET no leía `.env`;
+    - la codificación rota de `playwright.dotnet.config.ts`;
+    - tsx era de desarrollo, pero lo usan `npm run server` y el OCR de .NET;
+    - `MissingRoutes`, sin uso desde TIC-04;
+    - el pendiente de Cache-Control de `docs/api.md`.
+  - **Hallazgo nuevo**: `dotnet run` arranca el host en la carpeta del proyecto (comprobado con /proc), así que un `.env` relativo no se encontraba. El OCR sí se encontraba, porque también se busca desde la carpeta del programa. RunWorkingDirectory lo arranca en la raíz.
+  - **Hallazgo confirmado de la revisión**: `tests/docs.test.ts` fallaba en un clon sin compilar por la carpeta bin de la API en STATUS. Corregido aquí, igual que en DOC-02.
+  - **Archivos principales**:
+    - `package.json`: `dev:dotnet`, `dev:dotnet:api`, `dev:dotnet:web`, `server:dotnet`, `build:web:dotnet` y `preview:dotnet`; `npm run dev` no cambia;
+    - `vite.config.ts` (`--mode dotnet`);
+    - `backend/src/CuentasClaras.Api/Composition/EnvFile.cs` y `backend/src/CuentasClaras.Api/Program.cs`;
+    - `backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj`;
+    - `backend/tests/CuentasClaras.Tests/EnvFileTests.cs` y `backend/tests/CuentasClaras.Tests/HttpContractTests.cs`;
+    - `tests/architecture.test.ts`;
+    - README («Ensayo con el backend .NET», sin PowerShell), `docs/migration/DATA.md` (pasos 3 a 5 del corte) y `docs/decisiones.md`.
+  - **Textos, roles y `data-testid`**: ninguno. Sin dependencias nuevas, sin contratos de la API cambiados y sin cambiar el uso diario.
+  - **Números**:
+    - Vitest: de 1593 de 1594 (fallaba el de la documentación) a 1596/1596 (2 de arquitectura nuevos);
+    - .NET: de 2266 a 2274 (8 de EnvFileTests);
+    - e2e: 62 y 4 omitidas contra Express, igual que antes;
+    - e2e contra .NET: 68 y 4 omitidas, como en `c622210`.
+  - **Comandos**, en Linux (Ubuntu 24.04) con .NET SDK 10.0.115, Node 22.23.5, MySQL 8.0.46 (paquete de Ubuntu, usuario limitado a `cuentas\_test\_%` y `cuentas_claras_e2e`) y el Chromium de Playwright 1.63, sin canal:
+    - `dotnet restore backend/CuentasClaras.slnx --locked-mode`: correcto;
+    - `npm run check`: tipos, oxlint (solo los avisos de antes) y Vitest 1596/1596 en 57 archivos;
+    - `npm run build` y `npm run build:dotnet`: 0 avisos y 0 errores;
+    - `npm run test:dotnet`: 2274/2274;
+    - `npm run test:e2e`: 62 y 4 omitidas;
+    - `npm run test:e2e:dotnet`: 68 y 4 omitidas. Las omitidas son las de `e2e/capturas-tickets.spec.ts`, que necesitan CUENTAS_CAPTURAS_DIR.
+  - **A mano**, con un `.env` de ensayo (base `cuentas_test_cutprep`, borrados al terminar) y sin CUENTAS_DB_* en el entorno:
+    - `npm run dev:dotnet`: la salud por Vite (5173) responde el esquema 5, `/api/data` da 401 sin sesión, el login da admin y `/api/summary/month`, que solo tiene .NET, responde;
+    - `npm run build:web:dotnet`, `server:dotnet` y `preview:dotnet`: la salud por 4173. La web para .NET pide los resúmenes al servidor y la de Express no;
+    - EnvFile: los valores de su prueba, comparados con `node --env-file` en Node 22.
+  - **Sin comprobar**:
+    - los scripts en Windows (concurrently con cmd.exe y RunWorkingDirectory con `dotnet run`);
+    - el `.env` con Node 24, que usa la persona;
+    - las suites en su MySQL 8.0.36.
+  - **Siguiente**: en el ordenador de la persona, subir terminar-proyecto, juntarla con esta rama y seguir por UX-01 (o por UX-00 si su medida no quedó guardada). PERSONA puede empezar ya, porque CUT-PREP está verificado. CUT-01 queda `en_curso` en STATUS.
