@@ -253,7 +253,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-01 | Guardar sin esperar | UX-00 | verificado |
 | UX-02 | Despensa instantánea | UX-00 | verificado |
 | UX-03 | Añadir movimientos en segundos | UX-01 | verificado |
-| UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | pendiente |
+| UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | verificado |
 | UX-05 | Despensa más directa | UX-02 | pendiente |
 | UX-06 | Carga y peso | UX-00 | pendiente |
 | UX-07 | Cierre de la interfaz | UX-01 … UX-06 | pendiente |
@@ -768,3 +768,62 @@ Plantilla:
     - `npm run test:e2e:dotnet`: 86 pasan y 6 se omiten;
     - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa.
   - **Siguiente tarea**: UX-04.
+
+- **UX-04 · 24 de noviembre de 2026 · base `04ccceb`** (UX-03):
+  - **Alcance**: el móvil. Cubre la navegación, el Resumen, los objetivos táctiles, los avisos y el final de `src/styles.css`.
+  - **Hallazgos**: se confirman los puntos 6, 8, 9 y 10 de la revisión.
+    - La barra tenía 6 pestañas con letra de 11 px, y partía «Presupuestos» y «Recurrentes».
+    - En el Resumen, lo pendiente quedaba debajo de la cuenta y del gráfico.
+    - En el Pixel 7 había 15 objetivos de menos de 44 px en el Resumen, 12 en Movimientos, 9 en Presupuestos y 8 en la Despensa.
+    - Los avisos salían arriba.
+  - **Qué cambia**:
+    - **La barra inferior** (`src/App.tsx`):
+      - cinco pestañas: Resumen, Movimientos, Recurrentes, Despensa y Ajustes;
+      - letra de 12 px y sin partir palabras, también en 360 px;
+      - Presupuestos (`nav__item--desktop`) solo está en el lateral del escritorio; en el móvil se abre desde su bloque del Resumen, y mientras está abierta se resalta «Resumen» (`nav__link--within`).
+    - **El Resumen en una columna** (`src/features/finance/pages/SummaryPage.tsx`):
+      - el orden es la cuenta, lo pendiente, el gráfico y los presupuestos (`display: contents` y `order`);
+      - si hay vencidos, arriba sale el aviso «N vencidos», con «Ver los vencidos», que lleva el foco al título de lo pendiente;
+      - con dos columnas (1100 px o más), el aviso no sale.
+    - **Avisos**: en el móvil salen abajo, encima del botón «Añadir» y de la barra; en el escritorio siguen abajo a la derecha.
+    - **Pantallas táctiles** (`@media (pointer: coarse)`): miden al menos 44 px:
+      - `btn--small`, `link-btn` y los enlaces dentro de un aviso;
+      - «Mes | Año», el nombre de un producto (también de ancho) y lo que se pliega;
+      - el «Deshacer» y la «×» de los avisos.
+      - «Más opciones» lleva su flecha.
+    - **`src/styles.css`**:
+      - el resaltado sobre la foto del ticket pasa a variables (`--highlight-line` y `--highlight-fill`);
+      - las secciones van numeradas del 1 al 11, y la cabecera las lista;
+      - «Ticket comparison…» pasa a «9. Revisión de un ticket»;
+      - la regla de la barra pasa a «3. Estructura», y `.toast__action` a «Avisos breves»;
+      - las utilidades van al final, como dice su comentario.
+    - **`e2e/medidas-interfaz.spec.ts`**:
+      - en un diálogo cuenta solo los objetivos de dentro; antes sumaba también la página de detrás, así que los números de los diálogos de UX-00 no se comparan;
+      - anota la barra inferior del móvil;
+      - vuelve a activar el dedo tras cada captura entera. En Chromium, una captura entera de una página larga deja de emular `pointer: coarse`, y el móvil se medía y se capturaba con los tamaños del escritorio. Las medidas de UX-00 no cambian, porque entonces no había reglas para el dedo.
+  - **Textos, roles y `data-testid`**:
+    - Nuevos: el aviso «N vencidos» («1 vencido») y el botón «Ver los vencidos».
+    - En el móvil, el enlace «Presupuestos» ya no está en la barra.
+    - No cambia ningún otro. Todo está en `src/features/finance/AGENTS.md`, `docs/frontend.md`, `e2e/AGENTS.md` y el README.
+  - **Números** (Pixel 7, `e2e/medidas-interfaz.spec.ts`):
+
+    | | UX-00 | UX-04 |
+    | --- | --- | --- |
+    | Pestañas en la barra · letra · las que se parten | 6 · 11 px · 2 | 5 · 12 px · 0 (también en 360 px) |
+    | Objetivos de menos de 44 px: Resumen, Movimientos, Presupuestos y Despensa | 15, 12, 9 y 8 | 0, 0, 0 y 0 |
+    | Objetivos de menos de 44 px: Año | 18 | 12 (las 12 columnas del gráfico, de 24 px de ancho: no son frecuentes y no caben más anchas) |
+    | Dónde está lo pendiente en el Resumen | debajo de la cuenta y del gráfico | justo debajo de la cuenta, con «N vencidos» arriba |
+    | Avisos | arriba | abajo, encima de «Añadir» |
+
+    En el escritorio (con ratón) los tamaños no cambian.
+  - **Contraste**: AA en claro y en oscuro.
+    - El aviso de vencidos usa los colores de `notice--error`: rojo sobre rosa en claro, y salmón sobre granate en oscuro.
+    - Las pestañas usan `--ink-2` y `--accent` sobre `--sheet`, los de antes.
+    - Capturas revisadas a mano: el Resumen en claro y en oscuro, lo pendiente tras «Ver los vencidos» y Presupuestos en 360 px.
+  - **Prueba nueva** (`e2e/app.spec.ts`): «en el móvil: cinco pestañas enteras, «N vencidos» lleva a lo pendiente, los avisos abajo y Presupuestos desde el Resumen». En el escritorio comprueba que siguen las seis secciones y que el aviso no sale.
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1635/1635;
+    - `npm run test:e2e`: 82 pasan y 6 se omiten;
+    - `npm run test:e2e:dotnet`: 88 pasan y 6 se omiten;
+    - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa.
+  - **Siguiente tarea**: UX-05.

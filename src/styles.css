@@ -6,7 +6,9 @@
  * del mes se escribe como una cuenta en columna sobre papel cuadriculado.
  * El rojo se reserva para los números rojos (resultados negativos) y lo vencido.
  *
- * Organización: 1. Tokens · 2. Base · 3. Estructura · 4. Componentes · 5. Páginas
+ * Organización: 1. Tokens · 2. Base · 3. Estructura · 4. Componentes · 5. Páginas ·
+ * 6. Código de acceso y despensa · 7. Tickets de la compra y ritmo de compra · 8. Repaso de la semana ·
+ * 9. Revisión de un ticket · 10. Pantallas táctiles · 11. Utilidades
  */
 
 /* 1. Tokens ---------------------------------------------------------------- */
@@ -60,6 +62,10 @@
   --negative-soft: #fdecea;
   --warning-ink: #8a4b00;
   --warning-soft: #fff4e5;
+
+  /* Resaltado sobre la foto del ticket: igual en claro y en oscuro, porque la foto no cambia */
+  --highlight-line: #aa5d00;
+  --highlight-fill: rgb(255 201 77 / 0.33);
 
   --shadow-raised: 0 1px 2px rgb(22 33 62 / 0.08), 0 8px 24px rgb(22 33 62 / 0.08);
   --shadow-dialog: 0 24px 64px rgb(22 33 62 / 0.24);
@@ -175,6 +181,7 @@ svg {
 
 /* Títulos y <main> reciben el foco al navegar, pero no son interactivos. */
 h1:focus,
+h2[tabindex='-1']:focus,
 .shell__main:focus {
   outline: none;
 }
@@ -228,8 +235,9 @@ body:has(dialog[open]) {
 }
 
 /* 3. Estructura -------------------------------------------------------------
- * Móvil: barra superior con la marca, contenido y barra de pestañas fija abajo.
- * Escritorio (≥ 960 px): columna lateral fija con marca, botón y navegación.
+ * Móvil: barra superior con la marca, contenido y barra de pestañas fija abajo,
+ * con cinco secciones (Presupuestos se abre desde su bloque del Resumen).
+ * Escritorio (≥ 960 px): columna lateral fija con marca, botones y las seis secciones.
  */
 
 .skip-link {
@@ -288,6 +296,11 @@ body:has(dialog[open]) {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+/* Solo en el escritorio (Presupuestos). */
+.nav__item--desktop {
+  display: none;
+}
+
 .nav__link {
   display: flex;
   flex-direction: column;
@@ -297,20 +310,32 @@ body:has(dialog[open]) {
   min-height: var(--tabbar-height);
   padding: 6px 2px;
   color: var(--ink-2);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.1;
   text-decoration: none;
   text-align: center;
+  white-space: nowrap;
 }
 
-.nav__link[aria-current] {
+/* --within: en el móvil, la pestaña de la que cuelga la página abierta (Resumen, en Presupuestos). */
+.nav__link[aria-current],
+.nav__link--within {
   color: var(--accent);
   font-weight: 750;
 }
 
-.nav__link[aria-current] .icon {
+.nav__link[aria-current] .icon,
+.nav__link--within .icon {
   stroke-width: 2.4;
+}
+
+/* En los móviles más estrechos (360 px), «Movimientos» y «Recurrentes» caben enteras. */
+@media (max-width: 380px) {
+  .nav__link {
+    padding-inline: 0;
+    letter-spacing: -0.02em;
+  }
 }
 
 .shell__main {
@@ -388,6 +413,10 @@ body:has(dialog[open]) {
     gap: 2px;
   }
 
+  .nav__item--desktop {
+    display: block;
+  }
+
   .nav__link {
     flex-direction: row;
     justify-content: flex-start;
@@ -402,6 +431,15 @@ body:has(dialog[open]) {
   .nav__link:hover {
     background: var(--sheet-2);
     color: var(--ink);
+  }
+
+  .nav__link--within {
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+
+  .nav__link--within .icon {
+    stroke-width: 2;
   }
 
   .nav__link[aria-current] {
@@ -767,6 +805,19 @@ body:has(dialog[open]) {
   min-height: 44px;
   font-weight: 650;
   cursor: pointer;
+}
+
+.more-options > summary::before {
+  content: '▸';
+  margin-right: 6px;
+}
+
+.more-options[open] > summary::before {
+  content: '▾';
+}
+
+.more-options > summary::-webkit-details-marker {
+  display: none;
 }
 
 .more-options[open] > summary {
@@ -1159,11 +1210,11 @@ body:has(dialog[open]) {
   }
 }
 
-/* Avisos breves */
+/* Avisos breves: en el móvil, abajo, encima del botón «Añadir» y de la barra (al alcance del pulgar) */
 .toasts {
   position: fixed;
   z-index: 300;
-  top: calc(12px + env(safe-area-inset-top, 0px));
+  bottom: calc(var(--tabbar-height) + 84px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   display: grid;
   gap: 8px;
@@ -1201,6 +1252,17 @@ body:has(dialog[open]) {
   color: var(--warning-ink);
 }
 
+.toast__action {
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
 .toast__close {
   display: inline-grid;
   place-items: center;
@@ -1216,7 +1278,6 @@ body:has(dialog[open]) {
 
 @media (min-width: 960px) {
   .toasts {
-    top: auto;
     right: 24px;
     bottom: 24px;
     left: auto;
@@ -1356,10 +1417,46 @@ body:has(dialog[open]) {
   min-width: 0;
 }
 
+/* En una columna, las dos se funden y lo pendiente sube antes del gráfico. */
+@media (max-width: 1099px) {
+  .summary-col {
+    display: contents;
+  }
+
+  .summary-grid__due {
+    order: 1;
+  }
+
+  .summary-grid__chart {
+    order: 2;
+  }
+
+  .summary-grid__budget {
+    order: 3;
+  }
+}
+
 @media (min-width: 1100px) {
   .summary-grid {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   }
+
+  /* Con dos columnas, lo pendiente ya se ve arriba a la derecha. */
+  .summary-overdue {
+    display: none;
+  }
+}
+
+.summary-overdue {
+  align-items: center;
+}
+
+.summary-overdue > span {
+  flex: 1;
+}
+
+.summary-overdue .link-btn {
+  color: currentColor;
 }
 
 /* Detalle por categoría: las principales en negrita y sus subcategorías sangradas
@@ -2465,22 +2562,6 @@ body:has(dialog[open]) {
   padding-left: 20px;
 }
 
-/* 6. Utilidades (al final para que prevalezcan sobre los componentes) ------ */
-
-.hide-mobile {
-  display: none;
-}
-
-@media (min-width: 960px) {
-  .hide-mobile {
-    display: inline-flex;
-  }
-
-  .hide-desktop {
-    display: none;
-  }
-}
-
 /* 6. Código de acceso y despensa ------------------------------------------- */
 
 .guest {
@@ -2513,28 +2594,6 @@ body:has(dialog[open]) {
 
 .guest__main:focus {
   outline: none;
-}
-
-/* Seis secciones en la barra inferior del móvil */
-.nav__list {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.nav__link span {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  hyphens: auto;
-}
-
-.toast__action {
-  min-height: 36px;
-  padding: 4px 12px;
-  border: 1.5px solid currentColor;
-  border-radius: var(--radius-s);
-  background: transparent;
-  color: inherit;
-  font-weight: 750;
-  cursor: pointer;
 }
 
 /* Campos con la unidad escrita al final («paquete», «€/kg») */
@@ -2770,7 +2829,7 @@ body:has(dialog[open]) {
   }
 }
 
-/* 7. Tickets de la compra y ritmo de compra ---------------------------------- */
+/* 7. Tickets de la compra y ritmo de compra -------------------------------- */
 
 .pantry-actions {
   display: flex;
@@ -3192,7 +3251,10 @@ body:has(dialog[open]) {
   }
 }
 
-/* Ticket comparison and complete review */
+/* 9. Revisión de un ticket ----------------------------------------------------
+ * La revisión junto a la foto, las líneas dudosas, el resumen y las tarjetas.
+ */
+
 .ticket-review__form { min-width: 0; }
 .ticket-line-editor { border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 12px; margin: 12px 0; min-width: 0; }
 .ticket-line-editor .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3202,7 +3264,7 @@ body:has(dialog[open]) {
 .ticket-comparison .ticket-preview { max-height: 65vh; overflow: auto; }
 .ticket-image-region { position: relative; }
 .ticket-image-region img { width: 100%; display: block; }
-.ticket-image-highlight { position: absolute; border: 2px solid #aa5d00; background: #ffc94d55; pointer-events: none; }
+.ticket-image-highlight { position: absolute; border: 2px solid var(--highlight-line); background: var(--highlight-fill); pointer-events: none; }
 @media (min-width: 1000px) {
   .dialog--wide { max-width: 1200px; width: calc(100vw - 60px); }
   .ticket-review--compare { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 42%); gap: 24px; }
@@ -3273,3 +3335,56 @@ button.ticket-row__main:hover, button.ticket-row__main[aria-expanded='true'] { b
 .ticket-thumbs__frame img.ticket-thumbs__img--sideways { width: 150px; height: 104px; }
 .ticket-thumbs__number { position: absolute; top: 4px; left: 4px; min-width: 24px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; text-align: center; z-index: 1; }
 .ticket-thumbs__actions { display: flex; gap: 4px; }
+
+/* 10. Pantallas táctiles -------------------------------------------------------
+ * Con el dedo, lo que se toca a menudo mide al menos 44 px. Al final, para que
+ * prevalezca sobre los tamaños de cada componente.
+ */
+
+@media (pointer: coarse) {
+  .btn--small,
+  .toast__action,
+  .period-switch__link {
+    min-height: 44px;
+  }
+
+  /* Un nombre corto («Arroz») también se toca bien. */
+  .pantry-item__name {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* También los enlaces dentro de un aviso («Descargar una copia»). */
+  .link-btn,
+  .notice a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .toast__close {
+    width: 44px;
+    height: 44px;
+  }
+
+  summary {
+    min-height: 44px;
+    padding-block: 10px;
+  }
+}
+
+/* 11. Utilidades (al final para que prevalezcan sobre los componentes) ------ */
+
+.hide-mobile {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .hide-mobile {
+    display: inline-flex;
+  }
+
+  .hide-desktop {
+    display: none;
+  }
+}

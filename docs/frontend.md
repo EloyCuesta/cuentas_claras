@@ -47,9 +47,13 @@ Hoy las features dependen así: finance → auth (SessionPanel en Ajustes) y pan
 
 Con el `#` de la URL (`src/ui/useHashRoute.ts`): `#resumen`, `#anual`, `#movimientos`, `#recurrentes`, `#presupuestos`, `#despensa` y `#ajustes`; cualquier otra lleva al resumen. El invitado siempre acaba en `#despensa`. Al cambiar de sección se actualiza el título de la pestaña, se sube arriba y el foco va al título de la página.
 
+El menú (`src/App.tsx`) tiene seis secciones en el lateral del escritorio. En la barra inferior del móvil hay cinco (Resumen, Movimientos, Recurrentes, Despensa y Ajustes), con letra de 12 px y sin partir palabras. Presupuestos se abre desde su bloque del Resumen, y mientras está abierta se resalta «Resumen» (`nav__link--within`), como en `#anual` (UX-04).
+
 ## Estilos
 
-- Todo está en `src/styles.css`, en cinco secciones: tokens, base, estructura, componentes y páginas. El orden importa por la cascada.
+- Todo está en `src/styles.css`, en secciones numeradas: tokens, base, estructura, componentes, páginas, código de acceso y despensa, tickets y ritmo de compra, repaso de la semana, revisión de un ticket, pantallas táctiles y utilidades. El orden importa por la cascada: las dos últimas van al final para que prevalezcan.
+- Con el dedo (`@media (pointer: coarse)`, la sección «Pantallas táctiles»), lo que se toca a menudo mide al menos 44 px: botones pequeños, enlaces con aspecto de botón, «Mes | Año», el nombre de un producto y lo que se pliega. Quedan fuera las 12 columnas del gráfico del año.
+- Los avisos breves salen abajo en el móvil, encima del botón «Añadir» y de la barra; en el escritorio, abajo a la derecha.
 - La idea es una libreta de cuentas, «tinta y lápiz»: lo real va a tinta (trazo sólido, azul-negro) y lo previsto a lápiz (gris, líneas discontinuas), siempre con su etiqueta. El rojo se reserva para los números negativos y lo vencido.
 - Colores, tipografía (Atkinson Hyperlegible, escala ×1,25) y radios son variables de `:root`; los componentes nunca usan un color suelto. El modo oscuro redefine las variables en `@media (prefers-color-scheme: dark)`.
 - Clases `bloque__elemento--modificador` (`pantry-item__name`, `btn--primary`).

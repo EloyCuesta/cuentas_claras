@@ -93,7 +93,7 @@ En el servidor se lanza `AppError(código, mensaje)` (`server/common/errors.ts`)
 
 - Clases `bloque__elemento--modificador`: `pantry-item__name`, `btn--primary`, `chip--late`.
 - Colores, tipografía y radios solo con las variables de `:root` (`var(--accent)`, `var(--step-1)`). El modo oscuro las redefine en `@media (prefers-color-scheme: dark)`.
-- Todo está en `src/styles.css`, por secciones (tokens, base, estructura, componentes y páginas); el orden importa por la cascada. Ver `docs/frontend.md`.
+- Todo está en `src/styles.css`, por secciones numeradas (de los tokens a las utilidades); el orden importa por la cascada. Ver `docs/frontend.md`.
 
 ## Commits
 

@@ -58,6 +58,15 @@ export function SummaryPage({
   const backupAge = lastBackupAt ? daysBetween(todayISO(new Date(lastBackupAt)), today) : null
   const remindBackup = data.movements.length > 0 && (backupAge === null || backupAge > 30)
 
+  // En una columna (el móvil), lo pendiente queda debajo de la cuenta: un aviso arriba lleva a los vencidos.
+  const showOverdue = () => {
+    const heading = document.getElementById('due-title')
+    if (!heading) return
+    heading.tabIndex = -1
+    heading.scrollIntoView({ block: 'start' })
+    heading.focus({ preventScroll: true })
+  }
+
   const downloadTemplate = () => {
     if (!view) return
     const fileName = `cuentas-claras-mes-${month.year}-${String(month.month).padStart(2, '0')}.csv`
@@ -114,6 +123,16 @@ export function SummaryPage({
         </p>
       )}
 
+      {view && pending.overdue.length > 0 && (
+        <p className="notice notice--error summary-overdue">
+          <Icon name="alert" />
+          <span>{pending.overdue.length === 1 ? '1 vencido' : `${pending.overdue.length} vencidos`}</span>
+          <button type="button" className="link-btn" onClick={showOverdue}>
+            Ver los vencidos
+          </button>
+        </p>
+      )}
+
       {view ? (
         <>
           <div className="summary-grid">
@@ -121,6 +140,7 @@ export function SummaryPage({
               <Ledger summary={view.summary} period={period} />
               <Section
                 id="where"
+                className="summary-grid__chart"
                 title="¿En qué se me va el dinero?"
                 aside={
                   view.summary.expensePaid + view.summary.expensePending > 0 && (
@@ -132,7 +152,7 @@ export function SummaryPage({
               </Section>
             </div>
             <div className="summary-col">
-              <Section id="due" title="¿Qué pagos tengo pendientes?">
+              <Section id="due" className="summary-grid__due" title="¿Qué pagos tengo pendientes?">
                 {payments.length === 0 ? (
                   <p className="muted">No tienes pagos pendientes. Los vencimientos de tus recurrentes aparecerán aquí.</p>
                 ) : (
@@ -154,7 +174,7 @@ export function SummaryPage({
                 )}
               </Section>
 
-              <BudgetSummary id="budget" title="Presupuestos" lines={view.budgetLines} period={period} />
+              <BudgetSummary id="budget" className="summary-grid__budget" title="Presupuestos" lines={view.budgetLines} period={period} />
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Locator, Page, Request } from '@playwright/test'
+import type { CDPSession, Locator, Page, Request } from '@playwright/test'
 import { resetDatabase, signIn } from './auth.ts'
 import { expect, test } from './test.ts'
 
@@ -20,7 +20,8 @@ import { expect, test } from './test.ts'
  * - el JS y el CSS que descarga la web al abrirse, como invitado y con el código;
  * - las peticiones a /api y el tiempo al abrir, al guardar un movimiento y al
  *   volver a la Despensa;
- * - los objetivos táctiles de menos de 44 px de cada pantalla.
+ * - los objetivos táctiles de menos de 44 px de cada pantalla (en un diálogo, solo los suyos);
+ * - en el móvil, la barra inferior: pestañas, letra y las que se parten.
  *
  * Escribe `<proyecto>-medidas.json` y lo resume en la consola.
  */
@@ -86,12 +87,16 @@ async function measure(page: Page, work: () => Promise<void>) {
   return { requests: requests.length, list: requests, ms }
 }
 
-/** Los objetivos táctiles visibles de menos de 44 px de alto o de ancho. */
+/**
+ * Los objetivos táctiles visibles de menos de 44 px de alto o de ancho. Con una ventana abierta, solo los de dentro
+ * (desde UX-04; antes se contaba también la página de detrás).
+ */
 function smallTargets(page: Page) {
   return page.evaluate(() => {
     const selector = 'button, a[href], input:not([type=hidden]), select, textarea, summary, [role=button], [role=tab], label.checkbox'
     const found: { what: string; width: number; height: number }[] = []
-    for (const el of document.querySelectorAll<HTMLElement>(selector)) {
+    const root = document.querySelector('dialog[open]') ?? document
+    for (const el of root.querySelectorAll<HTMLElement>(selector)) {
       const box = el.getBoundingClientRect()
       const style = getComputedStyle(el)
       if (box.width === 0 || box.height === 0 || style.visibility === 'hidden' || el.closest('[hidden], .sr-only')) continue
@@ -152,6 +157,8 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
   await resetDatabase(request)
   await page.clock.setFixedTime(NOW)
   const phone = info.project.name.includes('movil')
+  let cdp: CDPSession | null = null
+  const touch = async () => (cdp ??= await page.context().newCDPSession(page))
   const report: Record<string, unknown> = { proyecto: info.project.name, pantalla: page.viewportSize() }
 
   step('invitado')
@@ -188,6 +195,9 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
       await expect(heading).toBeVisible()
       await pause(400)
       await page.screenshot({ path: join(dir, `${i + 1}-${route}.png`), fullPage: true })
+      // En Chromium, la captura entera de una página larga deja de emular el dedo (`pointer: coarse` pasa a fino):
+      // se vuelve a activar para que lo que sigue se vea y se mida como en el móvil (UX-04).
+      if (phone) await (await touch()).send('Emulation.setTouchEmulationEnabled', { enabled: true })
       if (theme === 'claro') {
         const found = await smallTargets(page)
         small[route] = found.length
@@ -219,6 +229,21 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
   for (const [name, list] of Object.entries(smallList)) small[name] ??= list.length
   report.objetivosPequenos = small
   report.objetivosPequenosDetalle = smallList
+
+  // La barra inferior del móvil (desde UX-04): las pestañas que se ven, su letra y las que se parten o se salen.
+  if (phone) {
+    await page.goto('/#resumen')
+    await expect(heading).toBeVisible()
+    report.barraInferior = await page.evaluate(() => {
+      const links = [...document.querySelectorAll<HTMLElement>('.nav__link')].filter((el) => el.getBoundingClientRect().width > 0)
+      const broken = (el: HTMLElement) => el.scrollWidth > el.clientWidth || (el.querySelector('span')?.getClientRects().length ?? 1) > 1
+      return {
+        pestanas: links.map((el) => el.textContent?.trim()),
+        letraPx: Number.parseFloat(getComputedStyle(links[0]!).fontSize),
+        partidasOSalidas: links.filter(broken).map((el) => el.textContent?.trim()),
+      }
+    })
+  }
 
   step('toques')
   // Toques de cada tarea.

@@ -4,12 +4,25 @@ import { BudgetMeter } from '../../../ui/BudgetMeter.tsx'
 import { Section } from '../../../ui/Section.tsx'
 
 /** Consumo de las categorías con presupuesto en un periodo, con enlace a Presupuestos. */
-export function BudgetSummary({ id, title, lines, period }: { id: string; title: string; lines: BudgetLine[]; period: Period }) {
+export function BudgetSummary({
+  id,
+  title,
+  lines,
+  period,
+  className,
+}: {
+  id: string
+  title: string
+  lines: BudgetLine[]
+  period: Period
+  className?: string
+}) {
   const withBudget = lines.filter((line) => line.budgetCents !== null)
   return (
     <Section
       id={id}
       title={title}
+      className={className}
       aside={
         <a className="link-btn" href="#presupuestos">
           {withBudget.length > 0 ? 'Ver todos' : 'Fijar presupuestos'}

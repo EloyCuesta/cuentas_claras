@@ -370,6 +370,59 @@ test('marcar un pago pendiente como pagado no duplica el gasto', async ({ page }
   expect(await storedMovements(page)).toBe(1)
 })
 
+test('en el móvil: cinco pestañas enteras, «N vencidos» lleva a lo pendiente, los avisos abajo y Presupuestos desde el Resumen', async ({ page, isMobile }) => {
+  await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
+  await page.goto('/')
+  // Un pago vencido: pendiente, con la fecha prevista de hace una semana.
+  await openNewMovement(page)
+  const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+  await dialog.getByLabel('Importe').fill('80')
+  await dialog.getByLabel('Concepto').fill('Recibo del gas')
+  await dialog.getByLabel('Categoría').selectOption({ label: 'Vivienda › Gas' })
+  await dialog.getByText('Más opciones', { exact: true }).click()
+  await dialog.getByRole('radio', { name: 'Pendiente' }).check()
+  await dialog.getByLabel('Fecha prevista o de vencimiento').fill('2026-10-21')
+  await dialog.getByRole('button', { name: 'Guardar gasto' }).click()
+  await expect(dialog).toBeHidden()
+
+  const nav = page.getByRole('navigation', { name: 'Secciones' })
+  const overdue = page.getByText('1 vencido', { exact: true })
+  if (!isMobile) {
+    // En el escritorio siguen las seis secciones, y lo pendiente ya se ve arriba a la derecha.
+    await expect(nav.getByRole('link')).toHaveCount(6)
+    await expect(overdue).toBeHidden()
+    return
+  }
+
+  // El aviso sale abajo, encima del botón «Añadir».
+  const toast = page.locator('.toast', { hasText: 'Gasto guardado' })
+  await expect(toast).toBeVisible()
+  const toastBox = (await toast.boundingBox())!
+  const fabBox = (await page.locator('.fab').boundingBox())!
+  expect(toastBox.y).toBeGreaterThan(page.viewportSize()!.height / 2)
+  expect(toastBox.y + toastBox.height).toBeLessThanOrEqual(fabBox.y)
+
+  // Cinco pestañas con letra de 12 px, sin partir palabras ni salirse, también en un móvil de 360 px.
+  for (const width of [412, 360]) {
+    await page.setViewportSize({ width, height: 800 })
+    await expect(nav.getByRole('link')).toHaveText(['Resumen', 'Movimientos', 'Recurrentes', 'Despensa', 'Ajustes'])
+    for (const link of await nav.getByRole('link').all()) {
+      await expect(link).toHaveCSS('font-size', '12px')
+      expect(await link.evaluate((el) => el.scrollWidth <= el.clientWidth && el.querySelector('span')!.getClientRects().length === 1)).toBe(true)
+    }
+  }
+
+  // «1 vencido», arriba, lleva a lo pendiente.
+  await expect(overdue).toBeVisible()
+  await page.getByRole('button', { name: 'Ver los vencidos' }).click()
+  await expect(page.getByRole('heading', { name: '¿Qué pagos tengo pendientes?' })).toBeFocused()
+
+  // Presupuestos, desde su bloque del Resumen; mientras, «Resumen» sigue resaltado.
+  await page.getByRole('region', { name: 'Presupuestos' }).getByRole('link', { name: 'Fijar presupuestos' }).click()
+  await expect(page.getByRole('heading', { name: 'Presupuestos', level: 1 })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Resumen' })).toHaveClass(/nav__link--within/)
+})
+
 test('abrir varias veces la aplicación no duplica vencimientos', async ({ page, context }) => {
   await page.goto('/#recurrentes')
   await page.getByRole('button', { name: 'Nuevo recurrente' }).click()

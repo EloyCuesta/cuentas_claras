@@ -20,17 +20,24 @@ import { DespensaPage, PantryProvider } from './features/pantry/index.ts'
 import { yearRange } from './ui/helpers.ts'
 import { navigate, useHashRoute, type Route } from './ui/useHashRoute.ts'
 
-const NAV: { route: Route; label: string; icon: IconName }[] = [
+/**
+ * Las secciones. En el móvil, la barra inferior tiene cinco: Presupuestos (`desktopOnly`) se abre desde su
+ * bloque del Resumen, y mientras está abierta se resalta «Resumen».
+ */
+const NAV: { route: Route; label: string; icon: IconName; desktopOnly?: boolean }[] = [
   { route: 'resumen', label: 'Resumen', icon: 'summary' },
   { route: 'movimientos', label: 'Movimientos', icon: 'list' },
   { route: 'recurrentes', label: 'Recurrentes', icon: 'repeat' },
-  { route: 'presupuestos', label: 'Presupuestos', icon: 'gauge' },
+  { route: 'presupuestos', label: 'Presupuestos', icon: 'gauge', desktopOnly: true },
   { route: 'despensa', label: 'Despensa', icon: 'basket' },
   { route: 'ajustes', label: 'Ajustes', icon: 'settings' },
 ]
 
 /** La plantilla anual vive dentro de «Resumen» (se cambia con Mes | Año), sin entrada propia en el menú. */
 const navRouteOf = (route: Route): Route => (route === 'anual' ? 'resumen' : route)
+
+/** En el móvil, la pestaña que se resalta para una sección sin pestaña propia. */
+const mobileNavRouteOf = (route: Route): Route => (route === 'presupuestos' ? 'resumen' : navRouteOf(route))
 
 type Editor =
   | { kind: 'movement'; movement: Movement | null; type: MovementType }
@@ -151,9 +158,9 @@ export default function App() {
           <nav className="nav" aria-label="Secciones">
             <ul className="nav__list">
               {NAV.map((item) => (
-                <li key={item.route}>
+                <li key={item.route} className={item.desktopOnly ? 'nav__item--desktop' : undefined}>
                   <a
-                    className="nav__link"
+                    className={`nav__link${route !== item.route && mobileNavRouteOf(route) === item.route ? ' nav__link--within' : ''}`}
                     href={`#${item.route}`}
                     aria-current={route === item.route ? 'page' : navRouteOf(route) === item.route ? 'true' : undefined}
                   >

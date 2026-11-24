@@ -3,7 +3,7 @@
 > Lee antes: /AGENTS.md y src/AGENTS.md. Depende de: `src/api/`, `src/ui/`, `shared/finance/` y la feature auth (SessionPanel, en Ajustes). Lo usan: `src/Root.tsx` (FinanceProvider y la migración del navegador) y `src/App.tsx` (páginas y diálogos). En el servidor es el módulo finance (`server/modules/finance/`).
 
 ## Qué ve la persona
-Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y Ajustes, más «Añadir movimiento» en el lateral y en el botón flotante. Lo real se ve en trazo sólido; lo previsto, «a lápiz» (gris y discontinuo).
+Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y Ajustes, más «Añadir movimiento» en el lateral y en el botón flotante. En el móvil, Presupuestos no tiene pestaña: se abre desde su bloque del Resumen. En una columna, el Resumen enseña la cuenta, lo pendiente, el gráfico y los presupuestos, en ese orden, y si hay vencidos, un aviso arriba lleva a ellos (UX-04). Lo real se ve en trazo sólido; lo previsto, «a lápiz» (gris y discontinuo).
 
 ## Componentes
 | Componente | Archivo | Qué hace | Test e2e (`e2e/app.spec.ts`) |
@@ -30,6 +30,7 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
   - botones: «Añadir movimiento» (también con la tecla «n», `aria-keyshortcuts`), «Añadir ingreso» (en el lateral y en Movimientos, solo en el escritorio), «Añadir un gasto», «Guardar gasto», «Guardar y añadir otro», «Guardar cambios», «Hoy», «Ayer», «Marcar como pendiente» (con una fecha futura), los de «Más usadas» (el nombre corto de cada categoría), «Marcar como pagado», «Eliminar movimiento», «Nuevo recurrente», «Guardar recurrente», «Descargar copia (JSON)», «Sustituir mis datos», «Exportar movimientos (CSV)» y «Descargar hoja de cálculo»;
   - diálogos: «Nuevo movimiento», «Editar movimiento», «Confirmar pago», «Eliminar movimiento», «Nuevo recurrente» y «Restaurar copia»;
   - títulos: «Empieza apuntando tu primer gasto» y «Todavía no has apuntado ningún movimiento».
+  - Resumen en una columna (el móvil): el aviso «N vencidos» («1 vencido») con el botón «Ver los vencidos», que lleva el foco al título «¿Qué pagos tengo pendientes?»; el enlace «Fijar presupuestos» o «Ver todos» del bloque «Presupuestos» abre la sección.
   - categorías (CategoryEditor, en la región «Categorías»): «Añadir categoría», «Añadir subcategoría a X», «Renombrar X» y «Eliminar X» (X es «Principal › Sub» en las subcategorías), los campos «Nueva categoría de gastos», «Nueva subcategoría de X» y «Nuevo nombre para «X»», el botón «Guardar», el diálogo «Eliminar «X»» con «Pasar a» y «Eliminar categoría», y los avisos «Categoría añadida», «Subcategoría añadida», «Categoría renombrada» y «Categoría «X» eliminada».
 - Con la web para .NET, mientras llega el resumen: «Calculando el resumen…» (`role="status"`), y si falla: «No se ha podido calcular el resumen: …» (`role="alert"`), en `components/SummaryPending.tsx`.
 - Aviso (tono `warning`) de una escritura guardada cuya relectura falló: «Se ha guardado, pero la pantalla no se ha podido actualizar. No hace falta repetirlo: vuelve a cargar la página para verlo.»
