@@ -10,8 +10,8 @@ React 19 con TypeScript, servida por Vite. Organizada por funcionalidades: pocas
 | --- | --- |
 | `src/main.tsx` | Arranque: estilos, ToastProvider, AuthProvider y Root. |
 | `src/Root.tsx` | Con el código: FinanceProvider (con la migración del navegador) y App. Sin él: GuestApp. |
-| `src/App.tsx` | La app completa: menú, páginas y diálogos de movimientos. |
-| `src/GuestApp.tsx` | Vista de invitado: solo la Despensa y «Tengo el código». |
+| `src/App.tsx` | La app completa: menú, páginas y diálogos de movimientos, dentro de PantryProvider (la despensa dura entre secciones). |
+| `src/GuestApp.tsx` | Vista de invitado: solo la Despensa y «Tengo el código», dentro de PantryProvider. |
 | `src/styles.css` | Todos los estilos (tokens, base, estructura, componentes y páginas). |
 | `src/api/` | `client.ts` (apiRequest, ApiError, ServerUnavailableError, onUnauthorized) y `storageErrors.ts` (mensajes para la persona). |
 | `src/ui/` | Componentes y utilidades genéricos: Dialog, Section, forms, Icon, Amount, EmptyState, ToastProvider, BudgetMeter, helpers y useHashRoute. |

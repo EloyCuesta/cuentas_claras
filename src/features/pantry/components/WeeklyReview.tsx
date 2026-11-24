@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { describeQuantity, missingQuantity, quantityStep, type Rhythms } from '#shared/pantry/pantry.ts'
 import type { ReviewSchedule } from '#shared/pantry/pantryReview.ts'
 import { agoText } from '#shared/pantry/pantryRhythm.ts'
-import type { PantryItem, PantryPerson } from '#shared/pantry/types.ts'
+import type { PantryEvent, PantryItem, PantryPerson } from '#shared/pantry/types.ts'
 import { ApiError } from '../../../api/client.ts'
 import { describeStorageError } from '../../../api/storageErrors.ts'
-import type { PantryActions } from '../usePantry.ts'
+import type { PantryActions } from '../pantryContext.ts'
 import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
 import { Icon } from '../../../ui/Icon.tsx'
 import { purchaseText, showsRhythmStatus } from './rhythmText.ts'
@@ -75,7 +75,8 @@ export function WeeklyReviewCard({
 }
 
 type Mark = 'queda' | 'poco' | 'se_acabo'
-type Answer = { kind: Mark; eventId: string } | { kind: 'saltado' } | { kind: 'contado' }
+/** La respuesta de cada producto. La revisión se guarda en segundo plano: `event` es la guardada (null si falló). */
+type Answer = { kind: Mark; event: Promise<PantryEvent | null> } | { kind: 'saltado' } | { kind: 'contado' }
 
 const MARKS: { kind: Mark; label: string }[] = [
   { kind: 'queda', label: 'Queda' },
@@ -120,7 +121,7 @@ export function WeeklyReviewDialog({
     heading.current?.focus()
   }, [index, finished])
 
-  /** Una acción cada vez; los errores se quedan en la ventana. */
+  /** Terminar el repaso: espera al servidor; los errores se quedan en la ventana. */
   const run = async (work: () => Promise<void>) => {
     if (busy) return
     setBusy(true)
@@ -134,39 +135,58 @@ export function WeeklyReviewDialog({
     }
   }
 
-  const advance = async () => {
+  /** El siguiente producto al momento; tras el último, se apunta el repaso (eso sí espera al servidor). */
+  const advance = () => {
     if (index + 1 < queue.length) {
       setIndex(index + 1)
       return
     }
-    await actions.finishReview()
-    setFinished(true)
+    void run(async () => {
+      await actions.finishReview()
+      setFinished(true)
+    })
   }
 
-  const answer = (item: PantryItem, kind: Mark) =>
-    run(async () => {
-      const previous = answers[item.id]
-      const sameAnswer = previous !== undefined && 'eventId' in previous && previous.kind === kind
-      if (!sameAnswer) {
-        // Al volver atrás y cambiar la respuesta, la anterior se borra (si sigue existiendo).
-        if (previous !== undefined && 'eventId' in previous) {
-          await actions.deleteEvent(previous.eventId).catch((failure: unknown) => {
-            if (!(failure instanceof ApiError && failure.status === 404)) throw failure
-          })
+  /**
+   * Una respuesta se ve al momento y pasa al siguiente: la revisión va al servidor en segundo plano (PantryProvider).
+   * Al volver atrás y cambiar la respuesta, la anterior se borra cuando llega (si sigue existiendo).
+   */
+  const answer = (item: PantryItem, kind: Mark) => {
+    if (busy) return
+    setError(null)
+    const previous = answers[item.id]
+    const sameAnswer = previous !== undefined && 'event' in previous && previous.kind === kind
+    if (!sameAnswer) {
+      const event = (async () => {
+        if (previous !== undefined && 'event' in previous) {
+          const old = await previous.event
+          if (old) {
+            await actions.deleteEvent(old.id).catch((failure: unknown) => {
+              if (!(failure instanceof ApiError && failure.status === 404)) throw failure
+            })
+          }
         }
-        const event = await actions.addEvent(item.id, kind)
-        setAnswers((current) => ({ ...current, [item.id]: { kind, eventId: event.id } }))
-      }
-      await advance()
-    })
+        return actions.addEvent(item.id, kind)
+      })().catch((failure: unknown) => {
+        setError(describeStorageError(failure))
+        return null
+      })
+      setAnswers((current) => ({ ...current, [item.id]: { kind, event } }))
+    }
+    advance()
+  }
 
-  const moveOn = (item: PantryItem | undefined, kind: 'saltado' | 'contado') =>
-    run(async () => {
-      if (item) setAnswers((current) => (current[item.id] ? current : { ...current, [item.id]: { kind } }))
-      await advance()
-    })
+  const moveOn = (item: PantryItem | undefined, kind: 'saltado' | 'contado') => {
+    if (busy) return
+    if (item) setAnswers((current) => (current[item.id] ? current : { ...current, [item.id]: { kind } }))
+    advance()
+  }
 
-  const adjust = (item: PantryItem, delta: number) => run(() => actions.adjustItem(item.id, delta))
+  /** + y − se ven al momento (PantryProvider); si el servidor falla, se deshace y se avisa aquí. */
+  const adjust = (item: PantryItem, delta: number) => {
+    setError(null)
+    actions.adjustItem(item.id, delta).catch((failure: unknown) => setError(describeStorageError(failure)))
+  }
 
   if (finished) {
     const counts = Object.values(answers).reduce<Record<string, number>>((acc, a) => ({ ...acc, [a.kind]: (acc[a.kind] ?? 0) + 1 }), {})
@@ -293,7 +313,7 @@ export function WeeklyReviewDialog({
                           className={`btn review-answer review-answer--${mark.kind}`}
                           aria-pressed={selected}
                           disabled={busy}
-                          onClick={() => void answer(item, mark.kind)}
+                          onClick={() => answer(item, mark.kind)}
                         >
                           {selected && <Icon name="check" size={18} />}
                           {mark.label}
@@ -304,7 +324,7 @@ export function WeeklyReviewDialog({
                   <p className="muted small">«Queda poco» y «Se acabó» lo ponen en la lista de la compra.</p>
                 </>
               ) : (
-                <CountStep item={item} busy={busy} onAdjust={(delta) => void adjust(item, delta)} />
+                <CountStep item={item} busy={busy} onAdjust={(delta) => adjust(item, delta)} />
               )}
             </>
           )}
@@ -318,11 +338,11 @@ export function WeeklyReviewDialog({
           </button>
         )}
         {item?.tracking === 'cantidad' ? (
-          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void moveOn(item, 'contado')}>
+          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => moveOn(item, 'contado')}>
             {index + 1 < queue.length ? 'Siguiente' : 'Terminar'}
           </button>
         ) : (
-          <button type="button" className="btn" disabled={busy} onClick={() => void moveOn(item, 'saltado')}>
+          <button type="button" className="btn" disabled={busy} onClick={() => moveOn(item, 'saltado')}>
             {answered ? (index + 1 < queue.length ? 'Siguiente' : 'Terminar') : 'Saltar'}
           </button>
         )}

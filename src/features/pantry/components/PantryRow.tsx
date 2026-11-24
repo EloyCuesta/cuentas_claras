@@ -39,7 +39,6 @@ export function PantryRow({
   item,
   rhythm,
   ownerLabel,
-  busy,
   onEdit,
   onStep,
   onMark,
@@ -48,7 +47,6 @@ export function PantryRow({
   rhythm: ItemRhythm | undefined
   /** Dueño, solo en la vista «Todo». */
   ownerLabel: string | null
-  busy: boolean
   onEdit: () => void
   onStep: (delta: number) => void
   onMark: (kind: PantryEventKind) => void
@@ -81,12 +79,12 @@ export function PantryRow({
         {item.notes && <span className="pantry-item__notes">{item.notes}</span>}
       </div>
       {counted ? (
-        <div className="stepper" role="group" aria-label={`Cantidad de ${item.name}`} aria-busy={busy || undefined}>
+        <div className="stepper" role="group" aria-label={`Cantidad de ${item.name}`}>
           <button
             type="button"
             className="stepper__btn"
             aria-label={`Quitar ${stepText} de ${item.name}`}
-            disabled={busy || item.quantity === 0}
+            disabled={item.quantity === 0}
             onClick={() => onStep(-step)}
           >
             <Icon name="minus" />
@@ -94,19 +92,19 @@ export function PantryRow({
           <span className="stepper__value" aria-live="polite">
             {describeQuantity(item.quantity, item.unit)}
           </span>
-          <button type="button" className="stepper__btn" aria-label={`Añadir ${stepText} a ${item.name}`} disabled={busy} onClick={() => onStep(step)}>
+          <button type="button" className="stepper__btn" aria-label={`Añadir ${stepText} a ${item.name}`} onClick={() => onStep(step)}>
             <Icon name="plus" />
           </button>
         </div>
       ) : (
         <div className="pantry-item__actions">
           {out ? (
-            <button type="button" className="btn btn--small" disabled={busy} onClick={() => onMark('comprado')}>
+            <button type="button" className="btn btn--small" onClick={() => onMark('comprado')}>
               <Icon name="check" size={16} />
               Lo he comprado<span className="sr-only"> {item.name}</span>
             </button>
           ) : (
-            <button type="button" className="btn btn--small" disabled={busy} onClick={() => onMark('se_acabo')}>
+            <button type="button" className="btn btn--small" onClick={() => onMark('se_acabo')}>
               Se acabó<span className="sr-only"> {item.name}</span>
             </button>
           )}

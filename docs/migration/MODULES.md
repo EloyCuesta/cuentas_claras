@@ -48,7 +48,7 @@ Validación: [pruebas del repositorio](../../server/modules/finance/finance.test
 
 ## Pantry: despensa
 
-Fuentes: [repositorio](../../server/modules/pantry/adapters/mysql/MysqlPantryRepository.ts), [rutas](../../server/modules/pantry/adapters/http/routes.ts), [reglas y tipos](../../shared/pantry), [API React](../../src/features/pantry/api.ts), [hook de estado](../../src/features/pantry/usePantry.ts) y [componentes](../../src/features/pantry/components).
+Fuentes: [repositorio](../../server/modules/pantry/adapters/mysql/MysqlPantryRepository.ts), [rutas](../../server/modules/pantry/adapters/http/routes.ts), [reglas y tipos](../../shared/pantry), [API React](../../src/features/pantry/api.ts), [proveedor de estado](../../src/features/pantry/PantryProvider.tsx) y [componentes](../../src/features/pantry/components).
 
 | ID | Funcionalidad y contratos actuales | Reglas y condición de aceptación |
 | --- | --- | --- |

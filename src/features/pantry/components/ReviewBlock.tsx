@@ -17,12 +17,10 @@ const REVIEW_LIMIT = 8
 export function ReviewBlock({
   items,
   rhythms,
-  busyIds,
   onMark,
 }: {
   items: readonly PantryItem[]
   rhythms: Rhythms
-  busyIds: ReadonlySet<string>
   onMark: (item: PantryItem, kind: PantryEventKind) => void
 }) {
   const [showAll, setShowAll] = useState(false)
@@ -37,7 +35,6 @@ export function ReviewBlock({
       <ul className="review-list">
         {shown.map((item) => {
           const rhythm = rhythms.get(item.id)
-          const busy = busyIds.has(item.id)
           return (
             <li key={item.id} className="review-item">
               <div className="review-item__text">
@@ -46,13 +43,13 @@ export function ReviewBlock({
                 <RhythmStatus rhythm={rhythm} />
               </div>
               <div className="review-item__actions">
-                <button type="button" className="btn" disabled={busy} onClick={() => onMark(item, 'queda')}>
+                <button type="button" className="btn" onClick={() => onMark(item, 'queda')}>
                   Queda<span className="sr-only"> {item.name}</span>
                 </button>
-                <button type="button" className="btn" disabled={busy} onClick={() => onMark(item, 'poco')}>
+                <button type="button" className="btn" onClick={() => onMark(item, 'poco')}>
                   Queda poco<span className="sr-only"> de {item.name}</span>
                 </button>
-                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => onMark(item, 'se_acabo')}>
+                <button type="button" className="btn btn--primary" onClick={() => onMark(item, 'se_acabo')}>
                   Se acabó<span className="sr-only"> {item.name}</span>
                 </button>
               </div>

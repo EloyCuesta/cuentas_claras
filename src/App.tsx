@@ -16,7 +16,7 @@ import { EMPTY_FILTERS, type MovementFilters } from '#shared/finance/filters.ts'
 import type { YearMonth } from '#shared/finance/period.ts'
 import { effectiveDate } from '#shared/finance/summary.ts'
 import type { Movement, MovementType } from '#shared/finance/types.ts'
-import { DespensaPage } from './features/pantry/index.ts'
+import { DespensaPage, PantryProvider } from './features/pantry/index.ts'
 import { yearRange } from './ui/helpers.ts'
 import { navigate, useHashRoute, type Route } from './ui/useHashRoute.ts'
 
@@ -109,65 +109,68 @@ export default function App() {
   }
 
   return (
-    <div className="shell">
-      <a
-        className="skip-link"
-        href="#contenido"
-        onClick={(event) => {
-          event.preventDefault()
-          document.getElementById('contenido')?.focus()
-        }}
-      >
-        Saltar al contenido
-      </a>
-      <header className="shell__side">
-        <a className="brand" href="#resumen">
-          <LogoMark />
-          <span>Cuentas claras</span>
+    // La despensa guarda su estado aquí: al volver a ella desde otra sección se ve al momento.
+    <PantryProvider>
+      <div className="shell">
+        <a
+          className="skip-link"
+          href="#contenido"
+          onClick={(event) => {
+            event.preventDefault()
+            document.getElementById('contenido')?.focus()
+          }}
+        >
+          Saltar al contenido
         </a>
-        <button type="button" className="btn btn--primary shell__add" onClick={() => openNew()}>
-          <Icon name="plus" />
-          Añadir movimiento
-        </button>
-        <nav className="nav" aria-label="Secciones">
-          <ul className="nav__list">
-            {NAV.map((item) => (
-              <li key={item.route}>
-                <a
-                  className="nav__link"
-                  href={`#${item.route}`}
-                  aria-current={route === item.route ? 'page' : navRouteOf(route) === item.route ? 'true' : undefined}
-                >
-                  <Icon name={item.icon} />
-                  <span>{item.label}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <p className="shell__note">
-          Tus datos se guardan en la base de datos de este equipo.{' '}
-          {lastBackupAt ? `Última copia: ${formatDate(todayISO(new Date(lastBackupAt)))}.` : 'Aún no has descargado ninguna copia.'}{' '}
-          <a href="#ajustes">Copias de seguridad</a>
-        </p>
-      </header>
+        <header className="shell__side">
+          <a className="brand" href="#resumen">
+            <LogoMark />
+            <span>Cuentas claras</span>
+          </a>
+          <button type="button" className="btn btn--primary shell__add" onClick={() => openNew()}>
+            <Icon name="plus" />
+            Añadir movimiento
+          </button>
+          <nav className="nav" aria-label="Secciones">
+            <ul className="nav__list">
+              {NAV.map((item) => (
+                <li key={item.route}>
+                  <a
+                    className="nav__link"
+                    href={`#${item.route}`}
+                    aria-current={route === item.route ? 'page' : navRouteOf(route) === item.route ? 'true' : undefined}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <p className="shell__note">
+            Tus datos se guardan en la base de datos de este equipo.{' '}
+            {lastBackupAt ? `Última copia: ${formatDate(todayISO(new Date(lastBackupAt)))}.` : 'Aún no has descargado ninguna copia.'}{' '}
+            <a href="#ajustes">Copias de seguridad</a>
+          </p>
+        </header>
 
-      <main id="contenido" className="shell__main" tabIndex={-1}>
-        {page}
-      </main>
+        <main id="contenido" className="shell__main" tabIndex={-1}>
+          {page}
+        </main>
 
-      {/* En la despensa el botón flotante taparía los botones + y − de los productos. */}
-      {route !== 'despensa' && (
-        <button type="button" className="fab" onClick={() => openNew()}>
-          <Icon name="plus" size={22} />
-          Añadir<span className="sr-only"> movimiento</span>
-        </button>
-      )}
+        {/* En la despensa el botón flotante taparía los botones + y − de los productos. */}
+        {route !== 'despensa' && (
+          <button type="button" className="fab" onClick={() => openNew()}>
+            <Icon name="plus" size={22} />
+            Añadir<span className="sr-only"> movimiento</span>
+          </button>
+        )}
 
-      {editor?.kind === 'movement' && (
-        <MovementDialog movement={editor.movement} initialType={editor.type} onClose={() => setEditor(null)} />
-      )}
-      {editor?.kind === 'payment' && <PaymentDialog movement={editor.movement} onClose={() => setEditor(null)} />}
-    </div>
+        {editor?.kind === 'movement' && (
+          <MovementDialog movement={editor.movement} initialType={editor.type} onClose={() => setEditor(null)} />
+        )}
+        {editor?.kind === 'payment' && <PaymentDialog movement={editor.movement} onClose={() => setEditor(null)} />}
+      </div>
+    </PantryProvider>
   )
 }

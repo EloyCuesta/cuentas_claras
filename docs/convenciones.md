@@ -6,7 +6,7 @@ Cómo se escribe el código de Cuentas claras. Antes de cambiar un archivo, imit
 
 | En inglés | En español |
 | --- | --- |
-| Identificadores (`AdjustItem`, `priceCents`), archivos y carpetas de código (`server/modules/pantry/`, `usePantry.ts`) | Textos de la interfaz, mensajes de error, comentarios, documentación, nombres de tests y commits |
+| Identificadores (`AdjustItem`, `priceCents`), archivos y carpetas de código (`server/modules/pantry/`, `PantryProvider.tsx`) | Textos de la interfaz, mensajes de error, comentarios, documentación, nombres de tests y commits |
 
 Las migraciones y los documentos también se nombran en español: `database/mysql/migrations/005-esquema-inicial.sql`, `docs/base-de-datos.md`. Algunos nombres de la API son españoles porque ya lo eran (`/api/despensa/productos`, `{ codigo }`, `{ hoy }`): no se traducen.
 

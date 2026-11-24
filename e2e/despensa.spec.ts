@@ -1,5 +1,5 @@
 import { expect, newPhone, test, type Page } from './test.ts'
-import { E2E_CODE, resetDatabase } from './auth.ts'
+import { E2E_CODE, resetDatabase, signIn } from './auth.ts'
 
 /**
  * Invitado y despensa, en un navegador real. El navegador de cada prueba
@@ -167,6 +167,60 @@ test('los botones + y −, marcar como comprado y deshacer', async ({ page, requ
   // Deshecho de verdad en el servidor, no solo en pantalla.
   await page.reload()
   await expect(item(page, 'Arroz').locator('.stepper__value')).toHaveText('0 kg')
+})
+
+test('+ tres veces seguidas suma tres al momento, y un + que falla se deshace y avisa', async ({ page, request }) => {
+  await request.post('/api/despensa/productos', {
+    data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 4, frequency: 'mensual', priceCents: 120, notes: '' },
+  })
+  // El servidor tarda en contestar: lo pulsado se ve antes de que llegue la respuesta.
+  await page.route('**/ajustar', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await route.fallback()
+  })
+  let answered = 0
+  page.on('response', (response) => {
+    if (response.url().endsWith('/ajustar')) answered++
+  })
+  await page.goto('/')
+  const rice = item(page, 'Arroz')
+  const plus = rice.getByRole('button', { name: 'Añadir 0,5 kg a Arroz' })
+  await expect(rice.locator('.stepper__value')).toHaveText('1 kg')
+  await plus.click()
+  await plus.click()
+  await plus.click()
+  await expect(rice.locator('.stepper__value')).toHaveText('2,5 kg', { timeout: 300 })
+  // Los tres pasos van al servidor de uno en uno, y lo de pantalla no cambia al llegar las respuestas.
+  await expect.poll(() => answered, { timeout: 5000 }).toBe(3)
+  await expect(rice.locator('.stepper__value')).toHaveText('2,5 kg')
+  await page.reload()
+  await expect(item(page, 'Arroz').locator('.stepper__value')).toHaveText('2,5 kg')
+
+  await page.unroute('**/ajustar')
+  await page.route('**/ajustar', (route) => route.fulfill({ status: 409, contentType: 'application/json', body: '{"ok":false,"error":{"code":"CONFLICT","message":"No disponible"}}' }))
+  await item(page, 'Arroz').getByRole('button', { name: 'Añadir 0,5 kg a Arroz' }).click()
+  // Se ve, falla, se deshace y se avisa.
+  await expect(page.getByText('No disponible')).toBeVisible()
+  await expect(item(page, 'Arroz').locator('.stepper__value')).toHaveText('2,5 kg')
+})
+
+test('con el código, volver a la Despensa la enseña al momento, sin «Cargando la despensa…»', async ({ page, request }) => {
+  await request.post('/api/despensa/productos', {
+    data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 2, frequency: 'mensual', priceCents: 120, notes: '' },
+  })
+  await signIn(page.request)
+  await page.goto('/#despensa')
+  await expect(item(page, 'Arroz')).toBeVisible()
+  await page.getByRole('link', { name: 'Resumen' }).first().click()
+  await expect(page).toHaveURL(/#resumen$/)
+  // La relectura de la despensa tarda: lo de antes se ve igual, al momento.
+  await page.route('**/api/despensa/productos', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await route.fallback()
+  })
+  await page.getByRole('link', { name: 'Despensa' }).first().click()
+  await expect(item(page, 'Arroz')).toBeVisible({ timeout: 500 })
+  await expect(page.getByText('Cargando la despensa…')).toHaveCount(0)
 })
 
 test('dos móviles pulsan + a la vez y el servidor suma los dos', async ({ page, browser, request }) => {

@@ -50,7 +50,7 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Migraciones congeladas.** Las migraciones publicadas no se editan, y un test guarda su huella. Al pasar el dominio a `shared/` solo cambió la línea del import de `DEFAULT_CATEGORIES` en la 001, porque la ruta antigua dejaba de existir; el SQL y los datos son los mismos.
 
-**La web por funcionalidades.** `src/features/{auth,finance,pantry,tickets}` con su `index.ts`, más `src/ui/` (genérico) y `src/api/` (el cliente). Solo los clientes hacen peticiones. Las acciones de los tickets siguen en `usePantry`, porque guardar un ticket recarga toda la despensa; la feature tickets define `TicketActions` y la dependencia va solo de pantry a tickets. Detalle en `docs/frontend.md`.
+**La web por funcionalidades.** `src/features/{auth,finance,pantry,tickets}` con su `index.ts`, más `src/ui/` (genérico) y `src/api/` (el cliente). Solo los clientes hacen peticiones. Las acciones de los tickets siguen en la despensa (PantryProvider, antes `usePantry`), porque guardar un ticket cambia la despensa; la feature tickets define `TicketActions` y la dependencia va solo de pantry a tickets. Detalle en `docs/frontend.md`.
 
 **Documentación para agentes.** Un `AGENTS.md` en la raíz, en cada zona, en cada módulo y en cada feature, con un `CLAUDE.md` al lado que solo contiene `@AGENTS.md`, y reglas cortas en `.claude/rules/`. Lo comprueba `tests/docs.test.ts`. `.claude/settings.json` impide que un agente lea `server/data/` y `.env`.
 

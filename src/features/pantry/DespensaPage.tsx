@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FREQUENCY_TITLES, matchesOwner, PANTRY_FREQUENCIES, pantrySummary, type OwnerFilter, type Rhythms } from '#shared/pantry/pantry.ts'
 import { reviewItems, reviewSchedule } from '#shared/pantry/pantryReview.ts'
 import { rhythmsFor } from '#shared/pantry/pantryRhythm.ts'
@@ -22,7 +22,7 @@ import { ReviewBlock } from './components/ReviewBlock.tsx'
 import { ShoppingListDialog } from './components/ShoppingListDialog.tsx'
 import { SummaryBlock } from './components/SummaryBlock.tsx'
 import { WeeklyReviewCard, WeeklyReviewDialog } from './components/WeeklyReview.tsx'
-import { usePantry } from './usePantry.ts'
+import { usePantry } from './pantryContext.ts'
 
 type Editing =
   | { kind: 'item'; item: PantryItem | null }
@@ -55,15 +55,26 @@ const MARK_TEXT: Record<PantryEventKind, string> = {
 /**
  * Despensa: escanear los tickets de la compra, lo que conviene revisar, la
  * lista de la compra y todos los productos. Es la misma página para invitados
- * y para quien ha escrito el código, y no depende de los datos financieros.
+ * y para quien ha escrito el código, y no depende de los datos financieros. Su
+ * estado vive en PantryProvider: al volver a ella se ve al momento y se relee
+ * en segundo plano (también al volver a la pestaña).
  */
 export function DespensaPage() {
   const { state, actions } = usePantry()
   const { notify } = useToast()
   const [ownerValue, setOwnerValue] = useState('todo')
   const [editing, setEditing] = useState<Editing>(null)
-  const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set())
   const [retrying, setRetrying] = useState(false)
+
+  // Al abrir la Despensa (la primera vez, carga; después, relee sin quitar lo que se ve) y al volver a la pestaña.
+  useEffect(() => {
+    void actions.reload()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void actions.reload()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [actions])
 
   const people = useMemo(() => (state.status === 'ready' ? state.people : []), [state])
   const items = useMemo(() => (state.status === 'ready' ? state.items : []), [state])
@@ -88,40 +99,26 @@ export function DespensaPage() {
   )
   const [snoozedOn, setSnoozedOn] = useState<string | null>(readSnooze)
 
-  /** Una acción cada vez por producto: la siguiente espera a la respuesta del servidor. */
-  const withBusy = async (id: string, work: () => Promise<void>) => {
-    if (busyIds.has(id)) return
-    setBusyIds((current) => new Set(current).add(id))
-    try {
-      await work()
-    } catch (error) {
-      notify(describeStorageError(error), 'error')
-    } finally {
-      setBusyIds((current) => {
-        const next = new Set(current)
-        next.delete(id)
-        return next
-      })
-    }
-  }
-
-  const step = (item: PantryItem, delta: number) => withBusy(item.id, () => actions.adjustItem(item.id, delta))
+  /** + y −: se ve al momento; los pasos de un producto van al servidor de uno en uno (PantryProvider). Si falla, se avisa. */
+  const step = (item: PantryItem, delta: number) =>
+    actions.adjustItem(item.id, delta).catch((error: unknown) => notify(describeStorageError(error), 'error'))
 
   const mark = (item: PantryItem, kind: PantryEventKind) =>
-    withBusy(item.id, async () => {
-      const event = await actions.addEvent(item.id, kind)
-      notify(`${item.name}: ${MARK_TEXT[kind]}`, 'success', {
-        action: {
-          label: 'Deshacer',
-          onAction: () => {
-            actions.deleteEvent(event.id).then(
-              () => notify('Deshecho'),
-              (error: unknown) => notify(describeStorageError(error), 'error'),
-            )
+    actions.addEvent(item.id, kind).then(
+      (event) =>
+        notify(`${item.name}: ${MARK_TEXT[kind]}`, 'success', {
+          action: {
+            label: 'Deshacer',
+            onAction: () => {
+              actions.deleteEvent(event.id).then(
+                () => notify('Deshecho'),
+                (error: unknown) => notify(describeStorageError(error), 'error'),
+              )
+            },
           },
-        },
-      })
-    })
+        }),
+      (error: unknown) => notify(describeStorageError(error), 'error'),
+    )
 
   const markPurchased = async (ids: string[]) => {
     const changes = await actions.markPurchased(ids)
@@ -234,7 +231,7 @@ export function DespensaPage() {
             </button>
           </div>
 
-          <ReviewBlock items={visible} rhythms={rhythms} busyIds={busyIds} onMark={(item, kind) => void mark(item, kind)} />
+          <ReviewBlock items={visible} rhythms={rhythms} onMark={(item, kind) => void mark(item, kind)} />
           <RecentTickets tickets={state.tickets} onOpen={(id) => setEditing({ kind: 'ticket', id })} />
 
           {items.length === 0 ? (
@@ -303,7 +300,6 @@ export function DespensaPage() {
                               ownerLabel={
                                 owner === 'todo' && people.length > 0 ? (item.ownerId ? (peopleById.get(item.ownerId) ?? '') : 'Compartido') : null
                               }
-                              busy={busyIds.has(item.id)}
                               onEdit={() => setEditing({ kind: 'item', item })}
                               onStep={(delta) => void step(item, delta)}
                               onMark={(kind) => void mark(item, kind)}

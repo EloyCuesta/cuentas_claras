@@ -160,7 +160,7 @@ El push no las toca. Por impacto:
 1. **Cada guardado de finanzas espera a releerlo todo.** Espera el PUT, luego GET `/data` (todos los movimientos de siempre) y GET `/meta`, y solo entonces cierra el diálogo, sin decir que está guardando: `src/features/finance/FinanceProvider.tsx`, `src/features/finance/confirmedWrite.ts` y `src/features/finance/components/MovementDialog.tsx`.
 2. **Elegir categoría es lento**: un select vacío con unas 24 opciones. Solo se sugiere si el concepto coincide exacto (`shared/finance/suggestions.ts`).
 3. **En la Despensa, los productos (donde están + y −) quedan debajo de seis bloques**: acciones, repaso, personas, «Para revisar», «Últimas compras» y resumen. No hay buscador, y las secciones vacías se ven (`src/features/pantry/DespensaPage.tsx`).
-4. **La Despensa se recarga desde cero en cada visita**: 5 GET y «Cargando la despensa…», porque `usePantry()` (`src/features/pantry/usePantry.ts`) vive dentro de la página.
+4. **La Despensa se recarga desde cero en cada visita**: 5 GET y «Cargando la despensa…», porque usePantry() (src/features/pantry/usePantry.ts, que ya no existe: UX-02) vivía dentro de la página.
 5. **+, −, «Queda», «Se acabó», «Lo he comprado» y el repaso semanal esperan al servidor** (`busyIds`).
 6. **La barra inferior del móvil tiene 6 pestañas con letra de 11 px**, y «Presupuestos» y «Recurrentes» se parten.
 7. **Un ingreso es un rodeo.** «Añadir» siempre abre un gasto (`src/App.tsx`), y cambiar el tipo, que va antes del importe, quita el foco del importe.
@@ -251,7 +251,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | DOC-02 | Estado y documentación al día tras el push | FIX-02 | verificado |
 | UX-00 | Línea base de la interfaz: capturas y números | DOC-02 | verificado |
 | UX-01 | Guardar sin esperar | UX-00 | verificado |
-| UX-02 | Despensa instantánea | UX-00 | pendiente |
+| UX-02 | Despensa instantánea | UX-00 | verificado |
 | UX-03 | Añadir movimientos en segundos | UX-01 | pendiente |
 | UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | pendiente |
 | UX-05 | Despensa más directa | UX-02 | pendiente |
@@ -691,7 +691,7 @@ Plantilla:
     - `src/features/finance/confirmedWrite.ts`: tras confirmar la escritura, el cambio entra en pantalla y la acción termina; la relectura va en segundo plano. Si falla la escritura, el diálogo sigue abierto como antes (FIN-02); si falla la relectura, el mismo aviso `warning`.
     - `src/features/finance/FinanceProvider.tsx`: lo que cambia en pantalla sin releer (movimiento, categoría y recurrente guardados; lo borrado, con los movimientos de una categoría borrada pasados a la elegida y los pendientes de un recurrente borrado; la fecha de la última copia). Un contador impide que una relectura empezada antes pise una escritura más nueva. Restaurar una copia sigue esperando a releer.
     - «Guardar gasto» (y el resto) y «Marcar como pagado»: `aria-busy` y un círculo que gira mientras guardan, con el mismo nombre accesible.
-    - `src/features/pantry/usePantry.ts`: guardar un ticket usa los `items` que devuelve el servidor; los tickets y la actividad se releen en segundo plano.
+    - src/features/pantry/usePantry.ts (desde UX-02, `src/features/pantry/PantryProvider.tsx`): guardar un ticket usa los `items` que devuelve el servidor; los tickets y la actividad se releen en segundo plano.
   - **Textos, roles y `data-testid`**: ninguno cambia; se añade `aria-busy` a los botones de guardar.
   - **Números** (escritorio, `e2e/medidas-interfaz.spec.ts`, que ahora mide también guardar con GET /api/data retrasado 1,5 s):
 
@@ -708,3 +708,20 @@ Plantilla:
     - `npm run test:e2e:dotnet`: 80 pasan y 6 se omiten;
     - `npm run build` (dentro de los e2e): correcto.
   - **Siguiente tarea**: UX-02.
+
+- **UX-02 · 24 de noviembre de 2026 · base `7ac1c08`** (UX-01):
+  - **Alcance**: la Despensa instantánea.
+  - **Hallazgos**: se confirman. `usePantry()` vivía dentro de la página: cada visita eran 5 GET y «Cargando la despensa…». + , −, «Queda», «Se acabó», «Lo he comprado» y el repaso esperaban al servidor (`busyIds`).
+  - **Qué cambia**:
+    - `src/features/pantry/PantryProvider.tsx` y `src/features/pantry/pantryContext.ts` (el patrón contexto + proveedor) sustituyen a usePantry.ts. Los montan `src/App.tsx` y `src/GuestApp.tsx`, sin depender de FinanceProvider. Se carga la primera vez que se abre la Despensa; al volver, lo de antes se ve al momento y DespensaPage lo relee en segundo plano (también al volver a la pestaña).
+    - + y −, «Queda», «Queda poco», «Se acabó» y «Lo he comprado» (también en el repaso de la semana) se ven al momento. Cada producto tiene una cola: sus cambios van al servidor de uno en uno. + y − siguen mandando el paso y el servidor suma sobre su valor; mientras tanto se enseña lo último del servidor más lo pendiente. Si falla, se deshace y se avisa. «Deshacer» de una compra sigue comprobando la versión (409).
+    - Fuera `busyIds` (DespensaPage, PantryRow y ReviewBlock) y el bloqueo del repaso salvo al terminarlo.
+  - **Textos, roles y `data-testid`**: ninguno cambia. PantryRow y la tarjeta del repaso ya no ponen `aria-busy` ni desactivan los botones mientras espera el servidor.
+  - **Números**: volver a la Despensa sigue haciendo 5 peticiones, pero ya en segundo plano: con la relectura retrasada 1,5 s, el producto se ve en menos de 500 ms y no aparece «Cargando la despensa…» (antes, la página se vaciaba hasta que llegaban las 5). Tres + seguidos con el servidor tardando 400 ms se ven en menos de 300 ms y suman tres en el servidor.
+  - **Pruebas nuevas** (`e2e/despensa.spec.ts`): «+ tres veces seguidas suma tres al momento, y un + que falla se deshace y avisa» y «con el código, volver a la Despensa la enseña al momento, sin «Cargando la despensa…»». Dos pestañas a la vez: la de siempre, «dos móviles pulsan + a la vez…», sigue pasando.
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1631/1631;
+    - `npm run test:e2e`: 78 pasan y 6 se omiten;
+    - `npm run test:e2e:dotnet`: 84 pasan y 6 se omiten;
+    - `e2e/medidas-interfaz.spec.ts` en escritorio: pasa.
+  - **Siguiente tarea**: UX-03.

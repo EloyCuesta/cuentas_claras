@@ -36,7 +36,7 @@ Leyendo: el paso y los segundos («Uniendo 3 capturas», «Leyendo el ticket… 
 
 ## Estado y datos
 - Esta feature no hace peticiones ni guarda estado global: los diálogos reciben `actions: TicketActions` (`ticketActions.ts`).
-- Las implementa `usePantry` (feature pantry), porque guardar, cambiar o borrar un ticket cambia productos, compras y tickets a la vez. Las peticiones (/api/despensa/tickets/leer, /tickets, /tickets/:id y /tickets/:id/lineas/:lineId) están en el `api.ts` de pantry.
+- Las implementa PantryProvider (feature pantry), porque guardar, cambiar o borrar un ticket cambia productos, compras y tickets a la vez. Las peticiones (/api/despensa/tickets/leer, /tickets, /tickets/:id y /tickets/:id/lineas/:lineId) están en el `api.ts` de pantry.
 - La dependencia va en un solo sentido: pantry → tickets.
 
 ## Textos y accesibilidad
@@ -79,4 +79,4 @@ Los e2e usan estos nombres y atributos; no los cambies sin cambiar el test:
 ## Si cambias esta pantalla
 - Textos o `data-testid`: `e2e/tickets.spec.ts`.
 - Lo que se envía al guardar: la validación del servidor (`shared/tickets/ticketValidation.ts`) y `server/modules/tickets/`.
-- Las acciones: `TicketActions` y su implementación en `src/features/pantry/usePantry.ts`.
+- Las acciones: `TicketActions` y su implementación en `src/features/pantry/PantryProvider.tsx`.

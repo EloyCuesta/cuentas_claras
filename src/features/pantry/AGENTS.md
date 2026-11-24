@@ -1,6 +1,6 @@
 # Feature pantry — Despensa
 
-> Lee antes: /AGENTS.md y src/AGENTS.md. Depende de: `src/api/`, `src/ui/`, `shared/pantry/` y la feature tickets (sus diálogos y TicketActions, por su index.ts). Lo usan: `src/App.tsx` (con el código) y `src/GuestApp.tsx` (invitado): es la misma página para los dos. En el servidor son los módulos pantry y tickets.
+> Lee antes: /AGENTS.md y src/AGENTS.md. Depende de: `src/api/`, `src/ui/`, `shared/pantry/` y la feature tickets (sus diálogos y TicketActions, por su index.ts). Lo usan: `src/App.tsx` (con el código) y `src/GuestApp.tsx` (invitado), que montan PantryProvider: es la misma página para los dos. En el servidor son los módulos pantry y tickets.
 
 ## Qué ve la persona
 La Despensa:
@@ -14,7 +14,8 @@ Sin el código es lo único que se ve.
 ## Componentes
 | Componente | Archivo | Qué hace | Test e2e |
 | --- | --- | --- | --- |
-| DespensaPage | `DespensaPage.tsx` | La página: estado, avisos con «Deshacer» y qué diálogo está abierto | `e2e/despensa.spec.ts` y `e2e/tickets.spec.ts` |
+| PantryProvider | `PantryProvider.tsx` y `pantryContext.ts` (usePantry) | El estado de la despensa, entre secciones, y sus acciones; + / − y las revisiones al momento, con una cola por producto | «+ tres veces seguidas suma tres…» y «con el código, volver a la Despensa la enseña al momento…» |
+| DespensaPage | `DespensaPage.tsx` | La página: carga o relee al abrirse y al volver a la pestaña, avisos con «Deshacer» y qué diálogo está abierto | `e2e/despensa.spec.ts` y `e2e/tickets.spec.ts` |
 | PantryRow | `components/PantryRow.tsx` | Un producto: estado, última compra, botones y + / − | «los botones + y −, marcar como comprado y deshacer» y «dos móviles pulsan + a la vez y el servidor suma los dos» |
 | ReviewBlock | `components/ReviewBlock.tsx` | «Para revisar»: lo que se acerca a lo que suele durar | «días después: qué toca revisar…» |
 | RecentTickets | `components/RecentTickets.tsx` | «Últimas compras»: los tickets guardados | «lee la captura de un ticket de Lidl…» |
@@ -25,9 +26,10 @@ Sin el código es lo único que se ve.
 | OwnerTabs, OwnerSelect, RhythmStatus | `components/owner.tsx`, `components/RhythmStatus.tsx` | Selector de persona y etiqueta del ritmo | los anteriores |
 
 ## Estado y datos
-- `usePantry.ts`: el estado de la despensa (personas, productos, ajustes, actividad, tickets y la fecha de hoy) y sus acciones. Lo usan igual el invitado y el administrador, sin FinanceProvider. Al volver a la pestaña se recarga. Una recarga antigua no pisa una escritura más nueva (contador `writes`).
+- `PantryProvider.tsx` + `pantryContext.ts` (UX-02): el estado de la despensa (personas, productos, ajustes, actividad, tickets y la fecha de hoy) y sus acciones, con `usePantry()`. Lo montan App y GuestApp, sin FinanceProvider, así que dura mientras se cambia de sección. Se carga la primera vez que se abre la Despensa («Cargando la despensa…» solo esa vez); después, DespensaPage lo relee en segundo plano al abrirse y al volver a la pestaña, sin quitar lo que se ve. Una recarga antigua no pisa una escritura más nueva (un contador de escrituras).
+- + y −, «Queda», «Queda poco», «Se acabó» y «Lo he comprado» (también en el repaso de la semana) se ven al momento. Cada producto tiene una cola: sus cambios van al servidor de uno en uno y en orden. + y − mandan el paso y el servidor suma sobre su valor (también desde dos móviles a la vez); mientras tanto se enseña lo último del servidor más lo pendiente. Una revisión lleva un id provisional hasta que llega la guardada. Si algo falla, se quita de la pantalla y se avisa. «Deshacer» de una compra sigue comprobando la versión (409).
 - `api.ts` (pantryApi) es lo único que hace peticiones: /api/despensa/personas, productos, revisiones, presupuesto, repaso, comprado, actividad y tickets.
-- Las acciones de tickets (TicketActions, de la feature tickets) también están en usePantry. Guardar un ticket usa los productos que devuelve el servidor (la ventana se cierra tras una sola petición) y relee en segundo plano los tickets y la actividad; cambiar una línea o borrar un ticket recarga toda la despensa.
+- Las acciones de tickets (TicketActions, de la feature tickets) también están en PantryProvider. Guardar un ticket usa los productos que devuelve el servidor (la ventana se cierra tras una sola petición) y relee en segundo plano los tickets y la actividad; cambiar una línea o borrar un ticket recarga toda la despensa.
 - El ritmo, los avisos, la lista y el repaso se calculan en la web con `shared/pantry/`, a partir de la actividad (compras de los tickets y revisiones).
 - «Hoy no» del repaso se guarda solo en este navegador (localStorage), hasta mañana.
 - Editar un producto (PAN-01): PantryItemDialog guarda la versión del producto con que se abrió y `updateItem` la envía como `expectedVersion`. Si el servidor responde 409 (alguien lo cambió mientras tanto: otra edición, un + o una compra), el formulario conserva lo escrito y ofrece «Volver a cargar el producto»; `reloadItem` vuelve a leer los productos y el formulario pasa a mostrar el producto como está ahora, con su versión. Nunca se reintenta solo con una versión más nueva: eso pisaría el cambio del otro.
@@ -47,7 +49,8 @@ El foco va al título al cambiar de sección, y las ventanas son `<dialog>` nati
 
 ## Trampas
 - La página es la misma para invitado y administrador: no puede usar nada de la feature finance.
-- Una acción cada vez por producto (`busyIds`): la siguiente espera a la respuesta del servidor.
+- Ya no hay `busyIds`: se puede pulsar + tres veces seguidas (suma tres). Lo que va en orden es la cola de cada producto, en PantryProvider.
+- Recargar la página con pasos en la cola pierde los que no habían salido aún: van de uno en uno.
 - «Lo he comprado» y «Marcar todo como comprado» apuntan la compra con la fecha del navegador.
 
 ## Si cambias esta pantalla

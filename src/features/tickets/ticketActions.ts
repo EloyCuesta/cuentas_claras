@@ -3,8 +3,8 @@ import type { PantryTicket, TicketReadInput, TicketSaveInput } from '#shared/tic
 
 /**
  * Lo que necesitan los diálogos de tickets. No lo implementa esta feature,
- * sino usePantry (feature pantry): guardar, cambiar o borrar un ticket cambia a
- * la vez productos, compras y tickets, y usePantry vuelve a leer la despensa
+ * sino PantryProvider (feature pantry): guardar, cambiar o borrar un ticket cambia a
+ * la vez productos, compras y tickets, y PantryProvider vuelve a leer la despensa
  * entera. Así la dependencia va en un solo sentido: pantry → tickets.
  */
 export interface TicketActions {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Icon, LogoMark } from './ui/Icon.tsx'
 import { LoginDialog } from './features/auth/index.ts'
-import { DespensaPage } from './features/pantry/index.ts'
+import { DespensaPage, PantryProvider } from './features/pantry/index.ts'
 
 /**
  * Vista de invitado: solo la despensa y el botón «Tengo el código». No usa
@@ -22,21 +22,23 @@ export function GuestApp() {
   }, [])
 
   return (
-    <div className="guest">
-      <header className="guest__bar">
-        <span className="brand">
-          <LogoMark />
-          <span>Cuentas claras</span>
-        </span>
-        <button type="button" className="btn" onClick={() => setLoggingIn(true)}>
-          <Icon name="lock" />
-          Tengo el código
-        </button>
-      </header>
-      <main id="contenido" className="guest__main" tabIndex={-1}>
-        <DespensaPage />
-      </main>
-      {loggingIn && <LoginDialog onClose={() => setLoggingIn(false)} />}
-    </div>
+    <PantryProvider>
+      <div className="guest">
+        <header className="guest__bar">
+          <span className="brand">
+            <LogoMark />
+            <span>Cuentas claras</span>
+          </span>
+          <button type="button" className="btn" onClick={() => setLoggingIn(true)}>
+            <Icon name="lock" />
+            Tengo el código
+          </button>
+        </header>
+        <main id="contenido" className="guest__main" tabIndex={-1}>
+          <DespensaPage />
+        </main>
+        {loggingIn && <LoginDialog onClose={() => setLoggingIn(false)} />}
+      </div>
+    </PantryProvider>
   )
 }

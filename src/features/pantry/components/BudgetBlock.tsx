@@ -5,7 +5,7 @@ import type { PantryItem } from '#shared/pantry/types.ts'
 import { describeStorageError } from '../../../api/storageErrors.ts'
 import { BudgetMeter } from '../../../ui/BudgetMeter.tsx'
 import { useToast } from '../../../ui/toastContext.ts'
-import type { PantryActions } from '../usePantry.ts'
+import type { PantryActions } from '../pantryContext.ts'
 
 /**
  * La estimación mensual de toda la casa y el presupuesto de la despensa, con
