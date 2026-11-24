@@ -86,6 +86,7 @@ docs/          lo transversal: convenciones, arquitectura, api, base de datos, p
 ```bash
 npm install                      # y copiar .env.example como .env con el código y MySQL (README)
 npm run dev                      # web en :5173 y API en :3001 (con TUS datos: la base cuentas_claras)
+npm run dev:dotnet               # lo mismo con la API .NET en :3201 (el ensayo del corte: el uso diario sigue en Express)
 npm run check                    # tipos + oxlint + Vitest contra MySQL: siempre en verde
 npm test                         # solo Vitest
 npx vitest run shared/pantry     # una carpeta, un archivo o, con -t "nombre", un test

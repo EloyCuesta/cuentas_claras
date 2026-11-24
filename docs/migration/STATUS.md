@@ -1,6 +1,6 @@
 # Estado y tareas de la migración
 
-Última actualización: 19 de noviembre de 2026 (reglas de la lectura de tickets de Lidl Plus, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
+Última actualización: 24 de noviembre de 2026 (CUT-PREP: el corte preparado sin cambiar el uso diario; CUT-01 en curso, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
 
 ## Estado comprobado
 
@@ -56,7 +56,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | verificado |
 | TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | verificado |
 | DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03 y los pasos del README de MYSQL-04, revisa el informe y se registra el resultado | MYSQL-04 | pendiente |
-| CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | pendiente |
+| CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | en_curso |
 
 La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MySQL con la misma API, y el esquema (`database/mysql/`) y el importador salen de ella. Por eso DATA-01 ya no crea el esquema, DATA-02 queda como la validación con los datos de la instalación y CUT-01 cambia el backend, no el motor. Ese corte de datos lo hace la persona, no un agente: `DATA-02` no se cierra con ensayos sintéticos, y `CUT-01` no se cierra sin él.
 
@@ -70,7 +70,7 @@ La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MyS
 | Pruebas Node en Windows | Resuelto en la verificación de DATA-01: el importador cierra el duplicado antes de borrar su carpeta, y `runServer` pide el cierre por IPC en Windows. Vitest 503/503 con MySQL 8.0.36 | — |
 | Textos de la web sobre SQLite | Resuelto en FIN-01, a petición de la persona: `FinanceProvider.tsx`, `BackupPanel.tsx` y `SummaryPage.tsx` dicen ahora «una base de datos MySQL de este equipo» (el panel ya no cita `server/data/cuentas.db`), y los comentarios de `src/Root.tsx`, `ApiFinanceRepository.ts` y `browserDataMigration.ts`, igual. SQLite sigue en la importación de los datos de antes | — |
 | Chromium de Playwright | `npx playwright install chromium` sigue sin poder completarse en el equipo de la persona: la descarga de cdn.playwright.dev caduca a los 30 s, tres veces (en DATA-01 y otra vez en su verificación), y el 8 de noviembre falló otra vez («Download failure, code=1» al bajar Chrome for Testing 153.0.8010.12). Los E2E se ejecutan con Chrome instalado (156 hasta el 6 de noviembre, 157.0.8103.38 desde el 8 y 157.0.8103.51 el 16; `CUENTAS_E2E_CHANNEL=chrome`) | Repetir la instalación con acceso a cdn.playwright.dev y los E2E sin el canal |
-| Cabecera de caché en errores del host | En el host .NET, comprobada en BASE-02: los 400 de JSON mal formado y los 413 llevan `Cache-Control: no-store` (pruebas HTTP, 68/68). Express conserva la diferencia | Los errores 400/413 del lector JSON de Express carecen de la cabecera hasta que .NET lo sustituya (CUT-01); entonces se actualizan la API y ARCHITECTURE.md |
+| Cabecera de caché en errores del host | En el host .NET, comprobada en BASE-02: los 400 de JSON mal formado y los 413 llevan `Cache-Control: no-store` (pruebas HTTP, 68/68). Express conserva la diferencia. Desde CUT-PREP, la API y ARCHITECTURE.md lo dicen así, sin pendiente de BASE-02 | Desaparece cuando el uso diario pase a .NET (CUT-01); hasta entonces Express sigue sin la cabecera en esos errores |
 | Comprobaciones con MySQL de TIC-01 | Hechas el 8 de noviembre en Windows con MySQL 8.4.13 (registro «TIC-01 y DATA-01 — verificación en MySQL 8.4»): TIC-01 verificado | — |
 | Hallazgos de TIC-01 en TypeScript | Resueltos el 6 de noviembre, en TypeScript y en C# | Registro «TIC-01 — hallazgos corregidos»: en validateTicketSave una lista ya no vale donde va un texto, y «1,15-» sin multiplicación queda dudosa |
 | OCR definitivo | Resuelto en TIC-02 y TIC-04: el de Express (tesseract.js) en un proceso Node aparte (ocrWorker.ts); el reconocimiento real con los fixtures en xUnit, Vitest y `e2e/tickets.spec.ts` contra .NET. Depende de Node y node_modules (README, «Ensayo con el backend .NET») | — |
@@ -621,7 +621,7 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
   - `npm run check`: Vitest 1586/1586 en 57 archivos.
   - .NET: 2260/2260, con el corpus 1086/1086 en es-ES y en la invariante.
 
-  Un host .NET arrancado aparte con `dotnet run` bloqueaba `backend/src/CuentasClaras.Api/bin`. No se tocó: se compiló y probó con `--artifacts-path` en una carpeta fuera de git.
+  Un host .NET arrancado aparte con `dotnet run` bloqueaba la carpeta bin del proyecto CuentasClaras.Api. No se tocó: se compiló y probó con `--artifacts-path` en una carpeta fuera de git.
 - Sin ejecutar todavía en esta entrada: `npm run test:e2e:dotnet` (al terminar la interfaz).
 
 ### Plantilla para la siguiente tarea

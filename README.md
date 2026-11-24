@@ -49,7 +49,7 @@ npm run preview      # en otra: la web en http://localhost:4173 (también envía
 
 ### Variables de entorno
 
-Variables de entorno del servidor. Los scripts `server` y `dev:server` también las leen de `.env`, si existe; una variable ya definida en el entorno tiene prioridad sobre `.env`.
+Variables de entorno del servidor. Los scripts `server` y `dev:server` también las leen de `.env`, si existe, y los del backend .NET (`dev:dotnet` y `server:dotnet`), igual; una variable ya definida en el entorno tiene prioridad sobre `.env`.
 
 | Variable | Valor por defecto | Para qué |
 | --- | --- | --- |
@@ -71,30 +71,25 @@ El backend .NET de ensayo lee las mismas `CUENTAS_*` y, para leer tickets con im
 
 ### Ensayo con el backend .NET
 
-El backend .NET (`backend/`) atiende las mismas rutas sobre la misma base. Mientras se ensaya, arráncalo en lugar de Express (nunca los dos a la vez sobre la misma base), en dos terminales de PowerShell desde la raíz del repositorio. Necesita el SDK de .NET 10, Node y `npm install` (para el OCR de los tickets).
+El backend .NET (`backend/`) atiende las mismas rutas sobre la misma base. Hasta el corte, `npm run dev` sigue arrancando Express; para probar .NET, arráncalo **en lugar de** Express (nunca los dos a la vez sobre la misma base). Necesita el SDK de .NET 10, Node y `npm install` (para el OCR de los tickets). Lee el mismo `.env` que Express, y una variable ya definida en el entorno manda sobre él.
 
-Terminal 1, la API .NET en el puerto 3201:
-
-```powershell
-npm run build:dotnet
-$env:CUENTAS_CODIGO = 'tu código de acceso'
-$env:CUENTAS_DB_HOST = '127.0.0.1'
-$env:CUENTAS_DB_PORT = '3306'
-$env:CUENTAS_DB_USER = 'cuentas'
-$env:CUENTAS_DB_PASSWORD = Read-Host 'Contraseña de MySQL'
-$env:CUENTAS_DB_NAME = 'cuentas_claras'
-dotnet run --no-build --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj
+```bash
+npm run dev:dotnet   # abre http://localhost:5173, igual que npm run dev
 ```
 
-Terminal 2, la web apuntando a .NET:
+Arranca, cada uno con su prefijo en la consola:
 
-```powershell
-$env:CUENTAS_API_URL = 'http://127.0.0.1:3201'
-$env:CUENTAS_BACKEND = 'dotnet'
-npm run dev:web
-```
+- `[api]` el servidor .NET en `http://127.0.0.1:3201/api`. La primera vez lo compila y tarda un poco más. No se reinicia solo al cambiar su código: Ctrl+C y otra vez.
+- `[web]` la misma interfaz, enviando `/api` a .NET. Los resúmenes del mes y del año los calcula el servidor.
 
-Comprueba `http://localhost:5173/api/health` (responde `{ ok: true, data: { status: 'ok', schemaVersion: 5 } }`) y abre `http://localhost:5173`. Para volver a Express, cierra las dos terminales y arranca `npm run dev` como siempre. El cambio de la instalación de cada día está en `docs/migration/DATA.md` («Ensayo, corte y recuperación»).
+Comprueba `http://localhost:5173/api/health` (responde `{ ok: true, data: { status: 'ok', schemaVersion: 5 } }`) y abre `http://localhost:5173`.
+
+- **En el móvil**: `npm run dev:dotnet:api` en una terminal y `npm run dev:dotnet:web -- --host` en otra.
+- **Versión de producción**: `npm run build:web:dotnet` (la web para .NET, en `dist/`), y después `npm run server:dotnet` en una terminal (la API, compilada en modo Release) y `npm run preview:dotnet` en otra (la web en `http://localhost:4173`).
+- **Volver a Express**: Ctrl+C y `npm run dev` como siempre. Es la misma base y el mismo esquema, así que no hay que convertir nada, y lo que hayas escrito con .NET se queda. Si compilaste la web para .NET, vuelve a hacer `npm run build` antes de `npm run preview`.
+- Si en tu `.env` pusiste `CUENTAS_PORT`, .NET también lo usa y la web no lo encuentra en 3201: quítalo mientras pruebas .NET.
+
+Los pasos del cambio de la instalación de cada día (parar las escrituras, una copia comprobada de MySQL, arrancar .NET y volver atrás) están en `docs/migration/DATA.md` («Ensayo, corte y recuperación»).
 
 ## Preparar MySQL
 

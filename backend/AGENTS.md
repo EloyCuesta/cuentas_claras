@@ -19,6 +19,8 @@ Mismo código, cookie, caducidad y bloqueo que [auth actual](../server/modules/a
 - `ApiHost.CreateConfigured`: el arranque de Program. Valida el código; sin CUENTAS_DB_USER arranca solo con el acceso; con él abre MySQL, aplica las migraciones, siembra una base nueva y conecta la salud. Un fallo de almacenamiento llega como StartupException, con el mensaje en español y sin la contraseña.
 - `ApiHost.HostRoutes` y `ApiHost.ModuleRoutes`: el inventario de rutas, para las pruebas.
 
+`src/CuentasClaras.Api/Program.cs` lee la configuración del entorno y, solo si el arranque lo pide con `--env-file-if-exists=.env` (los scripts `*:dotnet` de `../package.json`), también del archivo, con `src/CuentasClaras.Api/Composition/EnvFile.cs`: el formato del `--env-file` de Node y el entorno por delante, como Express.
+
 Cada módulo registra sus rutas en una ApiRouteTable (`src/CuentasClaras.Api/Common/ApiRoutes.cs`) desde `Api/<Módulo>/`, con sus casos de uso ya compuestos; Composition (MapModules) los construye en el orden de `../server/app.ts`.
 
 ## Casos de uso y rutas
@@ -71,7 +73,7 @@ Application posee IClock (NowMs, NowIso y Today, la fecha de reserva del servido
 - Cada host tiene sus almacenes y un Login compartido. Su sección crítica protege la operación completa de intentos y sesiones concurrentes.
 - El lector JSON precede al acceso y al router. Cuenta bytes descomprimidos: 30 MiB para lectura de tickets, 20 MiB en el resto. Todos los errores de aplicación usan sobre JSON español y no-store.
 - El proxy solo es fiable desde loopback. No sustituyas esa regla por confiar en todas las cabeceras X-Forwarded-For.
-- Nunca leer server/data ni cargar .env automáticamente. La configuración local se pasa por entorno.
+- Nunca leer server/data. El .env solo se lee si el arranque lo pide (`--env-file-if-exists=.env`, como Node en los scripts de Express), y lo que ya está en el entorno manda; ni las pruebas ni las e2e lo piden.
 
 ## Datos
 
@@ -81,6 +83,7 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 
 `tests/CuentasClaras.Tests/AuthTests.cs`: política, casos de uso y adaptadores de acceso.
 `tests/CuentasClaras.Tests/HttpTests.cs`: Kestrel real sin base de datos, corpus HTTP compartido, límites, errores, proxy y proceso de arranque.
+`tests/CuentasClaras.Tests/EnvFileTests.cs`: el .env (CUT-PREP) con los valores que da Node 22 con el mismo archivo y sus dos diferencias a propósito, el entorno por delante, y el proceso real, que solo lo lee con la opción.
 `tests/CuentasClaras.Tests/ArchitectureTests.cs`: referencias de proyectos/ensamblados, paquetes y dependencias de tipos e IL entre capas y módulos, incluido el driver; que Domain.Tickets no usa Domain.Pantry y que las reglas de tickets no leen el reloj ni el azar.
 `tests/CuentasClaras.Tests/TicketRulesCorpusTests.cs`: las reglas de tickets dan exactamente el corpus de TypeScript (`../fixtures/migration/rules-tickets.json`, 535 casos) y las reglas de tickets de `../fixtures/migration/rules.json`, en es-ES y en la invariante. El ejecutor y los mapeos a JSON están en `TicketRulesCorpus.cs` y `CorpusJson.cs`.
 `tests/CuentasClaras.Tests/MySqlMigrationTests.cs`, `MySqlUnitOfWorkTests.cs`, `MySqlSchemaTests.cs` y `MySqlHostTests.cs`: contra MySQL real (categoría MySql), con bases `cuentas_test_*` de `TestDatabase.cs` que se borran al terminar.
@@ -93,7 +96,7 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 `tests/CuentasClaras.Tests/TicketSaveHttpTests.cs` (MySql): guardar como `../server/modules/tickets/tickets.test.ts` (productos nuevos, lo aprendido, precio y cantidad, decisiones, líneas dudosas, huellas golden) y `../server/modules/tickets/ticketAtomicity.test.ts` (un fallo real de MySQL en la segunda línea no deja nada, dos guardados iguales a la vez dan 201 y 409, también sin productos que bloquear, y un ticket y un + a la vez no se pisan), y cambiar una línea y borrar tickets (TIC-04).
 `tests/CuentasClaras.Tests/ImportHttpTests.cs` (MySql): la importación del navegador, y que restaurar e importar dejan intactas (CHECKSUM TABLE) las tablas de la despensa y los tickets.
 `tests/CuentasClaras.Tests/SummaryHttpTests.cs` (MySql): las consultas de resumen responden exactamente lo que calculó TypeScript (los casos «api-*» del corpus de finanzas), restaurando sus datos.
-`tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario (los seis activos desde TIC-04), y el inventario de rutas.
+`tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario (los seis, desde TIC-04), y el inventario de rutas, con cada paso de esos corpus en una ruta que existe.
 `../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos. La app completa contra .NET (todos los `../e2e/*.spec.ts`): `../e2e/AGENTS.md`.
 
 Los comandos y el alcance exacto están en [pruebas](../docs/pruebas.md). Los resultados de cada tarea van en [STATUS](../docs/migration/STATUS.md).
@@ -102,7 +105,9 @@ Los comandos y el alcance exacto están en [pruebas](../docs/pruebas.md). Los re
 
 - CUENTAS_PORT usa 3201 por defecto para convivir con Express; puerto 0 se reserva a ensayos con puerto libre.
 - Sin CUENTAS_DB_USER el host arranca solo con el acceso y lo dice en la consola. `playwright.dotnet.config.ts` lo pasa vacío a propósito: Playwright añade su `env` al del proceso, y con CUENTAS_DB_* heredadas el host abriría y migraría la base, por defecto cuentas_claras.
-- Las pruebas MySQL necesitan CUENTAS_DB_* en el entorno (el host no lee .env) y fallan con un mensaje claro si faltan: no se saltan. Usa un usuario limitado a `cuentas\_test\_%`.
+- Las pruebas MySQL necesitan CUENTAS_DB_* en el entorno (las pruebas .NET no leen .env) y fallan con un mensaje claro si faltan: no se saltan. Usa un usuario limitado a `cuentas\_test\_%`.
+- `dotnet run` arrancaría el host en la carpeta del proyecto. RunWorkingDirectory (`src/CuentasClaras.Api/CuentasClaras.Api.csproj`) lo arranca en la raíz del repositorio, como npm a Express: ahí se buscan el `.env` de `--env-file-if-exists=.env` y el worker del OCR. Si lanzas la dll a mano, hazlo desde la raíz.
+- El .env es el formato de Node salvo dos cosas a propósito (EnvFile): un BOM al principio se ignora y `CLAVE=` seguida solo de espacios es un valor vacío (Node se come la línea siguiente). Si cambias el lector, comprueba los valores de EnvFileTests con `node --env-file`.
 - El pool de MySqlConnector reinicia la sesión al devolver cada conexión: por eso SESSION_SETUP se ejecuta en cada apertura. Dentro de una transacción las consultas van en serie (una conexión no admite dos a la vez).
 - MySqlConnector admite varias sentencias en un mismo texto: «una sentencia por llamada» se cumple por convención, y los valores siempre van como parámetros.
 - La salud lee schema_migrations en cada petición, también para comprobar que MySQL responde.

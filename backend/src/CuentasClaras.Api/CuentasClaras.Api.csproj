@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- dotnet run arrancaría el host en la carpeta del proyecto: así arranca en la raíz del repositorio, como los scripts
+         de Express, y ahí busca el .env de - -env-file-if-exists=.env (scripts *:dotnet de package.json) y el OCR. -->
+    <RunWorkingDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../..'))</RunWorkingDirectory>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../CuentasClaras.Application/CuentasClaras.Application.csproj" />
     <ProjectReference Include="../CuentasClaras.Infrastructure/CuentasClaras.Infrastructure.csproj" />
