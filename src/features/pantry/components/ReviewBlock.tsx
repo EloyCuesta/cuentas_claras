@@ -9,10 +9,11 @@ import { RhythmStatus } from './RhythmStatus.tsx'
 /**
  * «Para revisar»: los productos que, por cuándo se compraron, puede que se
  * estén acabando, primero los que antes tocan, con «Queda», «Queda poco» y
- * «Se acabó». Muestra 8 y «Ver las n» si hay más.
+ * «Se acabó». Muestra 3 y «Ver las n» si hay más, para que los productos
+ * queden cerca (UX-05).
  */
 
-const REVIEW_LIMIT = 8
+const REVIEW_LIMIT = 3
 
 export function ReviewBlock({
   items,

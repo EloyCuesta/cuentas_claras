@@ -5,6 +5,7 @@ import {
   excessQuantity,
   formatQuantity,
   listaCompraTexto,
+  matchesName,
   missingCostCents,
   missingQuantity,
   monthlyCostCents,
@@ -51,6 +52,20 @@ const example = () => [
   item({ name: 'Huevos', unit: 'docena', quantity: 0, target: 1, frequency: 'mensual', priceCents: 260 }),
   item({ name: 'Proteína', ownerId: eloy.id, unit: 'bolsa', quantity: 0, target: 1, frequency: 'mensual', priceCents: 1200 }),
 ]
+
+describe('buscar por nombre', () => {
+  it('sin tildes ni mayúsculas y por cualquier parte del nombre', () => {
+    expect(matchesName({ name: 'Café molido' }, 'cafe')).toBe(true)
+    expect(matchesName({ name: 'Café molido' }, 'MOLIDO')).toBe(true)
+    expect(matchesName({ name: 'Leche semidesnatada' }, ' desnat ')).toBe(true)
+    expect(matchesName({ name: 'Arroz' }, 'leche')).toBe(false)
+  })
+
+  it('sin nada escrito, todos', () => {
+    expect(matchesName({ name: 'Arroz' }, '')).toBe(true)
+    expect(matchesName({ name: 'Arroz' }, '   ')).toBe(true)
+  })
+})
 
 describe('cantidades', () => {
   it('lo que falta, con existencias por debajo, iguales y por encima del objetivo', () => {

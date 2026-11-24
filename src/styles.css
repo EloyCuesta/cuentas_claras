@@ -2629,6 +2629,72 @@ body:has(dialog[open]) {
   flex: 1 1 260px;
 }
 
+/* En el móvil, «Personas» es solo el icono, junto a las pestañas (su nombre sigue para los lectores de pantalla). */
+@media (max-width: 599px) {
+  .pantry-owners {
+    flex-wrap: nowrap;
+  }
+
+  .pantry-owners .segmented {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .pantry-owners__people {
+    flex: none;
+    width: 52px;
+    padding-inline: 0;
+  }
+
+  .pantry-owners__people-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* Buscar producto: encima de la lista, para llegar a + y − sin recorrer los bloques */
+.pantry-search {
+  flex: none;
+  max-width: 420px;
+}
+
+/* Lo que se mira de vez en cuando (últimas compras, resumen y presupuesto), plegado al final */
+.pantry-more > summary {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-l);
+  background: var(--sheet);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pantry-more > summary::before {
+  content: '▸';
+  margin-right: 8px;
+}
+
+.pantry-more[open] > summary::before {
+  content: '▾';
+}
+
+.pantry-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.pantry-more__body {
+  display: grid;
+  gap: 20px;
+  margin-top: 16px;
+}
+
 .pantry-summary {
   display: grid;
   gap: 20px;

@@ -97,6 +97,8 @@ export function PantryItemDialog({
         },
   )
   const [errors, setErrors] = useState<FieldErrors<PantryItemDraft>>({})
+  // «Más detalles» (precio y notas) abierto si ya tienen algo (UX-05).
+  const [moreOpen, setMoreOpen] = useState(() => draft.price !== '' || draft.notes !== '')
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -140,6 +142,7 @@ export function PantryItemDialog({
     const result = validateItemDraft(draft, people)
     if (!result.ok) {
       setErrors(result.errors)
+      if (result.errors.price || result.errors.notes) setMoreOpen(true)
       focusFirstError(result.errors, FIELD_IDS)
       return
     }
@@ -165,6 +168,7 @@ export function PantryItemDialog({
       if (outcome.ok) {
         setOpened(outcome.opened)
         setDraft(outcome.draft)
+        if (outcome.draft.price !== '' || outcome.draft.notes !== '') setMoreOpen(true)
         setErrors({})
         setSaveError(null)
         setReloaded(true)
@@ -331,47 +335,50 @@ export function PantryItemDialog({
               </select>
             )}
           </Field>
-          <Field
-            id="pantry-price"
-            label={`Precio estimado (${priceUnitLabel(draft.unit)})`}
-            optional
-            error={errors.price}
-            hint={
-              draft.unit === 'g' || draft.unit === 'ml'
-                ? `Precio por ${draft.unit === 'g' ? 'kilo' : 'litro'}. Déjalo vacío si no lo sabes; 0 cuenta como gratis.`
-                : 'Déjalo vacío si no lo sabes; 0 cuenta como gratis.'
-            }
-          >
-            {(control) => (
-              <div className="input-affix input-affix--text">
-                <input
+          <details className="more-options" open={moreOpen} onToggle={(event) => setMoreOpen(event.currentTarget.open)}>
+            <summary>Más detalles</summary>
+            <Field
+              id="pantry-price"
+              label={`Precio estimado (${priceUnitLabel(draft.unit)})`}
+              optional
+              error={errors.price}
+              hint={
+                draft.unit === 'g' || draft.unit === 'ml'
+                  ? `Precio por ${draft.unit === 'g' ? 'kilo' : 'litro'}. Déjalo vacío si no lo sabes; 0 cuenta como gratis.`
+                  : 'Déjalo vacío si no lo sabes; 0 cuenta como gratis.'
+              }
+            >
+              {(control) => (
+                <div className="input-affix input-affix--text">
+                  <input
+                    {...control}
+                    className="input input--amount"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0,00"
+                    value={draft.price}
+                    onChange={(event) => set('price', event.target.value)}
+                  />
+                  <span className="input-affix__suffix" aria-hidden="true">
+                    {priceUnitLabel(draft.unit)}
+                  </span>
+                </div>
+              )}
+            </Field>
+            <Field id="pantry-notes" label="Notas" optional error={errors.notes}>
+              {(control) => (
+                <textarea
                   {...control}
-                  className="input input--amount"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="0,00"
-                  value={draft.price}
-                  onChange={(event) => set('price', event.target.value)}
+                  className="textarea"
+                  rows={2}
+                  maxLength={PANTRY_NOTES_MAX}
+                  placeholder="Marca, tienda…"
+                  value={draft.notes}
+                  onChange={(event) => set('notes', event.target.value)}
                 />
-                <span className="input-affix__suffix" aria-hidden="true">
-                  {priceUnitLabel(draft.unit)}
-                </span>
-              </div>
-            )}
-          </Field>
-          <Field id="pantry-notes" label="Notas" optional error={errors.notes}>
-            {(control) => (
-              <textarea
-                {...control}
-                className="textarea"
-                rows={2}
-                maxLength={PANTRY_NOTES_MAX}
-                placeholder="Marca, tienda…"
-                value={draft.notes}
-                onChange={(event) => set('notes', event.target.value)}
-              />
-            )}
-          </Field>
+              )}
+            </Field>
+          </details>
           {reloaded && (
             <p className="notice" role="status">
               <Icon name="info" />

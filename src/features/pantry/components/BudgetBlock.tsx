@@ -4,6 +4,7 @@ import { monthlyEstimate, type Rhythms } from '#shared/pantry/pantry.ts'
 import type { PantryItem } from '#shared/pantry/types.ts'
 import { describeStorageError } from '../../../api/storageErrors.ts'
 import { BudgetMeter } from '../../../ui/BudgetMeter.tsx'
+import { ConfirmDialog } from '../../../ui/Dialog.tsx'
 import { useToast } from '../../../ui/toastContext.ts'
 import type { PantryActions } from '../pantryContext.ts'
 
@@ -29,13 +30,17 @@ export function BudgetBlock({
   const { notify } = useToast()
   const estimate = monthlyEstimate(items, rhythms)
   const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const removeBudget = async () => {
     setBusy(true)
+    setError(null)
     try {
       await actions.setBudget(null)
+      setConfirming(false)
       notify('Presupuesto de la despensa quitado')
-    } catch (error) {
-      notify(describeStorageError(error), 'error')
+    } catch (failure) {
+      setError(describeStorageError(failure))
     } finally {
       setBusy(false)
     }
@@ -65,11 +70,27 @@ export function BudgetBlock({
           {budgetCents === null ? 'Fijar presupuesto' : 'Cambiar presupuesto'}
         </button>
         {budgetCents !== null && (
-          <button type="button" className="btn btn--small btn--ghost" onClick={() => void removeBudget()} disabled={busy}>
+          <button type="button" className="btn btn--small btn--ghost" onClick={() => setConfirming(true)} disabled={busy}>
             Quitar presupuesto
           </button>
         )}
       </div>
+      {confirming && budgetCents !== null && (
+        <ConfirmDialog
+          title="Quitar el presupuesto"
+          confirmLabel="Quitar presupuesto"
+          danger
+          busy={busy}
+          error={error}
+          onConfirm={() => void removeBudget()}
+          onClose={() => {
+            setError(null)
+            setConfirming(false)
+          }}
+        >
+          <p>Vas a quitar el presupuesto de la despensa ({formatEuros(budgetCents)} al mes). Podrás fijarlo otra vez cuando quieras.</p>
+        </ConfirmDialog>
+      )}
     </div>
   )
 }

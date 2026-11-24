@@ -222,6 +222,14 @@ export function matchesOwner(item: Pick<PantryItem, 'ownerId'>, owner: OwnerFilt
   return item.ownerId === owner.personId
 }
 
+const foldText = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
+
+/** El buscador de la Despensa: «cafe» encuentra «Café molido»; sin nada escrito, todos. */
+export function matchesName(item: Pick<PantryItem, 'name'>, query: string): boolean {
+  const wanted = foldText(query)
+  return wanted === '' || foldText(item.name).includes(wanted)
+}
+
 export interface PantrySummary {
   /** Número de productos que faltan (no la suma de sus cantidades). */
   missingCount: number

@@ -3,11 +3,12 @@
 > Lee antes: /AGENTS.md y src/AGENTS.md. Depende de: `src/api/`, `src/ui/`, `shared/pantry/` y la feature tickets (sus diálogos y TicketActions, por su index.ts). Lo usan: `src/App.tsx` (con el código) y `src/GuestApp.tsx` (invitado), que montan PantryProvider: es la misma página para los dos. En el servidor son los módulos pantry y tickets.
 
 ## Qué ve la persona
-La Despensa:
+La Despensa, en este orden (UX-05):
 - arriba, «Escanear ticket», «Lista de la compra (n)» y «Nuevo producto», y el aviso del repaso de la semana;
-- el selector de persona («Todo», «Compartido» o cada persona) y «Personas»;
-- lo que conviene revisar, las últimas compras y el resumen con la estimación mensual y el presupuesto;
-- los productos por frecuencia, con «Queda», «Se acabó», «Lo he comprado» o − y +, según cómo se sigan.
+- el selector de persona («Todo», «Compartido» o cada persona), que se recuerda en el navegador, y «Personas» (en el móvil, solo el icono);
+- «Para revisar»: los 3 primeros y «Ver las n»;
+- el buscador «Buscar producto» y los productos por frecuencia, con «Queda», «Se acabó», «Lo he comprado» o − y +, según cómo se sigan; los bloques sin productos no salen;
+- plegado, «Últimas compras, resumen y presupuesto» («Resumen y presupuesto» si no hay tickets): los tickets guardados, el resumen y la estimación mensual con el presupuesto.
 
 Sin el código es lo único que se ve.
 
@@ -31,7 +32,8 @@ Sin el código es lo único que se ve.
 - `api.ts` (pantryApi) es lo único que hace peticiones: /api/despensa/personas, productos, revisiones, presupuesto, repaso, comprado, actividad y tickets.
 - Las acciones de tickets (TicketActions, de la feature tickets) también están en PantryProvider. Guardar un ticket usa los productos que devuelve el servidor (la ventana se cierra tras una sola petición) y relee en segundo plano los tickets y la actividad; cambiar una línea o borrar un ticket recarga toda la despensa.
 - El ritmo, los avisos, la lista y el repaso se calculan en la web con `shared/pantry/`, a partir de la actividad (compras de los tickets y revisiones).
-- «Hoy no» del repaso se guarda solo en este navegador (localStorage), hasta mañana.
+- «Hoy no» del repaso se guarda solo en este navegador (localStorage), hasta mañana. La persona elegida también (`cuentas-claras:despensa-persona`); si ya no existe, se vuelve a «Todo».
+- El buscador filtra los productos de la persona elegida por el nombre, sin tildes ni mayúsculas (`matchesName`, en `shared/pantry/pantry.ts`).
 - Editar un producto (PAN-01): PantryItemDialog guarda la versión del producto con que se abrió y `updateItem` la envía como `expectedVersion`. Si el servidor responde 409 (alguien lo cambió mientras tanto: otra edición, un + o una compra), el formulario conserva lo escrito y ofrece «Volver a cargar el producto»; `reloadItem` vuelve a leer los productos y el formulario pasa a mostrar el producto como está ahora, con su versión. Nunca se reintenta solo con una versión más nueva: eso pisaría el cambio del otro.
 
 ## Textos y accesibilidad
@@ -39,7 +41,10 @@ Los e2e usan estos nombres; no los cambies sin cambiar el test:
 - botones: «Nuevo producto», «Editar …» (el nombre del producto), «Personas», «Añadir persona», «Guardar producto», «Guardar cambios», «Lista de la compra», «Enviar por WhatsApp», «Copiar», «Marcar todo como comprado», «Deshacer», «Añadir 0,5 kg a Arroz» y «Quitar 0,5 kg de Arroz», «Queda …», «Se acabó …», «Repasar ahora», «Hoy no» y «Terminar»;
 - diálogos: «Nuevo producto», «Editar producto», «Personas de casa» y «Lista de la compra»;
 - edición en conflicto: el aviso del servidor («Este producto ha cambiado desde que lo abriste (quizá desde otro dispositivo), así que no se ha guardado. Vuelve a cargarlo para ver cómo está ahora.», con role="alert"), el botón «Volver a cargar el producto» y, después, «Este es el producto tal como está ahora. Repite tus cambios y guarda.» (role="status");
-- campos y opciones: «Nombre», «De quién es», «Unidad», «Cada cuánto se compra», «Hay ahora», «Quiero tener», «Notas», «Texto de la lista», «Por compras», «Contando» y «Todo»;
+- campos y opciones: «Nombre», «De quién es», «Unidad», «Cada cuánto se compra», «Hay ahora», «Quiero tener», «Notas», «Texto de la lista», «Por compras», «Contando», «Todo» y «Buscar producto»;
+- lo plegado: «Más detalles» en el formulario del producto (el precio estimado y las notas; abierto si ya tienen algo o hay un error dentro) y «Últimas compras, resumen y presupuesto» (o «Resumen y presupuesto») al final de la página;
+- confirmaciones: el diálogo «Eliminar persona» (el botón «Eliminar a …» de «Personas de casa» ya no borra directamente) y «Quitar el presupuesto», con el botón «Quitar presupuesto» (también al vaciar el campo del presupuesto en su ventana);
+- sin resultados en el buscador: «Ningún producto se llama «…».» (role="status");
 - títulos: «Despensa» (h1) y «Empieza escaneando un ticket».
 
 El foco va al título al cambiar de sección, y las ventanas son `<dialog>` nativos.

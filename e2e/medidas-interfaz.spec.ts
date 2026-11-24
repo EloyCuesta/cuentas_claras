@@ -333,6 +333,17 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
     tasks['+ / −'] = { taps: 1 + (box < page.viewportSize()!.height ? 0 : 1), typed: 0 }
   }
   {
+    // + de un producto cualquiera con el buscador (desde UX-05): tocar el buscador, escribir y pulsar +.
+    const search = page.getByLabel('Buscar producto')
+    if (await search.count()) {
+      const c = counter()
+      await c.type(search, 'detergente')
+      await c.tap(page.getByRole('button', { name: /^Añadir .* a Detergente$/ }))
+      tasks['+ con el buscador'] = c.task
+      await search.fill('')
+    }
+  }
+  {
     // Escanear un ticket (pegando el texto): toques hasta guardarlo, con una línea dudosa.
     const c = counter()
     await c.tap(page.getByRole('button', { name: 'Escanear ticket' }))

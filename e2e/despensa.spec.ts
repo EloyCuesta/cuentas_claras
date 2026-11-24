@@ -51,7 +51,11 @@ async function addProduct(
   const frequency = dialog.getByLabel('Cada cuánto se compra')
   const option = await frequency.locator('option').filter({ hasText: product.frequency }).first().getAttribute('value')
   await frequency.selectOption(option ?? '')
-  if (product.price) await dialog.getByLabel(/Precio estimado/).fill(product.price)
+  if (product.price) {
+    // El precio y las notas van plegados en «Más detalles».
+    await dialog.getByText('Más detalles', { exact: true }).click()
+    await dialog.getByLabel(/Precio estimado/).fill(product.price)
+  }
   await dialog.getByRole('button', { name: 'Guardar producto' }).click()
   await expect(dialog).toBeHidden()
 }
@@ -107,6 +111,8 @@ test('crea una persona y un producto que falta, y lo envía en la lista de Whats
 
   await expect(item(page, 'Proteína')).toContainText('Falta 1 bolsa')
   await expect(item(page, 'Proteína')).toContainText('Eloy')
+  // El resumen va plegado al final, con el presupuesto (UX-05).
+  await page.getByText('Resumen y presupuesto', { exact: true }).click()
   await expect(page.getByText('Faltan 2 productos en toda la casa.')).toBeVisible()
   await expect(page.getByText('Compra pendiente estimada: 15,80 €.')).toBeVisible()
 
@@ -134,6 +140,78 @@ test('crea una persona y un producto que falta, y lo envía en la lista de Whats
   await expect(dialog.getByText(/No falta nada con estos filtros/)).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Marcar todo como comprado' })).toBeDisabled()
   await expect(dialog.getByRole('button', { name: 'Enviar por WhatsApp' })).toBeDisabled()
+})
+
+test('el buscador lleva a + y − de cualquier producto, los bloques vacíos no se ven y la persona elegida se recuerda', async ({ page, request }) => {
+  const person = (await (await request.post('/api/despensa/personas', { data: { name: 'Eloy' } })).json()) as { data: { id: string } }
+  for (const [name, ownerId, frequency] of [
+    ['Leche entera', null, 'semanal'],
+    ['Café molido', person.data.id, 'mensual'],
+    ['Arroz', null, 'mensual'],
+  ] as const) {
+    await request.post('/api/despensa/productos', { data: { name, ownerId, unit: 'ud', quantity: 1, target: 2, frequency, priceCents: 120, notes: '' } })
+  }
+  await page.goto('/')
+  await expect(item(page, 'Leche entera')).toBeVisible()
+  // Sin productos ocasionales, su bloque no aparece.
+  await expect(page.getByRole('heading', { name: 'Cada semana' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'De vez en cuando' })).toHaveCount(0)
+
+  // Sin tildes ni mayúsculas: «cafe» encuentra «Café molido», y su + está a mano.
+  const search = page.getByLabel('Buscar producto')
+  await search.fill('cafe')
+  await expect(item(page, 'Café molido')).toBeVisible()
+  await expect(item(page, 'Leche entera')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Cada semana' })).toHaveCount(0)
+  await item(page, 'Café molido').getByRole('button', { name: 'Añadir 1 ud a Café molido' }).click()
+  await expect(item(page, 'Café molido').locator('.stepper__value')).toHaveText('2 ud')
+  await search.fill('pan')
+  await expect(page.getByText('Ningún producto se llama «pan».')).toBeVisible()
+  await search.fill('')
+  await expect(item(page, 'Arroz')).toBeVisible()
+
+  // La persona elegida sigue elegida al volver a abrir la app.
+  await page.getByRole('radio', { name: 'Eloy' }).check()
+  await expect(item(page, 'Arroz')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('radio', { name: 'Eloy' })).toBeChecked()
+  await expect(item(page, 'Café molido')).toBeVisible()
+  await expect(item(page, 'Arroz')).toHaveCount(0)
+})
+
+test('borrar una persona y quitar el presupuesto se confirman antes', async ({ page, request }) => {
+  await request.post('/api/despensa/personas', { data: { name: 'Eloy' } })
+  await request.put('/api/despensa/presupuesto', { data: { monthlyBudgetCents: 25000 } })
+  await request.post('/api/despensa/productos', {
+    data: { name: 'Arroz', ownerId: null, unit: 'kg', quantity: 1, target: 2, frequency: 'mensual', priceCents: 120, notes: '' },
+  })
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Personas' }).click()
+  await page.getByRole('dialog', { name: 'Personas de casa' }).getByRole('button', { name: 'Eliminar a Eloy' }).click()
+  const confirmPerson = page.getByRole('dialog', { name: 'Eliminar persona' })
+  await expect(confirmPerson).toContainText('Vas a eliminar a «Eloy»')
+  await confirmPerson.getByRole('button', { name: 'Cancelar' }).click()
+  const people = page.getByRole('dialog', { name: 'Personas de casa' })
+  await expect(people.getByLabel('Nombre de Eloy')).toBeVisible()
+  await people.getByRole('button', { name: 'Eliminar a Eloy' }).click()
+  await page.getByRole('dialog', { name: 'Eliminar persona' }).getByRole('button', { name: 'Eliminar persona' }).click()
+  await expect(people.getByText('Todavía no hay nadie.', { exact: false })).toBeVisible()
+  await people.getByRole('button', { name: 'Cerrar', exact: true }).last().click()
+
+  // El presupuesto va plegado con el resumen; «Quitar presupuesto» pregunta antes.
+  await page.getByText('Resumen y presupuesto', { exact: true }).click()
+  await page.getByRole('button', { name: 'Quitar presupuesto' }).click()
+  const confirmBudget = page.getByRole('dialog', { name: 'Quitar el presupuesto' })
+  await expect(confirmBudget).toContainText('250,00 €')
+  await confirmBudget.getByRole('button', { name: 'Cancelar' }).click()
+  await expect(page.getByRole('button', { name: 'Cambiar presupuesto' })).toBeVisible()
+  await page.getByRole('button', { name: 'Quitar presupuesto' }).click()
+  await page.getByRole('dialog', { name: 'Quitar el presupuesto' }).getByRole('button', { name: 'Quitar presupuesto' }).click()
+  await expect(page.getByText('Presupuesto de la despensa quitado')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Fijar presupuesto' })).toBeVisible()
+  const settings = (await (await request.get('/api/despensa/presupuesto')).json()) as { data: { monthlyBudgetCents: number | null } }
+  expect(settings.data.monthlyBudgetCents).toBeNull()
 })
 
 test('los botones + y −, marcar como comprado y deshacer', async ({ page, request }) => {

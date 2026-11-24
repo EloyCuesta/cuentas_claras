@@ -43,7 +43,18 @@ export function PaymentDialog({ movement, onClose }: { movement: Movement; onClo
     setBusy(true)
     try {
       await actions.saveMovement(markAsPaid(movement, paidDate, parsed.cents, nowISO()))
-      notify(isExpense ? 'Pago confirmado' : 'Cobro confirmado')
+      notify(isExpense ? 'Pago confirmado' : 'Cobro confirmado', 'success', {
+        action: {
+          label: 'Deshacer',
+          // Vuelve a pendiente, con su fecha prevista y su importe de antes.
+          onAction: () => {
+            actions.saveMovement({ ...movement, updatedAt: nowISO() }).then(
+              () => notify(isExpense ? 'Pago deshecho: vuelve a estar pendiente' : 'Cobro deshecho: vuelve a estar pendiente'),
+              (error: unknown) => notify(describeStorageError(error), 'error'),
+            )
+          },
+        },
+      })
       onClose()
     } catch (error) {
       setSaveError(describeStorageError(error))

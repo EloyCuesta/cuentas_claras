@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FREQUENCY_TITLES, matchesOwner, PANTRY_FREQUENCIES, pantrySummary, type OwnerFilter, type Rhythms } from '#shared/pantry/pantry.ts'
+import {
+  FREQUENCY_TITLES,
+  matchesName,
+  matchesOwner,
+  PANTRY_FREQUENCIES,
+  pantrySummary,
+  type OwnerFilter,
+  type Rhythms,
+} from '#shared/pantry/pantry.ts'
 import { reviewItems, reviewSchedule } from '#shared/pantry/pantryReview.ts'
 import { rhythmsFor } from '#shared/pantry/pantryRhythm.ts'
 import type { PantryEventKind, PantryItem } from '#shared/pantry/types.ts'
@@ -36,12 +44,22 @@ type Editing =
 
 /** «Hoy no» en el aviso del repaso: se recuerda solo en este navegador y solo hoy. */
 const SNOOZE_KEY = 'cuentas-claras:repaso-pospuesto'
+/** La persona elegida («Todo», «Compartido» o una persona): se recuerda en este navegador. */
+const OWNER_KEY = 'cuentas-claras:despensa-persona'
 
-function readSnooze(): string | null {
+function readStored(key: string): string | null {
   try {
-    return localStorage.getItem(SNOOZE_KEY)
+    return localStorage.getItem(key)
   } catch {
     return null
+  }
+}
+
+function store(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // Sin almacenamiento en el navegador vale igual hasta recargar.
   }
 }
 
@@ -62,7 +80,8 @@ const MARK_TEXT: Record<PantryEventKind, string> = {
 export function DespensaPage() {
   const { state, actions } = usePantry()
   const { notify } = useToast()
-  const [ownerValue, setOwnerValue] = useState('todo')
+  const [ownerValue, setOwnerValue] = useState(() => readStored(OWNER_KEY) ?? 'todo')
+  const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Editing>(null)
   const [retrying, setRetrying] = useState(false)
 
@@ -88,6 +107,7 @@ export function DespensaPage() {
     return typeof parsed === 'object' && !people.some((p) => p.id === parsed.personId) ? 'todo' : parsed
   }, [ownerValue, people])
   const visible = useMemo(() => items.filter((item) => matchesOwner(item, owner)), [items, owner])
+  const found = useMemo(() => visible.filter((item) => matchesName(item, query)), [visible, query])
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name])), [people])
   const listCount = useMemo(() => pantrySummary(items, 'todo', rhythms).missingCount, [items, rhythms])
   const schedule = useMemo(
@@ -97,7 +117,12 @@ export function DespensaPage() {
         : { due: false, sinceDays: null },
     [state],
   )
-  const [snoozedOn, setSnoozedOn] = useState<string | null>(readSnooze)
+  const [snoozedOn, setSnoozedOn] = useState<string | null>(() => readStored(SNOOZE_KEY))
+
+  const chooseOwner = (value: string) => {
+    setOwnerValue(value)
+    store(OWNER_KEY, value)
+  }
 
   /** + y −: se ve al momento; los pasos de un producto van al servidor de uno en uno (PantryProvider). Si falla, se avisa. */
   const step = (item: PantryItem, delta: number) =>
@@ -141,11 +166,7 @@ export function DespensaPage() {
 
   /** «Hoy no»: el aviso del repaso se queda en una línea hasta mañana (en este navegador). */
   const snooze = (today: string) => {
-    try {
-      localStorage.setItem(SNOOZE_KEY, today)
-    } catch {
-      // Sin almacenamiento en el navegador vale igual hasta recargar.
-    }
+    store(SNOOZE_KEY, today)
     setSnoozedOn(today)
   }
 
@@ -224,15 +245,15 @@ export function DespensaPage() {
         <>
           {/* «Personas» siempre, para poder darlas de alta antes del primer ticket; las pestañas, cuando hay algo que filtrar. */}
           <div className="pantry-owners">
-            {(items.length > 0 || people.length > 0) && <OwnerTabs people={people} value={encodeOwner(owner)} onChange={setOwnerValue} />}
-            <button type="button" className="btn" onClick={() => setEditing({ kind: 'people' })}>
+            {(items.length > 0 || people.length > 0) && <OwnerTabs people={people} value={encodeOwner(owner)} onChange={chooseOwner} />}
+            {/* En el móvil, solo el icono (el nombre sigue para los lectores de pantalla), para que quepa junto a las pestañas. */}
+            <button type="button" className="btn pantry-owners__people" title="Personas" onClick={() => setEditing({ kind: 'people' })}>
               <Icon name="people" />
-              Personas
+              <span className="pantry-owners__people-label">Personas</span>
             </button>
           </div>
 
           <ReviewBlock items={visible} rhythms={rhythms} onMark={(item, kind) => void mark(item, kind)} />
-          <RecentTickets tickets={state.tickets} onOpen={(id) => setEditing({ kind: 'ticket', id })} />
 
           {items.length === 0 ? (
             <EmptyState
@@ -257,19 +278,23 @@ export function DespensaPage() {
             </EmptyState>
           ) : (
             <>
-              <section className="sheet pantry-summary" aria-labelledby="pantry-summary-title">
-                <h2 id="pantry-summary-title" className="sr-only">
-                  Resumen
-                </h2>
-                <SummaryBlock items={items} rhythms={rhythms} owner={owner} people={people} />
-                <BudgetBlock
-                  items={items}
-                  rhythms={rhythms}
-                  budgetCents={state.settings.monthlyBudgetCents}
-                  actions={actions}
-                  onEdit={() => setEditing({ kind: 'budget' })}
+              {/* El buscador, para llegar a + y − de cualquier producto sin recorrer los bloques. */}
+              <div className="search pantry-search">
+                <Icon name="search" />
+                <label className="sr-only" htmlFor="pantry-search">
+                  Buscar producto
+                </label>
+                <input
+                  id="pantry-search"
+                  type="search"
+                  className="input"
+                  autoComplete="off"
+                  enterKeyHint="search"
+                  placeholder="Buscar producto"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
                 />
-              </section>
+              </div>
 
               {visible.length === 0 ? (
                 <EmptyState
@@ -283,35 +308,62 @@ export function DespensaPage() {
                 >
                   <p>Elige «Todo» para ver los de toda la casa.</p>
                 </EmptyState>
+              ) : found.length === 0 ? (
+                <p className="muted" role="status">
+                  Ningún producto se llama «{query.trim()}»{owner === 'todo' ? '' : ` en ${ownerName(owner, people)}`}.
+                </p>
               ) : (
                 PANTRY_FREQUENCIES.map((frequency) => {
-                  const group = visible.filter((item) => item.frequency === frequency)
+                  // Los bloques sin productos (o sin ninguno de los buscados) no se muestran.
+                  const group = found.filter((item) => item.frequency === frequency)
+                  if (group.length === 0) return null
                   return (
                     <Section key={frequency} id={`pantry-${frequency}`} title={FREQUENCY_TITLES[frequency]}>
-                      {group.length === 0 ? (
-                        <p className="muted small">Ningún producto en este bloque.</p>
-                      ) : (
-                        <ul className="pantry-list">
-                          {group.map((item) => (
-                            <PantryRow
-                              key={item.id}
-                              item={item}
-                              rhythm={rhythms.get(item.id)}
-                              ownerLabel={
-                                owner === 'todo' && people.length > 0 ? (item.ownerId ? (peopleById.get(item.ownerId) ?? '') : 'Compartido') : null
-                              }
-                              onEdit={() => setEditing({ kind: 'item', item })}
-                              onStep={(delta) => void step(item, delta)}
-                              onMark={(kind) => void mark(item, kind)}
-                            />
-                          ))}
-                        </ul>
-                      )}
+                      <ul className="pantry-list">
+                        {group.map((item) => (
+                          <PantryRow
+                            key={item.id}
+                            item={item}
+                            rhythm={rhythms.get(item.id)}
+                            ownerLabel={
+                              owner === 'todo' && people.length > 0 ? (item.ownerId ? (peopleById.get(item.ownerId) ?? '') : 'Compartido') : null
+                            }
+                            onEdit={() => setEditing({ kind: 'item', item })}
+                            onStep={(delta) => void step(item, delta)}
+                            onMark={(kind) => void mark(item, kind)}
+                          />
+                        ))}
+                      </ul>
                     </Section>
                   )
                 })
               )}
             </>
+          )}
+
+          {/* Lo que se mira de vez en cuando, plegado: las últimas compras, el resumen y el presupuesto. */}
+          {(state.tickets.length > 0 || items.length > 0) && (
+            <details className="pantry-more">
+              <summary>{state.tickets.length > 0 ? 'Últimas compras, resumen y presupuesto' : 'Resumen y presupuesto'}</summary>
+              <div className="pantry-more__body">
+                <RecentTickets tickets={state.tickets} onOpen={(id) => setEditing({ kind: 'ticket', id })} />
+                {items.length > 0 && (
+                  <section className="sheet pantry-summary" aria-labelledby="pantry-summary-title">
+                    <h2 id="pantry-summary-title" className="sr-only">
+                      Resumen
+                    </h2>
+                    <SummaryBlock items={items} rhythms={rhythms} owner={owner} people={people} />
+                    <BudgetBlock
+                      items={items}
+                      rhythms={rhythms}
+                      budgetCents={state.settings.monthlyBudgetCents}
+                      actions={actions}
+                      onEdit={() => setEditing({ kind: 'budget' })}
+                    />
+                  </section>
+                )}
+              </div>
+            </details>
           )}
 
           {editing?.kind === 'scan' && (

@@ -254,7 +254,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-02 | Despensa instantánea | UX-00 | verificado |
 | UX-03 | Añadir movimientos en segundos | UX-01 | verificado |
 | UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | verificado |
-| UX-05 | Despensa más directa | UX-02 | pendiente |
+| UX-05 | Despensa más directa | UX-02 | verificado |
 | UX-06 | Carga y peso | UX-00 | pendiente |
 | UX-07 | Cierre de la interfaz | UX-01 … UX-06 | pendiente |
 | CUT-PREP | Preparar el corte sin cambiar el uso diario | — | pendiente |
@@ -827,3 +827,57 @@ Plantilla:
     - `npm run test:e2e:dotnet`: 88 pasan y 6 se omiten;
     - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa.
   - **Siguiente tarea**: UX-05.
+
+- **UX-05 · 24 de noviembre de 2026 · base `8446eeb`** (UX-04):
+  - **Alcance**: una Despensa más directa, más «Deshacer» tras «Marcar pagado».
+  - **Hallazgos**: se confirma el punto 3 de la revisión.
+    - Antes de los productos había seis bloques: acciones, repaso, personas, «Para revisar» (hasta 8), «Últimas compras» y el resumen. No había buscador, y los bloques vacíos se veían.
+    - La persona elegida se perdía al recargar.
+    - Borrar una persona y quitar el presupuesto no pedían confirmación.
+  - **Qué cambia**:
+    - **`src/features/pantry/DespensaPage.tsx`**:
+      - el orden es acciones y repaso; la persona; «Para revisar» con 3 y «Ver las n» (`src/features/pantry/components/ReviewBlock.tsx`); el buscador y los productos; y, plegado al final, «Últimas compras, resumen y presupuesto»;
+      - los bloques de frecuencia sin productos no salen;
+      - el buscador encuentra por cualquier parte del nombre y sin tildes (`matchesName`, en `shared/pantry/pantry.ts`, con sus tests). Sin resultados, dice «Ningún producto se llama «…».»;
+      - la persona elegida se guarda en `localStorage`; si ya no existe, vuelve a «Todo»;
+      - en el móvil, «Personas» es solo el icono, junto a las pestañas (el nombre sigue para los lectores de pantalla), y el buscador usa el mismo campo con lupa que Movimientos. Así el primer + entra en la primera pantalla.
+    - **Confirmaciones** con `ConfirmDialog`, como al borrar un producto:
+      - «Eliminar persona»;
+      - «Quitar el presupuesto», desde el botón o al vaciar el campo en su ventana.
+    - **«Más detalles»** en el formulario del producto: el precio y las notas, abierto si ya tienen algo o hay un error dentro.
+    - **«Deshacer» tras «Marcar pagado»** (o cobrado), en `src/features/finance/components/PaymentDialog.tsx`:
+      - vuelve a guardar el movimiento como estaba, con el mismo PUT /api/movements/:id;
+      - queda pendiente, con su fecha prevista y su importe de antes;
+      - avisa «Pago deshecho: vuelve a estar pendiente».
+      - La API lo permitía sin cambiar contratos.
+  - **Textos, roles y `data-testid`**:
+    - Nuevos:
+      - «Buscar producto» y «Ningún producto se llama «…».»;
+      - «Últimas compras, resumen y presupuesto» (o «Resumen y presupuesto») y «Más detalles»;
+      - los diálogos «Eliminar persona» y «Quitar el presupuesto»;
+      - el «Deshacer» del pago y su aviso.
+    - Cambia el comportamiento de «Eliminar a …» y «Quitar presupuesto»: ahora preguntan antes.
+    - Ya no sale «Ningún producto en este bloque.».
+    - Los e2e abren lo plegado antes de usarlo:
+      - el precio al crear un producto;
+      - el resumen en «crea una persona y un producto…»;
+      - «Últimas compras», con `recentTickets()` en `e2e/tickets.spec.ts`.
+    - Todo está en `src/features/pantry/AGENTS.md`, `src/features/finance/AGENTS.md`, `e2e/AGENTS.md` y el README.
+  - **Números** (`e2e/medidas-interfaz.spec.ts`, la misma despensa de ejemplo):
+
+    | | UX-00 móvil | UX-05 móvil | UX-00 escritorio | UX-05 escritorio |
+    | --- | --- | --- | --- | --- |
+    | Dónde está el primer + al abrir la Despensa | 1162 px (fuera de la primera pantalla) | 809 px (dentro: la pantalla mide 839) | 777 px (fuera: 720) | 503 px (dentro) |
+    | Toques para + / − del primer producto | 2 (desplazarse y pulsar) | 1 | 2 | 1 |
+    | + de cualquier producto con el buscador | — | 2 toques y 1 campo escrito, sin desplazarse | — | igual |
+    | Objetivos de menos de 44 px en la Despensa | 8 | 0 | 10 | 10 (con ratón no cambian) |
+  - **Pruebas nuevas**:
+    - `e2e/despensa.spec.ts`: «el buscador lleva a + y − de cualquier producto, los bloques vacíos no se ven y la persona elegida se recuerda» y «borrar una persona y quitar el presupuesto se confirman antes»;
+    - `e2e/app.spec.ts`: ««Deshacer» tras marcar un pago lo deja pendiente como estaba»;
+    - `shared/pantry/pantry.test.ts`: 2 tests de `matchesName`.
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1637/1637;
+    - `npm run test:e2e`: 88 pasan y 6 se omiten;
+    - `npm run test:e2e:dotnet`: 94 pasan y 6 se omiten;
+    - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa.
+  - **Siguiente tarea**: UX-06.

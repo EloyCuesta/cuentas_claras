@@ -191,6 +191,8 @@ Cómo funciona:
 
 Al guardar, el formulario se cierra en cuanto el servidor lo confirma.
 
+**Marcar pagado** (o cobrado) un pendiente se puede deshacer desde el aviso: vuelve a estar pendiente, con su fecha prevista y su importe de antes.
+
 ## Despensa
 
 Lo que se compra en casa, separado por persona para que lo individual no se mezcle con lo compartido. Lo más cómodo es **escanear el ticket** después de cada compra: la app apunta qué se compró y cuándo, aprende cada cuánto se compra cada cosa y avisa de lo que conviene mirar. No hace falta ir contando lo que hay.
@@ -248,16 +250,24 @@ Una vez a la semana, en un par de minutos, se mira lo que puede acabarse antes d
 
 ### Productos, personas y lista
 
-- **Personas**: cada una tiene su apartado. Arriba se elige «Compartido», una persona o «Todo». Una persona con productos no se puede borrar: primero hay que pasarlos a otra o eliminarlos.
+- **La página**, de arriba abajo:
+  - «Escanear ticket», «Lista de la compra» y «Nuevo producto»;
+  - la persona (en el móvil, «Personas» es el icono de al lado);
+  - «Para revisar», con los 3 primeros y «Ver las n»;
+  - el buscador «Buscar producto», que encuentra por cualquier parte del nombre y sin tildes («cafe» → «Café molido»), y los productos;
+  - plegado al final, «Últimas compras, resumen y presupuesto».
+
+  Los bloques vacíos no salen.
+- **Personas**: cada una tiene su apartado. Arriba se elige «Compartido», una persona o «Todo», y la elección se recuerda en ese navegador. Borrar una persona pide confirmación, y una persona con productos no se puede borrar: primero hay que pasarlos a otra o eliminarlos.
 - **Cómo se sigue cada producto**: **por compras** (lo normal, con los tickets) o **contando** (cuánto hay y cuánto quieres tener, con los botones − y +). Los productos nuevos van por compras; los que ya existían antes de los tickets se siguen contando, y se puede cambiar en cada producto.
-- **Productos**: nombre, de quién es (o Compartido), unidad, frecuencia, precio estimado y notas; si se cuentan, también cuánto hay y cuánto quieres tener. Falta la diferencia entre lo que quieres tener y lo que hay. Puede haber más de lo previsto.
+- **Productos**: nombre, de quién es (o Compartido), unidad y frecuencia; si se cuentan, también cuánto hay y cuánto quieres tener. El precio estimado y las notas van en «Más detalles», que se abre solo si ya tienen algo. Falta la diferencia entre lo que quieres tener y lo que hay. Puede haber más de lo previsto.
 - **Editar desde dos móviles**: si alguien cambia un producto (lo edita, pulsa + o −, o lo compra) mientras lo estás editando, al guardar se avisa y no se pisa su cambio. Lo que escribiste sigue en el formulario; «Volver a cargar el producto» lo muestra como está ahora para repetir tus cambios.
 - **Unidades**: `ud`, `g`, `kg`, `ml`, `l`, `paquete`, `lata`, `botella`, `bolsa` y `docena`. Solo `g`, `kg`, `ml` y `l` admiten decimales (hasta 3). No se convierten entre sí.
 - **Botones − y +** (al contar): restan o suman 1 (100 en `g` y `ml`, 0,5 en `kg` y `l`). Nunca bajan de cero. El servidor hace la cuenta sobre su valor actual, así que dos móviles a la vez no se pisan.
 - **Frecuencia**: «Cada semana», «Cada mes» y «De vez en cuando». Al crear un producto desde un ticket se propone según el nombre (aceite, arroz, detergente… cada mes).
 - **Precio**: por unidad (por kilo en `g` y por litro en `ml`). Vacío = no se sabe; 0 = gratis. Cada ticket lo actualiza.
 - **Estimaciones**: lo que cuesta lo que falta y la **estimación mensual de toda la casa**. Por compras: lo que costó la última compra × las veces que se compra al mes (30,31 días ÷ lo que suele durar); sin tickets todavía, el precio estimado de una unidad. Contando: objetivo × precio × 4,33 si es semanal, × 1 si es mensual y × 0,25 si es ocasional. Los productos sin precio no cuentan y el resultado se marca como parcial. Los importes se calculan en céntimos exactos y cada línea se redondea una sola vez.
-- **Presupuesto**: un presupuesto mensual de la despensa para comparar con esa estimación. Es solo una estimación: **no crea gastos, movimientos, presupuestos ni recurrentes** en las cuentas.
+- **Presupuesto**: un presupuesto mensual de la despensa para comparar con esa estimación. Quitarlo pide confirmación. Es solo una estimación: **no crea gastos, movimientos, presupuestos ni recurrentes** en las cuentas.
 - **Lista de la compra**: lo que se acabó, queda poco o probablemente se acabó (con la cantidad de la última compra) y lo que falta de lo que se cuenta, agrupado en Compartido y cada persona, con negritas de WhatsApp y el total estimado. Se filtra por persona y frecuencia. Se puede:
   - **Enviar por WhatsApp**: abre WhatsApp con el texto escrito (sin enviarlo). Es la opción principal porque funciona aunque la app vaya por HTTP.
   - **Compartir**, si el navegador lo permite (por HTTP en la red de casa normalmente no).

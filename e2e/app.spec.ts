@@ -423,6 +423,24 @@ test('en el móvil: cinco pestañas enteras, «N vencidos» lleva a lo pendiente
   await expect(nav.getByRole('link', { name: 'Resumen' })).toHaveClass(/nav__link--within/)
 })
 
+test('«Deshacer» tras marcar un pago lo deja pendiente como estaba', async ({ page }) => {
+  await page.goto('/')
+  await addExpense(page, { amount: '80', concept: 'Recibo del gas', category: 'Vivienda › Gas', pending: true })
+  await page.getByRole('button', { name: /Marcar pagado: Recibo del gas/ }).click()
+  const dialog = page.getByRole('dialog', { name: 'Confirmar pago' })
+  await dialog.getByLabel('Importe pagado').fill('82,40')
+  await dialog.getByRole('button', { name: 'Marcar como pagado' }).click()
+  await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('82,40 €')
+
+  await page.locator('.toast', { hasText: 'Pago confirmado' }).getByRole('button', { name: 'Deshacer' }).click()
+  await expect(page.getByText('Pago deshecho: vuelve a estar pendiente')).toBeVisible()
+  await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('0,00 €')
+  await expect(ledgerValue(page, 'Pagos pendientes del mes')).toHaveText('80,00 €')
+  const response = await page.request.get('/api/data')
+  const { data } = (await response.json()) as { data: FinanceData }
+  expect(data.movements).toMatchObject([{ concept: 'Recibo del gas', status: 'pendiente', amountCents: 8000, paidDate: null }])
+})
+
 test('abrir varias veces la aplicación no duplica vencimientos', async ({ page, context }) => {
   await page.goto('/#recurrentes')
   await page.getByRole('button', { name: 'Nuevo recurrente' }).click()

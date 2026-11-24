@@ -2,17 +2,17 @@ import { useState, type FormEvent } from 'react'
 import { PERSON_NAME_MAX } from '#shared/pantry/pantry.ts'
 import type { PantryPerson } from '#shared/pantry/types.ts'
 import { describeStorageError } from '../../../api/storageErrors.ts'
-import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { ConfirmDialog, Dialog, DialogError } from '../../../ui/Dialog.tsx'
 import { Icon } from '../../../ui/Icon.tsx'
 
 function PersonRow({
   person,
   onRename,
-  onDelete,
+  onAskDelete,
 }: {
   person: PantryPerson
   onRename: (name: string) => Promise<void>
-  onDelete: () => Promise<void>
+  onAskDelete: () => void
 }) {
   const [name, setName] = useState(person.name)
   const [busy, setBusy] = useState(false)
@@ -68,7 +68,7 @@ function PersonRow({
           className="icon-btn icon-btn--danger"
           aria-label={`Eliminar a ${person.name}`}
           disabled={busy}
-          onClick={() => void run(onDelete)}
+          onClick={onAskDelete}
         >
           <Icon name="trash" />
         </button>
@@ -100,6 +100,40 @@ export function PeopleDialog({
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<PantryPerson | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const remove = async (person: PantryPerson) => {
+    setBusy(true)
+    setDeleteError(null)
+    try {
+      await onDelete(person.id)
+      setDeleting(null)
+    } catch (failure) {
+      setDeleteError(describeStorageError(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (deleting) {
+    return (
+      <ConfirmDialog
+        title="Eliminar persona"
+        confirmLabel="Eliminar persona"
+        danger
+        busy={busy}
+        error={deleteError}
+        onConfirm={() => void remove(deleting)}
+        onClose={() => {
+          setDeleteError(null)
+          setDeleting(null)
+        }}
+      >
+        <p>Vas a eliminar a «{deleting.name}» de la despensa. Si tiene productos, antes hay que pasarlos a otra persona o a «Compartido».</p>
+      </ConfirmDialog>
+    )
+  }
 
   const add = async (event: FormEvent) => {
     event.preventDefault()
@@ -133,7 +167,7 @@ export function PeopleDialog({
                 key={person.id}
                 person={person}
                 onRename={(newName) => onRename(person.id, newName)}
-                onDelete={() => onDelete(person.id)}
+                onAskDelete={() => setDeleting(person)}
               />
             ))}
           </ul>

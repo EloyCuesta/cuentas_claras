@@ -39,6 +39,7 @@ Con el código: Resumen (mes y año), Movimientos, Recurrentes, Presupuestos y A
 - Formularios con etiquetas y errores asociados, foco en el primer campo con error (`focusFirstError`) y ventanas `<dialog>` nativas.
 - MovementDialog (UX-03): el importe y «Tipo» (los radios «Gasto» e «Ingreso») en la misma fila; el grupo «Más usadas» (`role="group"`, sin la palabra «Categoría» para no confundir `getByLabel('Categoría')`); el estado («Pagado» o «Cobrado» y «Pendiente») y «Notas» dentro de «Más opciones», plegado salvo en un pendiente o con notas (también se abre si hay un error dentro).
 - Mientras guarda, «Guardar gasto» (y el resto) y «Marcar como pagado» llevan `aria-busy` y un círculo que gira, sin cambiar su nombre: si falla, se vuelven a pulsar igual.
+- PaymentDialog (UX-05): el aviso «Pago confirmado» (o «Cobro confirmado») lleva «Deshacer», que vuelve a guardar el movimiento como estaba (PUT /api/movements/:id, el mismo contrato) y avisa «Pago deshecho: vuelve a estar pendiente» (o «Cobro deshecho…»).
 
 ## Pruebas
 - `browserMigration/IndexedDbFinanceRepository.test.ts` y `browserMigration/browserDataMigration.test.ts`, con IndexedDB en memoria (`src/test/setup.ts`).

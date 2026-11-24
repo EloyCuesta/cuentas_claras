@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { centsToInput } from '#shared/common/money.ts'
+import { centsToInput, formatEuros } from '#shared/common/money.ts'
 import { parsePantryCentsInput } from '#shared/pantry/pantryValidation.ts'
 import { describeStorageError } from '../../../api/storageErrors.ts'
-import { Dialog, DialogError } from '../../../ui/Dialog.tsx'
+import { ConfirmDialog, Dialog, DialogError } from '../../../ui/Dialog.tsx'
 import { AmountInput, Field } from '../../../ui/forms.tsx'
 
 /** Presupuesto mensual estimado de la despensa (de toda la casa). No crea ningún presupuesto financiero. */
@@ -19,6 +19,19 @@ export function PantryBudgetDialog({
   const [fieldError, setFieldError] = useState<string | undefined>()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
+
+  const save = async (cents: number | null) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await onSave(cents)
+      onClose()
+    } catch (failure) {
+      setError(describeStorageError(failure))
+      setBusy(false)
+    }
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -29,15 +42,31 @@ export function PantryBudgetDialog({
       document.getElementById('pantry-budget')?.focus()
       return
     }
-    setBusy(true)
-    setError(null)
-    try {
-      await onSave(parsed.value)
-      onClose()
-    } catch (failure) {
-      setError(describeStorageError(failure))
-      setBusy(false)
+    // Vaciar el campo quita el presupuesto: si había uno, se pregunta antes.
+    if (parsed.value === null && budgetCents !== null) {
+      setConfirmingRemove(true)
+      return
     }
+    await save(parsed.value)
+  }
+
+  if (confirmingRemove && budgetCents !== null) {
+    return (
+      <ConfirmDialog
+        title="Quitar el presupuesto"
+        confirmLabel="Quitar presupuesto"
+        danger
+        busy={busy}
+        error={error}
+        onConfirm={() => void save(null)}
+        onClose={() => {
+          setError(null)
+          setConfirmingRemove(false)
+        }}
+      >
+        <p>Vas a quitar el presupuesto de la despensa ({formatEuros(budgetCents)} al mes). Podrás fijarlo otra vez cuando quieras.</p>
+      </ConfirmDialog>
+    )
   }
 
   return (

@@ -97,7 +97,7 @@ test('lee la captura de un ticket de Lidl, se revisa y se guarda', async ({ page
   await expect(review).toBeHidden()
   await expect(page.getByText('Ticket guardado: 16 productos apuntados')).toBeVisible()
 
-  const recent = page.getByRole('region', { name: 'Últimas compras' })
+  const recent = await recentTickets(page)
   await expect(recent).toContainText('Lidl · 24/10/2026')
   await expect(recent).toContainText('16 productos · 18:05')
   await expect(recent).toContainText('52,51 €')
@@ -388,7 +388,7 @@ test('«Dejar pendiente»: la línea se guarda en el ticket, pero no toca la des
   await expect(item(page, 'Huevos medianos M')).toBeVisible()
 
   // En el ticket guardado se conservan la línea, su estado y lo que leyó el OCR.
-  const recent = page.getByRole('region', { name: 'Últimas compras' })
+  const recent = await recentTickets(page)
   await recent.getByRole('button', { name: /Lidl · 28\/10\/2026/ }).click()
   const detail = page.getByRole('dialog', { name: 'Lidl · 28/10/2026' })
   await expect(detail).toContainText('pendiente: no actualiza la despensa')
@@ -414,8 +414,15 @@ test('una fecha a medio escribir en «Editar datos del ticket» no tira la app, 
   await review.getByRole('group', { name: 'Comprobar PATATA NUEVA 5 KG' }).getByRole('button', { name: 'Usar 9,90 €', exact: true }).click()
   await review.getByRole('button', { name: 'Guardar ticket' }).click()
   await expect(review).toBeHidden()
-  await expect(page.getByRole('region', { name: 'Últimas compras' })).toContainText('Lidl · 27/10/2026')
+  await expect(await recentTickets(page)).toContainText('Lidl · 27/10/2026')
 })
+
+/** «Últimas compras» va plegado al final de la Despensa, con el resumen y el presupuesto (UX-05): lo abre si hace falta. */
+async function recentTickets(page: Page) {
+  const summary = page.getByText(/^(Últimas compras, resumen|Resumen) y presupuesto$/)
+  if (!(await summary.evaluate((el) => (el.parentElement as HTMLDetailsElement).open))) await summary.click()
+  return page.getByRole('region', { name: 'Últimas compras' })
+}
 
 /** Un ticket guardado directamente por la API (sin leer ninguna imagen). */
 async function saveTicket(request: APIRequestContext, date: string, lines: { name: string; product: string; cents: number; quantity?: number; frequency: string }[]) {
