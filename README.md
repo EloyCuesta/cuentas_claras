@@ -55,7 +55,7 @@ npm run preview      # en otra: la web en http://localhost:4173 (también envía
 
 ### Variables de entorno
 
-Variables de entorno del servidor. Los scripts `server` y `dev:server` también las leen de `.env`, si existe; una variable ya definida en el entorno tiene prioridad sobre `.env`.
+Variables de entorno del servidor. Los scripts `server` y `dev:server` también las leen de `.env`, si existe, y los del backend .NET (`dev:dotnet` y `server:dotnet`), igual; una variable ya definida en el entorno tiene prioridad sobre `.env`.
 
 | Variable | Valor por defecto | Para qué |
 | --- | --- | --- |
@@ -75,28 +75,37 @@ La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber ad
 
 El backend .NET de ensayo lee las mismas `CUENTAS_*` y, para leer tickets con imágenes, lanza el OCR de Express en un proceso Node aparte (necesita Node y `npm install`). Lo busca en `server/modules/tickets/adapters/tesseract/ocrWorker.ts`, desde la carpeta donde se arranca; `CUENTAS_OCR_WORKER` cambia esa ruta.
 
-### El backend .NET
+### Probar el backend .NET
 
-El backend .NET (`backend/`) atiende las mismas rutas sobre la misma base. Lee las mismas `CUENTAS_*`, también del `.env` de la raíz, y una variable del entorno manda sobre `.env`, como en Express. Nunca arranques los dos a la vez sobre la misma base. Necesita el SDK de .NET 10, Node y `npm install` (para el OCR de los tickets).
+El backend .NET (`backend/`) atiende las mismas rutas sobre la misma base. Hasta el corte, `npm run dev` sigue arrancando Express; para probar .NET, arráncalo **en lugar de** Express (nunca los dos a la vez sobre la misma base). Necesita el SDK de .NET 10, Node y `npm install` (para el OCR de los tickets). Lee el mismo `.env` que Express, y una variable ya definida en el entorno manda sobre él.
 
-- `npm run build:dotnet`: compila la solución, la primera vez y después de cada cambio en `backend/`.
-- `npm run dev:dotnet`: la API .NET en el puerto 3201 y la web en http://localhost:5173, que habla con ella. Es el equivalente de `npm run dev`, que sigue arrancando Express.
-- En el móvil, como con Express: `npm run dev:dotnet:api` en una terminal y `npm run dev:dotnet:web -- --host` en otra.
-- `npm run start:dotnet`: lo mismo en modo producción. La API se compila en Release, y la web se construye en la carpeta dist-dotnet y se sirve en http://localhost:4173.
+```bash
+npm run dev:dotnet   # abre http://localhost:5173, igual que npm run dev
+```
 
-Comprueba `http://localhost:5173/api/health`: responde `{ ok: true, data: { status: 'ok', schemaVersion: 5 } }`.
+Arranca, cada uno con su prefijo en la consola:
+
+- `[api]` el servidor .NET en `http://127.0.0.1:3201/api`. La primera vez lo compila y tarda un poco más. No se reinicia solo al cambiar su código: Ctrl+C y otra vez.
+- `[web]` la misma interfaz, enviando `/api` a .NET. Los resúmenes del mes y del año los calcula el servidor.
+
+Comprueba `http://localhost:5173/api/health` (responde `{ ok: true, data: { status: 'ok', schemaVersion: 5 } }`) y abre `http://localhost:5173`.
+
+- **En el móvil**: `npm run dev:dotnet:api` en una terminal y `npm run dev:dotnet:web -- --host` en otra.
+- **Versión de producción**: `npm run build:web:dotnet` (la web para .NET, en `dist/`), y después `npm run server:dotnet` en una terminal (la API, compilada en modo Release) y `npm run preview:dotnet` en otra (la web en `http://localhost:4173`).
+- **Volver a Express**: Ctrl+C y `npm run dev` como siempre. Es la misma base y el mismo esquema, así que no hay que convertir nada, y lo que hayas escrito con .NET se queda. Si compilaste la web para .NET, vuelve a hacer `npm run build` antes de `npm run preview`.
+- Si en tu `.env` pusiste `CUENTAS_PORT`, .NET también lo usa y la web no lo encuentra en 3201: quítalo mientras pruebas .NET.
+
+Los pasos del cambio de la instalación de cada día (parar las escrituras, una copia comprobada de MySQL, arrancar .NET y volver atrás) están en `docs/migration/DATA.md` («Ensayo, corte y recuperación»).
 
 #### Pasar el uso de cada día a .NET (CUT-01)
 
-Lo haces tú, con tus datos. Son comandos de npm y MySQL Workbench (o mysqldump); no hace falta PowerShell. El detalle está en `docs/migration/DATA.md` («Ensayo, corte y recuperación»).
+Lo haces tú, con tus datos. Son comandos de npm y MySQL Workbench (o mysqldump); no hace falta PowerShell.
 
 1. **Para las escrituras**: cierra la web en los móviles y para `npm run dev` (Ctrl+C).
 2. **Haz una copia y compruébala**: Workbench *Data Export* o mysqldump («Copias de MySQL»). Recupérala en una base de prueba y compara `CHECKSUM TABLE` con la tuya. Si no coinciden, no sigas.
-3. **Arranca .NET**: `npm run build:dotnet` y después `npm run dev:dotnet`. En http://localhost:5173/api/health tiene que salir `"status":"ok"` y `"schemaVersion":5`.
+3. **Arranca .NET**: `npm run dev:dotnet` (la primera vez compila). En http://localhost:5173/api/health tiene que salir `"status":"ok"` y `"schemaVersion":5`.
 4. **Recorre lo de siempre**, en el ordenador y en el móvil: el resumen, apuntar un gasto, la despensa, + y −, y leer y guardar un ticket.
-5. **Si todo va bien**, a partir de ahora arranca `npm run dev:dotnet` en lugar de `npm run dev`, y díselo al agente con la fecha y lo que has probado. Él hará que `npm run dev` arranque .NET (CUT-FINAL).
-
-**Volver a Express**: para `npm run dev:dotnet` (Ctrl+C) y arranca `npm run dev`. Es la misma base y el mismo esquema: no hay que convertir nada, y lo escrito con .NET se queda. Si lo que falla son los datos, recupera la copia del paso 2.
+5. **Si todo va bien**, a partir de ahora arranca `npm run dev:dotnet` en lugar de `npm run dev`, y díselo al agente con la fecha y lo que has probado. Él hará que `npm run dev` arranque .NET (CUT-FINAL). Si algo falla, vuelve a Express como arriba; si lo que falla son los datos, recupera la copia del paso 2.
 
 ## Preparar MySQL
 

@@ -387,6 +387,34 @@ describe('arquitectura', () => {
     expect(Object.keys(pkg.dependencies)).toContain('mysql2')
   })
 
+  it('tsx es una dependencia de ejecución: con él arrancan Express (npm run server) y el OCR del host .NET', () => {
+    const pkg = JSON.parse(readFileSync(`${ROOT}package.json`, 'utf8')) as Record<'dependencies' | 'devDependencies' | 'scripts', Record<string, string>>
+    expect(Object.keys(pkg.dependencies)).toContain('tsx')
+    expect(Object.keys(pkg.devDependencies)).not.toContain('tsx')
+    expect(pkg.scripts.server).toMatch(/^tsx /)
+    // NodeTicketReader lanza el worker del OCR con «node --import tsx».
+    expect(readFileSync(`${ROOT}backend/src/CuentasClaras.Infrastructure/Tickets/NodeTicketReader.cs`, 'utf8')).toContain('"tsx"')
+  })
+
+  it('el uso diario sigue en Express hasta el corte: los scripts de .NET van aparte y leen .env como los de Express', () => {
+    const pkg = JSON.parse(readFileSync(`${ROOT}package.json`, 'utf8')) as Record<'scripts', Record<string, string>>
+    const { scripts } = pkg
+    // npm run dev, server y preview no cambian hasta que la persona confirme el corte (docs/terminar-el-proyecto.md, CUT-FINAL).
+    expect(scripts.dev).toContain('npm:dev:server')
+    expect(scripts['dev:server']).toContain('server/index.ts')
+    expect(scripts.server).toContain('server/index.ts')
+    expect(scripts['dev:web']).toBe('vite')
+    expect(scripts.preview).toBe('vite preview')
+    // Los de .NET: la API con el .env (el entorno manda sobre él) y la web en el modo dotnet de vite.config.ts.
+    const api = 'backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj -- --env-file-if-exists=.env'
+    expect(scripts.dev).not.toContain('dotnet')
+    expect(scripts['dev:dotnet']).toContain('npm:dev:dotnet:api')
+    expect(scripts['dev:dotnet']).toContain('npm:dev:dotnet:web')
+    expect(scripts['dev:dotnet:api']).toContain(api)
+    expect(scripts['server:dotnet']).toContain(api)
+    for (const name of ['dev:dotnet:web', 'build:web:dotnet', 'preview:dotnet']) expect(scripts[name]).toMatch(/--mode dotnet$/)
+  })
+
   it('los puertos de persistencia y la unidad de trabajo son async: todos sus métodos devuelven Promise', () => {
     const ports = mysqlPorts()
     expect(ports.map((p) => p.port).sort()).toEqual(['FinanceStore', 'PantryRepository', 'TicketRepository'])

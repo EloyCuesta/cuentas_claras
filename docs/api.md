@@ -9,7 +9,7 @@ Todas las respuestas tienen el mismo formato (`server/common/http/response.ts`):
 - Si todo va bien: `{ "ok": true, "data": … }`.
 - Si hay un error: `{ "ok": false, "error": { "code": "…", "message": "…" } }`, con el mensaje en español, listo para enseñarlo a la persona.
 
-Las respuestas que atraviesan el router de la API llevan `Cache-Control: no-store`. En Express, los errores 400/413 del lector JSON se producen antes de ese router y no la llevan (la caracterización lo comprueba). El host .NET sí la pone también en esos errores (BASE-02, con sus pruebas HTTP). Pendiente: al cambiar el uso diario a .NET ([CUT-01](migration/STATUS.md)), la diferencia desaparece, y entonces se quita esta nota y la de `docs/migration/ARCHITECTURE.md`.
+Las respuestas que atraviesan el router de la API llevan `Cache-Control: no-store`. En Express, los errores 400/413 del lector JSON se producen antes de ese router y carecen de la cabecera (la caracterización lo registra en `server/common/http/response.test.ts`). El host .NET sí la pone también en esos errores, comprobado desde BASE-02 (`backend/tests/CuentasClaras.Tests/HttpTests.cs`): la diferencia desaparece cuando el uso diario pase a .NET (CUT-01, [STATUS](migration/STATUS.md)).
 
 ## Códigos de error
 

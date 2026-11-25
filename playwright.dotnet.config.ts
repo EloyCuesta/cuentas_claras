@@ -14,8 +14,8 @@ import { DOTNET_E2E_CODE } from './e2e/dotnet/settings.ts'
  *   e2e/*.spec.ts que Express (todos desde TIC-04) y los de e2e/dotnet/app/.
  *
  * Nunca se reutiliza un servidor abierto ni se toca la base cuentas_claras. El servidor, el usuario y la contraseña de
- * MySQL son los de CUENTAS_DB_* (del entorno o de .env, como Vitest), y se le pasan aquí: los dos hosts arrancan con
- * CUENTAS_ENV_FILE=ninguno para no leer el .env de la raíz (que apunta a la base de la instalación).
+ * MySQL son los de CUENTAS_DB_* (del entorno o de .env, como Vitest). El host .NET solo lee .env si se le pide
+ * (--env-file-if-exists, en los scripts *:dotnet), y aquí no se le pide: se le pasan aquí.
  */
 Object.assign(process.env, loadEnv('test', process.cwd(), 'CUENTAS_DB_'), { CUENTAS_E2E_BACKEND: 'dotnet' })
 
@@ -49,7 +49,7 @@ export default defineConfig({
       url: `http://127.0.0.1:${ACCESS.api}/api/auth/me`,
       // Playwright añade estas variables a las del entorno: CUENTAS_DB_USER vacío deja este host solo con el acceso,
       // aunque quien lo lance tenga CUENTAS_DB_* (si no, abriría y migraría su base, por defecto cuentas_claras).
-      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(ACCESS.api), CUENTAS_CODIGO: DOTNET_E2E_CODE, CUENTAS_DB_USER: '', CUENTAS_ENV_FILE: 'ninguno' },
+      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(ACCESS.api), CUENTAS_CODIGO: DOTNET_E2E_CODE, CUENTAS_DB_USER: '' },
       reuseExistingServer: false,
       timeout: 60_000,
     },
@@ -63,7 +63,7 @@ export default defineConfig({
       command: `node --import tsx e2e/dotnet/prepareDatabase.ts && ${DOTNET}`,
       url: `http://127.0.0.1:${APP.api}/api/health`,
       // El nombre de la base se fuerza siempre: nunca la de CUENTAS_DB_NAME del entorno o de .env.
-      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(APP.api), CUENTAS_CODIGO: E2E_CODE, CUENTAS_DB_NAME: DOTNET_E2E_DATABASE, CUENTAS_ENV_FILE: 'ninguno' },
+      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(APP.api), CUENTAS_CODIGO: E2E_CODE, CUENTAS_DB_NAME: DOTNET_E2E_DATABASE },
       reuseExistingServer: false,
       timeout: 120_000,
     },

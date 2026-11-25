@@ -112,6 +112,16 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Los bytes de las imágenes, como en Node (TIC-02).** Las huellas de origen de las imágenes se calculan sobre los bytes decodificados, así que .NET decodifica el base64 como `Buffer.from(texto, 'base64')`, que no rechaza nada: el byte bajo de cada carácter, `-` y `_` como `+` y `/`, lo demás se salta y para en el primer `=`. Convert.FromBase64String rechazaría cuerpos que Express acepta y daría otras huellas. La cabecera de PNG y JPEG se lee igual que `server/common/imageInfo.ts`. Lo fija el corpus `fixtures/migration/rules-ticket-read.json`.
 
+**Preparar el corte sin cambiarlo (CUT-PREP).** Cambiar `npm run dev` a .NET **es** el corte, en cuanto la persona lo arranca con sus datos. Por eso los arranques de .NET van en scripts propios (`dev:dotnet`, `server:dotnet`, `build:web:dotnet` y `preview:dotnet`) y `npm run dev`, `server` y `preview` siguen con Express hasta que la persona confirme DATA-02 y su copia de MySQL. `tests/architecture.test.ts` lo vigila.
+
+**El .env, solo si el arranque lo pide (CUT-PREP).** Express lo lee porque sus scripts pasan `--env-file-if-exists=.env` a Node, no porque el servidor lo busque. El host .NET hace lo mismo con la misma opción (EnvFile, en Api/Composition), y los scripts `*:dotnet` se la pasan: así la persona tiene un solo `.env` para los dos backends, y las pruebas y las e2e, que arrancan el host sin la opción, nunca leen el de nadie. El formato es el del `--env-file` de Node, con el entorno por delante, salvo dos cosas a propósito: un BOM al principio se ignora (Node lo deja pegado a la primera clave, y el Bloc de notas puede guardarlo) y `CLAVE=` seguida solo de espacios es un valor vacío (Node se come la línea siguiente). Sin dependencias: Microsoft.Extensions.Configuration no lee `.env`.
+
+**`dotnet run` desde la raíz del repositorio.** `dotnet run` arranca el programa en la carpeta del proyecto, así que un `.env` relativo no se encontraba (el worker del OCR sí, porque también se busca desde la carpeta del programa). RunWorkingDirectory, en el `.csproj` de Api, lo arranca en la raíz, como npm arranca Express.
+
+**La web elige backend con `--mode dotnet`.** Los scripts no pueden fijar variables de entorno igual en Windows y en Linux sin una dependencia (cross-env), así que `vite.config.ts` mira el modo: con `--mode dotnet`, `/api` va a 3201 y la web se compila para .NET (`__CUENTAS_BACKEND__`). `CUENTAS_BACKEND` y `CUENTAS_API_URL` siguen valiendo, y las e2e de .NET los usan.
+
+**tsx es una dependencia de ejecución.** Con él arranca Express (`npm run server`) y el host .NET lanza el worker del OCR (`node --import tsx`). Como dependencia de desarrollo, `npm install --omit=dev` dejaba los dos sin arrancar.
+
 ## De la lectura de tickets de Lidl Plus (noviembre de 2026)
 
 **Medir antes de cambiar.** Las pruebas estaban en verde, pero ninguna usaba una imagen de Lidl Plus como la que da la app. Con un ticket real, la lectura perdía la mitad de los productos y dejaba cifras mal sin aviso.

@@ -103,9 +103,11 @@ Corte de backend (CUT-01): los recorridos React contra .NET y esa misma base, re
 
 1. **Parar las escrituras.** Cierra la web en todos los móviles y para Express (Ctrl+C en su terminal). Desde aquí no debe escribir nadie hasta el paso 5: nunca hay dos backends escribiendo en la misma base.
 2. **Copiar y comprobar la copia.** `mysqldump -u cuentas -p --single-transaction --no-tablespaces --result-file=antes-del-corte.sql cuentas_claras`. Recupérala en una base vacía de prueba (`mysql -u cuentas -p cuentas_test_copia --execute="source antes-del-corte.sql"`) y compara `CHECKSUM TABLE` de las 14 tablas en las dos bases: tienen que coincidir. Si no, no sigas.
-3. **Arrancar .NET** sobre `cuentas_claras`: `npm run build:dotnet` y `npm run dev:dotnet` (desde CUT-PREP; la API lee el mismo `.env` que Express), y comprobar `/api/health`.
-4. **La web ya va a .NET**: `npm run dev:dotnet` arranca Vite con `--mode dotnet`, que apunta el proxy a 3201 y deja las consultas de resumen a .NET. Recorre lo habitual: resumen, un gasto, la despensa, + y −, leer y guardar un ticket.
-5. **Volver a Express si algo falla**: para `npm run dev:dotnet` y arranca `npm run dev` como siempre. Es la misma base y el mismo esquema, así que no hay que convertir nada; lo escrito con .NET se queda. Si lo que falla son los datos, recupera la copia del paso 2 en una base vacía y apunta `CUENTAS_DB_NAME` a ella.
+3. **Arrancar .NET** sobre `cuentas_claras`: `npm run dev:dotnet` (README, «Probar el backend .NET»), con el mismo `.env` que Express. Comprueba `http://localhost:5173/api/health`.
+4. **Recorrer lo habitual** con la web, que ya va a .NET (las consultas de resumen las calcula .NET): resumen, un gasto, la despensa, + y −, leer y guardar un ticket, también desde el móvil (`npm run dev:dotnet:api` y `npm run dev:dotnet:web -- --host`).
+5. **Volver a Express si algo falla**: Ctrl+C y `npm run dev` como siempre. Es la misma base y el mismo esquema, así que no hay que convertir nada; lo escrito con .NET se queda. Si lo que falla son los datos, recupera la copia del paso 2 en una base vacía y apunta `CUENTAS_DB_NAME` a ella.
+
+Hasta el corte, `npm run dev` sigue arrancando Express: cambiarlo a .NET **es** el corte, en cuanto se arranca con los datos de cada día. Lo hace un agente solo cuando la persona confirma DATA-02 y su copia de MySQL (CUT-FINAL en `docs/terminar-el-proyecto.md`).
 
 El ensayo (`node --import tsx` sobre una copia SQLite sintética, fuera del repositorio) importó la copia, sirvió la base con Express y con .NET con respuestas idénticas en 11 rutas (finanzas, despensa, actividad y cada ticket), la copió con mysqldump y la recuperó en otra base con el mismo `CHECKSUM TABLE` en las 14 tablas, y volvió a servirla con .NET y con Express.
 

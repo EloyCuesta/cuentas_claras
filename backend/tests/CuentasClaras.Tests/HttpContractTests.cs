@@ -11,13 +11,29 @@ namespace CuentasClaras.Tests;
 /// server/migrationContracts.test.ts sobre Express: una base cuentas_test_* nueva por escenario, el reloj, la fecha y los
 /// ids del escenario, y respuestas completas comparadas sin regenerar expectativas. http-testing.json no está: .NET no
 /// tiene la ruta de reinicio de pruebas (HttpTests comprueba que no existe).
-/// Desde TIC-04 .NET tiene todas las rutas y se reproducen todos los escenarios: la lista de activos y MissingRoutes, que
-/// servían mientras faltaban rutas, se quitaron en CUT-PREP.
+/// Desde TIC-04 se reproducen todos: .NET tiene todas las rutas de Express, y el inventario comprueba que cada paso de los
+/// contratos va a una ruta que existe.
 /// </summary>
 [Trait("Categoria", TestDatabase.Category)]
 public sealed class HttpContractTests
 {
     private static readonly string[] Modules = ["health", "finance", "pantry", "tickets"];
+
+    /// <summary>Los escenarios de los cuatro corpus: todos se reproducen sobre .NET desde TIC-04.</summary>
+    private static readonly string[] Expected =
+    [
+        "salud pública y versión del esquema sin datos de la instalación",
+        // FIN-01 y FIN-02 (con la restauración que usa de preparación).
+        "categorías, pago con ID estable, sustitución y metadatos",
+        // FIN-03.
+        "recurrentes del día 31, exclusiones, pagos y generación repetida",
+        // FIN-05 con las personas y los productos de PAN-01.
+        "importación del navegador una sola vez y restauración aislada",
+        // PAN-01, PAN-02 y PAN-03: la despensa entera.
+        "catálogo público, ajustes relativos, compras, deshacer y revisión",
+        // TIC-02 a TIC-04: los tickets enteros.
+        "lectura, guardado, duplicado, historial, asociación y borrado públicos",
+    ];
 
     private static readonly Dictionary<string, JsonDocument> Fixtures =
         Modules.ToDictionary(module => module, module => CorpusJson.Load($"http-{module}.json"));
@@ -41,24 +57,27 @@ public sealed class HttpContractTests
             Assert.Contains("inventados", fixture.RootElement.GetProperty("provenance").GetString());
             names.AddRange(fixture.RootElement.GetProperty("scenarios").EnumerateArray().Select(scenario => scenario.GetProperty("name").GetString()!));
         }
-        // Salud 1, finanzas 3, despensa 1 y tickets 1 (el acceso lo ejecuta HttpTests), con nombres únicos.
+        // Salud 1, finanzas 3, despensa 1 y tickets 1 (el acceso lo ejecuta HttpTests), con nombres únicos: los de siempre.
         Assert.Equal(6, names.Count);
         Assert.Equal(names.Count, names.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(Expected.Order(StringComparer.Ordinal), names.Order(StringComparer.Ordinal));
     }
 
     /// <summary>Las dos consultas de resumen solo existen en .NET (FIN-04): las prueba SummaryHttpTests, no los contratos de Express.</summary>
     private static readonly (string Method, string Pattern)[] DotnetOnly = [("GET", "/api/summary/month"), ("GET", "/api/summary/year")];
 
     [Fact]
-    public void Atiende_exactamente_los_39_pares_de_Express_y_cada_uno_tiene_un_paso_2xx_en_los_contratos()
+    public void Atiende_exactamente_los_39_pares_de_Express_cada_uno_tiene_un_paso_2xx_y_todo_paso_va_a_una_ruta_que_existe()
     {
         var routes = ApiHost.ModuleRoutes();
         var all = ApiHost.HostRoutes.Concat(routes.Registered.Select(route => (route.Method, route.Pattern)))
             .Except(DotnetOnly).Select(route => $"{route.Method} {route.Pattern}").ToHashSet(StringComparer.Ordinal);
         Assert.Equal(39, all.Count);
 
-        // Cada paso de los contratos (también los del acceso) va a una ruta conocida; las que responden 2xx, apuntadas.
+        // Cada paso de los contratos (también los del acceso) va a una ruta conocida; las que responden 2xx, apuntadas. Los
+        // de los cuatro corpus de módulos, además, nunca a una ruta que .NET no tenga (el acceso prueba también las que no hay).
         var withSuccess = new HashSet<string>(StringComparer.Ordinal);
+        var unknown = new List<string>();
         using var auth = CorpusJson.Load("http-auth.json");
         foreach (var fixture in Fixtures.Values.Append(auth))
             foreach (var scenario in fixture.RootElement.GetProperty("scenarios").EnumerateArray())
@@ -71,8 +90,10 @@ public sealed class HttpContractTests
                         ?? routes.Find(method, path)?.Pattern;
                     var status = step.GetProperty("expected").GetProperty("status").GetInt32();
                     if (pattern is not null && status is >= 200 and < 300) withSuccess.Add($"{method} {pattern}");
+                    if (pattern is null && fixture != auth) unknown.Add($"{method} {path}");
                 }
         Assert.Equal(all.Order(StringComparer.Ordinal), withSuccess.Order(StringComparer.Ordinal));
+        Assert.Empty(unknown);
     }
 
     [Theory]
