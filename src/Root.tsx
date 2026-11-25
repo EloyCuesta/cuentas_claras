@@ -1,32 +1,20 @@
-import App from './App.tsx'
 import { GuestApp } from './GuestApp.tsx'
-import {
-  ApiFinanceRepository,
-  describeBrowserMigration,
-  migrateBrowserData,
-  FinanceProvider,
-} from './features/finance/index.ts'
 import { useAuth } from './features/auth/index.ts'
+import { LoadingScreen } from './ui/Loading.tsx'
+import { lazyComponent } from './ui/lazyComponent.tsx'
 
-// Único punto donde se elige el almacenamiento: la base de datos MySQL del
-// servidor (Express en server/ o, en el ensayo, .NET en backend/), a través de su API REST.
-const repository = new ApiFinanceRepository()
-
-// Antes de abrir por primera vez: pasar al servidor los datos que hubiera en el navegador.
-const beforeOpen = async () => describeBrowserMigration(await migrateBrowserData(repository))
+// Las cuentas van en su propio archivo JS: solo se descargan con el código (UX-06).
+const AdminApp = lazyComponent(
+  () => import('./AdminApp.tsx').then((loaded) => loaded.default),
+  <LoadingScreen label="Abriendo tus cuentas…" />,
+)
 
 /**
- * Con el código: la aplicación completa. Sin él: solo la despensa.
- * FinanceProvider (y con él la migración del navegador y la generación de
- * vencimientos) solo se monta como administrador; al cerrar la sesión se
+ * Con el código: la aplicación completa (AdminApp). Sin él: solo la despensa.
+ * FinanceProvider solo se monta como administrador; al cerrar la sesión se
  * desmonta y su estado se descarta.
  */
 export function Root() {
   const { role } = useAuth()
-  if (role !== 'admin') return <GuestApp />
-  return (
-    <FinanceProvider repository={repository} beforeOpen={beforeOpen}>
-      <App />
-    </FinanceProvider>
-  )
+  return role === 'admin' ? <AdminApp /> : <GuestApp />
 }

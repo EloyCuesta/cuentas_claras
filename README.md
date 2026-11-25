@@ -43,6 +43,8 @@ npm run preview      # en otra: la web en http://localhost:4173 (también envía
 
 **Usarla en el móvil** (misma red wifi): `npm run dev:server` en una terminal y `npm run dev:web -- --host` en otra. Abre en el móvil la dirección «Network» que aparece en la consola. Sin el código solo se ve la Despensa; con «Tengo el código» se ve todo. El móvil y el ordenador ven los mismos datos, porque los dos usan la base de datos del ordenador. MySQL no tiene que estar abierto a la red: solo lo usa el servidor, en el mismo equipo.
 
+**En la pantalla de inicio**: el navegador del móvil puede añadirla como una app (con su icono). Sigue necesitando la red de casa: no funciona sin conexión.
+
 **En el móvil**, la barra de abajo tiene Resumen, Movimientos, Recurrentes, Despensa y Ajustes; los presupuestos se abren desde su bloque del Resumen. Si hay pagos o cobros vencidos, un aviso arriba del Resumen lleva a ellos.
 
 **Datos de ejemplo**: la app empieza vacía. Si quieres verla con datos, ve a *Ajustes › Restaurar una copia…* y elige `ejemplo/copia-de-ejemplo.json` (un mes de octubre de 2026 con nómina, alquiler, un préstamo a 48 cuotas, recibos y presupuestos). En *Resumen › Año* se ve el año completo, con noviembre y diciembre previstos a partir de los recurrentes.

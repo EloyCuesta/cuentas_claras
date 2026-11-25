@@ -38,6 +38,7 @@ Leyendo: el paso y los segundos («Uniendo 3 capturas», «Leyendo el ticket… 
 - Esta feature no hace peticiones ni guarda estado global: los diálogos reciben `actions: TicketActions` (`ticketActions.ts`).
 - Las implementa PantryProvider (feature pantry), porque guardar, cambiar o borrar un ticket cambia productos, compras y tickets a la vez. Las peticiones (/api/despensa/tickets/leer, /tickets, /tickets/:id y /tickets/:id/lineas/:lineId) están en el `api.ts` de pantry.
 - La dependencia va en un solo sentido: pantry → tickets.
+- `index.ts` exporta TicketScanDialog y TicketDetailDialog con `lazyComponent` (UX-06): se descargan al abrirlos por primera vez, con su lectura, el análisis de imágenes y la revisión.
 
 ## Textos y accesibilidad
 Los e2e usan estos nombres y atributos; no los cambies sin cambiar el test:

@@ -10,7 +10,7 @@ import {
 } from '#shared/pantry/pantry.ts'
 import { reviewItems, reviewSchedule } from '#shared/pantry/pantryReview.ts'
 import { rhythmsFor } from '#shared/pantry/pantryRhythm.ts'
-import type { PantryEventKind, PantryItem } from '#shared/pantry/types.ts'
+import type { PantryEventKind, PantryItem, PantryPerson } from '#shared/pantry/types.ts'
 import { describeStorageError } from '../../api/storageErrors.ts'
 import { EmptyState } from '../../ui/EmptyState.tsx'
 import { Icon } from '../../ui/Icon.tsx'
@@ -31,6 +31,7 @@ import { ShoppingListDialog } from './components/ShoppingListDialog.tsx'
 import { SummaryBlock } from './components/SummaryBlock.tsx'
 import { WeeklyReviewCard, WeeklyReviewDialog } from './components/WeeklyReview.tsx'
 import { usePantry } from './pantryContext.ts'
+import { Skeleton } from '../../ui/Loading.tsx'
 
 type Editing =
   | { kind: 'item'; item: PantryItem | null }
@@ -62,6 +63,9 @@ function store(key: string, value: string) {
     // Sin almacenamiento en el navegador vale igual hasta recargar.
   }
 }
+
+const NO_PEOPLE: PantryPerson[] = []
+const NO_ITEMS: PantryItem[] = []
 
 const MARK_TEXT: Record<PantryEventKind, string> = {
   queda: 'queda. Te avisará más adelante.',
@@ -95,11 +99,16 @@ export function DespensaPage() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [actions])
 
-  const people = useMemo(() => (state.status === 'ready' ? state.people : []), [state])
-  const items = useMemo(() => (state.status === 'ready' ? state.items : []), [state])
+  // Cada cálculo depende solo de lo que usa: releer los tickets, por ejemplo, no recalcula el ritmo de los productos.
+  const loaded = state.status === 'ready' ? state : null
+  const people = loaded?.people ?? NO_PEOPLE
+  const items = loaded?.items ?? NO_ITEMS
+  const activity = loaded?.activity ?? null
+  const today = loaded?.today ?? null
+  const lastReviewDate = loaded?.settings.lastReviewDate ?? null
   const rhythms = useMemo<Rhythms>(
-    () => (state.status === 'ready' ? rhythmsFor(state.items, state.activity, state.today) : new Map()),
-    [state],
+    () => (activity && today ? rhythmsFor(items, activity, today) : new Map()),
+    [items, activity, today],
   )
   // Si la persona elegida ya no existe (la han borrado), se vuelve a «Todo».
   const owner: OwnerFilter = useMemo(() => {
@@ -111,11 +120,8 @@ export function DespensaPage() {
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p.name])), [people])
   const listCount = useMemo(() => pantrySummary(items, 'todo', rhythms).missingCount, [items, rhythms])
   const schedule = useMemo(
-    () =>
-      state.status === 'ready'
-        ? reviewSchedule(state.settings.lastReviewDate, state.items, state.activity.purchases, state.today)
-        : { due: false, sinceDays: null },
-    [state],
+    () => (activity && today ? reviewSchedule(lastReviewDate, items, activity.purchases, today) : { due: false, sinceDays: null }),
+    [lastReviewDate, items, activity, today],
   )
   const [snoozedOn, setSnoozedOn] = useState<string | null>(() => readStored(SNOOZE_KEY))
 
@@ -213,11 +219,7 @@ export function DespensaPage() {
         </p>
       )}
 
-      {state.status === 'loading' && (
-        <p className="muted" role="status">
-          Cargando la despensa…
-        </p>
-      )}
+      {state.status === 'loading' && <Skeleton label="Cargando la despensa…" />}
 
       {state.status === 'error' && (
         <div className="notice notice--error" role="alert">

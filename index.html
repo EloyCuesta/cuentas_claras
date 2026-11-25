@@ -3,10 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="Apunta tus ingresos, gastos y próximos pagos. Los datos se guardan en tu navegador." />
+    <meta
+      name="description"
+      content="Ingresos, gastos y próximos pagos, y la despensa de casa. Los datos se guardan en una base de datos de este equipo."
+    />
     <meta name="theme-color" content="#f1f3f7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0d1220" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./icono-180.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <!-- La fuente (solo la latina) empieza a bajar a la vez que el CSS, no después. -->
+    <link rel="preload" href="./node_modules/@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <title>Cuentas claras</title>
   </head>
   <body>

@@ -4,6 +4,7 @@ import { describeStorageError } from '../../api/storageErrors.ts'
 import { useToast } from '../../ui/toastContext.ts'
 import { authApi } from './api.ts'
 import { AuthContext, type AuthContextValue, type Role } from './authContext.ts'
+import { LoadingScreen } from '../../ui/Loading.tsx'
 
 type AuthState = { status: 'checking' } | { status: 'error'; message: string } | { status: 'ready'; role: Role }
 
@@ -75,11 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue | null>(() => (role ? { role, login, logout } : null), [role, login, logout])
 
   if (state.status === 'checking') {
-    return (
-      <div className="splash" role="status">
-        <p>Abriendo Cuentas claras…</p>
-      </div>
-    )
+    return <LoadingScreen label="Abriendo Cuentas claras…" />
   }
 
   if (state.status === 'error') {

@@ -65,6 +65,16 @@ describe('migrateBrowserData', () => {
     expect((await indexedDB.databases()).some((d) => d.name === dbName)).toBe(false)
   })
 
+  it('sin base de datos en el navegador guarda la marca, y la vez siguiente ya no lo mira', async () => {
+    const server = fakeServer()
+    expect(await migrateBrowserData(server, { dbName })).toEqual({ kind: 'nothing' })
+    expect(storage.get('cuentas-claras:datos-del-navegador')).toBe('sin-base')
+    const databases = vi.spyOn(indexedDB, 'databases')
+    expect(await migrateBrowserData(server, { dbName })).toEqual({ kind: 'nothing' })
+    expect(databases).not.toHaveBeenCalled()
+    databases.mockRestore()
+  })
+
   it('no importa si el navegador solo tiene las categorías iniciales', async () => {
     await seedBrowser({})
     const server = fakeServer()

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { categoryOptions, indexCategories } from '#shared/finance/categories.ts'
 import { movementsToCsv } from '#shared/finance/csv.ts'
 import { countActiveFilters, EMPTY_FILTERS, filterMovements, type MovementFilters } from '#shared/finance/filters.ts'
@@ -32,13 +32,22 @@ export function MovementsPage({
   const [visible, setVisible] = useState(PAGE_SIZE)
   const categories = useMemo(() => indexCategories(data.categories), [data.categories])
   const rules = useMemo(() => new Map(data.recurring.map((r) => [r.id, r])), [data.recurring])
-  const results = useMemo(() => filterMovements(data.movements, data.categories, filters), [data.movements, data.categories, filters])
+  // Lo escrito en la búsqueda se ve al momento; la lista (que puede ser larga) se filtra después, sin frenar el teclado.
+  const deferredFilters = useDeferredValue(filters)
+  const results = useMemo(
+    () => filterMovements(data.movements, data.categories, deferredFilters),
+    [data.movements, data.categories, deferredFilters],
+  )
   const activeFilters = countActiveFilters({ ...filters, text: '' })
   // Totales de lo ya cobrado y pagado; lo pendiente solo se cuenta (es previsión, no dinero real).
-  const realized = results.filter((m) => m.status === 'realizado')
-  const income = sumCents(realized.filter((m) => m.type === 'ingreso').map((m) => m.amountCents))
-  const expense = sumCents(realized.filter((m) => m.type === 'gasto').map((m) => m.amountCents))
-  const pendingCount = results.length - realized.length
+  const { income, expense, pendingCount } = useMemo(() => {
+    const realized = results.filter((m) => m.status === 'realizado')
+    return {
+      income: sumCents(realized.filter((m) => m.type === 'ingreso').map((m) => m.amountCents)),
+      expense: sumCents(realized.filter((m) => m.type === 'gasto').map((m) => m.amountCents)),
+      pendingCount: results.length - realized.length,
+    }
+  }, [results])
 
   const update = (patch: Partial<MovementFilters>) => {
     onFiltersChange({ ...filters, ...patch })

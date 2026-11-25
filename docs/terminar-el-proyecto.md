@@ -255,7 +255,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-03 | Añadir movimientos en segundos | UX-01 | verificado |
 | UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | verificado |
 | UX-05 | Despensa más directa | UX-02 | verificado |
-| UX-06 | Carga y peso | UX-00 | pendiente |
+| UX-06 | Carga y peso | UX-00 | verificado |
 | UX-07 | Cierre de la interfaz | UX-01 … UX-06 | pendiente |
 | CUT-PREP | Preparar el corte sin cambiar el uso diario | — | pendiente |
 | PERSONA | Pasos que solo hace la persona | CUT-PREP | pendiente |
@@ -881,3 +881,51 @@ Plantilla:
     - `npm run test:e2e:dotnet`: 94 pasan y 6 se omiten;
     - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa.
   - **Siguiente tarea**: UX-06.
+
+- **UX-06 · 25 de noviembre de 2026 · base `e601e54`** (UX-05):
+  - **Alcance**: la carga y el peso de la web.
+  - **Hallazgos**: se confirman.
+    - El invitado descargaba todas las finanzas: un solo archivo de 458,8 kB.
+    - Los diálogos pesados iban dentro.
+    - La fuente traía también el subconjunto latino extendido.
+    - `index.html` decía que los datos se guardan en el navegador y no tenía manifest.
+    - La comprobación de la migración del navegador se repetía en cada apertura si no había base antigua.
+  - **Qué cambia**:
+    - **Archivos aparte**:
+      - `src/AdminApp.tsx` (FinanceProvider y App): el invitado ya no lo descarga;
+      - los diálogos de tickets, que exporta así `src/features/tickets/index.ts`;
+      - el formulario de un recurrente, las copias y el editor de categorías.
+    - **Cómo se cargan**: con `src/ui/lazyComponent.tsx`, un `import()` dinámico como el de React.lazy, pero sin `<Suspense>`.
+      - Con React.lazy, abrir las cuentas pasó de unos 90 ms a unos 860 ms: React retrasa 300 ms lo que llega tras un «fallback» de Suspense (FALLBACK_THROTTLE_MS), y en la traza el archivo llegaba en 10 ms, pero FinanceProvider empezaba 300 ms después.
+      - Con `lazyComponent` vuelve a unos 90 ms.
+      - Las páginas no se cargan así, porque al cambiar de sección el foco va a su título.
+    - **Mientras carga**: esqueletos accesibles (`src/ui/Loading.tsx`), con el texto de siempre visible y `role="status"`.
+      - Usan los de siempre: «Abriendo Cuentas claras…», «Abriendo tus cuentas…» y «Cargando la despensa…».
+      - Son nuevos «Cargando las copias de seguridad…» y «Cargando las categorías…».
+      - LoadBoundary, en `src/main.tsx`, enseña «Volver a cargar» si un archivo no llega.
+    - **Al abrir**: la marca de la migración del navegador se guarda también sin base antigua («sin-base»), con su test. La prueba e2e de la migración escribe la base antigua antes de abrir la app, desde otra página del mismo origen, como pasaría de verdad.
+    - **La fuente**: solo el subconjunto latino, declarado en `src/styles.css` y con preload en `index.html`. Los dos apuntan al mismo archivo, y Vite les da el mismo nombre.
+    - **`index.html` y `public/`**:
+      - la descripción corregida;
+      - el manifest (`public/manifest.webmanifest`), con iconos PNG de 180, 192 y 512 px y uno «maskable», dibujados con el SVG del favicon;
+      - `theme-color` ya estaba.
+      - Sin service worker (`docs/decisiones.md`).
+    - **Listas**: Movimientos filtra con `useDeferredValue`, y sus totales van en un memo. En la Despensa, el ritmo y el repaso dependen de los productos, la actividad y la fecha, no de todo el estado.
+  - **Textos, roles y `data-testid`**: ninguno cambia. Los textos de carga siguen (en un esqueleto), y se añaden los dos de los Ajustes y el aviso «No se ha podido abrir esta parte» con «Volver a cargar». Están en `docs/frontend.md`, `src/AGENTS.md` y los AGENTS.md de finance, pantry y tickets.
+  - **Números** (`npm run build` y `e2e/medidas-interfaz.spec.ts`):
+
+    | | UX-00 | UX-06 |
+    | --- | --- | --- |
+    | JS al abrir como invitado | 458,8 kB (136,5 kB comprimido) | 302,2 kB (93,4 kB comprimido), un 34 % menos |
+    | JS al abrir con el código | 458,8 kB (136,5 kB comprimido) | 396,9 kB (120,1 kB comprimido), un 13 % menos |
+    | Aparte, al abrirlos | — | escanear y revisar un ticket 56,9 kB, ver un ticket 3,8 kB, recurrente 6,8 kB, copias 3,9 kB y categorías 6,5 kB |
+    | Fuente | latina (34 kB) y latina extendida (19 kB) | solo la latina (34 kB), con preload |
+    | Abrir con el código (recargar hasta ver el mes) | 77–93 ms | 86–96 ms (con React.lazy eran 860 ms) |
+    | Guardar un movimiento · volver a la Despensa | 102 ms · 54 ms | 46–49 ms · 50–54 ms |
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1638/1638 (1 test nuevo de la migración);
+    - `npm run test:e2e`: 88 pasan y 6 se omiten;
+    - `npm run test:e2e:dotnet`: 94 pasan y 6 se omiten;
+    - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa;
+    - `vite` en desarrollo sirve la fuente desde `node_modules` y el manifest.
+  - **Siguiente tarea**: UX-07.

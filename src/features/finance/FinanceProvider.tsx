@@ -10,6 +10,7 @@ import { FinanceContext, type FinanceActions, type FinanceContextValue } from '.
 import { describeStorageError } from '../../api/storageErrors.ts'
 import { notifyOtherTabs, onOtherTabChange } from './tabSync.ts'
 import { useToast, type ToastTone } from '../../ui/toastContext.ts'
+import { LoadingScreen } from '../../ui/Loading.tsx'
 
 type LoadState =
   | { status: 'loading' }
@@ -222,11 +223,7 @@ export function FinanceProvider({
   )
 
   if (state.status === 'loading') {
-    return (
-      <div className="splash" role="status">
-        <p>Abriendo tus cuentas…</p>
-      </div>
-    )
+    return <LoadingScreen label="Abriendo tus cuentas…" />
   }
 
   if (state.status === 'error' || value === null) {

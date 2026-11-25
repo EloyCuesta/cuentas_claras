@@ -8,13 +8,14 @@ React 19 con TypeScript, servida por Vite. Organizada por funcionalidades: pocas
 
 | Ruta | Qué es |
 | --- | --- |
-| `src/main.tsx` | Arranque: estilos, ToastProvider, AuthProvider y Root. |
-| `src/Root.tsx` | Con el código: FinanceProvider (con la migración del navegador) y App. Sin él: GuestApp. |
+| `src/main.tsx` | Arranque: estilos, ToastProvider, AuthProvider, LoadBoundary (si no llega un archivo que se descarga aparte) y Root. |
+| `src/Root.tsx` | Con el código: AdminApp, que se descarga aparte con `lazyComponent` (el invitado no lo descarga). Sin él: GuestApp. |
+| `src/AdminApp.tsx` | Con el código: FinanceProvider (con la migración del navegador) y App, en su propio archivo JS (UX-06). |
 | `src/App.tsx` | La app completa: menú, páginas y diálogos de movimientos, dentro de PantryProvider (la despensa dura entre secciones). |
 | `src/GuestApp.tsx` | Vista de invitado: solo la Despensa y «Tengo el código», dentro de PantryProvider. |
 | `src/styles.css` | Todos los estilos (tokens, base, estructura, componentes y páginas). |
 | `src/api/` | `client.ts` (apiRequest, ApiError, ServerUnavailableError, onUnauthorized) y `storageErrors.ts` (mensajes para la persona). |
-| `src/ui/` | Componentes y utilidades genéricos: Dialog, Section, forms, Icon, Amount, EmptyState, ToastProvider, BudgetMeter, helpers y useHashRoute. |
+| `src/ui/` | Componentes y utilidades genéricos: Dialog, Section, forms, Icon, Amount, EmptyState, ToastProvider, BudgetMeter, Loading (esqueletos, la pantalla de carga y LoadBoundary), lazyComponent, helpers y useHashRoute. |
 | `src/features/` | `auth`, `finance`, `pantry` y `tickets`, cada una con su `index.ts` y su AGENTS.md. |
 | `src/test/setup.ts` | IndexedDB en memoria para Vitest. |
 
@@ -38,6 +39,7 @@ React 19 con TypeScript, servida por Vite. Organizada por funcionalidades: pocas
 ## Trampas
 
 - El invitado y el administrador comparten DespensaPage: no puede depender de FinanceProvider.
+- Lo que se descarga aparte (AdminApp, los diálogos de tickets y de recurrentes, las copias y las categorías) usa `lazyComponent` (`src/ui/lazyComponent.tsx`), no React.lazy con `<Suspense>`: React retrasa unos 300 ms lo que llega tras un «fallback» de Suspense, y al abrir las cuentas se notaba. Si su archivo no llega, LoadBoundary (`src/ui/Loading.tsx`) enseña «Volver a cargar» en lugar de una página en blanco. Una página entera no se carga así: el foco va a su título al cambiar de sección, y el título tiene que estar.
 - `GuestApp` fuerza `#despensa`; al entrar con el código, AuthProvider pone `#resumen` sin lanzar `hashchange`.
 - Un 401 en cualquier petición (salvo /auth) devuelve al modo invitado y desmonta las finanzas.
 

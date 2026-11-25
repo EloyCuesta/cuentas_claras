@@ -30,6 +30,8 @@ Por qué Cuentas claras es como es. Cada entrada dice qué se decidió, por qué
 
 **Por compras, no por inventario.** Contar lo que hay en casa es pesado y se desactualiza; con los tickets la app ya sabe qué se compró y cuándo. Por eso los productos nuevos se siguen por compras, y contar queda como opción.
 
+**Sin service worker.** La app se puede añadir a la pantalla de inicio (manifest e iconos), pero no funciona sin conexión: va por HTTP en la red de casa, donde un service worker no se puede registrar (exige HTTPS salvo en localhost), y los datos están en el servidor. Lo que sí se aligeró es la carga: archivos aparte con un `import()` dinámico (`lazyComponent`, sin el retraso de 300 ms de `<Suspense>`) y solo la fuente latina (UX-06, `docs/frontend.md`).
+
 **Accesibilidad.** Formularios con etiquetas y errores asociados, foco en el primer campo con error, ventanas modales nativas (`<dialog>`), navegación con teclado y contraste AA en modo claro y oscuro, revisado con axe sin incidencias.
 
 ## De la reestructuración (octubre de 2026)

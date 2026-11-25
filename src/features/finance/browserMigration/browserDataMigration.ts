@@ -59,7 +59,12 @@ export async function migrateBrowserData(
   server: Pick<ApiFinanceRepository, 'importBrowserData' | 'loadAll'>,
   { dbName = DB_NAME }: { dbName?: string } = {},
 ): Promise<BrowserMigrationResult> {
-  if (readFlag() !== null || !(await browserDatabaseExists(dbName))) return { kind: 'nothing' }
+  if (readFlag() !== null) return { kind: 'nothing' }
+  if (!(await browserDatabaseExists(dbName))) {
+    // Este navegador nunca tuvo la versión de antes: no hace falta volver a mirarlo.
+    writeFlag('sin-base')
+    return { kind: 'nothing' }
+  }
 
   const browser = new IndexedDbFinanceRepository({ dbName })
   let data, lastBackupAt

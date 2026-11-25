@@ -570,10 +570,12 @@ test('la plantilla anual cuadra con la mensual y se descarga como hoja de cálcu
 
 test('pasa a la base de datos los datos que había en el navegador y conserva la copia', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-10-28T12:00:00+01:00'))
-  await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Empieza apuntando tu primer gasto' })).toBeVisible()
+  expect(await storedMovements(page)).toBe(0)
 
-  // Lo que dejaba guardado en el navegador la versión anterior de la app.
+  // Lo que dejaba guardado en el navegador la versión anterior de la app, ya ahí antes de abrir esta por primera vez:
+  // abrirla en un navegador sin base antigua guarda la marca y no se vuelve a mirar (UX-06). Se escribe desde otra
+  // página del mismo origen, sin la app.
+  await page.goto('/favicon.svg')
   const bread: Movement = {
     id: 'del-navegador',
     concept: 'Panadería',
@@ -591,7 +593,7 @@ test('pasa a la base de datos los datos que había en el navegador y conserva la
     updatedAt: '2026-10-27T09:00:00.000Z',
   }
   await seedBrowserStorage(page, { categories: [...DEFAULT_CATEGORIES], movements: [bread], recurring: [] })
-  await page.reload()
+  await page.goto('/')
 
   await expect(page.getByText('Se han pasado a la base de datos 1 movimiento y 0 recurrentes que había en este navegador.')).toBeVisible()
   await expect(ledgerValue(page, 'Gastos pagados')).toHaveText('12,50 €')

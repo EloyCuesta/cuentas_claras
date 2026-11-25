@@ -6,8 +6,11 @@ import type { RecurringRule } from '#shared/finance/types.ts'
 import { Amount } from '../../../ui/Amount.tsx'
 import { EmptyState } from '../../../ui/EmptyState.tsx'
 import { Icon } from '../../../ui/Icon.tsx'
-import { RecurringDialog } from '../components/RecurringDialog.tsx'
 import { useFinance } from '../financeContext.ts'
+import { lazyComponent } from '../../../ui/lazyComponent.tsx'
+
+// El formulario de un recurrente se descarga al abrirlo por primera vez (UX-06).
+const RecurringDialog = lazyComponent(() => import('../components/RecurringDialog.tsx').then((loaded) => loaded.RecurringDialog))
 
 export function RecurringPage() {
   const { data, today } = useFinance()

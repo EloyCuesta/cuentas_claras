@@ -6,8 +6,9 @@ React 19 con TypeScript, servida por Vite. Está organizada por funcionalidades,
 
 ```
 src/
-├── main.tsx       arranque: estilos, ToastProvider, AuthProvider y Root
-├── Root.tsx       con el código, FinanceProvider + App (y la migración del navegador); sin él, GuestApp
+├── main.tsx       arranque: estilos, ToastProvider, AuthProvider, LoadBoundary y Root
+├── Root.tsx       con el código, AdminApp (se descarga aparte); sin él, GuestApp
+├── AdminApp.tsx   FinanceProvider + App (y la migración del navegador), en su propio archivo JS
 ├── App.tsx        la app completa: menú, páginas y diálogos de movimientos
 ├── GuestApp.tsx   el invitado: solo la Despensa y «Tengo el código»
 ├── styles.css     todos los estilos
@@ -24,7 +25,7 @@ src/
 | `src/api/` | `src/api/`, `shared/` | features ni `src/ui/` |
 | `src/ui/` | `src/ui/`, `shared/` y React | features ni `src/api/` |
 | `src/features/<f>/` | lo suyo, `src/ui/`, `src/api/` y `shared/`; de otra feature, solo su `index.ts` | el interior de otra feature |
-| `main`, `Root`, `App`, `GuestApp` | las features por su `index.ts`, `src/ui/`, `src/api/` y `shared/` | el interior de las features |
+| `main`, `Root`, `AdminApp`, `App`, `GuestApp` | las features por su `index.ts`, `src/ui/`, `src/api/` y `shared/` | el interior de las features |
 | todo `src/` | — | nada de `server/` |
 
 Además, solo `src/api/client.ts` y el cliente de cada feature (`api.ts`, o `ApiFinanceRepository.ts` en finanzas) hacen peticiones: los componentes usan hooks o providers. Lo vigila `tests/architecture.test.ts`.
@@ -38,6 +39,25 @@ Hoy las features dependen así: finance → auth (SessionPanel en Ajustes) y pan
 - **Despensa** (`src/features/pantry/`): PantryProvider (montado en App y en GuestApp) y `usePantry()`, el mismo para invitado y administrador. Dura entre secciones; + / − y las revisiones se ven al momento y van al servidor en una cola por producto; al volver a la Despensa o a la pestaña se relee en segundo plano (UX-02).
 - **Avisos**: ToastProvider (`src/ui/`) y `useToast()`, con acción opcional («Deshacer») y tres tonos: `success`, `warning` (algo quedó a medias pero no hay que repetirlo, con los colores de aviso) y `error`.
 - Patrón de los contextos: `xContext.ts` (el contexto y su hook) + `XProvider.tsx` (el componente), como pide `react/only-export-components`.
+
+## Carga y peso (UX-06)
+
+- **Archivos aparte**, con `lazyComponent` (`src/ui/lazyComponent.tsx`):
+  - AdminApp (las cuentas y App): el invitado no descarga las finanzas;
+  - los diálogos de tickets: `src/features/tickets/index.ts` los exporta ya así, y la Despensa sigue entrando por el `index.ts`;
+  - el formulario de un recurrente, las copias de seguridad y el editor de categorías, dentro de la propia feature finance.
+
+  `lazyComponent` hace lo mismo que React.lazy: un `import()` dinámico, y Vite saca un archivo aparte. La diferencia es que no usa `<Suspense>`, porque React retrasa unos 300 ms (FALLBACK_THROTTLE_MS) lo que llega después del «fallback»: con React.lazy, abrir las cuentas pasaba de unos 90 ms a unos 860 ms. Las páginas no se cargan así, porque al cambiar de sección el foco va a su título.
+- **Mientras carga**: `src/ui/Loading.tsx` tiene los esqueletos, con el texto de carga de siempre visible y con `role="status"` («Abriendo Cuentas claras…», «Abriendo tus cuentas…», «Cargando la despensa…», «Cargando las copias de seguridad…», «Cargando las categorías…»), y LoadBoundary, para cuando un archivo no llega.
+- **La fuente**: solo el subconjunto latino de Atkinson Hyperlegible Next, declarado en `src/styles.css` (sección 1) y con `preload` en `index.html`. Los dos apuntan al mismo archivo del paquete, y Vite les da el mismo nombre con su huella.
+- **`index.html`**:
+  - la descripción, `theme-color` en claro y oscuro;
+  - el manifest (`public/manifest.webmanifest`), con el icono SVG, los PNG de 192 y 512 px, uno «maskable» y el `apple-touch-icon`.
+
+  Sin service worker: la app va por HTTP en casa (`docs/decisiones.md`).
+- **Listas**:
+  - Movimientos filtra con `useDeferredValue`: lo escrito en la búsqueda se ve al momento y la lista llega después;
+  - en la Despensa, cada cálculo depende solo de lo que usa, no de todo el estado.
 
 ## Cliente de la API
 
