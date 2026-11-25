@@ -15,7 +15,7 @@ La migración sigue registrándose en [STATUS.md](migration/STATUS.md); este arc
 
 ### La migración
 Todo está `verificado` salvo dos tareas ([STATUS.md](migration/STATUS.md)):
-- **DATA-02**: la persona importa su copia real con el importador y revisa el informe. Un agente no la cierra con datos sintéticos.
+- **DATA-02**: la persona importa su copia real con el importador y revisa el informe. Un agente no la cierra con datos sintéticos. Se cerró el 25 de noviembre de 2026 sin importación: la copia SQLite solo tenía pruebas (registro, al final).
 - **CUT-01**: el cambio del uso diario a .NET y la retirada de lo obsoleto. `tests/docs.test.ts` no deja marcarla `verificado` sin DATA-02.
 
 .NET ya atiende las 39 rutas, y los mismos e2e pasan contra Express y contra .NET. El uso diario sigue en Express.
@@ -258,7 +258,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-06 | Carga y peso | UX-00 | verificado |
 | UX-07 | Cierre de la interfaz | UX-01 … UX-06 | verificado |
 | CUT-PREP | Preparar el corte sin cambiar el uso diario | — | verificado |
-| PERSONA | Pasos que solo hace la persona | CUT-PREP | pendiente |
+| PERSONA | Pasos que solo hace la persona | CUT-PREP | en_curso |
 | CUT-FINAL | Cambiar el uso diario a .NET | PERSONA | pendiente |
 
 ### FIX-01 · Los cuatro fallos graves
@@ -440,7 +440,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 - **En STATUS**: CUT-01 pasa a `en_curso`, nunca a `verificado`.
 
 ### PERSONA · Lo que solo hace la persona
-1. **DATA-02**: importar la copia real con «Pasar los datos de SQLite a MySQL» del README y `docs/migration/DATA.md`, y revisar el informe. Si no hay copia SQLite que importar, decidir y dejar escrito cómo se cierra DATA-02.
+1. **DATA-02**: importar la copia real con «Pasar los datos de SQLite a MySQL» del README y `docs/migration/DATA.md`, y revisar el informe. Si no hay copia SQLite que importar, decidir y dejar escrito cómo se cierra DATA-02. **Hecho el 25 de noviembre de 2026**: la copia solo tenía pruebas, así que DATA-02 se cierra sin importación y la instalación empieza vacía en MySQL.
 2. **La copia**: hacer una copia completa (`mysqldump`), restaurarla en una base de prueba y comparar con `CHECKSUM TABLE`.
 3. **Probar .NET**: arrancarlo sobre `cuentas_claras` con `dev:dotnet` y recorrer la app en el ordenador y en el móvil.
 4. **Las pruebas en su MySQL**: repetir las suites en su MySQL 8.0.36 con su usuario de pruebas.
@@ -1031,3 +1031,11 @@ Plantilla:
   - **Lo que la CUT-PREP de main dejó sin comprobar** («los scripts en Windows», «el `.env` con Node 24»): comprobados en Windows con Node 24.13.0. `npm run dev:dotnet` arranca con concurrently y cmd.exe; la API se abre en la raíz del repositorio («Content root path: D:\PROYECTOS\cuentas_claras», por RunWorkingDirectory) y `--env-file-if-exists` encuentra un archivo de ensayo con ruta relativa, del que toma el código y la base `cuentas_test_cutprep` (creada y borrada para ello). Por el proxy de Vite responden la salud, el acceso y GET /api/summary/month, y `__CUENTAS_BACKEND__` vale `dotnet`. Los 26 valores del archivo de `EnvFileTests.Lee_el_formato_de_Node` coinciden con `node --env-file` de Node 24.13.0.
   - **Comandos** (Windows, MySQL 8.4.13 de ensayo, Chrome 158, Node 24): `npm run build:dotnet` (0 avisos y 0 errores), `npm run test:dotnet` (2294/2294: los 2286 de FIX-02 y los 8 de EnvFileTests), `npm run check` (Vitest 1640/1640: los 1638 de UX-07 y los 2 de arquitectura de la CUT-PREP de main), `npm run test:e2e` (90 pasan y 6 se omiten) y `npm run test:e2e:dotnet` (96 pasan y 6 se omiten).
   - **Siguiente**: PERSONA, y después CUT-FINAL, solo con su confirmación.
+
+- **PERSONA, paso 1 (DATA-02) · 25 de noviembre de 2026 · base `a1e32ae`**:
+  - **Alcance**: dejar escrito cómo se cierra DATA-02. Solo documentación.
+  - **Decisión de la persona**: la copia SQLite de antes solo tenía pruebas y no hay datos reales que importar. DATA-02 pasa a `verificado` en STATUS sin importación; la instalación empieza vacía en MySQL y la primera vez `npm run dev` crea las tablas y las categorías iniciales.
+  - **Lo que no se ha hecho**: el agente no ha leído `server/data/`, la base `cuentas_claras` ni `.env`, y no se ha ejecutado el importador.
+  - **Archivos**: este plan y `docs/migration/STATUS.md` (tabla, decisiones pendientes y registro «DATA-02 — cerrada sin importación»).
+  - **Comandos**: `npm run check` (Vitest 1640/1640 en 59 archivos), en Windows con el MySQL 8.4.13 de ensayo.
+  - **Siguiente**: los pasos 2 a 6 de PERSONA (la copia comprobada, probar .NET, las suites en su MySQL 8.0.36, las capturas reales y avisar). PERSONA queda `en_curso`; CUT-FINAL espera a su confirmación.

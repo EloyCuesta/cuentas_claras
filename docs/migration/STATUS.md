@@ -1,6 +1,6 @@
 # Estado y tareas de la migración
 
-Última actualización: 25 de noviembre de 2026 (fusión de terminar-proyecto con main: FIX-01 a UX-07 y la CUT-PREP de main; CUT-01 en curso, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
+Última actualización: 25 de noviembre de 2026 (DATA-02 cerrada sin importación, porque la copia SQLite solo tenía pruebas; CUT-01 en curso, al final del registro). Este archivo es el registro de continuidad de los agentes; actualízalo al terminar cada tarea.
 
 ## Estado comprobado
 
@@ -13,8 +13,8 @@
 | Backend .NET | Host en `backend/`: acceso (BASE-02, verificado) y conexión con el mismo MySQL (DATA-01, verificado): MySqlConnector 2.6.2, las migraciones de `database/mysql/` incrustadas, unidad de trabajo con bloqueos y `/api/health` real. Probado en Windows con MySQL 8.0.36 y aceptado en MySQL 8.4.13 (instancia de ensayo aislada). Reglas puras de tickets portadas (TIC-01, verificado): `backend/src/CuentasClaras.Domain/Tickets/`, `backend/src/CuentasClaras.Domain/Common/` y la validación en `backend/src/CuentasClaras.Application/Tickets/`, con el corpus `fixtures/migration/rules-tickets.json` reproducido entero en es-ES y en la invariante. Finanzas completas (FIN-01 a FIN-05, verificadas) la despensa (PAN-01 a PAN-03, verificados) y la lectura y el guardado de tickets con el OCR local (TIC-02 y TIC-03, verificados), con la app React real contra .NET en los E2E (registros por ID) |
 | Persistencia MySQL e importación | Fase MYSQL terminada. MYSQL-01: conexión, transacciones, bloqueos y esquema en `database/mysql/`. MYSQL-02: finanzas, despensa y tickets sobre MySQL con bloqueos. MYSQL-03: importador SQLite→MySQL con informe (`tools/importer/`). MYSQL-04: better-sqlite3 solo de desarrollo, E2E sobre MySQL y pasos del corte. Probados contra MySQL 8.4.11 |
 | Inventario actual | 39 pares método/ruta de aplicación y uno exclusivo de pruebas; 12 tablas de aplicación, `schema_migrations` y `app_locks` en MySQL; el esquema SQLite de antes en `tools/sqlite/` |
-| Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales |
-| Resultado de esta entrega | En main desde el 16 de noviembre (fusión en avance rápido de la rama dotnet-modulos, que se ha borrado): TIC-01 y DATA-01 verificados en MySQL 8.4.13, y FIN-01…05, PAN-01…03 y TIC-02…04 verificados en .NET, con las 39 rutas de Express y la app React entera contra .NET en los E2E. Ensayo técnico del corte hecho con datos sintéticos. El 23 de noviembre entró en main la lectura de tickets de Lidl Plus (fusión `c622210`); FIX-01 y FIX-02 de [terminar-el-proyecto.md](../terminar-el-proyecto.md) la arreglan en la rama local terminar-proyecto. Quedan DATA-02 y CUT-01, de la persona (registros «Ensayo técnico del corte» y «Verificación final») |
+| Datos reales del usuario | Fuera del alcance de agentes; no se han leído ni importado ni se afirma equivalencia de filas reales. El 25 de noviembre la persona confirmó que la copia SQLite de antes solo tenía pruebas: no hay datos que importar (DATA-02) |
+| Resultado de esta entrega | En main desde el 16 de noviembre (fusión en avance rápido de la rama dotnet-modulos, que se ha borrado): TIC-01 y DATA-01 verificados en MySQL 8.4.13, y FIN-01…05, PAN-01…03 y TIC-02…04 verificados en .NET, con las 39 rutas de Express y la app React entera contra .NET en los E2E. Ensayo técnico del corte hecho con datos sintéticos. El 23 de noviembre entró en main la lectura de tickets de Lidl Plus (fusión `c622210`); FIX-01 y FIX-02 de [terminar-el-proyecto.md](../terminar-el-proyecto.md) la arreglan en la rama local terminar-proyecto. DATA-02 se cerró el 25 de noviembre sin importación (no había datos reales) y queda CUT-01, de la persona (registros «Ensayo técnico del corte», «Verificación final» y «DATA-02 — cerrada sin importación») |
 | Pruebas de aplicación de esta entrega | El 23 de noviembre (FIX-02), en Windows con MySQL 8.4.13 aislado en el 3307 y el usuario limitado cuentas_pruebas: .NET 2286/2286 (con el OCR real), `npm run check` (Vitest 1629/1629 en 58 archivos), `npm run test:e2e:dotnet` 80 y 4 omitidas, y `npm run test:e2e` 74 y 4 omitidas, con Chrome 158 instalado. Las 4 omitidas son las capturas de `e2e/capturas-tickets.spec.ts`, que necesitan CUENTAS_CAPTURAS_DIR |
 
 Este resumen distingue la rama actual de la referencia histórica. Cuando cambie el runtime, actualiza las filas afectadas y enlaza la evidencia; conserva la referencia histórica para entender el origen.
@@ -55,10 +55,10 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | TIC-02 | Lectura OCR/texto/franjas mediante puerto local e integración de la revisión | TIC-01, PAN-01 | verificado |
 | TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | verificado |
 | TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | verificado |
-| DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03 y los pasos del README de MYSQL-04, revisa el informe y se registra el resultado | MYSQL-04 | pendiente |
+| DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03 y los pasos del README de MYSQL-04, revisa el informe y se registra el resultado. Cerrada sin importación: la copia SQLite solo tenía pruebas (registro del 25 de noviembre) | MYSQL-04 | verificado |
 | CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | en_curso |
 
-La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MySQL con la misma API, y el esquema (`database/mysql/`) y el importador salen de ella. Por eso DATA-01 ya no crea el esquema, DATA-02 queda como la validación con los datos de la instalación y CUT-01 cambia el backend, no el motor. Ese corte de datos lo hace la persona, no un agente: `DATA-02` no se cierra con ensayos sintéticos, y `CUT-01` no se cierra sin él.
+La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MySQL con la misma API, y el esquema (`database/mysql/`) y el importador salen de ella. Por eso DATA-01 ya no crea el esquema, DATA-02 queda como la validación con los datos de la instalación y CUT-01 cambia el backend, no el motor. Ese corte de datos lo hace la persona, no un agente: `DATA-02` no se cierra con ensayos sintéticos, y `CUT-01` no se cierra sin él. Se cerró el 25 de noviembre de 2026 por decisión de la persona, sin importación: la copia SQLite solo tenía pruebas, así que la instalación empieza vacía en MySQL.
 
 ## Decisiones y verificaciones pendientes
 
@@ -74,8 +74,8 @@ La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MyS
 | Comprobaciones con MySQL de TIC-01 | Hechas el 8 de noviembre en Windows con MySQL 8.4.13 (registro «TIC-01 y DATA-01 — verificación en MySQL 8.4»): TIC-01 verificado | — |
 | Hallazgos de TIC-01 en TypeScript | Resueltos el 6 de noviembre, en TypeScript y en C# | Registro «TIC-01 — hallazgos corregidos»: en validateTicketSave una lista ya no vale donde va un texto, y «1,15-» sin multiplicación queda dudosa |
 | OCR definitivo | Resuelto en TIC-02 y TIC-04: el de Express (tesseract.js) en un proceso Node aparte (ocrWorker.ts); el reconocimiento real con los fixtures en xUnit, Vitest y `e2e/tickets.spec.ts` contra .NET. Depende de Node y node_modules (README, «Ensayo con el backend .NET») | — |
-| Copia SQLite real | No disponible | Copia consistente, integridad y versión comprobadas |
-| Equivalencia de la importación real | No ejecutada (la hace la persona: DATA-02) | El informe de `npm run importar:sqlite` con su copia: `válido`, todas las tablas y las sumas iguales, y los recorridos funcionales |
+| Copia SQLite real | No hay: el 25 de noviembre la persona confirmó que la copia de antes solo tenía pruebas | — |
+| Equivalencia de la importación real | No aplica: no hay datos reales que importar (DATA-02, cerrada sin importación) | — |
 | Recuperación completa de MySQL | Con mysqldump, comprobada en Linux con datos sintéticos (registro MYSQL-03) y en Windows con MySQL 8.4.13 (registro «Ensayo técnico del corte»: las 14 tablas iguales y los dos backends sobre la copia); Data Export de Workbench sin probar | Una copia de la instalación recuperada en otra base y comparada (`CHECKSUM TABLE` de las 14 tablas) |
 | Cambio del backend usado a diario | No realizado | Requisitos CUT-01 cumplidos y fecha del corte registrada |
 
@@ -708,6 +708,16 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 - El apartado del README pasa a llamarse «Probar el backend .NET», que es como lo cita `docs/pruebas.md`, y suma los pasos del corte para la persona.
 - Lo que la CUT-PREP de main dejó sin comprobar (Windows y Node 24): comprobados en Windows con Node 24.13.0. `npm run dev:dotnet` arranca con concurrently y cmd.exe; la API se abre en la raíz del repositorio («Content root path: D:\PROYECTOS\cuentas_claras», por RunWorkingDirectory) y `--env-file-if-exists` encuentra un archivo de ensayo con ruta relativa, del que toma el código y la base `cuentas_test_cutprep` (creada y borrada para ello). Por el proxy de Vite responden la salud, el acceso y GET /api/summary/month, y `__CUENTAS_BACKEND__` vale `dotnet`. Los 26 valores del archivo de `EnvFileTests.Lee_el_formato_de_Node` coinciden con `node --env-file` de Node 24.13.0. Sigue sin comprobar su MySQL 8.0.36.
 - Comandos, en Windows con el MySQL 8.4.13 de ensayo: `npm run build:dotnet` (0 avisos y 0 errores), `npm run test:dotnet` (2294/2294: los 2286 de FIX-02 y los 8 de EnvFileTests), `npm run check` (Vitest 1640/1640: los 1638 de UX-07 y los 2 de arquitectura de la CUT-PREP de main), `npm run test:e2e` (90 pasan y 6 se omiten) y `npm run test:e2e:dotnet` (96 pasan y 6 se omiten).
+
+### DATA-02 — cerrada sin importación, 25 de noviembre de 2026
+
+- Base: main `a1e32ae`. Solo documentación: no cambia código, contratos ni migraciones.
+- Decisión de la persona: la copia SQLite de la versión de antes solo tenía pruebas, así que no hay datos reales que pasar a MySQL. DATA-02 se cierra sin importación, como prevé PERSONA en [terminar-el-proyecto.md](../terminar-el-proyecto.md) («Si no hay copia SQLite que importar…»).
+- Qué significa: la instalación empieza vacía en MySQL. La primera vez, `npm run dev` crea las tablas y las categorías iniciales en `cuentas_claras` (README, «Preparar MySQL»). El importador (`tools/importer/`) y el apartado «Pasar los datos de SQLite a MySQL» del README se quedan para quien venga de la versión con SQLite.
+- Lo que no se ha hecho: el agente no ha leído `server/data/`, la base `cuentas_claras` ni `.env`, y el importador no se ha ejecutado con datos reales. No se afirma ninguna equivalencia de filas reales: no hay filas que comparar.
+- Comandos: `npm run check` (Vitest 1640/1640 en 59 archivos, con `tests/docs.test.ts`), en Windows con el MySQL 8.4.13 de ensayo.
+- Sigue pendiente (PERSONA): una copia de `cuentas_claras` comprobada con `CHECKSUM TABLE`, probar .NET con `dev:dotnet` sobre ella, repetir las suites en su MySQL 8.0.36 y las capturas reales. CUT-01 sigue `en_curso`.
+- Siguiente: el resto de PERSONA; después, CUT-FINAL con su confirmación.
 
 ### Plantilla para la siguiente tarea
 
