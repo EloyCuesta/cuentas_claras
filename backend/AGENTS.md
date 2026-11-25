@@ -71,7 +71,7 @@ Application posee IClock (NowMs, NowIso y Today, la fecha de reserva del servido
 - Cada host tiene sus almacenes y un Login compartido. Su sección crítica protege la operación completa de intentos y sesiones concurrentes.
 - El lector JSON precede al acceso y al router. Cuenta bytes descomprimidos: 30 MiB para lectura de tickets, 20 MiB en el resto. Todos los errores de aplicación usan sobre JSON español y no-store.
 - El proxy solo es fiable desde loopback. No sustituyas esa regla por confiar en todas las cabeceras X-Forwarded-For.
-- Nunca leer server/data ni cargar .env automáticamente. La configuración local se pasa por entorno.
+- Nunca leer server/data. Program lee el `.env` de la raíz con DotEnv (`src/CuentasClaras.Api/Composition/DotEnv.cs`, CUT-PREP), y el entorno manda sobre él, como en Express. Las pruebas no lo leen nunca: los hosts de `../playwright.dotnet.config.ts` y el proceso de HttpTests arrancan con `CUENTAS_ENV_FILE=ninguno`, para no abrir la base de la instalación.
 
 ## Datos
 
@@ -93,16 +93,17 @@ Sesiones e intentos efímeros; los datos son los de MySQL, con los tipos de [DAT
 `tests/CuentasClaras.Tests/TicketSaveHttpTests.cs` (MySql): guardar como `../server/modules/tickets/tickets.test.ts` (productos nuevos, lo aprendido, precio y cantidad, decisiones, líneas dudosas, huellas golden) y `../server/modules/tickets/ticketAtomicity.test.ts` (un fallo real de MySQL en la segunda línea no deja nada, dos guardados iguales a la vez dan 201 y 409, también sin productos que bloquear, y un ticket y un + a la vez no se pisan), y cambiar una línea y borrar tickets (TIC-04).
 `tests/CuentasClaras.Tests/ImportHttpTests.cs` (MySql): la importación del navegador, y que restaurar e importar dejan intactas (CHECKSUM TABLE) las tablas de la despensa y los tickets.
 `tests/CuentasClaras.Tests/SummaryHttpTests.cs` (MySql): las consultas de resumen responden exactamente lo que calculó TypeScript (los casos «api-*» del corpus de finanzas), restaurando sus datos.
-`tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario (los seis activos desde TIC-04), y el inventario de rutas.
+`tests/CuentasClaras.Tests/HttpContractTests.cs` (MySql): los corpus `http-health`, `http-finance`, `http-pantry` y `http-tickets` sobre .NET, una base por escenario (todos: la lista de activos y MissingRoutes se quitaron en CUT-PREP), y el inventario de rutas.
+`tests/CuentasClaras.Tests/DotEnvTests.cs`: el `.env` (comentarios, comillas, la última clave manda), el entorno por delante, la raíz encontrada desde la carpeta del proyecto, `CUENTAS_ENV_FILE` y `ninguno`, en carpetas temporales.
 `../e2e/dotnet/auth.spec.ts`: componentes reales React sobre .NET, escritorio/móvil y claro/oscuro, sin base de datos. La app completa contra .NET (todos los `../e2e/*.spec.ts`): `../e2e/AGENTS.md`.
 
 Los comandos y el alcance exacto están en [pruebas](../docs/pruebas.md). Los resultados de cada tarea van en [STATUS](../docs/migration/STATUS.md).
 
 ## Trampas y decisiones
 
-- CUENTAS_PORT usa 3201 por defecto para convivir con Express; puerto 0 se reserva a ensayos con puerto libre.
+- CUENTAS_PORT usa 3201 por defecto para convivir con Express; puerto 0 se reserva a ensayos con puerto libre. `npm run dev:dotnet` arranca este host y Vite con `--mode dotnet`, que apunta el proxy a 3201; `npm run dev` sigue siendo Express hasta CUT-FINAL.
 - Sin CUENTAS_DB_USER el host arranca solo con el acceso y lo dice en la consola. `playwright.dotnet.config.ts` lo pasa vacío a propósito: Playwright añade su `env` al del proceso, y con CUENTAS_DB_* heredadas el host abriría y migraría la base, por defecto cuentas_claras.
-- Las pruebas MySQL necesitan CUENTAS_DB_* en el entorno (el host no lee .env) y fallan con un mensaje claro si faltan: no se saltan. Usa un usuario limitado a `cuentas\_test\_%`.
+- Las pruebas MySQL necesitan CUENTAS_DB_* en el entorno (las pruebas no leen .env) y fallan con un mensaje claro si faltan: no se saltan. Usa un usuario limitado a `cuentas\_test\_%`.
 - El pool de MySqlConnector reinicia la sesión al devolver cada conexión: por eso SESSION_SETUP se ejecuta en cada apertura. Dentro de una transacción las consultas van en serie (una conexión no admite dos a la vez).
 - MySqlConnector admite varias sentencias en un mismo texto: «una sentencia por llamada» se cumple por convención, y los valores siempre van como parámetros.
 - La salud lee schema_migrations en cada petición, también para comprobar que MySQL responde.

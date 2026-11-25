@@ -5,16 +5,17 @@ import { DOTNET_E2E_DATABASE } from './e2e/dotnet/database.ts'
 import { DOTNET_E2E_CODE } from './e2e/dotnet/settings.ts'
 
 /**
- * El ensayo React/.NET, en dos partes. Requiere la soluciÃ³n .NET compilada (`npm run build:dotnet`).
+ * El ensayo React/.NET, en dos partes. Requiere la solución .NET compilada (`npm run build:dotnet`).
  *
- * - Acceso (proyectos acceso-*): el host .NET sin base de datos (3202) y la pÃ¡gina aislada de e2e/dotnet/ (4175).
+ * - Acceso (proyectos acceso-*): el host .NET sin base de datos (3202) y la página aislada de e2e/dotnet/ (4175).
  * - La app completa (proyectos app-*): el host .NET con MySQL (3203), sobre su propia base de ensayo
- *   (cuentas_test_e2e_dotnet, que se crea antes de arrancar, se vacÃ­a antes de cada prueba con SQL directo y se borra al
+ *   (cuentas_test_e2e_dotnet, que se crea antes de arrancar, se vacía antes de cada prueba con SQL directo y se borra al
  *   terminar), y la web real construida con CUENTAS_BACKEND=dotnet en dist-dotnet y servida en 4176. Ejecuta los mismos
  *   e2e/*.spec.ts que Express (todos desde TIC-04) y los de e2e/dotnet/app/.
  *
- * Nunca se reutiliza un servidor abierto ni se toca la base cuentas_claras. El servidor, el usuario y la contraseÃ±a de
- * MySQL son los de CUENTAS_DB_* (del entorno o de .env, como Vitest); el host .NET no lee .env, asÃ­ que se le pasan aquÃ­.
+ * Nunca se reutiliza un servidor abierto ni se toca la base cuentas_claras. El servidor, el usuario y la contraseña de
+ * MySQL son los de CUENTAS_DB_* (del entorno o de .env, como Vitest), y se le pasan aquí: los dos hosts arrancan con
+ * CUENTAS_ENV_FILE=ninguno para no leer el .env de la raíz (que apunta a la base de la instalación).
  */
 Object.assign(process.env, loadEnv('test', process.cwd(), 'CUENTAS_DB_'), { CUENTAS_E2E_BACKEND: 'dotnet' })
 
@@ -24,7 +25,7 @@ const APP = { api: 3203, web: 4176 }
 
 export default defineConfig({
   timeout: 30_000,
-  // La app comparte su base de ensayo: de una en una, y cada prueba la vacÃ­a al empezar.
+  // La app comparte su base de ensayo: de una en una, y cada prueba la vacía al empezar.
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
@@ -46,9 +47,9 @@ export default defineConfig({
     {
       command: DOTNET,
       url: `http://127.0.0.1:${ACCESS.api}/api/auth/me`,
-      // Playwright aÃ±ade estas variables a las del entorno: CUENTAS_DB_USER vacÃ­o deja este host solo con el acceso,
-      // aunque quien lo lance tenga CUENTAS_DB_* (si no, abrirÃ­a y migrarÃ­a su base, por defecto cuentas_claras).
-      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(ACCESS.api), CUENTAS_CODIGO: DOTNET_E2E_CODE, CUENTAS_DB_USER: '' },
+      // Playwright añade estas variables a las del entorno: CUENTAS_DB_USER vacío deja este host solo con el acceso,
+      // aunque quien lo lance tenga CUENTAS_DB_* (si no, abriría y migraría su base, por defecto cuentas_claras).
+      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(ACCESS.api), CUENTAS_CODIGO: DOTNET_E2E_CODE, CUENTAS_DB_USER: '', CUENTAS_ENV_FILE: 'ninguno' },
       reuseExistingServer: false,
       timeout: 60_000,
     },
@@ -62,7 +63,7 @@ export default defineConfig({
       command: `node --import tsx e2e/dotnet/prepareDatabase.ts && ${DOTNET}`,
       url: `http://127.0.0.1:${APP.api}/api/health`,
       // El nombre de la base se fuerza siempre: nunca la de CUENTAS_DB_NAME del entorno o de .env.
-      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(APP.api), CUENTAS_CODIGO: E2E_CODE, CUENTAS_DB_NAME: DOTNET_E2E_DATABASE },
+      env: { CUENTAS_HOST: '127.0.0.1', CUENTAS_PORT: String(APP.api), CUENTAS_CODIGO: E2E_CODE, CUENTAS_DB_NAME: DOTNET_E2E_DATABASE, CUENTAS_ENV_FILE: 'ninguno' },
       reuseExistingServer: false,
       timeout: 120_000,
     },

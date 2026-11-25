@@ -56,7 +56,7 @@ La aceptación detallada está en [MODULES.md](MODULES.md), [ARCHITECTURE.md](AR
 | TIC-03 | Guardado transaccional, deduplicación y efectos de compra sobre Pantry | TIC-02, PAN-02 | verificado |
 | TIC-04 | Historial, detalle, asociación, borrado y efectos sobre actividad/ritmo | TIC-03, PAN-03 | verificado |
 | DATA-02 | Validación del corte de datos real: la persona importa su copia con la herramienta de MYSQL-03 y los pasos del README de MYSQL-04, revisa el informe y se registra el resultado | MYSQL-04 | pendiente |
-| CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | pendiente |
+| CUT-01 | E2E completos contra .NET sobre la misma base MySQL, backup/restauración, ensayo final, cambio de backend y retirada de dependencias obsoletas | FIN-04, FIN-05, PAN-03, TIC-04, DATA-02 | en_curso |
 
 La fase MYSQL cambia el motor antes que el backend: Express pasa de SQLite a MySQL con la misma API, y el esquema (`database/mysql/`) y el importador salen de ella. Por eso DATA-01 ya no crea el esquema, DATA-02 queda como la validación con los datos de la instalación y CUT-01 cambia el backend, no el motor. Ese corte de datos lo hace la persona, no un agente: `DATA-02` no se cierra con ensayos sintéticos, y `CUT-01` no se cierra sin él.
 
@@ -672,6 +672,25 @@ Registro histórico del commit `9d1df17`, referido a su árbol de código. Sus r
 - Corpus: de 538 a 545 casos (`fix02-*`). Cambian también, como se esperaba, `seguridad-no-cuadra`, `analisis-no-cambia-cifra`, `casos-12-diferencia` (la línea que una cifra confundida explicaría, marcada) y `lidl-plus-votacion` (sin la lectura del texto no se vota). Generado con Node 24.13.0. `tests/migrationTicketRules.test.ts` y TicketRulesCorpusTests esperan 545.
 - El OCR de .NET usa el worker Node: también le llega `decodePngRows` (solo las filas de la banda, fuera del hilo principal).
 - Comandos, en Windows con el MySQL 8.4.13 de ensayo: `npm run build:dotnet` (0 avisos y 0 errores), `npm run test:dotnet` (2286/2286), `npm run test:e2e:dotnet` (80 pasan y 4 se omiten), `npm run check` (Vitest 1629/1629) y `npm run test:e2e` (74 pasan y 4 se omiten).
+
+### CUT-PREP de terminar-el-proyecto: preparar el corte sin cambiar el uso diario, 25 de noviembre de 2026
+
+- Base: `d8ca767` (UX-07), en la rama local terminar-proyecto. La entrada completa está en el registro de [terminar-el-proyecto.md](../terminar-el-proyecto.md).
+- CUT-01 pasa a `en_curso`: lo técnico está preparado. Lo que falta lo hace la persona: DATA-02, la copia comprobada, probar .NET sobre `cuentas_claras` en el ordenador y en el móvil, y decir la fecha del corte. No pasa a `verificado` sin esa evidencia (CUT-FINAL).
+- Qué cambia:
+  - `npm run dev:dotnet` (la API .NET en 3201 y Vite con `--mode dotnet`, que apunta el proxy a 3201 y pide los resúmenes a .NET) y `npm run start:dotnet` (la API en Release y la web construida en dist-dotnet, con `vite preview`). `npm run dev` no cambia.
+  - El host .NET lee el `.env` de la raíz (`backend/src/CuentasClaras.Api/Composition/DotEnv.cs`), y una variable del entorno manda sobre él, como en Express. `CUENTAS_ENV_FILE` elige otro archivo, y `ninguno` lo desactiva. Así arrancan los hosts de `playwright.dotnet.config.ts` y el proceso de HttpTests, para no abrir nunca la base de la instalación. Lo prueban 4 tests de DotEnvTests.
+  - Sin MissingRoutes ni la lista de escenarios activos en HttpContractTests: desde TIC-04 se reproducen los seis.
+  - `playwright.dotnet.config.ts` con su codificación arreglada (era UTF-8 leído como Windows-1252).
+  - `tsx` pasa a `dependencies`, porque lo usan `npm run server` y el worker del OCR de .NET. El lockfile solo cambia sus marcas `dev`.
+  - `docs/api.md`: el pendiente de Cache-Control, con su estado (Express sin la cabecera en los 400/413 del lector JSON; .NET con ella) y cuándo se quita (CUT-01).
+  - El README tiene los pasos del corte y la vuelta atrás, con comandos de npm y sin PowerShell obligatorio. DATA.md tiene los pasos 3 a 5 con los scripts.
+- Comprobado sin tocar `cuentas_claras`:
+  - `npm run dev:dotnet` y `npm run start:dotnet`, sobre una base `cuentas_test_cutprep` (borrada al terminar), con el código y el nombre de la base leídos de un `.env` de ensayo (`CUENTAS_ENV_FILE`);
+  - por el proxy de Vite responden la salud, el acceso con ese código y GET /api/summary/month (solo existe en .NET);
+  - la web construida con `--mode dotnet` incluye la llamada a `/summary/` y la de Express no.
+- Comandos, en Windows con el MySQL 8.4.13 de ensayo: `npm run build:dotnet` (0 avisos y 0 errores), `npm run test:dotnet` (2290/2290), `npm run check`, `npm run test:e2e` y `npm run test:e2e:dotnet` (Vitest 1638/1638; e2e: 90 y 96 pasan, 6 se omiten en cada una).
+- Siguiente: PERSONA (DATA-02, la copia, probar .NET con sus datos) y después CUT-FINAL, solo con su confirmación.
 
 ### Plantilla para la siguiente tarea
 

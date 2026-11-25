@@ -14,12 +14,19 @@
     "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
     "dev:web": "vite",
     "dev:server": "tsx watch --env-file-if-exists=.env server/index.ts",
+    "dev:dotnet": "concurrently -k -n api,web -c magenta,green \"npm:dev:dotnet:api\" \"npm:dev:dotnet:web\"",
+    "dev:dotnet:api": "dotnet run --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj",
+    "dev:dotnet:web": "vite --mode dotnet",
     "server": "tsx --env-file-if-exists=.env server/index.ts",
     "importar:sqlite": "tsx --env-file-if-exists=.env tools/importer/cli.ts",
     "generar:tickets": "tsx tools/banco-tickets/generar.ts",
     "medir:tickets": "tsx tools/banco-tickets/medir.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "build:web:dotnet": "tsc -b && vite build --mode dotnet --outDir dist-dotnet --emptyOutDir",
+    "start:dotnet": "npm run build:web:dotnet && concurrently -k -n api,web -c magenta,green \"npm:start:dotnet:api\" \"npm:start:dotnet:web\"",
+    "start:dotnet:api": "dotnet run -c Release --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj",
+    "start:dotnet:web": "vite preview --mode dotnet --outDir dist-dotnet",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -38,7 +45,8 @@
     "mysql2": "3.24.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -52,7 +60,6 @@
     "concurrently": "^10.0.6",
     "fake-indexeddb": "^6.2.6",
     "oxlint": "^1.89.0",
-    "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

@@ -257,7 +257,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-05 | Despensa más directa | UX-02 | verificado |
 | UX-06 | Carga y peso | UX-00 | verificado |
 | UX-07 | Cierre de la interfaz | UX-01 … UX-06 | verificado |
-| CUT-PREP | Preparar el corte sin cambiar el uso diario | — | pendiente |
+| CUT-PREP | Preparar el corte sin cambiar el uso diario | — | verificado |
 | PERSONA | Pasos que solo hace la persona | CUT-PREP | pendiente |
 | CUT-FINAL | Cambiar el uso diario a .NET | PERSONA | pendiente |
 
@@ -973,3 +973,36 @@ Plantilla:
     - `npm run test:e2e:dotnet`: 96 pasan y 6 se omiten;
     - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa, dos veces seguidas con los mismos toques.
   - **Siguiente tarea**: CUT-PREP.
+
+- **CUT-PREP · 25 de noviembre de 2026 · base `d8ca767`** (UX-07):
+  - **Alcance**: dejar el corte a .NET listo para que lo haga la persona, sin cambiar el uso diario: `npm run dev` sigue arrancando Express.
+  - **Qué cambia**:
+    - **Scripts** (`package.json`):
+      - `dev:dotnet`: la API .NET en 3201 y Vite con `--mode dotnet`;
+      - `dev:dotnet:api` y `dev:dotnet:web`, para el móvil con `-- --host`;
+      - `start:dotnet`: la web construida en dist-dotnet (`build:web:dotnet`) y servida con `vite preview`, y la API en Release.
+      - En `vite.config.ts`, `--mode dotnet` apunta el proxy a 3201 y fija `__CUENTAS_BACKEND__` en `dotnet`, sin variables de entorno. CUENTAS_API_URL y CUENTAS_BACKEND siguen valiendo, como en las e2e.
+    - **El host .NET lee `.env`** (`backend/src/CuentasClaras.Api/Composition/DotEnv.cs`):
+      - el de la primera carpeta con package.json, subiendo desde la actual o desde la del ensamblado;
+      - una variable del entorno manda sobre él, como con `--env-file-if-exists` en Express;
+      - `CUENTAS_ENV_FILE` elige otro archivo, y `ninguno` lo desactiva;
+      - sin dependencias nuevas; lo prueban 4 tests en `backend/tests/CuentasClaras.Tests/DotEnvTests.cs`.
+      - Esto cambia una regla de `backend/AGENTS.md` («nunca cargar .env»), porque lo pide esta tarea. Para que las pruebas no abran nunca la base de la instalación, los dos hosts de `playwright.dotnet.config.ts` y el proceso real de HttpTests arrancan con `CUENTAS_ENV_FILE=ninguno`.
+    - **Restos**:
+      - `playwright.dotnet.config.ts` con su codificación arreglada (UTF-8 que se había leído como Windows-1252: «soluciÃ³n»);
+      - `tsx` pasa a `dependencies` (lo usan `npm run server` y el worker del OCR de .NET; `tests/architecture.test.ts` solo vigila better-sqlite3 y mysql2), y el lockfile solo cambia sus marcas `dev`;
+      - fuera MissingRoutes y la lista de escenarios activos de `backend/tests/CuentasClaras.Tests/HttpContractTests.cs`, que se reproducen todos desde TIC-04;
+      - el pendiente de Cache-Control en `docs/api.md`, con su estado de hoy y cuándo se quita.
+    - **El README**: «El backend .NET» con los scripts, y «Pasar el uso de cada día a .NET (CUT-01)», con los pasos para la persona y la vuelta atrás (comandos de npm y Workbench; sin PowerShell obligatorio). `docs/migration/DATA.md` (pasos 3 a 5), `docs/pruebas.md` y `backend/AGENTS.md`, al día.
+    - **STATUS**: CUT-01 pasa a `en_curso`, con su entrada. No pasa a `verificado` hasta que la persona dé su evidencia (CUT-FINAL).
+  - **Comprobado sin tocar `cuentas_claras`**:
+    - `npm run dev:dotnet` y `npm run start:dotnet`, sobre una base `cuentas_test_cutprep` creada y borrada para ello, con el código y el nombre de la base leídos de un `.env` de ensayo (`CUENTAS_ENV_FILE`);
+    - por el proxy de Vite responden la salud (esquema 5), el acceso con ese código y GET /api/summary/month, que solo existe en .NET;
+    - `__CUENTAS_BACKEND__` vale `dotnet`, y la web construida con `--mode dotnet` incluye la llamada a `/summary/` y la de Express no.
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run build:dotnet`: 0 avisos y 0 errores;
+    - `npm run test:dotnet`: 2290/2290 (4 tests nuevos de DotEnv);
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1638/1638;
+    - `npm run test:e2e`: 90 pasan y 6 se omiten;
+    - `npm run test:e2e:dotnet`: 96 pasan y 6 se omiten (con los hosts sin `.env`).
+  - **Lo que queda es de la persona** (PERSONA): DATA-02, la copia comprobada, probar .NET con `npm run dev:dotnet` sobre sus datos en el ordenador y el móvil, las suites en su MySQL 8.0.36 y las capturas reales para el banco. Después, CUT-FINAL, solo con su confirmación.

@@ -219,6 +219,8 @@ public sealed class HttpTests
         start.ArgumentList.Add(typeof(CuentasClaras.Api.Program).Assembly.Location);
         start.Environment.Remove("CUENTAS_CODIGO");
         if (code is not null) start.Environment["CUENTAS_CODIGO"] = code;
+        // Sin el .env de la raíz: su código (y su base) no pueden colarse en la prueba.
+        start.Environment[DotEnv.FileVariable] = DotEnv.None;
         start.Environment["CUENTAS_HOST"] = "127.0.0.1";
         start.Environment["CUENTAS_PORT"] = "0";
         using var process = Process.Start(start)!;

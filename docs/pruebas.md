@@ -173,7 +173,7 @@ $env:CUENTAS_DB_NAME = 'cuentas_test_data01'
 dotnet run --no-build --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj
 ```
 
-No lee .env automáticamente. Al arrancar aplica las migraciones de `database/mysql/` (y siembra una base nueva) y escribe en la consola la base, sin la contraseña. `/api/health` devuelve 200 con la versión aplicada; sin CUENTAS_DB_USER arranca solo con el acceso y salud devuelve 500. Las rutas pendientes no devuelven datos simulados. Express sigue siendo el servidor de uso diario. Antes de sustituirlo, sigue las dependencias y validaciones de [STATUS](migration/STATUS.md).
+Lee el `.env` de la raíz (desde CUT-PREP), pero estas variables del entorno mandan sobre él: para no leerlo en absoluto, `CUENTAS_ENV_FILE=ninguno`, como hacen los hosts de las e2e. Para el uso de cada día están `npm run dev:dotnet` y `npm run start:dotnet` (README). Al arrancar aplica las migraciones de `database/mysql/` (y siembra una base nueva) y escribe en la consola la base, sin la contraseña. `/api/health` devuelve 200 con la versión aplicada; sin CUENTAS_DB_USER arranca solo con el acceso y salud devuelve 500. Las rutas pendientes no devuelven datos simulados. Express sigue siendo el servidor de uso diario. Antes de sustituirlo, sigue las dependencias y validaciones de [STATUS](migration/STATUS.md).
 
 ### Cobertura de la aplicación actual
 

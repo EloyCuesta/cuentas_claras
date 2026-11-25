@@ -11,29 +11,13 @@ namespace CuentasClaras.Tests;
 /// server/migrationContracts.test.ts sobre Express: una base cuentas_test_* nueva por escenario, el reloj, la fecha y los
 /// ids del escenario, y respuestas completas comparadas sin regenerar expectativas. http-testing.json no está: .NET no
 /// tiene la ruta de reinicio de pruebas (HttpTests comprueba que no existe).
-/// Un escenario se activa cuando .NET ya tiene todas sus rutas; mientras tanto, la prueba exige que de verdad le falte
-/// alguna, para que la lista no se quede atrás sin que nadie lo vea.
+/// Desde TIC-04 .NET tiene todas las rutas y se reproducen todos los escenarios: la lista de activos y MissingRoutes, que
+/// servían mientras faltaban rutas, se quitaron en CUT-PREP.
 /// </summary>
 [Trait("Categoria", TestDatabase.Category)]
 public sealed class HttpContractTests
 {
     private static readonly string[] Modules = ["health", "finance", "pantry", "tickets"];
-
-    /// <summary>Los escenarios que ya se reproducen sobre .NET; crece con cada ID (docs/migration/STATUS.md).</summary>
-    private static readonly HashSet<string> Active = new(StringComparer.Ordinal)
-    {
-        "salud pública y versión del esquema sin datos de la instalación",
-        // FIN-01 y FIN-02 (con la restauración que usa de preparación).
-        "categorías, pago con ID estable, sustitución y metadatos",
-        // FIN-03.
-        "recurrentes del día 31, exclusiones, pagos y generación repetida",
-        // FIN-05 con las personas y los productos de PAN-01.
-        "importación del navegador una sola vez y restauración aislada",
-        // PAN-01, PAN-02 y PAN-03: la despensa entera.
-        "catálogo público, ajustes relativos, compras, deshacer y revisión",
-        // TIC-02 a TIC-04: los tickets enteros.
-        "lectura, guardado, duplicado, historial, asociación y borrado públicos",
-    };
 
     private static readonly Dictionary<string, JsonDocument> Fixtures =
         Modules.ToDictionary(module => module, module => CorpusJson.Load($"http-{module}.json"));
@@ -57,10 +41,9 @@ public sealed class HttpContractTests
             Assert.Contains("inventados", fixture.RootElement.GetProperty("provenance").GetString());
             names.AddRange(fixture.RootElement.GetProperty("scenarios").EnumerateArray().Select(scenario => scenario.GetProperty("name").GetString()!));
         }
-        // Salud 1, finanzas 3, despensa 1 y tickets 1 (el acceso lo ejecuta HttpTests), con nombres únicos; los activos existen.
+        // Salud 1, finanzas 3, despensa 1 y tickets 1 (el acceso lo ejecuta HttpTests), con nombres únicos.
         Assert.Equal(6, names.Count);
         Assert.Equal(names.Count, names.Distinct(StringComparer.Ordinal).Count());
-        Assert.All(Active, name => Assert.Contains(name, names));
     }
 
     /// <summary>Las dos consultas de resumen solo existen en .NET (FIN-04): las prueba SummaryHttpTests, no los contratos de Express.</summary>
@@ -98,31 +81,7 @@ public sealed class HttpContractTests
     {
         var scenario = Fixtures[modulo].RootElement.GetProperty("scenarios").EnumerateArray()
             .Single(item => item.GetProperty("name").GetString() == escenario);
-        var missing = MissingRoutes(scenario);
-        if (!Active.Contains(escenario))
-        {
-            Assert.True(missing.Count > 0, $"«{escenario}» ya tiene todas sus rutas en .NET: actívalo en HttpContractTests.");
-            return;
-        }
-        Assert.True(missing.Count == 0, $"Faltan rutas en .NET: {string.Join(", ", missing)}");
         await Run(scenario);
-    }
-
-    /// <summary>Las rutas de los pasos que .NET todavía no atiende.</summary>
-    private static List<string> MissingRoutes(JsonElement scenario)
-    {
-        var routes = ApiHost.ModuleRoutes();
-        var missing = new List<string>();
-        foreach (var step in scenario.GetProperty("steps").EnumerateArray())
-        {
-            var request = step.GetProperty("request");
-            var method = request.GetProperty("method").GetString()!;
-            var path = request.GetProperty("path").GetString()!.Split('?', 2)[0].TrimEnd('/');
-            var known = ApiHost.HostRoutes.Any(route => route.Method == method && route.Pattern.Equals(path, StringComparison.OrdinalIgnoreCase))
-                || routes.Find(method, path) is not null;
-            if (!known) missing.Add($"{method} {path}");
-        }
-        return missing;
     }
 
     private static async Task Run(JsonElement scenario)

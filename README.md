@@ -75,32 +75,28 @@ La web usa `CUENTAS_API_URL` (por defecto `http://127.0.0.1:3001`) para saber ad
 
 El backend .NET de ensayo lee las mismas `CUENTAS_*` y, para leer tickets con imágenes, lanza el OCR de Express en un proceso Node aparte (necesita Node y `npm install`). Lo busca en `server/modules/tickets/adapters/tesseract/ocrWorker.ts`, desde la carpeta donde se arranca; `CUENTAS_OCR_WORKER` cambia esa ruta.
 
-### Ensayo con el backend .NET
+### El backend .NET
 
-El backend .NET (`backend/`) atiende las mismas rutas sobre la misma base. Mientras se ensaya, arráncalo en lugar de Express (nunca los dos a la vez sobre la misma base), en dos terminales de PowerShell desde la raíz del repositorio. Necesita el SDK de .NET 10, Node y `npm install` (para el OCR de los tickets).
+El backend .NET (`backend/`) atiende las mismas rutas sobre la misma base. Lee las mismas `CUENTAS_*`, también del `.env` de la raíz, y una variable del entorno manda sobre `.env`, como en Express. Nunca arranques los dos a la vez sobre la misma base. Necesita el SDK de .NET 10, Node y `npm install` (para el OCR de los tickets).
 
-Terminal 1, la API .NET en el puerto 3201:
+- `npm run build:dotnet`: compila la solución, la primera vez y después de cada cambio en `backend/`.
+- `npm run dev:dotnet`: la API .NET en el puerto 3201 y la web en http://localhost:5173, que habla con ella. Es el equivalente de `npm run dev`, que sigue arrancando Express.
+- En el móvil, como con Express: `npm run dev:dotnet:api` en una terminal y `npm run dev:dotnet:web -- --host` en otra.
+- `npm run start:dotnet`: lo mismo en modo producción. La API se compila en Release, y la web se construye en la carpeta dist-dotnet y se sirve en http://localhost:4173.
 
-```powershell
-npm run build:dotnet
-$env:CUENTAS_CODIGO = 'tu código de acceso'
-$env:CUENTAS_DB_HOST = '127.0.0.1'
-$env:CUENTAS_DB_PORT = '3306'
-$env:CUENTAS_DB_USER = 'cuentas'
-$env:CUENTAS_DB_PASSWORD = Read-Host 'Contraseña de MySQL'
-$env:CUENTAS_DB_NAME = 'cuentas_claras'
-dotnet run --no-build --project backend/src/CuentasClaras.Api/CuentasClaras.Api.csproj
-```
+Comprueba `http://localhost:5173/api/health`: responde `{ ok: true, data: { status: 'ok', schemaVersion: 5 } }`.
 
-Terminal 2, la web apuntando a .NET:
+#### Pasar el uso de cada día a .NET (CUT-01)
 
-```powershell
-$env:CUENTAS_API_URL = 'http://127.0.0.1:3201'
-$env:CUENTAS_BACKEND = 'dotnet'
-npm run dev:web
-```
+Lo haces tú, con tus datos. Son comandos de npm y MySQL Workbench (o mysqldump); no hace falta PowerShell. El detalle está en `docs/migration/DATA.md` («Ensayo, corte y recuperación»).
 
-Comprueba `http://localhost:5173/api/health` (responde `{ ok: true, data: { status: 'ok', schemaVersion: 5 } }`) y abre `http://localhost:5173`. Para volver a Express, cierra las dos terminales y arranca `npm run dev` como siempre. El cambio de la instalación de cada día está en `docs/migration/DATA.md` («Ensayo, corte y recuperación»).
+1. **Para las escrituras**: cierra la web en los móviles y para `npm run dev` (Ctrl+C).
+2. **Haz una copia y compruébala**: Workbench *Data Export* o mysqldump («Copias de MySQL»). Recupérala en una base de prueba y compara `CHECKSUM TABLE` con la tuya. Si no coinciden, no sigas.
+3. **Arranca .NET**: `npm run build:dotnet` y después `npm run dev:dotnet`. En http://localhost:5173/api/health tiene que salir `"status":"ok"` y `"schemaVersion":5`.
+4. **Recorre lo de siempre**, en el ordenador y en el móvil: el resumen, apuntar un gasto, la despensa, + y −, y leer y guardar un ticket.
+5. **Si todo va bien**, a partir de ahora arranca `npm run dev:dotnet` en lugar de `npm run dev`, y díselo al agente con la fecha y lo que has probado. Él hará que `npm run dev` arranque .NET (CUT-FINAL).
+
+**Volver a Express**: para `npm run dev:dotnet` (Ctrl+C) y arranca `npm run dev`. Es la misma base y el mismo esquema: no hay que convertir nada, y lo escrito con .NET se queda. Si lo que falla son los datos, recupera la copia del paso 2.
 
 ## Preparar MySQL
 
