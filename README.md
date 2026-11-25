@@ -8,6 +8,8 @@ Aplicación web para apuntar ingresos, gastos y próximos pagos, y responder de 
 - ¿Cuánto me quedará después de pagar los gastos previstos?
 - ¿Cómo va el año, mes a mes y por categoría?
 
+Y la despensa de casa, sin el código: lo que hay, lo que se está acabando (con los tickets de la compra), el repaso de la semana y la lista de la compra para WhatsApp.
+
 Hecha con React y TypeScript. Los datos se guardan en una base de datos **MySQL** de tu equipo (MySQL Server 8.4, que puedes ver y administrar con MySQL Workbench), a través de un pequeño servidor Node.js + Express. No hace falta Docker ni registrarse.
 
 Antes los datos estaban en un archivo SQLite (`server/data/cuentas.db`); si vienes de esa versión, mira «Pasar los datos de SQLite a MySQL». La migración prevista del servidor a ASP.NET Core, conservando React y esta misma base MySQL, se prepara en [la guía de migración](docs/migration/README.md). Su [estado comprobado](docs/migration/STATUS.md) distingue lo implementado de lo pendiente; los pasos de uso siguientes corresponden a la aplicación actual.

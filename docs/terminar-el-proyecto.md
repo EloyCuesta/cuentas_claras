@@ -256,7 +256,7 @@ Haz una por sesión, en este orden. Para la aceptación, cada tarea pasa además
 | UX-04 | El móvil: navegación, Resumen, toques y avisos | UX-00 | verificado |
 | UX-05 | Despensa más directa | UX-02 | verificado |
 | UX-06 | Carga y peso | UX-00 | verificado |
-| UX-07 | Cierre de la interfaz | UX-01 … UX-06 | pendiente |
+| UX-07 | Cierre de la interfaz | UX-01 … UX-06 | verificado |
 | CUT-PREP | Preparar el corte sin cambiar el uso diario | — | pendiente |
 | PERSONA | Pasos que solo hace la persona | CUT-PREP | pendiente |
 | CUT-FINAL | Cambiar el uso diario a .NET | PERSONA | pendiente |
@@ -929,3 +929,47 @@ Plantilla:
     - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa;
     - `vite` en desarrollo sirve la fuente desde `node_modules` y el manifest.
   - **Siguiente tarea**: UX-07.
+
+- **UX-07 · 25 de noviembre de 2026 · base `ab5be83`** (UX-06):
+  - **Alcance**: el cierre de la interfaz. Las capturas y los números finales frente a UX-00, un repaso de teclado, foco y contraste, y la documentación al día.
+  - **Capturas**: claro y oscuro, escritorio y Pixel 7, cada pantalla y los diálogos, en .medidas-interfaz/ux07 (fuera de git), para compararlas con .medidas-interfaz/ux00.
+  - **Números finales** (`e2e/medidas-interfaz.spec.ts`, la misma copia de ejemplo y la misma despensa):
+
+    | | UX-00 | UX-07 |
+    | --- | --- | --- |
+    | Añadir un gasto con una categoría habitual (escritorio y móvil) | 5 toques + 2 campos | 3 toques + 2 campos |
+    | Añadir un ingreso (escritorio y móvil) | 7 toques + 2 campos | 4 toques + 2 campos |
+    | + / − del primer producto | 2 toques (desplazarse) | 1 toque: el primer + está en la primera pantalla (809 de 839 px en el móvil, 503 de 720 en el escritorio) |
+    | + de cualquier producto | desplazarse por los bloques | 2 toques + 1 campo, con el buscador |
+    | Marcar pagado · añadir un producto · escanear un ticket | 2 · 2 + 1 · 6 + 1 | igual |
+    | Objetivos de menos de 44 px en el Pixel 7 | Resumen 15, Año 18, Movimientos 12, Presupuestos 9 y Despensa 8 | 0, salvo las 12 columnas del gráfico del año (no son frecuentes) |
+    | Barra inferior del móvil | 6 pestañas, 11 px, 2 se parten | 5 pestañas, 12 px, ninguna se parte (también en 360 px) |
+    | Guardar un movimiento: hasta cerrarse el diálogo | 3 peticiones, 202–221 ms | 1 petición, 41–48 ms (207–215 ms con la relectura retrasada 1,5 s, antes 2035 ms) |
+    | Volver a la Despensa | 5 peticiones, 47–54 ms, sin «Cargando…» | igual, y lo de antes se ve al momento (UX-02) |
+    | JS al abrir: invitado · con el código | 458,8 kB · 458,8 kB | 302,2 kB · 396,9 kB (93,4 y 120,1 kB comprimido) |
+    | Abrir con el código | 90–93 ms | 85–98 ms |
+
+    Dos arreglos de la medición. Los números de antes no cambian, porque los de UX-03 a UX-06 ya daban lo mismo cuando no fallaba:
+    - **«Más usadas»**: la medición miraba si había un botón sin esperar (`count()`), y a veces contaba la lista desplegable. Ahora espera a que salga, hasta 1 s.
+    - **Escribir en un campo**: miraba si el cursor estaba en el mismo instante. Al cambiar «Gasto | Ingreso», el foco vuelve al importe en el siguiente fotograma (`requestAnimationFrame`), así que a veces contaba un toque de más: 5 en lugar de 4 en el ingreso. Ahora espera hasta 0,5 s. La app lo hacía bien; la medición miraba demasiado pronto.
+  - **Teclado y foco**:
+    - prueba nueva en `e2e/app.spec.ts`, «con el teclado: «Saltar al contenido», la tecla «n», Escape devuelve el foco y cada parada se ve», en escritorio y móvil;
+    - «Saltar al contenido» es la primera parada y lleva el foco a `main`;
+    - «n» abre «Nuevo movimiento» con el foco en el importe;
+    - Escape la cierra y el foco vuelve a `main`;
+    - las 10 paradas siguientes tienen contorno de 2 px o más (`:focus-visible`).
+  - **Contraste**: se calcularon todos los pares de colores de `:root` (texto sobre fondo, en claro y en oscuro) con la fórmula de WCAG.
+    - El texto pasa 4,5:1. El más justo es `--pencil` sobre `--paper` en claro, con 5,02:1.
+    - Los bordes y las barras pasan 3:1. El más justo es `--rule-strong` sobre `--sheet` en claro, con 3,29:1.
+    - No hubo que cambiar ningún color.
+  - **Documentación**:
+    - el README dice también lo que hace la Despensa, al principio («Lo que hace»);
+    - `docs/frontend.md` (accesibilidad: el teclado y el contraste);
+    - `src/features/finance/AGENTS.md` («Saltar al contenido», y la frase de la migración del navegador, que había quedado fuera de sitio en UX-06);
+    - `e2e/AGENTS.md` (la prueba del teclado).
+  - **Comandos** (MySQL 8.4.13 de ensayo, Chrome 158):
+    - `npm run check`: tipos correctos; oxlint con 1 aviso (el de antes); Vitest 1638/1638;
+    - `npm run test:e2e`: 90 pasan y 6 se omiten;
+    - `npm run test:e2e:dotnet`: 96 pasan y 6 se omiten;
+    - `e2e/medidas-interfaz.spec.ts` en escritorio y móvil: pasa, dos veces seguidas con los mismos toques.
+  - **Siguiente tarea**: CUT-PREP.

@@ -178,6 +178,36 @@ test('un gasto en tres toques: Intro al concepto, la categoría habitual en un b
   expect(await storedMovements(page)).toBe(3)
 })
 
+test('con el teclado: «Saltar al contenido», la tecla «n», Escape devuelve el foco y cada parada se ve', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('.ledger')).toBeVisible()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  const main = page.getByRole('main')
+  await expect(main).toBeFocused()
+
+  // «n» abre «Nuevo movimiento» con el foco en el importe; Escape la cierra y el foco vuelve adonde estaba.
+  await page.keyboard.press('n')
+  const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+  await expect(dialog.getByLabel('Importe')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(main).toBeFocused()
+
+  // Cada parada del tabulador tiene un contorno visible (:focus-visible).
+  for (let i = 0; i < 10; i++) {
+    await page.keyboard.press('Tab')
+    const focused = await page.evaluate(() => {
+      const element = document.activeElement as HTMLElement
+      const style = getComputedStyle(element)
+      return { what: `${element.tagName} ${element.textContent?.trim().slice(0, 30)}`, outline: style.outlineStyle, width: parseFloat(style.outlineWidth) }
+    })
+    expect(focused.outline, focused.what).not.toBe('none')
+    expect(focused.width, focused.what).toBeGreaterThanOrEqual(2)
+  }
+})
+
 test('valida los campos obligatorios', async ({ page }) => {
   await page.goto('/')
   await openNewMovement(page)

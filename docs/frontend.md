@@ -83,5 +83,6 @@ El menú (`src/App.tsx`) tiene seis secciones en el lateral del escritorio. En l
 - Cada campo tiene su etiqueta, y su error asociado (`aria-describedby`). Al enviar con errores, el foco va al primer campo con error (`focusFirstError` en `src/ui/helpers.ts`).
 - Ventanas modales nativas (`<dialog>`, en `src/ui/Dialog.tsx`), con el foco dentro y Escape para cerrar. Si algo falla al pintar su contenido, la ventana se queda con el aviso «Algo ha fallado al mostrar esta ventana…» (`role="alert"`) y el botón «Cerrar esta ventana» (DialogBoundary), y el resto de la app sigue como estaba.
 - Navegable con teclado, con «Saltar al contenido», y avisos con `role="status"` o `role="alert"`.
-- Contraste AA en modo claro y oscuro, revisado con axe sin incidencias.
+- Contraste AA en modo claro y oscuro, revisado con axe sin incidencias. En UX-07 se recalcularon los pares de colores de `:root`: el texto pasa 4,5:1 (el más justo, `--pencil` sobre `--paper` en claro, 5,0:1) y los bordes y las barras, 3:1.
+- Con el teclado: «Saltar al contenido» es la primera parada, cada parada del tabulador tiene contorno (`:focus-visible`) y al cerrar una ventana el foco vuelve a lo que la abrió (lo prueba `e2e/app.spec.ts`).
 - Los e2e buscan por rol, nombre y etiqueta: un texto de la interfaz es parte del contrato con los tests (cada feature lista los suyos en su AGENTS.md).

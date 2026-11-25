@@ -51,7 +51,9 @@ function counter() {
     async tap(locator: Locator) { task.taps++; await locator.click() },
     async choose(select: Locator, label: string) { task.taps += 2; await select.selectOption({ label }) },
     async type(field: Locator, text: string) {
-      if (!(await field.evaluate((el) => el === document.activeElement))) task.taps++
+      // Si el cursor ya está ahí, o llega enseguida (cambiar «Gasto | Ingreso» lo devuelve al importe en el siguiente
+      // fotograma), no hace falta tocar el campo. Mirarlo en el mismo instante contaba un toque de más a veces (UX-07).
+      if (!(await expect(field).toBeFocused({ timeout: 500 }).then(() => true, () => false))) task.taps++
       task.typed++
       await field.fill(text)
     },
@@ -60,7 +62,8 @@ function counter() {
     /** La categoría: con un botón de «Más usadas» si está (1 toque), y si no, en la lista (2). */
     async category(dialog: Locator, label: string | null) {
       const chip = label ? dialog.locator(`.quick-chip[title="${label}"]`) : dialog.locator('.quick-chip').first()
-      if (await chip.count()) {
+      // Espera un poco a que salgan (count() no espera: a veces miraba antes de pintarse y contaba la lista, UX-07).
+      if (await chip.waitFor({ timeout: 1000 }).then(() => true, () => false)) {
         task.taps++
         await chip.click()
         return
@@ -292,6 +295,9 @@ test('medidas de la interfaz: capturas, toques, peticiones, peso y objetivos peq
     const c = counter()
     await c.tap(page.getByRole('button', { name: 'Añadir movimiento' }).first())
     const dialog = page.getByRole('dialog', { name: 'Nuevo movimiento' })
+    // Como una persona: toca «Ingreso» cuando ya ve el cursor en el importe. Si se toca antes, el foco no vuelve al importe
+    // y escribirlo contaba un toque más, a veces sí y a veces no (UX-07).
+    await expect(dialog.getByLabel('Importe')).toBeFocused()
     await c.tap(dialog.getByRole('radio', { name: 'Ingreso' }))
     await c.type(dialog.getByLabel('Importe'), '100')
     await c.next(dialog.getByLabel('Importe'))
